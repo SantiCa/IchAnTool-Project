@@ -19,28 +19,36 @@ def ExcelMerger(root):
     column2=tk.StringVar()
     L2=tk.Label(window, text="Select the name of the worksheet")
     L2.grid(row=1 ,column=0 ,columnspan=3)
-    entry1=tk.Entry(window,textvariable=Sheet)
-    entry1.grid(row=1 ,column=3 )
+    Entry1=tk.Entry(window,textvariable=Sheet)
+    Entry1.grid(row=1 ,column=3 )
     L3=tk.Label(window,text="Select first column")
     L3.grid(row=2 ,column=0 )
-    entry2=tk.Entry(window,textvariable=column1)
-    entry2.grid(row=2 ,column=1 )
+    Entry2=tk.Entry(window,textvariable=column1)
+    Entry2.grid(row=2 ,column=1 )
     L4=tk.Label(window,text="Select second column")
     L4.grid(row=2 ,column=2 )
-    entry3=tk.Entry(window,textvariable=column2)
-    entry3.grid(row=2 ,column=3 )
-    x=list()
-    def concatenate():
-        columns=Entry2.get()+Entry3.get()
+    Entry3=tk.Entry(window,textvariable=column2)
+    Entry3.grid(row=2 ,column=3)
+
+    pprint(dirlist)
+    def concatenate(ruta):
+        x=list()
+        C1=str(Entry2.get())
+        print(C1)
+        C2=str(Entry3.get())
+        print(C2)
+        sht=str(Entry1.get())
         for d in dirlist:
             try:
-                path=ruta+"/"+d
-                a=pd.read_excel(path, sheet_name =Sheet ,header=0,parse_cols = "C:D")
+                print("try for " + d)
+                a=pd.read_excel(io= ruta+"/"+d, sheet_name =sht ,header=0, usecols=C1+":"+C2)
                 x.append(a)
+                print("success")
             except:
+                print("failed")
                 pass
         ca=pd.concat(x)
         pprint(ca)
         ca.to_excel(ruta+"/"+"concatenado.xlsx")
-    B=tk.Button(window, text="Concatenate",bg="gold",command = lambda: concatenate())
+    B=tk.Button(window, text="Concatenate",bg="gold",command = lambda: concatenate(ruta))
     B.grid(row=3 ,column=3)
