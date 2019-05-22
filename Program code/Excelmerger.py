@@ -31,14 +31,20 @@ def ExcelMerger(root):
     Entry3.grid(row=2 ,column=3 )
     x=list()
     def concatenate(ruta):
-        C1=str(column1.get())
-        C2=str(column2.get())
-        sht=str(Sheet.get())
+        C1=str(Entry2.get())
+        print(C1)
+        C2=str(Entry3.get())
+        print(C2)
+        sht=str(Entry1.get())
+        pprint("following Excel archives will be concatenated"+dirlist)
         for d in dirlist:
             try:
-                a=pd.read_excel(ruta+"/"+d, sheet_name =Sheet ,header=0, usecols= [C1,C2])
+                print("try for " + d)
+                a=pd.read_excel(io= ruta+"/"+d, sheet_name =sht ,header=0, usecols=C1+":"+C2)
                 x.append(a)
+                print(success)
             except:
+                print("failed")
                 pass
         ca=pd.concat(x)
         pprint(ca)
