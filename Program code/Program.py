@@ -78,10 +78,15 @@ def asigner(Leftframe):
     import Bioturbation as b
     b.OpenImg(Leftframe)
     config.count=config.count+1
-    
+def stablishfolder():
+    from tkinter import filedialog
+    import config
+    config.PathtoWfolder=filedialog.askdirectory(initialdir="/",title='Please select a directory')
 menu.add_cascade(label="File", menu=filemenu)
 filemenu.add_command(label="Open an image", command= lambda: asigner(Leftframe))
 filemenu.add_command(label="Open geochemical data frame",state=tk.DISABLED) #future expansion
+filemenu.add_separator()
+filemenu.add_command(label="New Working folder",command=lambda:stablishfolder())
 filemenu.add_separator()
 filemenu.add_command(label="Exit",command= sys.exit)
 
@@ -90,18 +95,21 @@ filemenu.add_command(label="Exit",command= sys.exit)
 analyzemenu=tk.Menu(menu)
 menu.add_cascade(label="Bioturbation Tools", menu=analyzemenu)
 analyzemenu.add_command(label="Analyze core fragment image",command= lambda:b.CoreAnalysis(Rightframe))
+analyzemenu.add_command(label="Entire image by fragments",command=lambda:b.CreateFullFolder(root))
 
 
-    
 analyzemenu.add_command(label="Entire image by fragments",state=tk.DISABLED)#future expansion
 #Other tools
 def exceler(root):
     import Excelmerger as Gtools
     Gtools.ExcelMerger(root)
+def DepthtoAgeI(root):
+    import AgeConverter
+
 OtherTools = tk.Menu(menu)
 menu.add_cascade(label="Other tools", menu=OtherTools)
 OtherTools.add_command(label="ExcelMerger",command=lambda: exceler(root))
-
+OtherTools.add_command(label="Depth to Age",command=lambda: DepthtoAgeI(root))
 #geochemistry menu future expansion
 geochemic = tk.Menu(menu)
 menu.add_cascade(label="Geochemical Tools", menu=geochemic)

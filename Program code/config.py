@@ -4,5 +4,5 @@ NameImg="" #nombre de la imagen abierta
 img=None #imagen abierta
 rutaenlace="InitialBlankRute"#ruta a la imagen abierta
 count=1 #contador de imagenes abiertas hasta el momento
- 
+PathtoWfolder=""
 """______Variables de entorno de Excel Merger______"""
