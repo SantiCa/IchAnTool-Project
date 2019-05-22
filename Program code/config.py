@@ -1,6 +1,6 @@
 print("config imported")
 """______Variables de entorno generales_________________________________________"""
-PathtoWfolder=""
+PathtoWfolder="/"
 
 """______Variables de entorno de Bioturbation tool______________________________"""
 NameImg="" #nombre de la imagen abierta
