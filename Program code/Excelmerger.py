@@ -49,6 +49,6 @@ def ExcelMerger(root):
                 pass
         ca=pd.concat(x)
         pprint(ca)
-        ca.to_excel(ruta+"/"+"concatenado.xlsx")
+        ca.to_excel(ruta+"/"+"concatenado.xlsx",header=True,index=False)
     B=tk.Button(window, text="Concatenate",bg="gold",command = lambda: concatenate(ruta))
     B.grid(row=3 ,column=3)
