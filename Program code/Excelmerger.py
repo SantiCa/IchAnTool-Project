@@ -28,21 +28,22 @@ def ExcelMerger(root):
     L4=tk.Label(window,text="Select second column")
     L4.grid(row=2 ,column=2 )
     Entry3=tk.Entry(window,textvariable=column2)
-    Entry3.grid(row=2 ,column=3 )
-    x=list()
+    Entry3.grid(row=2 ,column=3)
+
+    pprint(dirlist)
     def concatenate(ruta):
+        x=list()
         C1=str(Entry2.get())
         print(C1)
         C2=str(Entry3.get())
         print(C2)
         sht=str(Entry1.get())
-        pprint("following Excel archives will be concatenated"+dirlist)
         for d in dirlist:
             try:
                 print("try for " + d)
                 a=pd.read_excel(io= ruta+"/"+d, sheet_name =sht ,header=0, usecols=C1+":"+C2)
                 x.append(a)
-                print(success)
+                print("success")
             except:
                 print("failed")
                 pass
