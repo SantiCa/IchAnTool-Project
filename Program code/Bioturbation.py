@@ -1,5 +1,3 @@
-
-
 def OpenImg(root):
     import config
     from PIL import Image
@@ -36,10 +34,7 @@ def OpenImg(root):
     if Namefill.endswith('.jpg'):
         Namefill = Namefill[:-4]
     config.NameImg=Namefill
-
-
-####################################################################################################################################################################################################################################################################
-
+################################################################################
 def CoreAnalysis(frame):
     import config
     import numpy as np
@@ -52,7 +47,7 @@ def CoreAnalysis(frame):
         imgarray=np.array(config.img)
         suma=porcentage(imgarray) #asigna a una variable lista suma() los porcentages de pixeles "negros" a lo largo del eje y de la imagen
         excelcreate(suma,frame)
-############################################################################################################################################################################################################################################
+################################################################################
 def porcentage(imgarray):
     b=[]    #loop que define una lista con la suma de los valore smayores de 100 por filas y despues devuelve el porcentage
              #pixeles que dan este valor
@@ -68,8 +63,7 @@ def porcentage(imgarray):
         suma.append(sum(i)*100/imgarray.shape[1])
     print("Sum of  pixels done")
     return suma
-##############################################################################################################################################################################################################################################
-#0
+################################################################################
 def excelcreate(A,frame):
 ####1
     import config
@@ -374,6 +368,7 @@ def Fullcreator(dirlist,window,ruta):
         carpeta2=ruta
         wb.save(carpeta2+"/tramo_"+str(cont)+ str(i[:-4])+".xlsx")
         carpeta2=dirlist
+#################################################################################
 def CreateFullFolder(root):
     import config
     import datetime
