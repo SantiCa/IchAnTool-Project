@@ -105,11 +105,14 @@ def exceler(root):
     Gtools.ExcelMerger(root)
 def DepthtoAgeI(root):
     import AgeConverter
+def AgeAgeEqualicer(root):
+    import Data_Equalicer.py
 
 OtherTools = tk.Menu(menu)
 menu.add_cascade(label="Other tools", menu=OtherTools)
 OtherTools.add_command(label="ExcelMerger",command=lambda: exceler(root))
 OtherTools.add_command(label="Depth to Age",command=lambda: DepthtoAgeI(root))
+OtherTools.add_command(label="data age to age",command=lambda: AgeAgeEqualicer(root))
 #geochemistry menu future expansion
 geochemic = tk.Menu(menu)
 menu.add_cascade(label="Geochemical Tools", menu=geochemic)
