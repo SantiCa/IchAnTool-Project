@@ -25,7 +25,7 @@ Frame2.grid(row= 1, column=0 )
 Frame3.grid(row= 1, column= 1)
 Frame4.grid(row= 2, column= 0, columnspan=2)
 """___Frame 1___"""
-"""
+
 L1=tk.Label(Frame1,text="Select archive where the  Data Frame is located")
 L1.grid(row= 0, column=0)
 L2=tk.Label(Frame1,text="Select archive where age or deth data which will be interpolated is located")
@@ -53,13 +53,13 @@ B2=tk.Button(Frame1,text="get file",command=lambda:GetfileinterpD())
 B1.grid(row= 0, column=1)
 B2.grid(row= 1, column=1)
 
-""""""___VARs___""""""
+"""___VARs___"""
 ColumnData=tk.StringVar()
 SheetData=tk.StringVar()
 ColumnAge=tk.StringVar()
 SheetAgeI=tk.StringVar()
 ColumnAgeI=tk.StringVar()
-""""""___Frame 2___""""""
+"""___Frame 2___"""
 L3=tk.Label(Frame2,text="Sheet name where data and age is located")
 L3.grid(row= 0, column=0)
 tk.Entry(Frame2,textvariable=SheetData).grid(row= 0, column=1)
@@ -70,14 +70,14 @@ L5=tk.Label(Frame2,text="Column where data model is located")
 L5.grid(row= 2, column=0)
 tk.Entry(Frame2,textvariable=ColumnData).grid(row= 2, column=1)
 
-""""""___Frame 3___""""""
+"""___Frame 3___"""
 L6=tk.Label(Frame3,text="Sheet Name for depth in data tu be converted")
 L6.grid(row= 0, column=0)
 tk.Entry(Frame3,textvariable=SheetAgeI).grid(row= 0, column=1)
 L7=tk.Label(Frame3,text="Column where Age who needs a data is located")
 L7.grid(row= 1, column=0)
 tk.Entry(Frame3,textvariable=ColumnAgeI).grid(row= 1, column=1)
-"""
+
 """___Frame 4___"""
 
 def CombertAge(DataVars,AgeIVars,Folders):

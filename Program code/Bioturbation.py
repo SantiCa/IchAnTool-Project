@@ -34,6 +34,11 @@ def OpenImg(root):
     if Namefill.endswith('.jpg'):
         Namefill = Namefill[:-4]
     config.NameImg=Namefill
+    imgarrayAUX=np.array(config.img) #Control of th eimage archivr thar is being used (it shuld be a 2 dimension matrix
+    print(imgarrayAUX)
+    
+
+    
 ################################################################################
 def CoreAnalysis(frame):
     import config
@@ -64,7 +69,7 @@ def porcentage(imgarray):
     print("Sum of  pixels done")
     return suma
 ################################################################################
-def excelcreate(A,frame):
+def excelcreate(A,frame): #A = suma obtained from the percentage script
 ####1
     import config
     import datetime
@@ -88,6 +93,7 @@ def excelcreate(A,frame):
         ws.cell(row=1, column=2).value="pixel"
         ws.cell(row=1, column=3).value="cm"
         ws.cell(row=1, column=4).value="BI (Bioturbation index), after after Reineck 1963, and Taylor and Goldring 1993"
+        ws.cell(row=1, column=5).value="II (Ichnological index), after Droser and Botjer 1986"
         a=1
         i=0
         r=1
@@ -118,6 +124,19 @@ def excelcreate(A,frame):
                 elif p>=100:
                     aux=6
                 ws.cell(row=r, column=4).value=float(aux)
+                if p<1:
+                    aux=1
+                elif p>=1 and p<10:
+                    aux=2
+                elif p>=10 and p<40:
+                    aux=3
+                elif p>=40 and p<60:
+                    aux=4
+                elif p>=60 and p<100:
+                    aux=5
+                elif p>=100:
+                    aux=6
+                ws.cell(row=r, column=5).value=float(aux)
                 c=0
                 i=0
 ########3 (sheetcreator)
@@ -286,17 +305,15 @@ def Fullcreator(dirlist,window,ruta):
       from openpyxl import Workbook
 
 ##########3 (sheetcreator2)
-      def sheetcreator2(A,PixDato,largoimg,Inicio,d,imagen): #funcion que crea las columnas que necesitamos en el excel #PixDato= indica el numero de pixeles (de filas qe queremos considerar para cada punto creado por el programa
+      def sheetcreator2(A,PixDato,largoimg,Inicio,d): #funcion que crea las columnas que necesitamos en el excel #PixDato= indica el numero de pixeles (de filas qe queremos considerar para cada punto creado por el programa
           from openpyxl import Workbook
           ws = wb.create_sheet(str(PixDato) + " pixels mean") # insert at the end (default)
           a=0
-
-
-          ws.cell(row=1, column=1).value="pixel"
-          ws.cell(row=1, column=2).value="cm"
-          ws.cell(row=1, column=3).value="mean bioturbation x " + str(PixDato) +" pixeles"
+          ws.cell(row=1, column=1).value="mean bioturbation x " + str(PixDato) +" pixeles"
+          ws.cell(row=1, column=2).value="pixel"
+          ws.cell(row=1, column=3).value="cm"
           ws.cell(row=1, column=4).value="BI (Bioturbation index), after after Reineck 1963, and Taylor and Goldring 1993"
-
+          ws.cell(row=1, column=5).value="II (Ichnological index), after Droser and Botjer 1986"
           a=1
           i=0
           r=1
@@ -306,30 +323,46 @@ def Fullcreator(dirlist,window,ruta):
               a=a+1
               i=i+1
               if i==PixDato:
-                p=c/PixDato
-                r=r+1
-                u=((a-(float(PixDato/2))) * float(largoimg) / d)
+                  p=c/PixDato
+                  r=r+1
+                  u=((a-(float(PixDato/2))) * float(largoimg) / d)
+                  ws.cell(row=r, column=1).value=float(p)
+                  ws.cell(row=r, column=2).value=float(a-(PixDato/2))
+                  ws.cell(row=r, column=3).value=float(u+float(Inicio))
+                  if p<1:
+                      aux=0
+                  elif p>=1 and p<5:
+                      aux=1
+                  elif p>=5 and p<31:
+                      aux=2
+                  elif p>=31 and p<61:
+                      aux=3
+                  elif p>=61 and p<91:
+                      aux=4
+                  elif p>=91 and p<100:
+                      aux=5
+                  elif p>=100:
+                      aux=6
+                  ws.cell(row=r, column=4).value=float(aux)
+                  if p<1:
+                      aux=1
+                  elif p>=1 and p<10:
+                      aux=2
+                  elif p>=10 and p<40:
+                      aux=3
+                  elif p>=40 and p<60:
+                      aux=4
+                  elif p>=60 and p<100:
+                      aux=5
+                  elif p>=100:
+                      aux=6
+                  ws.cell(row=r, column=5).value=float(aux)
+                  c=0
+                  i=0
 
-                ws.cell(row=r, column=1).value=float(a-(PixDato/2))
-                ws.cell(row=r, column=2).value=float(u+float(Inicio))
-                ws.cell(row=r, column=3).value=float(p)
-                if p<1:
-                    aux=0
-                elif p>=1 and p<5:
-                    aux=1
-                elif p>=5 and p<31:
-                    aux=2
-                elif p>=31 and p<61:
-                    aux=3
-                elif p>=61 and p<91:
-                    aux=4
-                elif p>=91 and p<100:
-                    aux=5
-                elif p>=100:
-                    aux=6
-                ws.cell(row=r, column=4).value=float(aux)
-                c=0
-                i=0
+
+
+         
 
 ######2 (sheeter)
       wb =Workbook()
@@ -344,11 +377,11 @@ def Fullcreator(dirlist,window,ruta):
       WS0.cell(row=2, column=4).value=str(imagen.size[0])
       WS0.cell(row=2, column=5).value="Width (pixels)"
       d=len(A)
-      sheetcreator2(A,1,largoimg2,Inicio2,d,imagen)
-      sheetcreator2(A,10,largoimg2,Inicio2,d,imagen)
-      sheetcreator2(A,50,largoimg2,Inicio2,d,imagen)
-      sheetcreator2(A,100,largoimg2,Inicio2,d,imagen)
-      sheetcreator2(A,200,largoimg2,Inicio2,d,imagen)
+      sheetcreator2(A,1,largoimg2,Inicio2,d)
+      sheetcreator2(A,10,largoimg2,Inicio2,d)
+      sheetcreator2(A,50,largoimg2,Inicio2,d)
+      sheetcreator2(A,100,largoimg2,Inicio2,d)
+      sheetcreator2(A,200,largoimg2,Inicio2,d)
       print("Excel workbook generated")
       return wb
 
@@ -366,7 +399,7 @@ def Fullcreator(dirlist,window,ruta):
         Inicio2=float(Name[:7])
         wb=sheeteer2(suma1,largoimg2,Inicio2,imagen)
         carpeta2=ruta
-        wb.save(carpeta2+"/tramo_"+str(cont)+ str(i[:-4])+".xlsx")
+        wb.save(carpeta2+"/tramo_"+str(cont)+"_ProfGap(cm)_"+ str(i[:-4])+".xlsx")
         carpeta2=dirlist
 #################################################################################
 def CreateFullFolder(root):

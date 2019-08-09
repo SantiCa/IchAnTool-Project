@@ -106,7 +106,7 @@ def exceler(root):
 def DepthtoAgeI(root):
     import AgeConverter
 def AgeAgeEqualicer(root):
-    import Data_Equalicer.py
+    import Data_Equalicer
 
 OtherTools = tk.Menu(menu)
 menu.add_cascade(label="Other tools", menu=OtherTools)
