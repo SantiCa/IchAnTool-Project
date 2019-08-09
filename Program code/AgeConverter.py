@@ -146,7 +146,8 @@ def CombertAgeModel(AgemodelVars,DepthModelVars,Folders):
         else:
             print("end")
     pprint(NewAge)
-    df = pd.DataFrame.from_dict({'Depth':Dep2,'Column2':Age})
+    pprint(Age)
+    df = pd.DataFrame.from_dict({'Depth':Dep2,'Age':NewAge})
     ruta=filedialog.askdirectory(title='Please select a directory to save ')
     df.to_excel(ruta + "/" + "test.xlsx", header=True, index=False)
 
@@ -162,6 +163,7 @@ def ConvertDepthtoAge():
     DepthModelVars=[SheetDepthM.get(),ColumnDepthDepthM.get()]
     Folders=[PathAgeM,PathDepthM]
     CombertAgeModel(AgemodelVars,DepthModelVars,Folders)
+    
 B3=tk.Button(Frame4,text="go",command=lambda:ConvertDepthtoAge())
 B3.grid(row=0)
 
