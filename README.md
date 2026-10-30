@@ -71,7 +71,7 @@ src/ichantool/      package
 tests/              automated tests (incl. regression against v2.1)
 examples/           example images
 docs/               method and roadmap
-publications/       planned papers and target journals
+publications/       draft papers and candidate journals
 legacy/             original v2.1 code (2019), unchanged
 ```
 
