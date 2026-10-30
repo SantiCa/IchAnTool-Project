@@ -19,8 +19,11 @@
 - [ ] Open annotated dataset of core images and masks
 - [ ] Validation: automatic vs. manual masks vs. visual BI/ii estimates
 
-## 4.0 — web application
-- [ ] Upload image -> mask -> curves and indices in the browser
+## Web application (app/)
+- [x] Image -> enhancement -> detection -> editing -> curves and indices in the browser
+- [x] Incremental learning of ichnotaxa (k-NN with novelty detection); model export/import
+- [ ] Pixel-level learned segmentation in the app (train on painted masks)
+- [ ] Host on GitHub Pages
 - [ ] Batch processing and reports for institutional/industry users
 
 ## Extensions

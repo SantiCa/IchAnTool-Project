@@ -1,0 +1,138 @@
+// IchAnTool web — interface strings (es / en).
+
+const D = {
+  es: {
+    'app.tagline': 'Análisis icnológico de imágenes de sondeos',
+    'top.new': 'Nuevo', 'top.open': 'Abrir proyecto', 'top.save': 'Guardar proyecto', 'top.help': 'Ayuda',
+    's1': 'Sondeo e imagen', 's2': 'Realce de la imagen', 's3': 'Detección automática', 's4': 'Intervalos de análisis',
+    'sec.add': 'Añadir imágenes…', 'sec.section': 'Sección', 'sec.name': 'Nombre', 'sec.top': 'Techo', 'sec.bottom': 'Muro',
+    'sec.units': 'Unidades', 'sec.rotate': 'Girar 90°', 'sec.delete': 'Quitar sección',
+    'sec.depthNote': 'Profundidades del borde superior e inferior de la zona de análisis.',
+    'roi.title': 'Zona de análisis', 'roi.draw': 'Dibujar zona', 'roi.reset': 'Imagen completa',
+    'age.title': 'Modelo de edad', 'age.ph': 'profundidad, edad\n0, 0\n150, 12.5', 'age.file': 'Cargar CSV…',
+    'age.units': 'Unidad de edad', 'age.none': 'Sin modelo de edad', 'age.ok': '{n} puntos · {a}–{b} {u}',
+    'f.preset': 'Ajuste', 'f.p.none': 'Sin realce', 'f.p.levels': 'Niveles y contraste (Dorador y Rodríguez-Tovar, 2014)',
+    'f.p.local': 'Contraste local', 'f.p.strong': 'Ecualizado + contraste local (gris)', 'f.p.custom': 'Personalizado',
+    'f.channel': 'Canal', 'f.blackPoint': 'Punto negro', 'f.whitePoint': 'Punto blanco', 'f.gamma': 'Gamma',
+    'f.brightness': 'Brillo', 'f.contrast': 'Contraste', 'f.saturation': 'Saturación', 'f.localAmount': 'Contraste local',
+    'f.localRadius': 'Radio local (px)', 'f.equalize': 'Ecualizar histograma', 'f.invert': 'Invertir',
+    'ch.rgb': 'Color', 'ch.gray': 'Gris', 'ch.r': 'Rojo', 'ch.g': 'Verde', 'ch.b': 'Azul',
+    'd.method': 'Método', 'd.adaptive': 'Umbral adaptativo (local)', 'd.global': 'Umbral global',
+    'd.polarity': 'Las trazas son', 'd.dark': 'más oscuras', 'd.light': 'más claras', 'd.both': 'oscuras o claras',
+    'd.offset': 'Sensibilidad (diferencia)', 'd.radius': 'Ventana local (px)', 'd.threshold': 'Umbral (0–255)',
+    'd.minArea': 'Tamaño mínimo (px)', 'd.smooth': 'Suavizado', 'd.run': 'Detectar candidatos', 'd.clear': 'Quitar candidatos',
+    'd.note': 'Vuelve a detectar sin tocar lo que ya has identificado.', 'd.result': '{n} candidatos detectados',
+    'a.bin': 'Píxeles por intervalo', 'a.binNote': '≈ {v} {u} por dato', 'a.inclPred': 'Contar identificaciones automáticas',
+    'a.countCand': 'Contar candidatos sin revisar como bioturbación', 'a.note': 'Los artefactos y las zonas excluidas nunca cuentan.',
+    'tool.select': 'Seleccionar y mover (V)', 'tool.wand': 'Varita: seleccionar por color (W)', 'tool.brush': 'Pincel (B)',
+    'tool.lasso': 'Lazo (L)', 'tool.erase': 'Borrador (E)', 'tool.exclude': 'Excluir zona: grietas, huecos, muestras (X)',
+    'tool.include': 'Recuperar zona excluida', 'tool.pan': 'Mano (H o espacio)', 'tool.size': 'Tamaño', 'tool.tol': 'Tolerancia',
+    'view.fit': 'Ajustar', 'view.orig': 'Original', 'view.overlay': 'Capa', 'undo': 'Deshacer (Ctrl+Z)',
+    'empty.title': 'Añade una imagen de sondeo', 'empty.body': 'JPG, PNG o TIFF. Las imágenes se procesan en tu navegador y no se envían a ningún sitio.',
+    'empty.example': 'Abrir ejemplo',
+    'tab.classes': 'Icnotaxones', 'tab.object': 'Objeto', 'tab.learn': 'Aprendizaje', 'tab.results': 'Resultados',
+    'cls.undet': 'Bioturbación indeterminada', 'cls.mottled': 'Moteado (bioturbación difusa)', 'cls.artifact': 'Artefacto (no bioturbación)',
+    'cls.add': 'Añadir icnotaxón', 'cls.new': 'Nuevo icnotaxón', 'cls.hint': 'Clic para activar. Teclas 1–9 y 0 asignan la clase al objeto seleccionado.',
+    'cls.counts': '{n} obj. · {e} ej.',
+    'obj.none': 'Selecciona un objeto con la herramienta de selección, o pulsa N para ir al siguiente sin revisar.',
+    'obj.class': 'Clase', 'obj.unassigned': '— sin identificar —', 'obj.status': 'Estado', 'obj.labeled': 'identificado por ti',
+    'obj.predicted': 'identificado automáticamente', 'obj.candidate': 'candidato sin revisar', 'obj.suggest': 'Sugerencia',
+    'obj.depth': 'Profundidad', 'obj.size': 'Tamaño', 'obj.area': 'Área', 'obj.shape': 'Forma', 'obj.accept': 'Aceptar sugerencia (Enter)',
+    'obj.delete': 'Eliminar (Supr)', 'obj.next': 'Siguiente sin revisar (N)', 'obj.autoNext': 'Saltar al siguiente al asignar', 'obj.novel': 'no se parece a nada conocido',
+    'obj.elong': 'alargamiento', 'obj.vert': 'verticalidad',
+    'l.intro': 'Cada objeto que identificas es un ejemplo. Con dos o más ejemplos, el programa propone la clase de los demás según su forma, tamaño y color, y mejora con cada corrección.',
+    'l.examples': 'Ejemplos', 'l.accuracy': 'Acierto estimado', 'l.accNA': 'necesita 2 clases', 'l.pending': '{n} sugerencias por encima del umbral',
+    'l.thr': 'Confianza mínima', 'l.novelty': 'Tolerancia a formas nuevas', 'l.accept': 'Aceptar sugerencias', 'l.export': 'Exportar modelo',
+    'l.import': 'Importar modelo…', 'l.library': 'Ejemplos importados', 'l.clearLib': 'Olvidar importados', 'l.none': 'Aún no hay ejemplos.',
+    'r.mean': 'Bioturbación media', 'r.area': 'Superficie analizada', 'r.objects': 'Objetos contados', 'r.byClass': 'Por icnotaxón (% de la superficie)',
+    'r.depth': 'Prof.', 'r.age': 'Edad', 'r.manual': 'manual', 'r.tooMany': 'Tabla limitada a {n} filas; exporta el CSV para verlas todas.',
+    'r.csv': 'Resultados (CSV)', 'r.objectsCsv': 'Objetos (CSV)', 'r.mask': 'Máscara (PNG)', 'r.palette': 'Paleta (JSON)',
+    'r.empty': 'Los resultados aparecen al detectar o marcar bioturbación.', 'r.manualNote': 'BI e ii manuales: elige un valor para registrar tu estimación visual junto a la automática.',
+    'p.pct': 'Bioturbación %',
+    'busy': 'Procesando…', 'saved': 'Archivo guardado', 'loaded': 'Proyecto cargado', 'err.image': 'No se pudo leer la imagen: {m}',
+    'err.project': 'Ese archivo no es un proyecto de IchAnTool.', 'confirm.new': '¿Empezar un proyecto nuevo? Se perderá lo que no hayas guardado.',
+    'confirm.yes': 'Sí, empezar de nuevo', 'confirm.no': 'Cancelar', 'example.name': 'Ejemplo idealizado (Casanova-Arenillas et al., 2020)',
+    'status.depth': 'Prof. {d} {u}', 'help.title': 'Cómo funciona', 'help.close': 'Cerrar',
+    'help.body': '<ol><li><b>Sondeo e imagen.</b> Añade una o varias imágenes (una por sección), indica techo y muro y, si quieres, un modelo de edad. Dibuja la zona de análisis para dejar fuera la escala y los bordes.</li><li><b>Realce.</b> Ajusta niveles, contraste o contraste local hasta que las trazas se vean bien.</li><li><b>Detección.</b> Detecta candidatos automáticamente. Completa o corrige con la varita, el pincel, el lazo y el borrador. Excluye grietas, huecos y zonas muestreadas.</li><li><b>Identificación.</b> Selecciona un objeto y pulsa 1–9 para asignar el icnotaxón (0 = artefacto). El programa aprende y propone la clase del resto.</li><li><b>Resultados.</b> Porcentaje de bioturbación, BI, ii y porcentaje por icnotaxón por intervalo, junto a la imagen. Exporta CSV, máscara y proyecto.</li></ol><p><b>Atajos:</b> V seleccionar · W varita · B pincel · L lazo · E borrador · X excluir · H mano · O original · F ajustar · N siguiente · Enter aceptar · Supr eliminar · [ ] tamaño · Ctrl+rueda zoom · Ctrl+Z deshacer. Mayús añade al objeto seleccionado; Alt resta.</p>',
+  },
+  en: {
+    'app.tagline': 'Ichnological analysis of core images',
+    'top.new': 'New', 'top.open': 'Open project', 'top.save': 'Save project', 'top.help': 'Help',
+    's1': 'Core and image', 's2': 'Image enhancement', 's3': 'Automatic detection', 's4': 'Analysis intervals',
+    'sec.add': 'Add images…', 'sec.section': 'Section', 'sec.name': 'Name', 'sec.top': 'Top', 'sec.bottom': 'Bottom',
+    'sec.units': 'Units', 'sec.rotate': 'Rotate 90°', 'sec.delete': 'Remove section',
+    'sec.depthNote': 'Depths of the top and bottom edges of the analysis area.',
+    'roi.title': 'Analysis area', 'roi.draw': 'Draw area', 'roi.reset': 'Whole image',
+    'age.title': 'Age model', 'age.ph': 'depth, age\n0, 0\n150, 12.5', 'age.file': 'Load CSV…',
+    'age.units': 'Age unit', 'age.none': 'No age model', 'age.ok': '{n} points · {a}–{b} {u}',
+    'f.preset': 'Preset', 'f.p.none': 'No enhancement', 'f.p.levels': 'Levels and contrast (Dorador & Rodríguez-Tovar, 2014)',
+    'f.p.local': 'Local contrast', 'f.p.strong': 'Equalised + local contrast (grey)', 'f.p.custom': 'Custom',
+    'f.channel': 'Channel', 'f.blackPoint': 'Black point', 'f.whitePoint': 'White point', 'f.gamma': 'Gamma',
+    'f.brightness': 'Brightness', 'f.contrast': 'Contrast', 'f.saturation': 'Saturation', 'f.localAmount': 'Local contrast',
+    'f.localRadius': 'Local radius (px)', 'f.equalize': 'Equalise histogram', 'f.invert': 'Invert',
+    'ch.rgb': 'Colour', 'ch.gray': 'Grey', 'ch.r': 'Red', 'ch.g': 'Green', 'ch.b': 'Blue',
+    'd.method': 'Method', 'd.adaptive': 'Adaptive (local) threshold', 'd.global': 'Global threshold',
+    'd.polarity': 'Traces are', 'd.dark': 'darker', 'd.light': 'lighter', 'd.both': 'darker or lighter',
+    'd.offset': 'Sensitivity (difference)', 'd.radius': 'Local window (px)', 'd.threshold': 'Threshold (0–255)',
+    'd.minArea': 'Minimum size (px)', 'd.smooth': 'Smoothing', 'd.run': 'Detect candidates', 'd.clear': 'Remove candidates',
+    'd.note': 'Re-detection keeps everything you have already identified.', 'd.result': '{n} candidates detected',
+    'a.bin': 'Pixels per interval', 'a.binNote': '≈ {v} {u} per data point', 'a.inclPred': 'Count automatic identifications',
+    'a.countCand': 'Count unreviewed candidates as bioturbation', 'a.note': 'Artefacts and excluded areas never count.',
+    'tool.select': 'Select and move (V)', 'tool.wand': 'Wand: select by colour (W)', 'tool.brush': 'Brush (B)',
+    'tool.lasso': 'Lasso (L)', 'tool.erase': 'Eraser (E)', 'tool.exclude': 'Exclude area: cracks, voids, samples (X)',
+    'tool.include': 'Restore excluded area', 'tool.pan': 'Hand (H or space)', 'tool.size': 'Size', 'tool.tol': 'Tolerance',
+    'view.fit': 'Fit', 'view.orig': 'Original', 'view.overlay': 'Overlay', 'undo': 'Undo (Ctrl+Z)',
+    'empty.title': 'Add a core image', 'empty.body': 'JPG, PNG or TIFF. Images are processed in your browser and never uploaded.',
+    'empty.example': 'Open example',
+    'tab.classes': 'Ichnotaxa', 'tab.object': 'Object', 'tab.learn': 'Learning', 'tab.results': 'Results',
+    'cls.undet': 'Undetermined bioturbation', 'cls.mottled': 'Mottling (diffuse bioturbation)', 'cls.artifact': 'Artefact (not bioturbation)',
+    'cls.add': 'Add ichnotaxon', 'cls.new': 'New ichnotaxon', 'cls.hint': 'Click to make active. Keys 1–9 and 0 assign the class to the selected object.',
+    'cls.counts': '{n} obj. · {e} ex.',
+    'obj.none': 'Select an object with the selection tool, or press N to jump to the next unreviewed one.',
+    'obj.class': 'Class', 'obj.unassigned': '— unidentified —', 'obj.status': 'Status', 'obj.labeled': 'identified by you',
+    'obj.predicted': 'identified automatically', 'obj.candidate': 'unreviewed candidate', 'obj.suggest': 'Suggestion',
+    'obj.depth': 'Depth', 'obj.size': 'Size', 'obj.area': 'Area', 'obj.shape': 'Shape', 'obj.accept': 'Accept suggestion (Enter)',
+    'obj.delete': 'Delete (Del)', 'obj.next': 'Next unreviewed (N)', 'obj.autoNext': 'Jump to next after assigning', 'obj.novel': 'unlike anything known',
+    'obj.elong': 'elongation', 'obj.vert': 'verticality',
+    'l.intro': 'Every object you identify is an example. With two or more examples the program suggests the class of the rest from their shape, size and colour, and improves with every correction.',
+    'l.examples': 'Examples', 'l.accuracy': 'Estimated accuracy', 'l.accNA': 'needs 2 classes', 'l.pending': '{n} suggestions above threshold',
+    'l.thr': 'Minimum confidence', 'l.novelty': 'Tolerance to new shapes', 'l.accept': 'Accept suggestions', 'l.export': 'Export model',
+    'l.import': 'Import model…', 'l.library': 'Imported examples', 'l.clearLib': 'Forget imported', 'l.none': 'No examples yet.',
+    'r.mean': 'Mean bioturbation', 'r.area': 'Analysed surface', 'r.objects': 'Objects counted', 'r.byClass': 'By ichnotaxon (% of surface)',
+    'r.depth': 'Depth', 'r.age': 'Age', 'r.manual': 'manual', 'r.tooMany': 'Table limited to {n} rows; export the CSV to see all.',
+    'r.csv': 'Results (CSV)', 'r.objectsCsv': 'Objects (CSV)', 'r.mask': 'Mask (PNG)', 'r.palette': 'Palette (JSON)',
+    'r.empty': 'Results appear once bioturbation is detected or drawn.', 'r.manualNote': 'Manual BI and ii: pick a value to record your visual estimate next to the automatic one.',
+    'p.pct': 'Bioturbation %',
+    'busy': 'Processing…', 'saved': 'File saved', 'loaded': 'Project loaded', 'err.image': 'Could not read the image: {m}',
+    'err.project': 'That file is not an IchAnTool project.', 'confirm.new': 'Start a new project? Anything unsaved will be lost.',
+    'confirm.yes': 'Yes, start over', 'confirm.no': 'Cancel', 'example.name': 'Idealised example (Casanova-Arenillas et al., 2020)',
+    'status.depth': 'Depth {d} {u}', 'help.title': 'How it works', 'help.close': 'Close',
+    'help.body': '<ol><li><b>Core and image.</b> Add one or more images (one per section), set top and bottom depths and, optionally, an age model. Draw the analysis area to leave out the scale bar and core edges.</li><li><b>Enhancement.</b> Adjust levels, contrast or local contrast until traces stand out.</li><li><b>Detection.</b> Detect candidates automatically. Complete or correct them with the wand, brush, lasso and eraser. Exclude cracks, voids and sampled areas.</li><li><b>Identification.</b> Select an object and press 1–9 to assign the ichnotaxon (0 = artefact). The program learns and suggests the class of the rest.</li><li><b>Results.</b> Bioturbation percentage, BI, ii and percentage per ichnotaxon per interval, beside the image. Export CSV, mask and project.</li></ol><p><b>Shortcuts:</b> V select · W wand · B brush · L lasso · E eraser · X exclude · H hand · O original · F fit · N next · Enter accept · Del delete · [ ] size · Ctrl+wheel zoom · Ctrl+Z undo. Shift adds to the selected object; Alt subtracts.</p>',
+  },
+};
+
+let current = 'es';
+try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
+if (!D[current]) current = 'en';
+
+export const lang = () => current;
+
+export function setLang(l) {
+  current = D[l] ? l : 'en';
+  try { localStorage.setItem('ichantool.lang', current); } catch { /* storage blocked */ }
+  document.documentElement.lang = current;
+}
+
+export function t(key, vars) {
+  let s = D[current][key] ?? D.en[key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
+  return s;
+}
+
+export function applyI18n(root = document) {
+  root.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  root.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  root.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); el.setAttribute('aria-label', el.title); });
+  root.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  document.documentElement.lang = current;
+}

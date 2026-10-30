@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { BI, II, classify, rowCounts, binRows, parseAgeModel, interpAge, rleEncode, rleDecode, toCSV } from '../../app/js/core.js';
+import { components, detectMask, polygonPixels, regionGrow, objectStats, features, rotate90, applyFilters, DEFAULT_FILTERS } from '../../app/js/imageproc.js';
+import { Classifier } from '../../app/js/learn.js';
+
+test('index tiers match the Python package', () => {
+  const p = [0, 0.5, 3, 20, 50, 80, 95, 100];
+  assert.deepEqual(p.map((v) => classify(BI, v)), [0, 0, 1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(p.map((v) => classify(II, v)), [1, 1, 2, 3, 4, 5, 5, 6]);
+});
+
+test('row counts and bins (same case as tests/test_core.py)', () => {
+  const w = 10, h = 10, labels = new Int32Array(w * h);
+  for (let y = 0; y < 5; y++) for (let x = 0; x < 4; x++) labels[y * w + x] = 1;
+  const counts = rowCounts({ labels, width: w, roi: { x0: 0, x1: 10, y0: 0, y1: 10 }, exclude: null, effClass: Int16Array.from([-1, 0]), nClasses: 1 });
+  const bins = binRows(counts, { top: 0, bottom: 10, binPx: 5 });
+  assert.deepEqual(bins.map((b) => b.pct), [40, 0]);
+  assert.deepEqual(bins.map((b) => b.depth), [2.5, 7.5]);
+  assert.deepEqual(bins.map((b) => b.BI), [3, 0]);
+  assert.equal(binRows(counts, { top: 0, bottom: 10, binPx: 3 }).length, 4); // partial bin kept
+});
+
+test('excluded pixels leave the denominator', () => {
+  const w = 4, labels = Int32Array.from([1, 0, 0, 0]), exclude = Uint8Array.from([0, 1, 1, 0]);
+  const c = rowCounts({ labels, width: w, roi: { x0: 0, x1: 4, y0: 0, y1: 1 }, exclude, effClass: Int16Array.from([-1, 0]), nClasses: 1 });
+  assert.equal(binRows(c, { top: 0, bottom: 1, binPx: 1 })[0].pct, 50);
+});
+
+test('age model', () => {
+  const m = parseAgeModel('depth,age\n0,0\n10,100\n');
+  assert.equal(interpAge(m, 5), 50);
+  assert.equal(interpAge(m, 20), null);
+});
+
+test('rle and csv', () => {
+  const a = Int32Array.from([0, 0, 3, 3, 3, 0]);
+  assert.deepEqual(Array.from(rleDecode(rleEncode(a), 6)), Array.from(a));
+  assert.equal(toCSV([['a', 'b,c'], [1.5, null]]), 'a,"b,c"\n1.5,\n');
+});
+
+test('detection, components and shape features', () => {
+  const w = 40, h = 40, rgba = new Uint8ClampedArray(w * h * 4).fill(200);
+  for (let y = 10; y < 30; y++) for (let x = 18; x < 22; x++) { const j = (y * w + x) * 4; rgba[j] = rgba[j + 1] = rgba[j + 2] = 20; }
+  const roi = { x0: 0, y0: 0, x1: w, y1: h };
+  const m = detectMask(rgba, w, h, roi, null, { method: 'adaptive', polarity: 'dark', offset: 20, radius: 10, minArea: 5, smooth: 1 });
+  const { labels, count } = components(m, w, h, 5);
+  assert.equal(count, 1);
+  const f = features(objectStats(labels, w, h, rgba).get(1), 10);
+  assert.ok(f.vert > 0.9, 'vertical burrow');
+  assert.ok(f.elong > 3);
+  assert.ok(f.contrast < -100);
+});
+
+test('wand, polygon, rotation, filters', () => {
+  const w = 5, h = 5, rgba = new Uint8ClampedArray(w * h * 4).fill(255);
+  const roi = { x0: 0, y0: 0, x1: w, y1: h };
+  assert.equal(regionGrow(rgba, w, h, 12, 10, roi, null).length, 25);
+  assert.equal(polygonPixels([[0, 0], [5, 0], [5, 5], [0, 5]], w, roi).length, 25);
+  const r = rotate90(Uint8Array.from([1, 2, 3, 4, 5, 6]), 3, 2, 1, 1); // 3x2 -> 2x3
+  assert.deepEqual(Array.from(r), [4, 1, 5, 2, 6, 3]);
+  assert.equal(applyFilters(rgba, w, h, { ...DEFAULT_FILTERS, invert: true })[0], 0);
+});
+
+test('classifier learns, estimates accuracy and flags novelties', () => {
+  const ex = [];
+  for (let i = 0; i < 6; i++) ex.push({ y: 'A', x: [0 + i * 0.01, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] });
+  for (let i = 0; i < 6; i++) ex.push({ y: 'B', x: [1 + i * 0.01, 1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 1] });
+  const c = new Classifier().fit(ex);
+  assert.equal(c.accuracy, 1);
+  assert.equal(c.predict([0.02, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]).y, 'A');
+  assert.equal(c.predict([50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50]).y, null);
+});

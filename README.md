@@ -21,6 +21,12 @@ The resulting series can be correlated directly with geochemical, mineralogical 
 > v3 reproduces the published v2.1 results exactly (see `tests/`). The original code is kept in
 > [`legacy/`](legacy/).
 
+## Web app
+
+Browser application (no installation, images stay on your computer): enhancement, automatic
+trace detection, editing tools, learned ichnotaxon identification and depth/age results.
+See [`app/`](app/) and run it with any static server (`python -m http.server`, then open `/app/`).
+
 ## Install
 
 ```bash
@@ -59,7 +65,8 @@ the analysis counts.
 ## Repository layout
 
 ```
-src/ichantool/      package
+app/                web application (HTML + JavaScript)
+src/ichantool/      Python package
   io.py             image loading (PNG, TIFF, JPEG)
   segmentation.py   image -> label mask (threshold, colour palette; future: learned models)
   pipeline.py       label mask -> depth series (CoreSection)

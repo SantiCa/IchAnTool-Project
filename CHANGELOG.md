@@ -1,5 +1,12 @@
 # Changelog
 
+## Web app 0.1 — 2026-10-30
+- New browser application in `app/`: sections with depths and age model, analysis area, image
+  enhancement, automatic detection, wand/brush/lasso/eraser/exclusion tools, ichnotaxon labelling
+  with incremental learning, synced depth profile, BI/ii automatic and manual, CSV/PNG/JSON export,
+  project save/load, Spanish/English interface.
+- Reproduces published v2.1 indices on the example image.
+
 ## 3.0.0.dev0 — 2026-10-30
 - Rewritten as an installable Python package (`src/ichantool`) with CLI and API.
 - Vectorised analysis; PNG/TIFF/JPEG; grayscale and RGB input.

@@ -8,3 +8,4 @@ dist/
 .ipynb_checkpoints/
 *_ichantool.csv
 *_ichantool.xlsx
+node_modules/
