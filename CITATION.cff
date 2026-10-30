@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use IchAnTool, please cite the article below."
+title: "IchAnTool"
+authors:
+  - family-names: Casanova-Arenillas
+    given-names: Santiago
+version: 3.0.0.dev0
+repository-code: "https://github.com/SantiCa/IchAnTool-Project"
+license: GPL-3.0-or-later
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Casanova-Arenillas
+      given-names: Santiago
+    - family-names: Rodríguez-Tovar
+      given-names: Francisco J.
+    - family-names: Martínez-Ruiz
+      given-names: Francisca
+  title: "Applied ichnology in sedimentary geology: Python scripts as a method to automatize ichnofabric analysis in marine core images"
+  journal: "Computers & Geosciences"
+  volume: 136
+  start: 104407
+  year: 2020
+  doi: "10.1016/j.cageo.2020.104407"
