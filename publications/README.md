@@ -18,6 +18,12 @@ borradores debe tomarse como definitivo.
 
 Orden recomendado: 1 → 2 → 3. El 1 da el DOI citable que usan los demás.
 
+## Documentación de métodos
+
+Qué algoritmos usa cada artículo, qué se puede afirmar, qué falta validar y respuestas a
+revisores: [METODOS_Y_DEFENSA.md](METODOS_Y_DEFENSA.md). Detalle técnico:
+[../docs/DOCUMENTACION_TECNICA.md](../docs/DOCUMENTACION_TECNICA.md).
+
 ## Estructura
 
 ```

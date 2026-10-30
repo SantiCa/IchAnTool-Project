@@ -82,6 +82,13 @@ publications/       draft papers and candidate journals
 legacy/             original v2.1 code (2019), unchanged
 ```
 
+## Documentation
+
+- [docs/DOCUMENTACION_TECNICA.md](docs/DOCUMENTACION_TECNICA.md) — every algorithm, formula, default value and validation result (Spanish).
+- [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md) — what changed in each version and why (Spanish).
+- [publications/METODOS_Y_DEFENSA.md](publications/METODOS_Y_DEFENSA.md) — methods per planned paper and answers to likely reviewer questions (Spanish).
+- [CHANGELOG.md](CHANGELOG.md) — short English summary.
+
 ## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md): assisted/learned segmentation, open annotated dataset,
