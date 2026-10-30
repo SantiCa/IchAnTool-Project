@@ -545,6 +545,8 @@ pip install -e ".[dev]" && pytest      # Python
 npm test                               # Aplicación web (Node 22)
 ```
 
+- Archivo único sin servidor: `python tools/build_standalone.py` genera `dist/IchAnTool.html`
+  con el mismo código de `app/js/` concatenado (sin cambios en el cálculo) y el ejemplo incrustado.
 - Versiones: paquete 3.0.0.dev0, aplicación 3.0.0-dev (constante `VERSION` en `app.js`; se guarda
   en cada proyecto).
 

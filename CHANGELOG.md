@@ -2,6 +2,10 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V6 — Standalone app file — 2026-10-30
+- `tools/build_standalone.py` builds `dist/IchAnTool.html`: the whole web app plus example in one
+  file that opens by double-click, offline, without a server. Analysis unchanged.
+
 ## V5 — Documentation — 2026-10-30
 - Technical reference of all algorithms (`docs/DOCUMENTACION_TECNICA.md`), version history
   (`docs/HISTORIAL_VERSIONES.md`), methods and reviewer-defence notes per paper

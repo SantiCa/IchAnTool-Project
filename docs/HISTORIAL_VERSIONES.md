@@ -23,6 +23,7 @@ La descripción detallada de los algoritmos está en
 | V3 | 30-10-2026 | Paquete Python `ichantool` 3.0.0.dev0 | Reorganización como paquete profesional + carpeta de publicaciones |
 | V4 | 30-10-2026 | Aplicación web 0.1 (`app/`) | Aplicación en el navegador con detección, edición y aprendizaje |
 | V5 | 30-10-2026 | Documentación | Historial de versiones, documentación técnica y defensa de métodos |
+| V6 | 30-10-2026 | Aplicación web 0.1, archivo único | `IchAnTool.html` que se abre con doble clic, sin servidor ni conexión |
 
 ---
 
@@ -185,6 +186,32 @@ revisores.
 
 **Comprobación.** Revisión de cada fórmula contra el código fuente (`src/ichantool/*.py`,
 `app/js/*.js`).
+
+---
+
+## V6 — Aplicación en un solo archivo (30-10-2026)
+
+**Qué se hizo.** Un único archivo `IchAnTool.html` que contiene toda la aplicación y la imagen de
+ejemplo. Se abre con doble clic en Chrome, Edge, Firefox o Safari, sin servidor y sin internet.
+
+**Cambios.**
+- `tools/build_standalone.py`: genera `dist/IchAnTool.html`. Une los módulos JavaScript en orden
+  de dependencia, quita `import`/`export` e incrusta la imagen de ejemplo en base64. Se detiene si
+  dos módulos definen el mismo nombre.
+- `dist/` no se guarda en git: el archivo se genera con el script (o se adjunta a una release).
+- El código de la aplicación no cambia: el cálculo es idéntico al de V4.
+
+**Por qué.** Los navegadores no cargan módulos JavaScript desde archivos locales (`file://`), así
+que `app/index.html` necesitaba un servidor. Santiago quería probarla directamente.
+
+**Comprobación.** Abierto desde `file://` en Chromium: carga el ejemplo, detecta 756 objetos,
+112 intervalos y bioturbación media del 17,45 % (igual que la versión servida), exporta el CSV, y
+la consola no da ningún error.
+
+**Pendiente.**
+- Sin conexión se usan fuentes del sistema, porque las tipográficas vienen de Google Fonts.
+- Abrir TIFF necesita internet la primera vez (librería UTIF).
+- Un ejecutable de escritorio (.exe/.app con Electron o Tauri) queda como opción futura.
 
 ---
 

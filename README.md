@@ -25,7 +25,8 @@ The resulting series can be correlated directly with geochemical, mineralogical 
 
 Browser application (no installation, images stay on your computer): enhancement, automatic
 trace detection, editing tools, learned ichnotaxon identification and depth/age results.
-See [`app/`](app/) and run it with any static server (`python -m http.server`, then open `/app/`).
+See [`app/`](app/) and run it with any static server (`python -m http.server`, then open `/app/`),
+or build a single offline file with `python tools/build_standalone.py` (-> `dist/IchAnTool.html`, open by double-click).
 
 ## Install
 

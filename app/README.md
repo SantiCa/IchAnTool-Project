@@ -31,6 +31,8 @@ python -m http.server 8000
 # open http://localhost:8000/app/
 ```
 
+Single offline file (no server needed): `python tools/build_standalone.py` -> `dist/IchAnTool.html`.
+
 ## Code
 - `js/core.js` — binning, indices, age model, CSV, run-length encoding (mirrors the Python package)
 - `js/imageproc.js` — enhancement, detection, connected components, wand, lasso, shape descriptors

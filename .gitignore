@@ -9,3 +9,4 @@ dist/
 *_ichantool.csv
 *_ichantool.xlsx
 node_modules/
+dist/
