@@ -4,6 +4,7 @@ import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMa
 import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
 import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject, getPref, setPref, putLite, listLite, getMeta } from './storage.js';
 import { interpolate, maskLand, rampColor, colorRange, contourLevels, contourSegments, RAMPS, INTERP_METHODS, INTERP_DEFAULT } from './interp.js';
+import { buildXYPlot, buildStratPlot, PLOT_TYPES, FIT_KINDS, PLOT_COLORS } from './plot.js';
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
 import { Classifier, TaxonModel, evaluateModels, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
@@ -1448,7 +1449,7 @@ function serialize(binary) {
     app: APP, kind: 'project', version: 3, appVersion: VERSION, saved: new Date().toISOString(),
     id: S.id, name: S.name, notes: S.notes, classes: S.classes, active: S.active, settings: S.settings, library: S.library,
     projectKind: S.kind || 'normal', multiSource: S.multiSource || null, models: projectModels(),
-    geo, sheet: S.sheet, fig: S.fig, curCore: S.curCore,
+    geo, sheet: S.sheet, fig: S.fig, curCore: S.curCore, plots: S.plots || [], plotCur: S.plotCur || 0,
     cores: S.cores.map((c) => ({
       id: c.id, name: c.name, lat: c.lat, lon: c.lon, waterDepth: c.waterDepth ?? null, units: c.units, source: c.source || null, notes: c.notes || '',
       imp: c.imp, user: c.user || {}, records: c.records, logView: c.logView, age: { text: c.ageModel.text, units: c.ageModel.units },
@@ -1491,7 +1492,7 @@ async function loadProject(p) {
     p = upgradeProject(p);
     S.id = p.id || uid(); S.name = p.name || APP; S.notes = p.notes || '';
     S.classes = p.classes || defaultClasses(); S.active = p.active || 'undet';
-    Object.assign(S.settings, p.settings || {}); S.library = p.library || []; S.kind = p.projectKind || 'normal'; S.multiSource = p.multiSource || null;
+    Object.assign(S.settings, p.settings || {}); S.library = p.library || []; S.kind = p.projectKind || 'normal'; S.multiSource = p.multiSource || null; S.plots = p.plots || []; S.plotCur = p.plotCur || 0;
     S.sheet = { columns: [], cells: {}, ...(p.sheet || {}) };
     S.fig = { ...defaultFig(), ...(p.fig || {}) };
     S.geo = normalizeGeo(p.geo);
@@ -1516,7 +1517,7 @@ async function loadProject(p) {
 function resetState() {
   const maxMP = S.settings.maxMP || 8;
   S.id = uid(); S.name = t('proj.untitled'); S.notes = '';
-  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig(); S.kind = 'normal'; S.multiSource = null;
+  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig(); S.kind = 'normal'; S.multiSource = null; S.plots = []; S.plotCur = 0;
   S.geo = defaultGeo(); geoReset();
   S.classes = defaultClasses(); S.active = 'undet';
   S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP, clfScope: 'project', ml: { ...ML_DEFAULT } };
@@ -3466,6 +3467,105 @@ try { setHomeTab(localStorage.getItem('ichantool.homeTab') || 'projects'); } cat
 
 /* ───────────── data tab: all data of the project, computed and manual columns, free cells ───────────── */
 
+/* ───────────── data tab: Grapher-like plots (V21) ───────────── */
+const defaultPlot = (n = 1) => ({ name: `${t('pl.plot')} ${n}`, layout: 'strat', cores: S.curCore ? [S.curCore] : [], v: 'depth', ys: [], title: '', width: 900, height: 620, panelWidth: 150,
+  legend: true, grid: true, xmin: null, xmax: null, ymin: null, ymax: null, xlog: false, ylog: false, xinv: false, yinv: false, y2label: '' });
+const plotCol = (c, name) => (name === 'depth' ? c.depth : name === 'age' ? c.age : c.proxies?.[name]) || [];
+function plotColumns() { const s = new Set(); for (const c of S.cores) Object.keys(c.proxies || {}).forEach((k) => s.add(k)); return [...s].sort(); }
+const curPlot = () => { S.plots ||= []; if (!S.plots.length) S.plots.push(defaultPlot()); S.plotCur = Math.min(S.plotCur || 0, S.plots.length - 1); return S.plots[S.plotCur]; };
+let plotLast = null;
+
+function plotSpec(p) {
+  const cores = S.cores.filter((c) => p.cores.includes(c.id)), axisName = (k) => (k === 'depth' ? `${t('log.depth')} (${cores[0]?.units || ''})` : k === 'age' ? `${t('log.age')} (ka)` : k);
+  const num = (v) => (v === '' || v == null ? null : +v);
+  if (p.layout === 'strat') {
+    return { kind: 'strat', spec: { title: p.title, width: p.width, height: p.height, panelWidth: p.panelWidth, legend: p.legend, grid: p.grid, v: { label: axisName(p.v), min: num(p.ymin), max: num(p.ymax), invert: !p.yinv },
+      panels: p.ys.map((y) => ({ label: y.col, log: y.log, invert: y.inv, fit: y.fit, deg: y.deg, window: y.window, series: cores.map((c, k) => ({ name: c.name, core: c.name, x: plotCol(c, p.v), y: plotCol(c, y.col), type: y.type, color: cores.length > 1 ? PLOT_COLORS[k % PLOT_COLORS.length] : (y.color || PLOT_COLORS[0]) })) })) } };
+  }
+  const series = [];
+  p.ys.forEach((y, i) => cores.forEach((c, k) => series.push({ name: cores.length > 1 ? `${y.col} · ${c.name}` : y.col, x: plotCol(c, p.v), y: plotCol(c, y.col), type: y.type, y2: y.y2, fit: y.fit, deg: y.deg, window: y.window,
+    color: cores.length > 1 && p.ys.length === 1 ? PLOT_COLORS[k % PLOT_COLORS.length] : y.color || PLOT_COLORS[(i * Math.max(1, cores.length) + k) % PLOT_COLORS.length], dash: cores.length > 1 && p.ys.length > 1 && k ? '4 2' : null })));
+  return { kind: 'xy', spec: { title: p.title, width: p.width, height: p.height, legend: p.legend, grid: p.grid, series,
+    x: { label: axisName(p.v), min: num(p.xmin), max: num(p.xmax), log: p.xlog, invert: p.xinv },
+    y: { label: p.ys.filter((y) => !y.y2).map((y) => y.col).join(', '), min: num(p.ymin), max: num(p.ymax), log: p.ylog, invert: p.yinv },
+    y2: { label: p.y2label || p.ys.filter((y) => y.y2).map((y) => y.col).join(', ') } } };
+}
+
+function renderDataPlot() {
+  const p = curPlot(), cols = plotColumns(), box = $('dBody');
+  if (!p.ys.length && cols.length) p.ys.push({ col: cols[0], type: 'line', y2: false, fit: 'none', deg: 2, window: 5, log: false, inv: false, color: '' });
+  const opt = (list, v) => list.map(([k, n]) => `<option value="${esc(k)}" ${String(k) === String(v) ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  const axisOpts = [['depth', t('log.depth')], ['age', t('log.age')], ...cols.map((c) => [c, c])];
+  const ck = (k, l) => `<label class="chk"><input type="checkbox" data-p="${k}" ${p[k] ? 'checked' : ''}><span>${t(l)}</span></label>`;
+  const nm = (k, l, w = 80) => `<label class="f"><span>${t(l)}</span><input type="number" step="any" data-p="${k}" value="${p[k] ?? ''}" style="width:${w}px"></label>`;
+  const yRows = p.ys.map((y, i) => `<div class="prow2" data-y="${i}">
+      <select data-yk="col">${opt(cols.map((c) => [c, c]), y.col)}</select>
+      <select data-yk="type">${opt(PLOT_TYPES.map((k) => [k, t('pl.t.' + k)]), y.type)}</select>
+      <select data-yk="fit">${opt(FIT_KINDS.map((k) => [k, t('pl.f.' + k)]), y.fit)}</select>
+      ${y.fit === 'poly' ? `<input type="number" data-yk="deg" min="2" max="6" value="${y.deg}" title="${t('pl.deg')}" style="width:50px">` : ''}${y.fit === 'movavg' ? `<input type="number" data-yk="window" min="3" max="99" step="2" value="${y.window}" title="${t('pl.window')}" style="width:56px">` : ''}
+      ${p.layout === 'xy' ? `<label class="chk"><input type="checkbox" data-yk="y2" ${y.y2 ? 'checked' : ''}><span>Y2</span></label>` : `<label class="chk"><input type="checkbox" data-yk="log" ${y.log ? 'checked' : ''}><span>log</span></label><label class="chk"><input type="checkbox" data-yk="inv" ${y.inv ? 'checked' : ''}><span>${t('pl.inv')}</span></label>`}
+      <input type="color" data-yk="color" value="${y.color || PLOT_COLORS[i % PLOT_COLORS.length]}" title="${t('pl.color')}">
+      <button class="btn small ghost" data-pa="dely" title="${t('pl.del')}">×</button></div>`).join('');
+  box.innerHTML = `<div class="plotwrap"><div class="pctl">
+    <div class="row"><select id="plSel" style="flex:1">${opt(S.plots.map((q, i) => [i, q.name]), S.plotCur)}</select><button class="btn small" data-pa="new">+</button><button class="btn small" data-pa="dup">${t('pl.dup')}</button><button class="btn small ghost" data-pa="del">×</button></div>
+    <label class="f"><span>${t('pl.name')}</span><input type="text" data-p="name" value="${esc(p.name)}"></label>
+    <label class="f"><span>${t('pl.layout')}</span><select data-p="layout">${opt([['strat', t('pl.l.strat')], ['xy', t('pl.l.xy')]], p.layout)}</select></label>
+    <p class="note">${t('pl.l.' + p.layout + 'Help')}</p>
+    <div class="f"><span>${t('pl.cores')}</span><div class="clist">${S.cores.map((c) => `<label class="chk"><input type="checkbox" data-core="${c.id}" ${p.cores.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></div>
+    <label class="f"><span>${t(p.layout === 'strat' ? 'pl.vaxis' : 'pl.xaxis')}</span><select data-p="v">${opt(axisOpts, p.v)}</select></label>
+    <div class="f"><span>${t(p.layout === 'strat' ? 'pl.panels' : 'pl.yvars')}</span>${yRows}<button class="btn small" data-pa="addy">+ ${t('pl.addy')}</button></div>
+    <details><summary>${t('pl.axes')}</summary><div class="row" style="margin-top:6px">
+      ${p.layout === 'xy' ? nm('xmin', 'pl.xmin') + nm('xmax', 'pl.xmax') + ck('xlog', 'pl.xlog') + ck('xinv', 'pl.xinv') : ''}
+      ${nm('ymin', p.layout === 'strat' ? 'pl.vmin' : 'pl.ymin') + nm('ymax', p.layout === 'strat' ? 'pl.vmax' : 'pl.ymax')}${p.layout === 'xy' ? ck('ylog', 'pl.ylog') : ''}${ck('yinv', p.layout === 'strat' ? 'pl.vup' : 'pl.yinv')}
+      ${p.layout === 'xy' ? `<label class="f"><span>${t('pl.y2label')}</span><input type="text" data-p="y2label" value="${esc(p.y2label || '')}"></label>` : ''}</div></details>
+    <details><summary>${t('pl.look')}</summary><div class="row" style="margin-top:6px">
+      <label class="f" style="flex-basis:100%"><span>${t('pl.title')}</span><input type="text" data-p="title" value="${esc(p.title || '')}"></label>
+      ${nm('width', 'pl.width') + nm('height', 'pl.height')}${p.layout === 'strat' ? nm('panelWidth', 'pl.pw') : ''}${ck('legend', 'pl.legend')}${ck('grid', 'pl.grid')}</div></details>
+    <div class="row"><button class="btn small primary" data-pa="svg">SVG</button><button class="btn small" data-pa="png">PNG ×3</button><button class="btn small" data-pa="csv">CSV</button></div>
+  </div><div class="pout" id="plOut"></div></div>`;
+  drawDataPlot();
+}
+function drawDataPlot() {
+  const p = curPlot(), out = $('plOut'); if (!out) return;
+  if (!p.cores.length || !p.ys.length) { out.innerHTML = `<p class="note">${t('pl.empty')}</p>`; plotLast = null; return; }
+  const { kind, spec } = plotSpec(p), r = kind === 'strat' ? buildStratPlot(spec) : buildXYPlot(spec);
+  plotLast = { ...r, spec, kind };
+  const f3 = (v) => (v == null || !Number.isFinite(v) ? '—' : +v.toPrecision(4));
+  out.innerHTML = `<div class="psvg">${r.svg}</div>
+    ${r.fits.length ? `<h4>${t('pl.fits')}</h4><table class="dtable mtab"><thead><tr><th>${t('pl.series')}</th><th>${t('pl.eq')}</th><th>R²</th><th>n</th></tr></thead><tbody>${r.fits.map((f) => `<tr><td class="txt">${esc(f.name)}</td><td class="txt">${esc(f.eq)}</td><td>${f3(f.r2)}</td><td>${f.n}</td></tr>`).join('')}</tbody></table>` : ''}
+    <h4>${t('pl.stats')}</h4><table class="dtable mtab"><thead><tr><th>${t('pl.series')}</th><th>n</th><th>${t('pl.mean')}</th><th>${t('pl.sd')}</th><th>${t('pl.min')}</th><th>${t('pl.median')}</th><th>${t('pl.max')}</th>${kind === 'xy' ? '<th>r (X, Y)</th>' : ''}</tr></thead><tbody>${r.stats.map((q) => `<tr><td class="txt">${esc(q.name)}</td><td>${q.n}</td><td>${f3(q.mean)}</td><td>${f3(q.sd)}</td><td>${f3(q.min)}</td><td>${f3(q.median)}</td><td>${f3(q.max)}</td>${kind === 'xy' ? `<td>${f3(q.r)}</td>` : ''}</tr>`).join('')}</tbody></table>`;
+}
+$('dBody').addEventListener('change', (e) => {
+  if ($('dView').value !== 'plot') return;
+  const el = e.target, p = curPlot(), val = el.type === 'checkbox' ? el.checked : el.type === 'number' ? (el.value === '' ? null : +el.value) : el.value;
+  if (el.id === 'plSel') { S.plotCur = +el.value; renderDataPlot(); return; }
+  if (el.dataset.core) { if (el.checked) p.cores.push(el.dataset.core); else p.cores = p.cores.filter((id) => id !== el.dataset.core); }
+  else if (el.dataset.p) { p[el.dataset.p] = val; if (el.dataset.p === 'layout' && val === 'strat' && (p.v !== 'depth' && p.v !== 'age')) p.v = 'depth'; }
+  else if (el.dataset.yk) { const i = +el.closest('[data-y]').dataset.y; p.ys[i][el.dataset.yk] = val; }
+  else return;
+  markDirty();
+  const rebuild = ['layout', 'fit'].includes(el.dataset.p || el.dataset.yk) || el.dataset.p === 'name';
+  if (rebuild) renderDataPlot(); else drawDataPlot();
+});
+$('dBody').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-pa]')?.dataset.pa; if (!a || $('dView').value !== 'plot') return;
+  const p = curPlot(), cols = plotColumns();
+  if (a === 'addy') p.ys.push({ col: cols.find((c) => !p.ys.some((y) => y.col === c)) || cols[0], type: 'line', y2: false, fit: 'none', deg: 2, window: 5, log: false, inv: false, color: '' });
+  else if (a === 'dely') p.ys.splice(+e.target.closest('[data-y]').dataset.y, 1);
+  else if (a === 'new') { S.plots.push(defaultPlot(S.plots.length + 1)); S.plotCur = S.plots.length - 1; }
+  else if (a === 'dup') { S.plots.push({ ...JSON.parse(JSON.stringify(p)), name: p.name + ' (2)' }); S.plotCur = S.plots.length - 1; }
+  else if (a === 'del') { S.plots.splice(S.plotCur, 1); S.plotCur = 0; }
+  else if (a === 'svg') { if (plotLast) saveFile(`${safe(p.name)}.svg`, plotLast.svg, 'image/svg+xml'); return; }
+  else if (a === 'png') { if (plotLast) busy(async () => { const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(plotLast.svg); await img.decode(); const c = document.createElement('canvas'); c.width = img.width * 3; c.height = img.height * 3; const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height); const b = await new Promise((r) => c.toBlob(r, 'image/png')); if (b) await saveFile(`${safe(p.name)}.png`, b, 'image/png'); }); return; }
+  else if (a === 'csv') {
+    const rows = [['core', p.v, 'variable', 'value']];
+    for (const c of S.cores.filter((q) => p.cores.includes(q.id))) for (const y of p.ys) { const X = plotCol(c, p.v), Y = plotCol(c, y.col); for (let i = 0; i < X.length; i++) if (X[i] != null && Y[i] != null) rows.push([c.name, X[i], y.col, Y[i]]); }
+    saveFile(`${safe(p.name)}.csv`, toCSV(rows), 'text/csv'); return;
+  }
+  markDirty(); renderDataPlot();
+});
+
+
 let dataLimit = 400;
 const SRC_ORDER = { imp: 0, rec: 1, img: 2, man: 3, calc: 4 };
 function dataCores() { const v = $('dCore').value; return v === '__all' ? S.cores : S.cores.filter((c) => c.id === (v || S.curCore)); }
@@ -3475,7 +3575,7 @@ function renderData() {
   sel.innerHTML = S.cores.map((c) => `<option value="${c.id}" ${c.id === cur ? 'selected' : ''}>${esc(c.name)}</option>`).join('') + `<option value="__all" ${cur === '__all' ? 'selected' : ''}>${t('data.allCores')}</option>`;
   refreshAllCores();
   const view = $('dView').value;
-  if (view === 'cols') renderDataCols(); else if (view === 'cells') renderDataCells(); else renderDataTable();
+  if (view === 'cols') renderDataCols(); else if (view === 'cells') renderDataCells(); else if (view === 'plot') renderDataPlot(); else renderDataTable();
 }
 function tableModel() {
   const cores = dataCores(), names = new Map();

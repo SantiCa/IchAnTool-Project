@@ -1,7 +1,7 @@
 # Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V20 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 1.4.
+Versión del documento: V21 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.5.
 
 **Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
 IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
@@ -1306,6 +1306,22 @@ el modelo dependa de la descripción y no de los registros.
   rangos `A1:B5`, las mismas funciones y `COL("columna", "sondeo")`, que devuelve una columna de un
   sondeo (por defecto el activo); una celda que recibe una columna muestra su media. Las referencias
   circulares dan error.
+
+### 22.3 bis Gráficos de la pestaña Datos (desde V21)
+Vista «Gráficos (tipo Grapher)» de la pestaña Datos, módulo `plot.js` (sin DOM). Cada proyecto guarda una
+lista de gráficos (`plots`, `plotCur`).
+- **Registro estratigráfico:** un panel por variable con eje vertical común (profundidad o edad, hacia abajo
+  salvo que se marque lo contrario); varios sondeos = una línea de color por sondeo; cada panel con escala
+  logarítmica o invertida opcional.
+- **XY:** cualquier columna (o profundidad/edad) en X frente a una o varias en Y; eje Y secundario; ejes
+  logarítmicos (marcas 1-2-5) o invertidos; mínimos y máximos manuales; si no, rango de los datos ± 4 %.
+- **Tipos de serie:** línea (se corta cuando el salto entre muestras supera 5 veces el espaciado mediano),
+  puntos, línea y puntos, escalón, área (hasta 0) y barras.
+- **Ajustes** (mínimos cuadrados): lineal y polinómico de grado 2–6 (ecuaciones normales), exponencial
+  `y = a·e^(bx)` (sobre ln y, y > 0), potencial `y = a·x^b` (sobre ln x y ln y), logarítmico `y = a + b·ln x`, y
+  media móvil centrada de `w` puntos; `R² = 1 − SS_res / SS_tot` en la escala original. Tabla con ecuación, R² y n.
+- **Estadística por serie:** n, media, desviación típica (n − 1), mínimo, mediana, máximo y, en XY, r de Pearson.
+- Exportación en SVG, PNG (×3) y CSV (sondeo, eje, variable, valor).
 
 ### 22.4 Ventanas y panel flotante
 - «Abrir en ventana nueva» abre la misma aplicación con `#win=map|geologs|corelog&project=…&core=…`.

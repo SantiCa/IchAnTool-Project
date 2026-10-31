@@ -2,6 +2,11 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V21 — Web app 1.6 — 2026-10-31
+- Data tab plots (Grapher-like): stratigraphic multi-panel logs and XY plots with secondary Y axis, log/inverted
+  axes, six series types, curve fits (linear, polynomial, exponential, power, logarithmic, moving average) with
+  equation and R², statistics, SVG/PNG/CSV export.
+
 ## V20 — Web app 1.4 — 2026-10-31
 - Side panels no longer clip long labels; side tabs wrap.
 - Maps: 7 gridding methods (inverse distance, nearest, linear triangulation, minimum curvature, RBF, ordinary

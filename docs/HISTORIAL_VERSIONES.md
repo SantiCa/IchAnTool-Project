@@ -38,6 +38,7 @@ La descripción detallada de los algoritmos está en
 | V18 | 31-10-2026 | Aplicación web 1.2 | Diálogo «Modelos y entrenamiento»: guía para no especialistas, k-NN / Random Forest / Bayes con parámetros, evaluación de 3 métodos × 3 modelos con recomendación, galería de ejemplos (excluir, quitar) y ejemplos de otros proyectos |
 | V19 | 31-10-2026 | Aplicación web 1.3 | Proyecto de entrenamiento con 7 sondeos sintéticos del Mediterráneo e imagen con trazas, carteles de ayuda por pestaña y recorrido guiado de 25 pasos |
 | V20 | 31-10-2026 | Aplicación web 1.4 | Paneles laterales sin cortes; mapa con 7 métodos de interpolación (IDW, vecino, triangulación, curvatura mínima, RBF, kriging, media móvil), isolíneas, celdas ajustables, solo mar/tierra, escalas y barra de color, lista de sondeos, proyecciones, mapa ampliable y PNG a la resolución elegida |
+| V21 | 31-10-2026 | Aplicación web 1.6 | Gráficos tipo Grapher en Datos: registros estratigráficos multipanel y XY con eje Y2, ejes log/invertidos, 6 tipos de serie, ajustes de curva con ecuación y R², estadística y exportación |
 
 ---
 
@@ -609,6 +610,30 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V21 — Gráficos tipo Grapher en Datos (31-10-2026)
+
+**Qué se hizo.** En Datos → Vista → «Gráficos (tipo Grapher)»: varios gráficos por proyecto (crear, duplicar,
+borrar), de dos tipos: **registro estratigráfico** (un panel por variable con el mismo eje de profundidad o edad,
+un color por sondeo) y **XY** (cualquier columna frente a otra, eje Y secundario). Seis tipos de serie (línea,
+puntos, línea y puntos, escalón, área, barras), ejes logarítmicos o invertidos y límites manuales, título,
+tamaño, leyenda y cuadrícula; **ajustes de curva** (lineal, polinómico, exponencial, potencial, logarítmico,
+media móvil) con ecuación y R²; tabla de estadística; exportación SVG, PNG y CSV.
+
+**Cambios.** Nuevo `plot.js` (en `ORDER`) y `tests/app/plot.test.mjs`; `app.js`: `defaultPlot`, `plotSpec`,
+`renderDataPlot`, `drawDataPlot`, `plots`/`plotCur` en el archivo de proyecto; `index.html` (vista y estilos);
+`i18n.js`.
+
+**Por qué.** Santiago pidió funcionalidades parecidas a Grapher en la parte de datos.
+
+**Comprobación.** 38 pruebas de la aplicación y 9 de Python (los ajustes recuperan exactamente funciones
+conocidas). En Chromium, con el proyecto de entrenamiento: registro de 3 paneles con 4 sondeos; XY Ti/Ca–Zr/Rb
+de 4 sondeos con ajuste lineal (R² 0,77–0,89) y r de Pearson; ningún error.
+
+**Pendiente o problemas conocidos.** No hay barras de error ni ejes rotos; los ajustes no dan intervalos de
+confianza.
 
 ---
 

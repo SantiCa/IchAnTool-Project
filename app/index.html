@@ -245,6 +245,13 @@ dialog.wide { max-width: min(1100px, calc(100vw - 32px)); width: 100%; }
 .mapstyle input[type=color] { width: 38px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
 .mapstyle input[type=number] { width: 76px; }
 .mapstyle .zbtn { display: flex; gap: 4px; align-items: center; }
+.plotwrap { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 14px; align-items: start; }
+.pctl { display: grid; gap: 8px; position: sticky; top: 0; max-height: calc(100vh - 160px); overflow: auto; padding-right: 4px; }
+.pctl .prow2 { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.pctl .prow2 select { width: auto; max-width: 150px; } .pctl input[type=color] { width: 30px; height: 24px; padding: 0; border: 1px solid var(--line); }
+.pout { min-width: 0; overflow: auto; } .pout .psvg svg { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: var(--r); }
+.pout h4 { margin: 12px 0 4px; font-size: 13px; }
+@media (max-width: 860px) { .plotwrap { grid-template-columns: minmax(0, 1fr); } .pctl { position: static; max-height: none; } }
 .clist { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 160px; overflow: auto; }
 .mapstyle[hidden] { display: none; }
 .zmap { position: relative; touch-action: none; }
@@ -569,7 +576,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
     <section id="dataView">
       <div class="dctl">
         <label class="f"><span data-i18n="data.core"></span><select id="dCore"></select></label>
-        <label class="f"><span data-i18n="data.view"></span><select id="dView"><option value="table" data-i18n="data.table"></option><option value="cols" data-i18n="data.cols"></option><option value="cells" data-i18n="data.cells"></option></select></label>
+        <label class="f"><span data-i18n="data.view"></span><select id="dView"><option value="table" data-i18n="data.table"></option><option value="cols" data-i18n="data.cols"></option><option value="cells" data-i18n="data.cells"></option><option value="plot" data-i18n="data.plot"></option></select></label>
         <label class="chk"><input type="checkbox" id="dLayers" checked><span data-i18n="data.showLayers"></span></label>
         <button class="btn small" id="dCsv" data-i18n="data.csv"></button>
         <span class="note" id="dInfo"></span>
