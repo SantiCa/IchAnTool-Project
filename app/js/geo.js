@@ -96,6 +96,12 @@ export function featureSeries(core, name, ratios = []) {
   return null;
 }
 
+/** Default largest gap bridged by resampling: 3 × the median spacing of the real (non-missing) samples of that series. */
+export function autoGap(xs, ys) {
+  const x = xs.filter((v, i) => v != null && ys[i] != null).sort((a, b) => a - b), d = x.slice(1).map((v, i) => v - x[i]).filter((v) => v > 0).sort((a, b) => a - b);
+  return d.length ? 3 * d[d.length >> 1] : Infinity;
+}
+
 /** Linear resampling onto a grid; null outside the data range or across gaps wider than maxGap. */
 export function resample(xs, ys, grid, maxGap = Infinity) {
   const p = xs.map((x, i) => [x, ys[i]]).filter((q) => q[0] != null && q[1] != null).sort((a, b) => a[0] - b[0]);
@@ -125,7 +131,7 @@ export function buildSamples(cores, cfg) {
     const grid = []; for (let g = lo; g <= hi + 1e-9; g += cfg.step) grid.push(+g.toFixed(10));
     const cols = F.map((name) => {
       const s = featureSeries(core, name, cfg.ratios); if (!s) return grid.map(() => null);
-      return resample(xs, s, grid, cfg.maxGap ?? Infinity);
+      return resample(xs, s, grid, cfg.maxGap ?? autoGap(xs, s));
     });
     const tr = cols.map((col, j) => (cfg.logs?.includes(F[j]) ? col.map((v) => (v != null && v > 0 ? Math.log10(v) : null)) : col));
     const rows = [];
@@ -253,7 +259,7 @@ function knnFit(X, y, p) { return { kind: 'knn', X, y, k: p.k, weights: p.weight
 function knnProba(m, x) {
   const d = m.X.map((xi, i) => [Math.hypot(...xi.map((v, j) => v - x[j])), m.y[i]]).sort((a, b) => a[0] - b[0]).slice(0, m.k);
   const out = {}; let tot = 0;
-  for (const [dist, c] of d) { const w = m.weights === 'distance' ? 1 / (dist + 1e-9) : 1; out[c] = (out[c] || 0) + w; tot += w; }
+  for (const [dist, c] of d) { const w = m.weights === 'distance' ? 1 / (dist + 0.05) : 1; /* +0.05 (z units): no near-certain votes next to near-duplicate resampled points */ out[c] = (out[c] || 0) + w; tot += w; }
   for (const c in out) out[c] /= tot;
   return out;
 }
@@ -264,7 +270,7 @@ function nbFit(X, y, p) {
   for (const c of classes) {
     const rows = X.filter((_, i) => y[i] === c);
     const mu = Array.from({ length: d }, (_, j) => mean(rows.map((r) => r[j])));
-    const va = mu.map((m, j) => std(rows.map((r) => r[j]), m) ** 2 + p.smoothing * maxVar);
+    const va = mu.map((m, j) => rows.reduce((a, r) => a + (r[j] - m) ** 2, 0) / rows.length + Math.max(p.smoothing, 1e-9) * (maxVar || 1));
     model.stats[c] = { mu, va, prior: p.priors === 'uniform' ? 1 / classes.length : rows.length / X.length };
   }
   return model;
@@ -385,8 +391,10 @@ export function predictLabel(model, x, minProb = 0) {
  * Cross-validation. With ≥2 labelled cores: leave-one-core-out (no core is both trained and tested).
  * Otherwise: 5 folds of contiguous blocks along the axis within each core (limits autocorrelation leakage).
  */
-export function crossValidate(samples, labels, method, params, seed = 42) {
-  const idx = samples.map((_, i) => i).filter((i) => labels[i] != null);
+export function crossValidate(samples, labels, method, params, seed = 42, opt = {}) {
+  // opt.scored(i): only these labelled samples are scored (e.g. described intervals, not rule labels, which would be circular);
+  // all labelled samples may still be used for training. opt.minProb: threshold used in practice (coverage reported).
+  const idx = samples.map((_, i) => i).filter((i) => labels[i] != null), scored = opt.scored || (() => true);
   const cores = [...new Set(idx.map((i) => samples[i].core))];
   let folds;
   if (cores.length >= 2) folds = cores.map((c) => idx.filter((i) => samples[i].core === c));
@@ -395,11 +403,19 @@ export function crossValidate(samples, labels, method, params, seed = 42) {
     folds = Array.from({ length: k }, (_, f) => sorted.slice(Math.floor((f * sorted.length) / k), Math.floor(((f + 1) * sorted.length) / k)));
   }
   const classes = [...new Set(idx.map((i) => labels[i]))].sort(), cm = classes.map(() => classes.map(() => 0));
+  const perFold = []; let nScored = 0, nCovered = 0, nCovOk = 0;
   for (const test of folds) {
-    const tset = new Set(test), train = idx.filter((i) => !tset.has(i));
-    if (new Set(train.map((i) => labels[i])).size < 2 || !test.length) continue;
+    const tset = new Set(test), train = idx.filter((i) => !tset.has(i)), tst = test.filter(scored);
+    if (new Set(train.map((i) => labels[i])).size < 2 || !tst.length) continue;
     const m = fitModel(method, train.map((i) => samples[i].f), train.map((i) => labels[i]), params, seed);
-    for (const i of test) { const pl = predictLabel(m, samples[i].f).label; const a = classes.indexOf(labels[i]), b = classes.indexOf(pl); if (a >= 0 && b >= 0) cm[a][b]++; }
+    const rc = {};
+    for (const i of tst) {
+      const pr = predictLabel(m, samples[i].f), a = classes.indexOf(labels[i]), b = classes.indexOf(pr.label); nScored++;
+      if (a >= 0 && b >= 0) cm[a][b]++;
+      (rc[labels[i]] ||= [0, 0])[1]++; if (pr.label === labels[i]) rc[labels[i]][0]++;
+      if (opt.minProb != null && pr.prob >= opt.minProb) { nCovered++; if (pr.label === labels[i]) nCovOk++; }
+    }
+    const recs = Object.values(rc).map(([k, n]) => k / n); if (recs.length) perFold.push(mean(recs));
   }
   const total = cm.flat().reduce((a, b) => a + b, 0), correct = classes.reduce((s, _, k) => s + cm[k][k], 0);
   const perClass = classes.map((c, k) => {
@@ -408,8 +424,11 @@ export function crossValidate(samples, labels, method, params, seed = 42) {
     return { label: c, precision, recall, f1: precision && recall ? (2 * precision * recall) / (precision + recall) : 0, n: tp + fn };
   });
   const rec = perClass.filter((q) => q.recall != null);
-  return { scheme: cores.length >= 2 ? 'leave-one-core-out' : 'blocked-5-fold', folds: folds.length, classes, cm, total,
-    accuracy: total ? correct / total : null, balancedAccuracy: rec.length ? mean(rec.map((q) => q.recall)) : null, perClass };
+  const sdF = perFold.length > 1 ? Math.sqrt(perFold.reduce((a, v) => a + (v - mean(perFold)) ** 2, 0) / (perFold.length - 1)) : null;
+  return { scheme: cores.length >= 2 ? 'leave-one-core-out' : 'blocked-5-fold', folds: folds.length, classes, cm, total, nScored,
+    accuracy: total ? correct / total : null, balancedAccuracy: rec.length ? mean(rec.map((q) => q.recall)) : null, perClass,
+    foldBalanced: { mean: perFold.length ? mean(perFold) : null, sd: sdF, n: perFold.length },
+    coverage: opt.minProb != null && nScored ? { minProb: opt.minProb, share: nCovered / nScored, accuracy: nCovered ? nCovOk / nCovered : null } : null };
 }
 
 /* ───────── maps ───────── */
@@ -429,13 +448,16 @@ export function mapSummary(samples, preds, cores, { a0, a1, mode, feature = 0, r
       const [dom, k] = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0] || [null, 0];
       return { core: id, name: c.name, lat: c.lat, lon: c.lon, n: sel.length, dominant: dom, fraction: k / sel.length, counts: cnt };
     }
-    let v = mean(sel.map(([s]) => s.zc[feature]));
+    // only samples with a real value of the variable (with missing = 'mean' the filled ones are z = 0 and would bias the map)
+    const real = sel.filter(([s]) => s.t?.[feature] != null);
+    if (!real.length) return { core: id, name: c.name, lat: c.lat, lon: c.lon, n: 0 };
+    let v = mean(real.map(([s]) => s.zc[feature]));
     if (ref) {
-      const r = samples.filter((s) => s.core === id && s.age != null && s.age >= ref[0] && s.age < ref[1]);
+      const r = samples.filter((s) => s.core === id && s.age != null && s.age >= ref[0] && s.age < ref[1] && s.t?.[feature] != null);
       if (!r.length) return { core: id, name: c.name, lat: c.lat, lon: c.lon, n: 0 };
       v -= mean(r.map((s) => s.zc[feature]));
     }
-    return { core: id, name: c.name, lat: c.lat, lon: c.lon, n: sel.length, value: v };
+    return { core: id, name: c.name, lat: c.lat, lon: c.lon, n: real.length, value: v };
   });
 }
 

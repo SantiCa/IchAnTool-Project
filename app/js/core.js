@@ -81,7 +81,11 @@ export function parseAgeModel(text) {
     if (p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])) pts.push([p[0], p[1]]);
   }
   pts.sort((a, b) => a[0] - b[0]);
-  return pts.length >= 2 ? { depth: pts.map((p) => p[0]), age: pts.map((p) => p[1]) } : null;
+  if (pts.length < 2) return null;
+  const m = { depth: pts.map((p) => p[0]), age: pts.map((p) => p[1]) };
+  // reversals (age decreasing downwards) make depth↔age conversion ambiguous: flagged for the interface
+  m.reversals = m.age.reduce((k, a, i) => k + (i && a < m.age[i - 1] ? 1 : 0), 0);
+  return m;
 }
 
 /** Linear interpolation; null outside the model (no extrapolation). */

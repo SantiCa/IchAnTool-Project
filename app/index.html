@@ -14,7 +14,8 @@
    log strip drawn at the same depth scale; right = ichnotaxa, learning and results. */
 :root {
   --bg: #e9ecea; --panel: #f7f8f7; --ink: #1c2422; --muted: #5b6763; --line: #d0d7d4; --field: #ffffff;
-  --accent: #a85f1c; --accent-ink: #ffffff; --accent-soft: #f2e2d1; --focus: #2f6fb0;
+  --accent: #94500f; --accent-ink: #ffffff; --accent-soft: #f1e3d2; --accent-text: #7a410e; --focus: #2f6fb0;
+  --line-strong: #8a8d86; --paper: #ffffff; --tip-bg: #fbf3d5; --tip-ink: #3a3320; --tip-line: #e3cf7a;
   --viewer: #161a19; --viewer-ink: #e6e1d6; --danger: #b3261e; --ok: #2e7d4f;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-head: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
@@ -24,13 +25,15 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #101413; --panel: #171c1b; --ink: #e2e7e5; --muted: #95a39e; --line: #2a3331; --field: #0f1312;
-    --accent: #e0995a; --accent-ink: #1a1208; --accent-soft: #3a2a1b; --focus: #7fb2e5;
+    --accent: #e09a5b; --accent-ink: #1a1208; --accent-soft: #3a2a1b; --accent-text: #e09a5b; --focus: #7fb2e5;
+    --line-strong: #5e6863; --paper: #ffffff; --tip-bg: #2e2a1a; --tip-ink: #efe6c4; --tip-line: #5a5030;
     --viewer: #0c0f0e; --viewer-ink: #e6e1d6; --danger: #ff8a80; --ok: #7bd6a0; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101413; --panel: #171c1b; --ink: #e2e7e5; --muted: #95a39e; --line: #2a3331; --field: #0f1312;
-  --accent: #e0995a; --accent-ink: #1a1208; --accent-soft: #3a2a1b; --focus: #7fb2e5;
+  --accent: #e09a5b; --accent-ink: #1a1208; --accent-soft: #3a2a1b; --accent-text: #e09a5b; --focus: #7fb2e5;
+  --line-strong: #5e6863; --paper: #ffffff; --tip-bg: #2e2a1a; --tip-ink: #efe6c4; --tip-line: #5a5030;
   --viewer: #0c0f0e; --viewer-ink: #e6e1d6; --danger: #ff8a80; --ok: #7bd6a0; color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -39,7 +42,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.45 var(
 [hidden] { display: none !important; }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr;  grid-template-columns: minmax(0, 1fr); }
 
 /* top bar */
 .top { display: flex; align-items: center; gap: 16px; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
@@ -58,6 +61,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn:disabled { opacity: .45; cursor: default; }
 label.file { display: inline-flex; }
 label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+label.file:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 /* main grid */
 .work { min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; }
@@ -68,7 +72,7 @@ label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .step { border-bottom: 1px solid var(--line); }
 .step > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; font: 600 12px/1 var(--font-head); text-transform: uppercase; letter-spacing: .07em; }
 .step > summary::-webkit-details-marker { display: none; }
-.step > summary .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font: 600 11px/1 var(--font-data); letter-spacing: 0; }
+.step > summary .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); font: 600 11px/1 var(--font-data); letter-spacing: 0; }
 .step > summary::after { content: ""; margin-left: auto; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
 .step[open] > summary::after { transform: rotate(-135deg); }
 .step .body { padding: 2px 14px 14px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
@@ -85,7 +89,7 @@ label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .f > span, .lbl { color: var(--muted); font-size: 11.5px; }
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 70px; gap: 8px; }
-input[type=text], input[type=number], select, textarea { width: 100%; border: 1px solid var(--line); background: var(--field); border-radius: var(--r); padding: 5px 7px; }
+input[type=text], input[type=number], select, textarea { width: 100%; border: 1px solid var(--line-strong); background: var(--field); border-radius: var(--r); padding: 5px 7px; }
 textarea { font: 12px/1.4 var(--font-data); resize: vertical; min-height: 64px; }
 input[type=number] { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
 .note { color: var(--muted); font-size: 11.5px; margin: 0; }
@@ -102,7 +106,7 @@ input[type=number] { font-family: var(--font-data); font-variant-numeric: tabula
 .tools { display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .tool { width: 32px; height: 30px; display: grid; place-items: center; border: 1px solid transparent; border-radius: var(--r); background: transparent; cursor: pointer; color: var(--ink); }
 .tool:hover { border-color: var(--line); }
-.tool[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.tool[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
 .tool svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .sep { width: 1px; height: 22px; background: var(--line); margin: 0 6px; }
 .opt { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
@@ -123,7 +127,7 @@ input[type=number] { font-family: var(--font-data); font-variant-numeric: tabula
 
 /* right panel */
 .tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); flex-shrink: 0; }
-.tabs button { flex: 1 1 auto; border: 0; background: transparent; padding: 10px 6px; cursor: pointer; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button { flex: 1 1 auto; border: 0; background: transparent; padding: 10px 6px; cursor: pointer; font: 600 12.5px var(--font-head); color: var(--muted); border-bottom: 2px solid transparent; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pane { padding: 12px 14px; display: grid; gap: 12px; align-content: start; overflow: auto; min-height: 0; flex: 1; }
 
@@ -143,7 +147,7 @@ input[type=number] { font-family: var(--font-data); font-variant-numeric: tabula
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
 .pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font: 600 11px var(--font-body); }
-.pill.labeled { background: var(--accent-soft); color: var(--accent); }
+.pill.labeled { background: var(--accent-soft); color: var(--accent-text); }
 .pill.predicted { border: 1px dashed var(--accent); color: var(--accent); }
 .pill.candidate { background: var(--bg); color: var(--muted); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
@@ -211,7 +215,7 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 #geoStage .gpane { flex: 1; overflow: auto; padding: 14px 16px; min-height: 0; }
 #geoStage .gctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-bottom: 10px; }
 #geoStage .gctl .f { min-width: 90px; }
-.tipcard { position: fixed; left: 16px; bottom: 16px; z-index: 40; max-width: 380px; background: #fff8d6; color: #3a3320; border: 1px solid #e3cf7a; border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.tipcard { position: fixed; left: 16px; bottom: 16px; z-index: 40; max-width: 380px; background: var(--tip-bg); color: var(--tip-ink); border: 1px solid var(--tip-line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
 .tipcard[hidden] { display: none; }
 #tour { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
 #tour[hidden] { display: none; }
@@ -220,7 +224,7 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 #tour .tourbox h3 { margin: 0; font-size: 15px; } #tour .tourn { font-size: 11px; color: var(--muted); }
 dialog.wide { max-width: min(1100px, calc(100vw - 32px)); width: 100%; }
 #mlTabs { display: flex; gap: 6px; margin: 10px 0; }
-#mlTabs .btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 .mlbody { max-height: 72vh; overflow: auto; display: grid; gap: 8px; align-content: start; }
 .mlbody h3 { margin: 10px 0 2px; font-size: 14px; }
 .mlbody table.gtab td, .mlbody table.gtab th { padding: 3px 6px; vertical-align: top; text-align: left; }
@@ -252,7 +256,7 @@ dialog.wide { max-width: min(1100px, calc(100vw - 32px)); width: 100%; }
 .pout { min-width: 0; overflow: auto; } .pout .psvg svg { max-width: 100%; height: auto; background: #fff; border: 1px solid var(--line); border-radius: var(--r); }
 .pout h4 { margin: 12px 0 4px; font-size: 13px; }
 @media (max-width: 860px) { .plotwrap { grid-template-columns: minmax(0, 1fr); } .pctl { position: static; max-height: none; } }
-.clist { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 160px; overflow: auto; }
+.chklist { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 160px; overflow: auto; }
 .mapstyle[hidden] { display: none; }
 .zmap { position: relative; touch-action: none; }
 .zmap svg { cursor: grab; display: block; max-width: 100%; height: auto; }
@@ -265,7 +269,7 @@ dialog.wide { max-width: min(1100px, calc(100vw - 32px)); width: 100%; }
 .work.geo.mapwide > #geoPanel { display: none; }
 #geoMapSvg:fullscreen { background: #fff; overflow: auto; display: grid; place-items: center; }
 #geoMapSvg:fullscreen svg { width: auto; height: 100vh; max-width: 100vw; }
-#gmBig[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
 .glogwrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .glogside { flex: 1; min-width: 220px; display: grid; gap: 6px; }
 .ivrow { flex-wrap: nowrap; gap: 6px; font-size: 12px; }
@@ -327,7 +331,7 @@ dialog input[type=text] { min-width: 0; }
 #home[hidden] { display: none; }
 #home .hgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; max-width: 1500px; margin: 0 auto; }
 #home .htabs { display: flex; gap: 6px; max-width: 1500px; margin: 0 auto 12px; }
-#home .htabs .btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 #home .mpbox { border: 1px solid var(--line); border-radius: var(--r); padding: 10px; display: grid; gap: 6px; }
 #home .mpbox h3 { margin: 0; font-size: 14px; }
 #home section.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; }
@@ -359,7 +363,34 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
   .work.geo { grid-template-columns: minmax(0, 1fr); }
   .work.geo > #geoStage { order: -1; max-height: 85vh; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+
+/* V22 council review */
+.startcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.startcard { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field); cursor: pointer; font: inherit; color: inherit; }
+.startcard b { font: 600 15px/1.25 var(--font-head); }
+.startcard span { color: var(--muted); font-size: 12px; }
+.startcard.main { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.startcard.main span { color: inherit; opacity: .85; }
+.startcard:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+details.bk > summary { cursor: pointer; font-weight: 600; }
+.pane { grid-template-columns: minmax(0, 1fr); }
+.pane table, .clfscope table { display: block; overflow-x: auto; max-width: 100%; }
+.mlbody table { display: block; overflow-x: auto; max-width: 100%; }
+#sideTabs button { flex: 1 1 0; min-width: 0; padding: 10px 2px; }
+.tipcard { left: auto; right: 16px; bottom: 16px; max-width: 340px; }
+#ageStatus.warn { color: var(--danger); }
+#figOut:empty, #figOut > .note:only-child { background: var(--panel); }
+@media (max-width: 860px) {
+  .top { flex-wrap: wrap; gap: 8px; }
+  .top > * { min-width: 0; max-width: 100%; }
+  .top .seg { order: 10; width: 100%; overflow-x: auto; }
+  .corebar select { max-width: 42vw; }
+  .app, .work { min-width: 0; max-width: 100vw; }
+  .top .seg button { flex: 1 0 auto; }
+  .tools { flex-wrap: wrap; }
+  .tipcard { left: 8px; right: 8px; max-width: none; }
+}
 </style>
 </head>
 <body>
@@ -368,7 +399,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
     <div class="brand" title="CorAnTool (antes IchAnTool)"><b>Cor<i>An</i>Tool</b></div>
     <button class="btn proj" id="projBtn" data-i18n-title="home.title"><span aria-hidden="true">⌂</span><span class="lbl" data-i18n="proj.label"></span><b id="projName"></b></button>
     <div class="corebar"><span class="lbl" data-i18n="core.label"></span><select id="coreSel"></select><button class="btn small" id="coreAdd" data-i18n-title="core.add">+</button><button class="btn small ghost" id="coreEdit" data-i18n-title="core.edit">✎</button></div>
-    <div class="seg" role="group"><button id="modeSection" aria-pressed="true" data-i18n="mode.section"></button><button id="modeLog" aria-pressed="false" data-i18n="mode.log"></button><button id="modeData" aria-pressed="false" data-i18n="mode.data"></button><button id="modeGeo" aria-pressed="false" data-i18n="mode.geo"></button><button id="modeFig" aria-pressed="false" data-i18n="mode.fig"></button></div>
+    <div class="seg" role="group"><button id="modeSection" data-i18n-title="mode.hint.section" aria-pressed="true" data-i18n="mode.section"></button><button id="modeLog" data-i18n-title="mode.hint.log" aria-pressed="false" data-i18n="mode.log"></button><button id="modeData" data-i18n-title="mode.hint.data" aria-pressed="false" data-i18n="mode.data"></button><button id="modeGeo" data-i18n-title="mode.hint.geo" aria-pressed="false" data-i18n="mode.geo"></button><button id="modeFig" data-i18n-title="mode.hint.fig" aria-pressed="false" data-i18n="mode.fig"></button></div>
     <div class="grow"></div>
     <div class="acts">
       <span class="savestate" id="saveState"></span>
@@ -469,7 +500,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
         <button class="btn small ghost" id="undoBtn" data-i18n-title="undo" disabled>↶</button>
         <label class="opt"><input type="checkbox" id="showOrig"><span data-i18n="view.orig"></span></label>
         <label class="opt"><span data-i18n="view.overlay"></span><input type="range" id="ovAlpha" min="0" max="100" style="width:70px"></label>
-        <button class="btn small" id="zoomOut">−</button><span class="zoom" id="zoomLbl">100%</span><button class="btn small" id="zoomIn">+</button>
+        <button class="btn small" id="zoomOut" data-i18n-title="aria.zoomOut">−</button><span class="zoom" id="zoomLbl">100%</span><button class="btn small" id="zoomIn" data-i18n-title="aria.zoomIn">+</button>
         <button class="btn small" id="zoomFit" data-i18n="view.fit"></button>
       </div>
       <div class="viewport" id="viewport">
@@ -489,7 +520,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
     </section>
 
     <aside class="side right">
-      <div class="tabs" role="tablist">
+      <div class="tabs" role="tablist" id="sideTabs">
         <button role="tab" data-tab="classes" aria-selected="true" data-i18n="tab.classes"></button>
         <button role="tab" data-tab="object" aria-selected="false" data-i18n="tab.object"></button>
         <button role="tab" data-tab="learn" aria-selected="false" data-i18n="tab.learn"></button>
@@ -612,7 +643,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
           <p class="note" data-i18n="geo.prepNote"></p>
           <div class="f"><span data-i18n="geo.features"></span><div id="geoFeats" class="rec"></div></div>
           <div class="f"><span data-i18n="geo.ratio"></span>
-            <div class="row" style="flex-wrap:nowrap"><select id="geoRatioA"></select><span>/</span><select id="geoRatioB"></select><button class="btn small" id="geoAddRatio">+</button></div>
+            <div class="row" style="flex-wrap:nowrap"><select id="geoRatioA"></select><span>/</span><select id="geoRatioB"></select><button class="btn small" id="geoAddRatio" data-i18n-title="aria.addRatio">+</button></div>
           </div>
         </div>
       </details>
@@ -669,7 +700,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
         <div class="gctl" id="geoMapCtl">
           <label class="f"><span data-i18n="geo.ageFrom"></span><input type="number" id="gmA0" step="any"></label>
           <label class="f"><span data-i18n="geo.ageTo"></span><input type="number" id="gmA1" step="any"></label>
-          <div class="row"><button class="btn small" id="gmPrev">◀</button><button class="btn small" id="gmNext">▶</button></div>
+          <div class="row"><button class="btn small" id="gmPrev" data-i18n-title="aria.prev">◀</button><button class="btn small" id="gmNext" data-i18n-title="aria.next">▶</button></div>
           <label class="f"><span data-i18n="geo.mapMode"></span><select id="gmMode"><option value="class" data-i18n="geo.mm.class"></option><option value="value" data-i18n="geo.mm.value"></option></select></label>
           <label class="f" id="gmFeatRow"><span data-i18n="geo.feature"></span><select id="gmFeature"></select></label>
           <div class="row" id="gmIdwRow"><label class="chk"><input type="checkbox" id="gmIdw"><span data-i18n="ip.on"></span></label><input type="hidden" id="gmPower"></div>
@@ -699,32 +730,37 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
 </dialog>
 <section id="home" hidden>
   <h1 data-i18n="home.title"></h1>
-  <div class="htabs" role="tablist"><button class="btn" data-htab="projects" data-i18n="home.tab.projects"></button><button class="btn" data-htab="all" data-i18n="home.tab.all"></button></div>
+  <div class="htabs" role="tablist"><button class="btn" role="tab" data-htab="projects" data-i18n="home.tab.projects"></button><button class="btn" role="tab" data-htab="all" data-i18n="home.tab.all"></button></div>
   <div class="hgrid">
     <section class="card" data-hpane="projects">
-  <h2 data-i18n="proj.title"></h2>
+  <div class="startcards">
+    <button class="startcard main" id="startLearn"><b data-i18n="start.learn"></b><span data-i18n="start.learnNote"></span></button>
+    <button class="startcard" id="startNew"><b data-i18n="start.new"></b><span data-i18n="start.newNote"></span></button>
+    <button class="startcard" id="startThesis"><b data-i18n="start.thesis"></b><span data-i18n="start.thesisNote"></span></button>
+  </div>
   <div id="projList" class="plist"></div>
   <div class="row" style="flex-wrap:nowrap;margin-top:12px"><input type="text" id="newProjName" data-i18n-ph="proj.newPh"><button class="btn primary" id="newProjBtn" data-i18n="proj.create"></button></div>
   <div class="row" style="margin-top:10px">
     <button class="btn small" id="openTest" data-i18n="proj.test"></button>
     <button class="btn small" id="openIdeal" data-i18n="proj.ideal"></button>
-    <button class="btn small primary" id="openTutorial" data-i18n="tut.open"></button>
+    <button class="btn small" id="openTutorial" data-i18n="tut.open"></button>
     <label class="btn small file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json" multiple></label>
     <button class="btn small" id="expProj" data-i18n="proj.export"></button>
   </div>
   <p class="note" data-i18n="proj.note"></p>
-  <section class="bk">
+  <details class="bk" id="bkBox">
+    <summary data-i18n="bk.summary"></summary>
     <h3 data-i18n="bk.title"></h3>
     <p class="bkstatus" id="bkStatus"></p>
     <p class="note" id="bkPersist"></p>
     <div class="row">
-      <button class="btn small primary" id="bkChoose" data-i18n="bk.choose"></button>
+      <button class="btn small" id="bkChoose" data-i18n="bk.choose"></button>
       <button class="btn small danger" id="bkReactivate" hidden data-i18n="bk.reactivate"></button>
       <button class="btn small" id="bkFull" data-i18n="bk.full"></button>
     </div>
     <p class="note" id="bkNoFs" hidden data-i18n="bk.noFs"></p>
     <p class="note" data-i18n="bk.help"></p>
-  </section>
+  </details>
   
 
       <div class="row" style="justify-content:flex-end"><button class="btn" id="projClose" data-i18n="home.back"></button></div>
@@ -738,7 +774,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
         <label class="f" id="amLayRow"><span data-i18n="geo.layer"></span><select id="amLayer"></select></label>
         <label class="f"><span data-i18n="geo.ageFrom"></span><input type="number" id="amA0" step="any" value="9" style="width:70px"></label>
         <label class="f"><span data-i18n="geo.ageTo"></span><input type="number" id="amA1" step="any" value="14" style="width:70px"></label>
-        <div class="row"><button class="btn small" id="amPrev">◀</button><button class="btn small" id="amNext">▶</button><button class="btn small" id="amSvg">SVG</button><select id="amPngW" style="width:auto"><option value="1800">PNG 1800 px</option><option value="3600" selected>PNG 3600 px</option><option value="7200">PNG 7200 px</option></select><button class="btn small" id="amPng">PNG</button></div>
+        <div class="row"><button class="btn small" id="amPrev" data-i18n-title="aria.prev">◀</button><button class="btn small" id="amNext" data-i18n-title="aria.next">▶</button><button class="btn small" id="amSvg">SVG</button><select id="amPngW" style="width:auto"><option value="1800">PNG 1800 px</option><option value="3600" selected>PNG 3600 px</option><option value="7200">PNG 7200 px</option></select><button class="btn small" id="amPng">PNG</button></div>
       </div>
       <div class="mapstyle" id="amCores"></div>
       <div class="mapstyle" id="amInterp"></div>

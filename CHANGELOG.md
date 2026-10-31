@@ -2,6 +2,17 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V22 — Web app 1.7 — 2026-10-31
+- Council review (3 reviewers). Science: ichnotaxon evaluation no longer drops wrong predictions; folds and
+  leave-one-out grouped by image section; interval classifier scored only on described intervals, with per-core
+  spread and coverage; value maps use only real samples; gridding in km (equal-area), co-located cores merged,
+  Cressie-weighted variogram, no extrapolation by default; resampling no longer bridges gaps; NB/kNN fixes;
+  age-model reversals flagged.
+- Usability: shortcuts only in Bioturbation, two-step confirmation for destructive actions, consistent
+  terminology, getting-started cards, better tour, accessible tabs, Esc closes the start screen.
+- UI/code: fixed blank right panel and clipped ichnotaxa list, WCAG AA contrast tokens, mobile overflow,
+  non-overlapping saves, quota warning, lighter model storage, idle refit of comparison models.
+
 ## V21 — Web app 1.6 — 2026-10-31
 - Data tab plots (Grapher-like): stratigraphic multi-panel logs and XY plots with secondary Y axis, log/inverted
   axes, six series types, curve fits (linear, polynomial, exponential, power, logarithmic, moving average) with

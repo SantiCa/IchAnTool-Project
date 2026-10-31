@@ -1,5 +1,13 @@
 # Métodos y defensa ante revisores
 
+> **V22 (revisión del concilio):** la evaluación de icnotaxones se valida por imagen (sección) y cuenta como error
+> cualquier predicción de un taxón ausente del conjunto de prueba; el clasificador de intervalos se puntúa solo con
+> intervalos descritos (no con reglas) e informa el acierto por sondeo (media ± DE) y la cobertura a la probabilidad
+> mínima; los mapas de valores usan solo datos reales y la interpolación mide distancias en km. Las cifras obtenidas
+> con versiones anteriores deben recalcularse. Las «probabilidades» de RF, NB y k-NN son proporciones de voto o
+> verosimilitudes normalizadas, no probabilidades calibradas. Los mapas z por sondeo eliminan las diferencias de
+> nivel absoluto entre sondeos (el gradiente espacial): úsense para patrones relativos.
+
 > Desde V16 el programa se llama **CorAnTool** (antes IchAnTool). En los artículos: «CorAnTool (formerly
 > IchAnTool; Casanova-Arenillas et al., 2020)». Los sondeos LC06, LC14 y LC20 tienen profundidad supuesta
 > (secciones apiladas, §21.8 ter): no usarlos en una figura publicada sin verificarla.

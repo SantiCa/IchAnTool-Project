@@ -30,3 +30,13 @@ test('methods and scopes compared on the same test traces', async () => {
   const r = evaluateModels({ test: ex.slice(0, 20), pools: { core: ex.slice(0, 20), project: ex }, methods: ['knn', 'nb', 'rf'], opt });
   for (const sc of ['core', 'project']) for (const m of ['knn', 'nb', 'rf']) assert.equal(r[sc][m].accuracy, 1);
 });
+
+test('V22: wrong predictions of a class absent from the test set count as errors; grouped folds', async () => {
+  const { evaluateModels, groupedFolds } = await import('../../app/js/learn.js');
+  const test = Array.from({ length: 10 }, (_, i) => ({ key: 't' + i, ...mk('A', 0, i) }));
+  const pool = Array.from({ length: 10 }, (_, i) => ({ key: 'p' + i, ...mk('C', 0, i) })).concat(Array.from({ length: 10 }, (_, i) => ({ key: 'q' + i, ...mk('D', 5, i) })));
+  const r = evaluateModels({ test, pools: { all: pool }, methods: ['knn'], opt: { k: 3 } });
+  assert.equal(r.all.knn.accuracy, 0); assert.equal(r.all.knn.n, 10); assert.equal(r.all.knn.other[0], 10);
+  const g = ['s1', 's1', 's2', 's2', 's3', 's3', 's4', 's4', 's5', 's5'], f = groupedFolds(test.map(() => 'A'), g, 5, 1);
+  for (const fold of f) assert.equal(new Set(fold.map((i) => g[i])).size, 1);
+});

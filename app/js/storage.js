@@ -14,7 +14,8 @@ function openDB() {
       if (!db.objectStoreNames.contains('prefs')) db.createObjectStore('prefs', { keyPath: 'key' });
       if (!db.objectStoreNames.contains('lite')) db.createObjectStore('lite', { keyPath: 'id' }); // numeric data only, for the all-projects view
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => { const d = req.result; d.onversionchange = () => { d.close(); dbPromise = null; }; resolve(d); };
+    req.onblocked = () => console.warn('IndexedDB upgrade blocked by another tab');
     req.onerror = () => reject(req.error);
   });
 }

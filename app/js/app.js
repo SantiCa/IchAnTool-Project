@@ -8,7 +8,7 @@ import { buildXYPlot, buildStratPlot, PLOT_TYPES, FIT_KINDS, PLOT_COLORS } from 
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
 import { Classifier, TaxonModel, evaluateModels, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, mapGeometry, mapFrame } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, mapGeometry, mapFrame } from './geo.js';
 
 /** App name (V16: IchAnTool → CorAnTool). Files written by IchAnTool are still accepted; browser storage keys keep the old name. */
 const APP = 'CorAnTool', APP_NAMES = ['CorAnTool', 'IchAnTool'];
@@ -347,27 +347,31 @@ function clearCandidates() {
 
 /* ───────────── learning ───────────── */
 
-let learnTimer = 0;
+let learnTimer = 0, learnIdle = 0;
 function scheduleLearn() { clearTimeout(learnTimer); learnTimer = setTimeout(learnNow, (S.settings.ml?.method || 'knn') === 'knn' ? 60 : 500); }
 /** Labelled examples of this project with a stable key; objects marked «not for training» (o.nt) are left out. */
 function ownExamples(cores, withExcluded = false) {
   const ex = [];
   for (const c of cores) for (const s of c.sections) for (const o of s.objects.values()) if (o.cls && o.feat && (withExcluded || !o.nt)) {
-    const k = clsById(o.cls); if (k) ex.push({ key: `${S.id}|${c.id}|${s.id}|${o.id}`, y: k.name, x: vec(o.feat), c, s, o });
+    const k = clsById(o.cls); if (k) ex.push({ key: `${S.id}|${c.id}|${s.id}|${o.id}`, g: `${S.id}|${c.id}|${s.id}`, y: k.name, x: vec(o.feat), c, s, o });
   }
   return ex;
 }
 function mlSets() {
-  const lib = S.library.filter((e) => e.name && Array.isArray(e.x)).map((e, i) => ({ key: e.key || `lib|${i}`, y: e.name, x: e.x, lib: e }));
+  const grp = (k) => String(k).split('|').slice(0, 3).join('|');
+  const lib = S.library.filter((e) => e.name && Array.isArray(e.x)).map((e, i) => ({ key: e.key || `lib|${i}`, g: grp(e.key || `lib|${i}`), y: e.name, x: e.x, lib: e }));
   const cur = S.cores.find((c) => c.id === S.curCore), exCore = ownExamples(cur ? [cur] : []), exProj = ownExamples(S.cores);
   const keys = new Set([...exProj, ...lib].map((e) => e.key));
-  const other = otherExamples.filter((e) => !mlExcluded.has(e.key) && !keys.has(e.key));
+  const other = otherExamples.filter((e) => !mlExcluded.has(e.key) && !keys.has(e.key)).map((e) => ({ ...e, g: grp(e.key) }));
   return { core: exCore.concat(lib), project: exProj.concat(lib), all: exProj.concat(lib, other) };
 }
 function learnNow() {
-  const sets = mlSets();
-  for (const k of CLF_SCOPES) { clfs[k] = mkModel(); clfs[k].cv = mlEval?.res?.[k]?.[clfs[k].method]?.balanced ?? null; clfs[k].fit(sets[k]); }
-  clf = clfs[S.settings.clfScope] || clfs.project;
+  const sets = mlSets(), active = CLF_SCOPES.includes(S.settings.clfScope) ? S.settings.clfScope : 'project';
+  const fitScope = (k) => { clfs[k] = mkModel(); clfs[k].cv = mlEval?.res?.[k]?.[clfs[k].method]?.balanced ?? null; clfs[k].fit(sets[k]); };
+  fitScope(active); // the model in use is refitted at once; the other two (only for comparison) when the browser is idle
+  clearTimeout(learnIdle);
+  learnIdle = setTimeout(() => { for (const k of CLF_SCOPES) if (k !== active) fitScope(k); renderLearn(); renderObject(); if ($('mlDlg')?.open) renderMl(); }, 350);
+  clf = clfs[active];
   const idOf = (name) => S.classes.find((c) => c.name === name)?.id || null;
   for (const s of S.sections) {
     for (const o of s.objects.values()) {
@@ -393,9 +397,10 @@ let allModelTimer = 0;
 function saveAllModel() { clearTimeout(allModelTimer); allModelTimer = setTimeout(() => { if (storageOK && clfs.all.n) setPref('model.all', clfs.all.toJSON()).catch(() => {}); }, 3000); }
 /** Stored models of the project ("weights"): the project model and one per core. */
 function projectModels() {
-  const out = { project: clfs.project.n ? clfs.project.toJSON() : null, cores: {} };
-  for (const c of S.cores) { const ex = ownExamples([c]); if (ex.length >= 2) out.cores[c.id] = new Classifier({ novelty: S.settings.novelty, k: mlOpt().k, weights: mlOpt().weights }).fit(ex).toJSON(); }
-  return out;
+  // the models already fitted (same method and settings as in use); the core model is kept per core as it was last fitted
+  S.coreModels ||= {};
+  if (S.curCore && clfs.core.n >= 2) S.coreModels[S.curCore] = clfs.core.toJSON();
+  return { project: clfs.project.n ? clfs.project.toJSON() : null, all: null, cores: { ...S.coreModels } };
 }
 
 /* ───────────── analysis ───────────── */
@@ -726,6 +731,8 @@ function setRoi(s, roi) {
 
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select, dialog')) return;
+  // shortcuts belong to the Bioturbation image only: not on the start screen, not in other modes, and a focused button keeps Space/Enter
+  if (mode !== 'section' || !$('home').hidden || tourStep >= 0 || (e.target.closest('button, a, summary, [role=tab], label') && (e.key === ' ' || e.key === 'Enter'))) return;
   const k = e.key, s = sec();
   if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
   if (k === ' ') { spaceDown = true; view.classList.add('pan'); e.preventDefault(); return; }
@@ -801,9 +808,9 @@ function selectWhere(fn) {
 }
 
 function showTab(name, soft = false) {
-  if (soft && document.querySelector('.tabs [aria-selected="true"]')?.dataset.tab === 'results') return;
+  if (soft && $('sideTabs').querySelector('[aria-selected="true"]')?.dataset.tab === 'results') return;
   setTimeout(() => { if (typeof updateTip === 'function') updateTip(); }, 0);
-  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  $('sideTabs').querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
   document.querySelectorAll('.pane').forEach((p) => (p.hidden = p.dataset.pane !== name));
 }
 
@@ -820,7 +827,15 @@ function renderClasses() {
       ${c.fixed ? '<span></span>' : '<button class="del" aria-label="delete">×</button>'}
     </li>`).join('');
 }
-const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m]);
+/** Two-step confirmation for actions that cannot be undone: the first click arms the button (text and colour change) for 4 s. */
+function armed(btn, msg) {
+  if (!btn) return true;
+  if (btn.dataset.armed === '1') { btn.dataset.armed = ''; clearTimeout(btn._armT); btn.textContent = btn._armTxt; btn.classList.remove('danger'); return true; }
+  btn._armTxt = btn.textContent; btn.dataset.armed = '1'; btn.textContent = msg || t('confirm.click'); btn.classList.add('danger');
+  btn._armT = setTimeout(() => { btn.dataset.armed = ''; btn.textContent = btn._armTxt; btn.classList.remove('danger'); }, 4000);
+  return false;
+}
+const esc = (s) => String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 
 $('classList').addEventListener('click', (e) => {
   const li = e.target.closest('li'); if (!li) return;
@@ -1104,8 +1119,9 @@ $('presetSave').addEventListener('click', () => {
   userPresets.push(u); $('presetName').value = ''; s.preset = 'u:' + u.id;
   storePresets(); renderFilterForm(); markDirty(); toast(t('f.saved', { n: name }));
 });
-$('presetDel').addEventListener('click', () => {
+$('presetDel').addEventListener('click', (e) => {
   const s = sec(); const v = s?.preset || ''; if (!v.startsWith('u:')) return;
+  if (!armed(e.currentTarget)) return;
   userPresets = userPresets.filter((u) => 'u:' + u.id !== v); s.preset = 'custom';
   storePresets(); renderFilterForm();
 });
@@ -1147,8 +1163,9 @@ for (const id of ['secTop', 'secBottom', 'secUnits']) $(id).addEventListener('ch
   s.units = $('secUnits').value;
   recomputeFeatures(s); renderSectionForm(); scheduleLearn(); scheduleAnalysis(); requestRender();
 });
-$('secDel').addEventListener('click', () => {
+$('secDel').addEventListener('click', (e) => {
   if (!sec()) return;
+  if (!armed(e.currentTarget, t('confirm.secDel', { n: [...sec().objects.values()].filter((o) => o.cls).length }))) return;
   S.sections.splice(S.cur, 1); S.undo = S.undo.filter((op) => S.sections.includes(op.s)); $('undoBtn').disabled = !S.undo.length;
   selectSection(Math.min(S.cur, S.sections.length - 1)); scheduleLearn();
 });
@@ -1169,7 +1186,8 @@ for (const [id, dir] of [['rotL', -1], ['rotR', 1]]) $(id).addEventListener('cli
 function setAge() {
   S.age.text = $('ageText').value; S.age.units = $('ageUnits').value; S.age.model = parseAgeModel(S.age.text);
   const m = S.age.model;
-  $('ageStatus').textContent = m ? t('age.ok', { n: m.depth.length, a: fmt(Math.min(...m.age), 3), b: fmt(Math.max(...m.age), 3), u: S.age.units }) : t('age.none');
+  $('ageStatus').textContent = m ? t('age.ok', { n: m.depth.length, a: fmt(Math.min(...m.age), 3), b: fmt(Math.max(...m.age), 3), u: S.age.units }) + (m.reversals ? ' ' + t('age.reversal', { n: m.reversals }) : '') : t('age.none');
+  $('ageStatus').classList.toggle('warn', !!m?.reversals);
   const c = curCore(); if (c) c.ageText = S.age.text;
   scheduleAnalysis(); markDirty(); scheduleLog(); if (geoRT) geoRT.dirty = true;
   $('logAxis').querySelector('[value=age]').disabled = !m;
@@ -1191,7 +1209,7 @@ $('undoBtn').addEventListener('click', undo);
 $('nextReview').addEventListener('click', () => nextReview());
 try { $('autoNext').checked = localStorage.getItem('ichantool.autoNext') === '1'; } catch { $('autoNext').checked = false; }
 $('autoNext').addEventListener('change', (e) => { try { localStorage.setItem('ichantool.autoNext', e.target.checked ? '1' : '0'); } catch { /* storage blocked */ } });
-document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+$('sideTabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
 for (const id of ['addImg', 'addImg2']) $(id).addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
 $('loadExample').addEventListener('click', loadExample);
@@ -1282,7 +1300,7 @@ $('importModel').addEventListener('change', async (e) => {
     scheduleLearn(); renderClasses();
   } catch { toast(t('err.project')); }
 });
-$('clearLib').addEventListener('click', () => { S.library = []; scheduleLearn(); });
+$('clearLib').addEventListener('click', (e) => { if (!S.library.length || !armed(e.currentTarget)) return; S.library = []; markDirty(); scheduleLearn(); });
 
 /* ───────────── cores of a project ─────────────
    A project holds several cores. Each core has its image sections (bioturbation), external records,
@@ -1492,7 +1510,7 @@ async function loadProject(p) {
     p = upgradeProject(p);
     S.id = p.id || uid(); S.name = p.name || APP; S.notes = p.notes || '';
     S.classes = p.classes || defaultClasses(); S.active = p.active || 'undet';
-    Object.assign(S.settings, p.settings || {}); S.library = p.library || []; S.kind = p.projectKind || 'normal'; S.multiSource = p.multiSource || null; S.plots = p.plots || []; S.plotCur = p.plotCur || 0;
+    Object.assign(S.settings, p.settings || {}); S.library = p.library || []; S.kind = p.projectKind || 'normal'; S.multiSource = p.multiSource || null; S.plots = p.plots || []; S.plotCur = p.plotCur || 0; S.coreModels = p.models?.cores || {};
     S.sheet = { columns: [], cells: {}, ...(p.sheet || {}) };
     S.fig = { ...defaultFig(), ...(p.fig || {}) };
     S.geo = normalizeGeo(p.geo);
@@ -1517,7 +1535,7 @@ async function loadProject(p) {
 function resetState() {
   const maxMP = S.settings.maxMP || 8;
   S.id = uid(); S.name = t('proj.untitled'); S.notes = '';
-  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig(); S.kind = 'normal'; S.multiSource = null; S.plots = []; S.plotCur = 0;
+  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig(); S.kind = 'normal'; S.multiSource = null; S.plots = []; S.plotCur = 0; S.coreModels = {};
   S.geo = defaultGeo(); geoReset();
   S.classes = defaultClasses(); S.active = 'undet';
   S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP, clfScope: 'project', ml: { ...ML_DEFAULT } };
@@ -1539,17 +1557,26 @@ function markDirty() {
   clearTimeout(saveTimer); if (storageOK) saveTimer = setTimeout(saveToDB, 1500);
 }
 
+let savePromise = null;
+/** Save the open project; saves never overlap (a new save waits for the one in progress). */
 async function saveToDB() {
   if (!storageOK) return;
   clearTimeout(saveTimer);
-  try {
-    setSaveState('saving');
-    await putProject(projectMeta(), serialize(true));
-    try { await putLite(S.id, liteSnapshot()); } catch { /* lite index is optional */ }
-    broadcast({ type: 'saved', id: S.id });
-    try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
-    dirty = false; setSaveState('saved'); scheduleBackup();
-  } catch (e) { setSaveState('error'); console.error(e); }
+  if (savePromise) { await savePromise.catch(() => {}); if (!dirty && !savePromise) return; }
+  savePromise = (async () => {
+    try {
+      setSaveState('saving'); dirty = false;
+      await putProject(projectMeta(), serialize(true));
+      try { await putLite(S.id, liteSnapshot()); } catch { /* lite index is optional */ }
+      broadcast({ type: 'saved', id: S.id });
+      try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
+      setSaveState(dirty ? 'dirty' : 'saved'); scheduleBackup();
+    } catch (e) {
+      dirty = true; setSaveState('error'); console.error(e);
+      if (e?.name === 'QuotaExceededError') toast(t('save.quota'));
+    }
+  })();
+  try { await savePromise; } finally { savePromise = null; }
 }
 async function flushSave() { if (dirty) await saveToDB(); if (backupPending) await backupNow(); }
 
@@ -1559,6 +1586,7 @@ async function renderProjects() {
   const box = $('projList');
   if (!storageOK) { box.innerHTML = `<p class="note">${t('save.off')}</p>`; return; }
   const list = (await listProjects().catch(() => [])).sort((a, b) => b.updated - a.updated);
+  $('startThesis').hidden = !list.some((m) => m.id === THESIS_ID);
   if (!list.length) { box.innerHTML = `<p class="note">${t('proj.none')}</p>`; return; }
   const date = (ms) => new Date(ms).toLocaleString(lang(), { dateStyle: 'medium', timeStyle: 'short' });
   box.innerHTML = list.map((p) => `
@@ -1956,6 +1984,7 @@ $('recList').addEventListener('change', (e) => {
 });
 $('recList').addEventListener('click', (e) => {
   if (!e.target.dataset.del) return;
+  if (!armed(e.target, '?')) return;
   const id = e.target.closest('.rec').dataset.id;
   S.records.splice(S.records.findIndex((r) => r.id === id), 1); renderRecList(); markDirty(); scheduleLog(0);
 });
@@ -2115,7 +2144,7 @@ function geoTrain(silent = false) {
   geoRT.model = fitModel(method, X, y, params, st.seed);
   Object.assign(geoRT.model, { features: [...geoRT.featNames], nNum: geoRT.nNum, scaling: st.scaling, axis: st.axis, target: st.target, scale: st.scaling === 'global' ? scaleOf(geoRT.samples, geoRT.nNum) : null });
   geoPredictAll();
-  geoRT.cv = method === 'kmeans' ? null : crossValidate(geoRT.samples, geoRT.labels.map((l) => l.label), method, params, st.seed);
+  geoRT.cv = method === 'kmeans' ? null : crossValidate(geoRT.samples, geoRT.labels.map((l) => l.label), method, params, st.seed, { scored: (i) => geoRT.labels[i].source !== 'rule', minProb: st.minProb });
   if (!silent) { S.geo.trained = { method, params, target: st.target, at: new Date().toISOString(), n: X.length }; markDirty(); }
   renderGeo(); scheduleLog();
 }
@@ -2168,10 +2197,10 @@ function renderGeoPanel() {
   $('geoMethod').value = st.method; $('geoMethodHelp').textContent = t('geo.m.' + st.method);
   const p = { ...METHODS[st.method].defaults, ...st.params[st.method] };
   $('geoParams').innerHTML = GEO_PARAMS[st.method].map(([k, type, a, b, step]) => {
-    const help = `<span class="note">${t(`geo.p.${st.method}.${k}`)}</span>`;
-    if (type === 'bool') return `<label class="chk"><input type="checkbox" data-p="${k}" ${p[k] ? 'checked' : ''}><span><b>${k}</b></span></label>${help}`;
-    if (type === 'select') return `<label class="f"><span><b>${k}</b></span><select data-p="${k}">${a.map((o) => `<option ${o === p[k] ? 'selected' : ''}>${o}</option>`).join('')}</select></label>${help}`;
-    return `<label class="f"><span><b>${k}</b></span><input type="number" data-p="${k}" min="${a}" max="${b}" step="${step}" value="${p[k]}"></label>${help}`;
+    const help = `<span class="note">${t(`geo.p.${st.method}.${k}`)}</span>`, lab = `${st.method}.${k}`, name = t(lab) === lab ? k : t(lab);
+    if (type === 'bool') return `<label class="chk"><input type="checkbox" data-p="${k}" ${p[k] ? 'checked' : ''}><span title="${k}"><b>${name}</b></span></label>${help}`;
+    if (type === 'select') return `<label class="f"><span title="${k}"><b>${name}</b></span><select data-p="${k}">${a.map((o) => `<option ${o === p[k] ? 'selected' : ''}>${o}</option>`).join('')}</select></label>${help}`;
+    return `<label class="f"><span title="${k}"><b>${name}</b></span><input type="number" data-p="${k}" min="${a}" max="${b}" step="${step}" value="${p[k]}"></label>${help}`;
   }).join('');
   $('geoMinProb').value = st.minProb; $('geoSeed').value = st.seed;
   $('geoMinProbRow').hidden = st.method === 'kmeans';
@@ -2235,8 +2264,9 @@ $('geoAddLayer').addEventListener('click', () => {
   const l = addLayer(name, $('geoNewLayerChild').checked ? S.geo.activeLayer : null);
   S.geo.activeLayer = l.id; $('geoNewLayer').value = ''; geoMarkDirty(); renderGeoPanel(); renderGeoMarkHint();
 });
-$('geoLayerDel').addEventListener('click', () => {
+$('geoLayerDel').addEventListener('click', (e) => {
   const g = S.geo, L = geoLayer(g.activeLayer); if (!L || g.layers.length < 2) return;
+  if (!armed(e.currentTarget, t('confirm.layerDel', { n: g.intervals.filter((q) => q.layer === L.id).length }))) return;
   for (const l of g.layers) if (l.parent === L.id) l.parent = L.parent;
   g.layers = g.layers.filter((l) => l !== L); g.intervals = g.intervals.filter((q) => q.layer !== L.id); g.rules = g.rules.filter((r) => r.layer !== L.id);
   g.activeLayer = g.layers[0].id; geoMarkDirty(); renderGeo();
@@ -2670,7 +2700,7 @@ $('geoAccept').addEventListener('click', () => {
   g.intervals.push(...segs.map((s) => ({ id: uid(), core: core.id, layer: st.target, axis: st.axis, from: s.a0, to: s.a1, cat: s.label, auto: true })));
   toast(t('geo.accepted', { n: segs.length })); geoMarkDirty(); renderGeo();
 });
-$('geoClearAuto').addEventListener('click', () => { const id = S.geo.view.core; S.geo.intervals = S.geo.intervals.filter((q) => !(q.auto && q.core === id)); geoMarkDirty(); renderGeo(); });
+$('geoClearAuto').addEventListener('click', (e) => { if (!armed(e.currentTarget)) return; const id = S.geo.view.core; S.geo.intervals = S.geo.intervals.filter((q) => !(q.auto && q.core === id)); geoMarkDirty(); renderGeo(); });
 $('geoIvCsv').addEventListener('click', () => {
   const g = S.geo, rows = [['core', 'layer', 'parent_layer', 'category', 'axis', 'from', 'to', 'automatic', 'outside_parent']];
   for (const q of g.intervals) { const L = geoLayer(q.layer); rows.push([geoCore(q.core)?.name, L?.name, geoLayer(L?.parent)?.name ?? '', geoCat(q.cat)?.name, q.axis, q.from, q.to, q.auto ? 1 : 0, geoRT.orphans.has(q.id) ? 1 : 0]); }
@@ -2760,7 +2790,7 @@ function interpUI(boxId, get, save, redraw, info) {
   const fill = () => {
     for (const el of box.querySelectorAll('[data-ip]')) if (el !== document.activeElement) { const k = el.dataset.ip; if (el.type === 'checkbox') el.checked = !!o[k]; else el.value = o[k]; }
     const inf = box.querySelector('.ipinfo');
-    if (inf) inf.textContent = info?.variogram ? t('ip.vario', { m: t('ip.v.' + info.variogram.model), n: +info.variogram.nugget.toFixed(3), s: +info.variogram.sill.toFixed(3), r: +info.variogram.range.toFixed(2) }) : info?.fallback ? t('ip.fallback') : '';
+    if (inf) inf.textContent = info?.variogram ? t('ip.vario', { m: t('ip.v.' + info.variogram.model), n: +info.variogram.nugget.toFixed(3), s: +info.variogram.sill.toFixed(3), r: Math.round(info.variogram.range) }) + (info.variogram && info.few ? ' ' + t('ip.few') : '') : info?.fallback ? t('ip.fallback') : '';
   };
   if (box.dataset.key === key) { fill(); return; }
   const open = box.querySelector('details')?.open;
@@ -2769,11 +2799,11 @@ function interpUI(boxId, get, save, redraw, info) {
   const chk = (k, l) => `<label class="chk"><input type="checkbox" data-ip="${k}"><span>${t(l)}</span></label>`;
   const sel = (k, l, opts) => `<label class="f"><span>${t(l)}</span><select data-ip="${k}">${opts.map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select></label>`;
   const m = o.method, P = {
-    idw: num('power', 'ip.power', 1, 6, 0.5) + num('radius', 'ip.radius', 0, 90, 0.5) + num('neighbours', 'ip.neigh', 0, 100, 1),
-    nearest: num('radius', 'ip.radius', 0, 90, 0.5), tin: '', mincurv: num('smooth', 'ip.smooth', 0, 10, 0.1),
-    rbf: sel('rbf', 'ip.rbf', [['multiquadric', t('ip.r.mq')], ['gaussian', t('ip.r.gauss')], ['tps', t('ip.r.tps')]]) + num('shape', 'ip.shape', 0.1, 50, 0.1) + num('smooth', 'ip.smooth', 0, 10, 0.1),
-    kriging: sel('variogram', 'ip.vmodel', ['spherical', 'exponential', 'gaussian', 'linear'].map((v) => [v, t('ip.v.' + v)])) + chk('autoVario', 'ip.auto') + num('nugget', 'ip.nugget', 0, 1e6, 'any', o.autoVario) + num('sill', 'ip.sill', 0, 1e6, 'any', o.autoVario) + num('range', 'ip.range', 0.01, 180, 'any', o.autoVario),
-    movavg: num('radius', 'ip.radius', 0, 90, 0.5),
+    idw: num('power', 'ip.power', 1, 6, 0.5) + num('radius', 'ip.radius', 0, 5000, 10) + num('neighbours', 'ip.neigh', 0, 100, 1),
+    nearest: num('radius', 'ip.radius', 0, 5000, 10), tin: '', mincurv: num('smooth', 'ip.smooth', 0, 10, 0.1),
+    rbf: sel('rbf', 'ip.rbf', [['multiquadric', t('ip.r.mq')], ['gaussian', t('ip.r.gauss')], ['tps', t('ip.r.tps')]]) + num('shape', 'ip.shape', 1, 5000, 10) + num('smooth', 'ip.smooth', 0, 10, 0.1),
+    kriging: sel('variogram', 'ip.vmodel', ['spherical', 'exponential', 'gaussian', 'linear'].map((v) => [v, t('ip.v.' + v)])) + chk('autoVario', 'ip.auto') + num('nugget', 'ip.nugget', 0, 1e6, 'any', o.autoVario) + num('sill', 'ip.sill', 0, 1e6, 'any', o.autoVario) + num('range', 'ip.range', 1, 20000, 'any', o.autoVario),
+    movavg: num('radius', 'ip.radius', 0, 5000, 10),
   };
   box.innerHTML = `<details ${open ? 'open' : ''}><summary>${t('ip.title')}</summary><div class="msgrid">
     ${chk('on', 'ip.on')}${sel('method', 'ip.method', INTERP_METHODS.map((k) => [k, t('ip.m.' + k)]))}${P[m] || ''}
@@ -2796,7 +2826,7 @@ function coreListUI(boxId, cores, off, save, redraw) {
   const box = $(boxId), open = box.querySelector('details')?.open;
   box.innerHTML = `<details ${open ? 'open' : ''}><summary>${t('ip.cores', { n: cores.filter((c) => !off.has(c.id)).length, t: cores.length })}</summary>
     <div class="row" style="margin:6px 0"><button class="btn small" data-cl="all">${t('mp.all')}</button><button class="btn small" data-cl="none">${t('mp.none')}</button></div>
-    <div class="clist">${cores.map((c) => `<label class="chk" title="${esc(c.where || '')}"><input type="checkbox" data-id="${esc(c.id)}" ${off.has(c.id) ? '' : 'checked'} ${c.lat == null ? 'disabled' : ''}><span>${esc(c.name)}${c.lat == null ? ` <i class="note">(${t('ip.noPos')})</i>` : ''}</span></label>`).join('')}</div></details>`;
+    <div class="chklist">${cores.map((c) => `<label class="chk" title="${esc(c.where || '')}"><input type="checkbox" data-id="${esc(c.id)}" ${off.has(c.id) ? '' : 'checked'} ${c.lat == null ? 'disabled' : ''}><span>${esc(c.name)}${c.lat == null ? ` <i class="note">(${t('ip.noPos')})</i>` : ''}</span></label>`).join('')}</div></details>`;
   box.onchange = (e) => { const id = e.target.dataset.id; if (id == null) return; if (e.target.checked) off.delete(id); else off.add(id); save(); setTimeout(redraw, 0); };
   box.onclick = (e) => { const a = e.target.dataset.cl; if (!a) return; if (a === 'all') off.clear(); else cores.forEach((c) => off.add(c.id)); save(); setTimeout(redraw, 0); };
 }
@@ -2982,11 +3012,14 @@ function renderGeoModel() {
   let html = `<p class="note">${t('geo.modelIntro', { l: esc(target?.name || ''), v: geoRT.nNum ?? 0, c: geoRT.featNames.length - (geoRT.nNum ?? 0) })}</p>`;
   html += `<div class="stat"><div><b>${geoRT.samples.length}</b><span>${t('geo.samples')}</span></div><div><b>${nInt}</b><span>${t('geo.byIntervals')}</span></div><div><b>${nRule}</b><span>${t('geo.byRules')}</span></div></div>`;
   html += `<div class="bars">${Object.entries(counts).map(([id, n]) => { const c = geoCat(id); return `<div><span><span class="swatch" style="background:${c?.color}"></span>${esc(c?.name || id)}</span><em>${n}</em></div>`; }).join('')}</div>`;
-  if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p>`; return; }
+  if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => $('geoTrainBtn').click(); return; }
   html += `<h3>${t('geo.m.name.' + geoRT.model.kind)} · ${t('geo.trainedOn', { n: S.geo.trained?.n ?? '' })}</h3>`;
   if (geoRT.cv) {
     const cv = geoRT.cv, name = (id) => esc(geoCat(id)?.name || id);
     html += `<p>${t('geo.cvScheme.' + (cv.scheme === 'leave-one-core-out' ? 'loco' : 'blocks'), { k: cv.folds })}: ${t('geo.acc')} <b>${fmt(cv.accuracy * 100, 1)}%</b> · ${t('geo.bacc')} <b>${fmt(cv.balancedAccuracy * 100, 1)}%</b> (n = ${cv.total})</p>`;
+    if (cv.foldBalanced?.n > 1 && cv.foldBalanced.sd != null) html += `<p class="note">${t('cv.fold', { m: fmt(cv.foldBalanced.mean * 100, 1), sd: fmt(cv.foldBalanced.sd * 100, 1), n: cv.foldBalanced.n })}</p>`;
+    if (cv.coverage) html += `<p class="note">${t('cv.cover', { p: cv.coverage.minProb, s: fmt(cv.coverage.share * 100, 1), a: cv.coverage.accuracy == null ? '—' : fmt(cv.coverage.accuracy * 100, 1) })}</p>`;
+    if (nRule) html += `<p class="note">${t('cv.rules')}</p>`;
     html += `<div class="tablewrap"><table><thead><tr><th>${t('geo.trueVsPred')}</th>${cv.classes.map((c) => `<th>${name(c)}</th>`).join('')}<th>${t('geo.recall')}</th></tr></thead><tbody>${cv.classes.map((c, i) => `<tr><th>${name(c)}</th>${cv.cm[i].map((v, j) => `<td style="${i === j ? 'font-weight:600' : ''}">${v}</td>`).join('')}<td>${fmt((cv.perClass[i].recall ?? 0) * 100, 0)}%</td></tr>`).join('')}</tbody></table></div>`;
     html += `<p class="note">${t('geo.cvNote')}</p>`;
   } else html += `<p class="note">${t('geo.kmeansNote')}</p>${geoRT.model.classes.map((c) => `<label class="f"><span><span class="swatch" style="background:${geoCat(c)?.color}"></span>${c}</span><input type="text" data-group="${c}" value="${esc(S.geo.groupNames[c] || '')}" placeholder="${t('geo.groupName')}"></label>`).join('')}`;
@@ -3171,13 +3204,16 @@ async function openTutorial(withTour = true) {
   if (withTour) startTour(0);
 }
 $('openTutorial').addEventListener('click', () => openTutorial(true));
+$('startLearn').addEventListener('click', () => openTutorial(true));
+$('startNew').addEventListener('click', () => { $('newProjName').focus(); $('newProjName').scrollIntoView({ block: 'center' }); });
+$('startThesis').addEventListener('click', async () => { await flushSave(); hideHome(); await busy(async () => { const d = await getProject(THESIS_ID); if (d) await loadProject(d); }); });
 $('tourBtn').addEventListener('click', () => { $('help').close(); startTour(0); });
 $('tipsToggle').addEventListener('change', (e) => { S.settings.tips = e.target.checked; markDirty(); updateTip(); });
 
 /* help card of the current tab */
 function tipContext() {
   if (!$('home').hidden) return null;
-  if (mode === 'section') return 'section.' + (document.querySelector('.tabs [aria-selected="true"]')?.dataset.tab || 'classes');
+  if (mode === 'section') return 'section.' + ($('sideTabs').querySelector('[aria-selected="true"]')?.dataset.tab || 'classes');
   if (mode === 'geo') return 'geo.' + (S.geo.view.tab || 'logs');
   return mode;
 }
@@ -3196,7 +3232,6 @@ $('tipCard').addEventListener('click', (e) => {
 
 /* guided tour: each step highlights one element (switching mode, side tab or start screen first) */
 const TOUR = [
-  { home: 'projects', sel: '#projList' }, { home: 'all', sel: '#allMap' }, { home: 'all', sel: '.mpbox' },
   { sel: '#projBtn' }, { sel: '.corebar' }, { mode: 'section', ctx: 'section', sel: '#modeSection' },
   { mode: 'section', sel: '#addImg' }, { mode: 'section', sel: '#fPreset' }, { mode: 'section', sel: '#detectBtn' }, { mode: 'section', sel: '#tools' },
   { mode: 'section', pane: 'classes', ctx: 'section.classes', sel: '#classList' }, { mode: 'section', pane: 'object', ctx: 'section.object', sel: '#objInfo', pick: true },
@@ -3204,8 +3239,11 @@ const TOUR = [
   { mode: 'log', ctx: 'log', sel: '#logTracks' }, { mode: 'data', ctx: 'data', sel: '#dataView' },
   { mode: 'geo', geoTab: 'logs', ctx: 'geo', sel: '#geoPanel' }, { mode: 'geo', geoTab: 'logs', sel: '#geoLayerSel' }, { mode: 'geo', geoTab: 'logs', sel: '#geoFeats' },
   { mode: 'geo', geoTab: 'logs', sel: '#geoTrainBtn' }, { mode: 'geo', geoTab: 'logs', sel: '#geoLogSvg' }, { mode: 'geo', geoTab: 'map', ctx: 'geo.map', sel: '#geoMapSvg' },
-  { mode: 'geo', geoTab: 'model', ctx: 'geo.model', sel: '#geoModelOut' }, { mode: 'fig', ctx: 'fig', sel: '#figPanel' }, { sel: '#helpBtn' },
+  { mode: 'geo', geoTab: 'model', ctx: 'geo.model', sel: '#geoModelOut', train: true }, { mode: 'fig', ctx: 'fig', sel: '#figPanel' },
+  { home: 'projects', sel: '#projList' }, { home: 'all', sel: '#allMap' }, { home: 'all', sel: '.mpbox' }, { sel: '#helpBtn' },
 ];
+// texts follow the order above: tour.<i>.t/b were written for the old order (home steps first), remapped here
+const TOUR_TEXT = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 24];
 let tourStep = -1;
 function startTour(k = 0) { tourStep = k; $('tipCard').hidden = true; showTourStep(); }
 function endTour() { tourStep = -1; $('tour').hidden = true; updateTip(); }
@@ -3215,14 +3253,15 @@ async function showTourStep() {
   if (st.mode && mode !== st.mode) setMode(st.mode);
   if (st.pane) showTab(st.pane);
   if (st.geoTab && S.geo.view.tab !== st.geoTab) { S.geo.view.tab = st.geoTab; renderGeo(); }
+  if (st.train && !geoRT.model && !$('geoTrainBtn').disabled) { $('geoTrainBtn').click(); await new Promise((r) => setTimeout(r, 1500)); renderGeo(); }
   if (st.pick && !S.selected) { const s = sec(), o = s && [...s.objects.values()].find((q) => !q.cls && q.bbox && q.feat); if (o) { centerOn(o); select(o.id); showTab('object'); } }
-  await new Promise((r) => setTimeout(r, 260));
+  await new Promise((r) => setTimeout(r, st.home ? 700 : 260));
   const el = document.querySelector(st.sel); el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   const r = el?.getBoundingClientRect(), ov = $('tour'), hl = ov.querySelector('.tourhl'), box = ov.querySelector('.tourbox');
   ov.hidden = false;
   if (r && r.width && r.height) Object.assign(hl.style, { display: 'block', left: `${r.left - 6}px`, top: `${r.top - 6}px`, width: `${r.width + 12}px`, height: `${Math.min(r.height, innerHeight - 24) + 12}px` });
   else hl.style.display = 'none';
-  box.innerHTML = `<div class="tourn">${tourStep + 1} / ${TOUR.length}</div><h3>${t(`tour.${tourStep}.t`)}</h3><div>${t(`tour.${tourStep}.b`)}</div>
+  box.innerHTML = `<div class="tourn">${tourStep + 1} / ${TOUR.length}</div><h3>${t(`tour.${TOUR_TEXT[tourStep]}.t`)}</h3><div>${t(`tour.${TOUR_TEXT[tourStep]}.b`)}</div>
     <div class="row" style="justify-content:space-between"><button class="btn small ghost" data-tour="end">${t('tour.end')}</button><span class="row"><button class="btn small" data-tour="prev" ${tourStep ? '' : 'disabled'}>◀ ${t('tour.prev')}</button><button class="btn small primary" data-tour="next">${tourStep === TOUR.length - 1 ? t('tour.finish') : t('tour.next') + ' ▶'}</button></span></div>`;
   // bubble beside the element (below if there is room, else above, else centred)
   const bw = Math.min(380, innerWidth - 24); box.style.width = bw + 'px';
@@ -3239,17 +3278,18 @@ $('tour').addEventListener('click', (e) => {
   if (a === 'end') endTour(); else { tourStep += a === 'next' ? 1 : -1; if (tourStep >= TOUR.length) endTour(); else showTourStep(); }
 });
 window.addEventListener('keydown', (e) => {
-  if (tourStep < 0) return;
+  if (tourStep < 0 || e.target.closest('input, textarea, select')) return;
   if (e.key === 'Escape') endTour(); else if (e.key === 'ArrowRight') { tourStep++; if (tourStep >= TOUR.length) endTour(); else showTourStep(); } else if (e.key === 'ArrowLeft' && tourStep > 0) { tourStep--; showTourStep(); }
 });
 window.addEventListener('resize', () => { if (tourStep >= 0) showTourStep(); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('home').hidden && tourStep < 0 && !document.querySelector('dialog[open]') && S.cores.length) hideHome(); });
 
 /* ───────────── models and training dialog (V18): guide, method and parameters, evaluation, examples ───────────── */
 /** Small cached image of a labelled trace (JPEG data URL), for the example galleries. */
 function thumbOf(s, o) {
-  if (o._thumb !== undefined) return o._thumb;
-  try { o._thumb = s.enh && o.bbox ? traceCanvas(s, o, 64, 'enh', true).canvas.toDataURL('image/jpeg', 0.7) : null; } catch { o._thumb = null; }
-  return o._thumb;
+  if (o._thumb) return o._thumb;
+  try { if (s.enh && o.bbox) o._thumb = traceCanvas(s, o, 64, 'enh', true).canvas.toDataURL('image/jpeg', 0.7); } catch { /* try again next time */ }
+  return o._thumb || null;
 }
 let mlTab = 'guide', mlScope = null, mlOtherProj = '';
 const mlPicked = new Set();
@@ -3458,7 +3498,7 @@ $('mpCreate').addEventListener('click', async () => {
 // tabs of the start screen
 for (const b of document.querySelectorAll('[data-htab]')) b.addEventListener('click', () => setHomeTab(b.dataset.htab));
 function setHomeTab(tab) {
-  for (const b of document.querySelectorAll('[data-htab]')) b.setAttribute('aria-pressed', String(b.dataset.htab === tab));
+  for (const b of document.querySelectorAll('[data-htab]')) { b.setAttribute('aria-pressed', String(b.dataset.htab === tab)); b.setAttribute('aria-selected', String(b.dataset.htab === tab)); }
   for (const p of document.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== tab;
   try { localStorage.setItem('ichantool.homeTab', tab); } catch { /* storage blocked */ }
   if (tab === 'all') requestAnimationFrame(() => redrawAllMap());
@@ -3511,7 +3551,7 @@ function renderDataPlot() {
     <label class="f"><span>${t('pl.name')}</span><input type="text" data-p="name" value="${esc(p.name)}"></label>
     <label class="f"><span>${t('pl.layout')}</span><select data-p="layout">${opt([['strat', t('pl.l.strat')], ['xy', t('pl.l.xy')]], p.layout)}</select></label>
     <p class="note">${t('pl.l.' + p.layout + 'Help')}</p>
-    <div class="f"><span>${t('pl.cores')}</span><div class="clist">${S.cores.map((c) => `<label class="chk"><input type="checkbox" data-core="${c.id}" ${p.cores.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></div>
+    <div class="f"><span>${t('pl.cores')}</span><div class="chklist">${S.cores.map((c) => `<label class="chk"><input type="checkbox" data-core="${c.id}" ${p.cores.includes(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></div>
     <label class="f"><span>${t(p.layout === 'strat' ? 'pl.vaxis' : 'pl.xaxis')}</span><select data-p="v">${opt(axisOpts, p.v)}</select></label>
     <div class="f"><span>${t(p.layout === 'strat' ? 'pl.panels' : 'pl.yvars')}</span>${yRows}<button class="btn small" data-pa="addy">+ ${t('pl.addy')}</button></div>
     <details><summary>${t('pl.axes')}</summary><div class="row" style="margin-top:6px">
@@ -3639,6 +3679,7 @@ $('dBody').addEventListener('change', (e) => {
 });
 $('dBody').addEventListener('click', (e) => {
   const d = e.target.closest('button')?.dataset; if (!d) return;
+  if ((d.del != null || d.delman) && !armed(e.target, '?')) return;
   if (d.del != null) { S.sheet.columns.splice(+d.del, 1); refreshAllCores(); geoRT.dirty = true; markDirty(); renderDataCols(); }
   else if (d.delman) { const [id, k] = d.delman.split('|'), c = S.cores.find((x) => x.id === id); if (c) { delete c.user[k]; refreshCoreData(c); markDirty(); renderDataCols(); } }
 });

@@ -1,23 +1,25 @@
 // CorAnTool web — gridding of scattered core values for maps (V20), in the spirit of Surfer.
-// No DOM. Distances are in degrees with the longitude scaled by cos(central latitude) (same as the map).
+// No DOM. Distances are in km on a Lambert azimuthal equal-area projection centred on the map (V22; before: degrees).
 // Methods: inverse distance, nearest neighbour, triangulation with linear interpolation (Delaunay),
 // radial basis functions (thin-plate spline = minimum curvature, multiquadric, gaussian), ordinary kriging
 // (spherical / exponential / gaussian / linear variogram, fitted automatically or by hand) and moving average.
 // Contours by marching squares; colour ramps for the grid and the colour bar.
 
+import { makeProjection } from './geo.js';
+
 export const INTERP_METHODS = ['idw', 'nearest', 'tin', 'mincurv', 'rbf', 'kriging', 'movavg'];
 export const INTERP_DEFAULT = {
-  method: 'idw', power: 2, radius: 0, neighbours: 0, rbf: 'multiquadric', shape: 1, smooth: 0,
-  variogram: 'spherical', autoVario: true, nugget: 0, sill: 1, range: 5, res: 90, hull: false, mask: 'both',
+  method: 'idw', power: 2, radius: 0, neighbours: 0, rbf: 'multiquadric', shape: 200, smooth: 0,
+  variogram: 'spherical', autoVario: true, nugget: 0, sill: 1, range: 500, res: 90, hull: true, mask: 'sea',
   contours: false, levels: 8, labels: true, ramp: 'div', reverse: false, scale: 'sym2', vmin: -2, vmax: 2, steps: 0, opacity: 0.75, on: true,
 };
 
 /** Linear system A x = b (Gaussian elimination with partial pivoting); returns null if singular. */
 export function solve(A, b) {
-  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]), tol = 1e-12 * Math.max(1, ...A.map((r) => Math.max(...r.map(Math.abs))));
   for (let c = 0; c < n; c++) {
     let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
-    if (Math.abs(M[p][c]) < 1e-12) return null;
+    if (Math.abs(M[p][c]) < tol) return null;
     [M[c], M[p]] = [M[p], M[c]];
     for (let r = c + 1; r < n; r++) { const f = M[r][c] / M[c][c]; if (f) for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
   }
@@ -78,7 +80,7 @@ export function fitVariogram(xy, v, model = 'spherical') {
   let best = { err: Infinity, nugget: 0, range: hmax };
   for (let r = 1; r <= 30; r++) for (let q = 0; q <= 5; q++) {
     const range = (hmax * 2 * r) / 30, nugget = (sill * q) / 10;
-    const err = bins.reduce((s, b) => s + b.n * (variogram(model, b.h, nugget, sill, range) - b.g) ** 2, 0);
+    const err = bins.reduce((s, b) => s + (b.n / (b.h * b.h)) * (variogram(model, b.h, nugget, sill, range) - b.g) ** 2, 0); // weights n_h/h² (Cressie, 1985)
     if (err < best.err) best = { err, nugget, range };
   }
   return { nugget: best.nugget, sill, range: best.range, bins };
@@ -89,14 +91,17 @@ export function fitVariogram(xy, v, model = 'spherical') {
  * Returns {grid (row-major from the north, null = empty), nx, ny, info} with info.variogram for kriging.
  */
 export function interpolate(points, bbox, nx, ny, opt = {}) {
-  const o = { ...INTERP_DEFAULT, ...opt }, pts = points.filter((p) => p.value != null && Number.isFinite(p.value) && p.lat != null && p.lon != null);
-  const cosl = Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180), X = (p) => [p.lon * cosl, p.lat];
-  const xy = pts.map(X), v = pts.map((p) => p.value), n = pts.length, grid = new Array(nx * ny).fill(null), info = {};
+  const o = { ...INTERP_DEFAULT, ...opt }, raw = points.filter((p) => p.value != null && Number.isFinite(p.value) && p.lat != null && p.lon != null);
+  const pr = makeProjection('laea', bbox), X = (lon, lat) => pr.fwd(lon, lat).map((q) => q * 6371); // km
+  // co-located cores (< 10 m apart) are averaged: duplicates would make the kriging and RBF systems singular
+  const merged = [];
+  for (const p of raw) { const q = X(p.lon, p.lat), m = merged.find((r) => Math.hypot(r.xy[0] - q[0], r.xy[1] - q[1]) < 0.01); if (m) { m.s += p.value; m.k++; } else merged.push({ xy: q, s: p.value, k: 1 }); }
+  const xy = merged.map((m) => m.xy), v = merged.map((m) => m.s / m.k), n = merged.length, grid = new Array(nx * ny).fill(null), info = { merged: raw.length - n };
   if (!n) return { grid, nx, ny, info };
   const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   let at; // function of a cell centre [x, y] → value
   if (o.method === 'nearest') at = (c) => { let b = 0, d = Infinity; xy.forEach((q, i) => { const e = dist(q, c); if (e < d) { d = e; b = i; } }); return o.radius > 0 && d > o.radius ? null : v[b]; };
-  else if (o.method === 'movavg') at = (c) => { let s = 0, k = 0; const r = o.radius > 0 ? o.radius : 5; xy.forEach((q, i) => { if (dist(q, c) <= r) { s += v[i]; k++; } }); return k ? s / k : null; };
+  else if (o.method === 'movavg') at = (c) => { let s = 0, k = 0; const r = o.radius > 0 ? o.radius : 500; xy.forEach((q, i) => { if (dist(q, c) <= r) { s += v[i]; k++; } }); return k ? s / k : null; };
   else if (o.method === 'tin') {
     const T = delaunay(xy);
     at = (c) => {
@@ -117,7 +122,7 @@ export function interpolate(points, bbox, nx, ny, opt = {}) {
     at = w ? (c) => { let s = w[n] + w[n + 1] * c[0] + w[n + 2] * c[1]; for (let i = 0; i < n; i++) s += w[i] * phi(kind, dist(xy[i], c), c0); return s; } : null;
   } else if (o.method === 'kriging') {
     const vg = o.autoVario ? fitVariogram(xy, v, o.variogram) : { nugget: o.nugget, sill: o.sill, range: o.range, bins: fitVariogram(xy, v, o.variogram).bins };
-    info.variogram = { model: o.variogram, ...vg };
+    info.variogram = { model: o.variogram, ...vg }; info.few = n < 15;
     const g = (h) => variogram(o.variogram, h, vg.nugget, vg.sill, vg.range);
     const A = xy.map((p) => [...xy.map((q) => g(dist(p, q))), 1]).concat([[...xy.map(() => 1), 0]]);
     // inverse of the kriging matrix once (columns solved against the identity); weights per cell = A⁻¹ · b
@@ -142,7 +147,7 @@ export function interpolate(points, bbox, nx, ny, opt = {}) {
   for (let iy = 0; iy < ny; iy++) {
     const lat = bbox[3] - ((iy + 0.5) / ny) * (bbox[3] - bbox[1]);
     for (let ix = 0; ix < nx; ix++) {
-      const lon = bbox[0] + ((ix + 0.5) / nx) * (bbox[2] - bbox[0]), c = [lon * cosl, lat];
+      const lon = bbox[0] + ((ix + 0.5) / nx) * (bbox[2] - bbox[0]), c = X(lon, lat);
       if (hull && !inPoly(c, hull)) continue;
       const val = at(c);
       grid[iy * nx + ix] = val != null && Number.isFinite(val) ? val : null;

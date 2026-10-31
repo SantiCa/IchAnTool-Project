@@ -1,7 +1,7 @@
 # Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V21 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 1.5.
+Versión del documento: V22 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.7.
 
 **Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
 IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
@@ -548,11 +548,18 @@ parámetros, evaluación, galería de ejemplos usados y ejemplos de otros proyec
     que el k-NN la marque como forma nueva. El «acierto estimado» de RF y NB es el acierto equilibrado
     de la última evaluación (no hay dejar-uno-fuera).
 - **Evaluación** (`evaluateModels`): conjunto de prueba = trazas etiquetadas del sondeo abierto si hay
-  ≥ 10 de ≥ 2 taxones; si no, las del proyecto. Se reparten en 5 grupos estratificados por taxón
-  (barajado con semilla 42, `stratifiedFolds`). Para cada grupo y cada modelo (sondeo, proyecto, todos)
+  ≥ 10 de ≥ 2 taxones; si no, las del proyecto. Desde V22 se reparten en 5 grupos **por imagen (sección)**
+  (`groupedFolds`: todas las trazas de una sección van al mismo grupo; secciones barajadas con semilla 42 y
+  asignadas al grupo con menos trazas de su taxón principal); con menos de 5 secciones, grupos estratificados
+  por taxón (`stratifiedFolds`). Para cada grupo y cada modelo (sondeo, proyecto, todos)
   se entrena con su conjunto de ejemplos **sin las trazas de ese grupo** y se predicen (sin prueba de
   novedad). Así los 9 casos (3 métodos × 3 modelos) se juzgan con las mismas trazas. Se dan acierto
-  total, acierto equilibrado (media de la sensibilidad de cada taxón) y matriz de confusión.
+  total, acierto equilibrado (media de la sensibilidad de cada taxón) y matriz de confusión. Desde V22 las
+  predicciones de un taxón que no está entre los de prueba cuentan como error (columna «otro»), los
+  denominadores son todas las trazas de prueba de cada taxón y n = nº de trazas de prueba (antes esas
+  predicciones se descartaban y el acierto salía inflado).
+- **Dejar uno fuera de k-NN** (§10.5): desde V22, si los ejemplos vienen de ≥ 2 secciones, el acierto deja
+  fuera toda la sección del ejemplo; la escala de novedad sigue usando el vecino más cercano de cualquier sección.
 - **Recomendación:** la combinación con mayor acierto equilibrado; si otras quedan a ≤ 3 puntos, se
   elige la más sencilla (k-NN, después Bayes, después RF; y sondeo, después proyecto, después todos).
 - **Ejemplos usados:** miniaturas (recorte del rectángulo envolvente con contorno, 64 px, JPEG 0,7)
@@ -944,7 +951,8 @@ idéntico a uno existente (mismo sondeo, capa, eje, categoría, techo y base) no
    (por defecto 1; 0,5 en la demostración).
 3. **Remuestreo lineal** (`resample`): interpolación entre las dos muestras vecinas; nulo fuera
    del rango del sondeo (no se extrapola) o si las dos vecinas están separadas más que `maxGap`
-   (por defecto sin límite).
+   (por defecto, desde V22, `autoGap` = 3 × la mediana del espaciado de las muestras reales de esa serie;
+   antes, sin límite).
 4. **Razones** A/B creadas por el usuario: se calculan fila a fila sobre los datos originales
    (nulo si el divisor es 0 o falta) antes de remuestrear.
 5. **Logaritmo** opcional por variable: `t = log10(v)` si `v > 0`; si no, nulo.
@@ -1011,8 +1019,8 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
 | Método | Parámetros por defecto | Descripción |
 |--------|------------------------|-------------|
 | Random Forest (`rf`, recomendado) | `trees` 100, `maxDepth` 12, `minLeaf` 3, `mtry` √d, `bins` 32, `bootstrap` sí, `balanced` sí | Árboles CART con impureza de Gini. Umbrales candidatos de cada variable: los cuantiles `b/bins` (b = 1…bins−1) de los datos de entrenamiento. En cada nodo se prueban `mtry` variables al azar. Con `balanced`, cada muestra pesa `n / (K · n_clase)`. Hoja: proporciones de clase ponderadas. Probabilidad = media de las hojas de todos los árboles. Importancia: reducción de Gini ponderada por el peso del nodo, sumada por variable y normalizada a 1 (MDI). |
-| k vecinos (`knn`) | `k` 7, `weights` distance | Distancia euclídea en las variables escaladas. Voto `1/(d + 10⁻⁹)` (distance) o 1 (uniform), normalizado. |
-| Bayes ingenuo gaussiano (`nb`) | `smoothing` 10⁻⁶, `priors` uniform | Media y varianza por clase y variable; a cada varianza se suma `smoothing · max_j var_j`. A priori uniforme o según la frecuencia. Log-verosimilitud normalizada con softmax. |
+| k vecinos (`knn`) | `k` 7, `weights` distance | Distancia euclídea en las variables escaladas. Voto `1/(d + 0,05)` (distance; desde V22, antes `1/(d + 10⁻⁹)`, que daba votos casi seguros junto a puntos remuestreados casi idénticos) o 1 (uniform), normalizado. |
+| Bayes ingenuo gaussiano (`nb`) | `smoothing` 10⁻⁶, `priors` uniform | Media y varianza poblacional por clase y variable; a cada varianza se suma `max(smoothing, 10⁻⁹) · max_j var_j` (desde V22 sin el antiguo «o 1», que daba varianza 1 a una variable constante dentro de una clase). A priori uniforme o según la frecuencia. Log-verosimilitud normalizada con softmax. |
 | k-medias (`kmeans`, sin etiquetas) | `k` 4, `restarts` 5, `maxIter` 100 | Inicio k-means++, iteraciones de Lloyd hasta que no cambian las asignaciones o `maxIter`; se queda la repetición con menor inercia. Grupos `G1…Gk`, que el usuario puede nombrar. |
 
 - **Variables del modelo:** las numéricas elegidas más las columnas 0/1 de las capas usadas
@@ -1044,6 +1052,10 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
 - Se informa: matriz de confusión, acierto, **acierto equilibrado** (media de la sensibilidad de
   cada clase, que no se deja engañar por una clase mayoritaria como el fondo), precisión,
   sensibilidad y F1 por clase. En validación se usa probabilidad mínima 0.
+- Desde V22: **solo se puntúan las muestras etiquetadas por intervalos descritos**; las etiquetas por reglas
+  (umbrales de z sobre las mismas variables) se usan para entrenar pero no para evaluar (si no, la evaluación es
+  circular). Se informa además el acierto equilibrado por sondeo dejado fuera (media ± desviación) y, con la
+  probabilidad mínima en uso, la cobertura (fracción clasificada) y su acierto.
 
 ### 21.5 bis Prueba de la autoclasificación en un sondeo
 `geoTestCore` (botón «Probar la autoclasificación en este sondeo»), con el método y los parámetros
@@ -1103,7 +1115,9 @@ entrenado. «Colorear registros por clase» rellena el fondo de cada columna de 
   y 3° más al este para las etiquetas); el estilo en `geo.map.style`.
 
 ### 21.6 ter Interpolación, escala de color, proyecciones y exportación (desde V20)
-Módulo `interp.js` (sin DOM). Distancias en grados con la longitud multiplicada por cos(latitud central).
+Módulo `interp.js` (sin DOM). Desde V22 las distancias son **km** en una proyección azimutal de Lambert de
+áreas iguales centrada en el mapa (`makeProjection('laea')` × 6371 km); antes, grados con la longitud × cos φ₀.
+Los sondeos a menos de 10 m se promedian antes de interpolar (evita sistemas singulares).
 La malla tiene `res` celdas a lo ancho (90 por defecto, 10–400) y `ny = res · H / W` filas; cada celda vale lo
 interpolado en su centro.
 - **Inverso de la distancia:** `v = Σ wᵢvᵢ / Σ wᵢ`, `wᵢ = 1/dᵢ^p` (p = 2); radio de búsqueda opcional y número
@@ -1119,8 +1133,11 @@ interpolado en su centro.
   de cada celda son `A⁻¹·[γ(dᵢ), 1]`. Variogramas esférico, exponencial (`1 − e^(−3h/a)`), gaussiano
   (`1 − e^(−3(h/a)²)`) y lineal con pepita y meseta. Ajuste automático: semivariograma empírico en 8 clases de
   distancia hasta la mitad de la distancia máxima; meseta = varianza de los valores; alcance (30 valores hasta la
-  distancia máxima) y pepita (0–50 % de la meseta) por mínimos cuadrados ponderados por el número de pares.
-- **Media móvil:** media de los sondeos a menos del radio (5° si no se indica).
+  distancia máxima) y pepita (0–50 % de la meseta) por mínimos cuadrados ponderados por `n_h / h²` (Cressie, 1985; desde V22, antes `n_h`). Con menos de 15 sondeos se avisa de que el
+  variograma es poco fiable. El pivote mínimo de la eliminación gaussiana es relativo: `10⁻¹² · max|A|`.
+- **Media móvil:** media de los sondeos a menos del radio (500 km si no se indica).
+- **Valores por defecto desde V22:** solo dentro del contorno de los sondeos (`hull`) y solo mar (`mask: 'sea'`), para
+  no extrapolar; forma de las RBF 200 km; alcance manual 500 km.
 - Si un sistema no se puede resolver se usa el inverso de la distancia (se avisa).
 - **Opciones:** solo dentro del contorno convexo de los sondeos; rellenar mar y tierra, solo mar o solo tierra
   (centro de la celda dentro o fuera de los polígonos de Natural Earth); opacidad; isolíneas por cuadrados
@@ -1139,6 +1156,13 @@ interpolado en su centro.
 - **Tamaño y exportación:** el mapa ocupa todo el ancho; «⤢» oculta el panel y «⛶» lo pone a pantalla completa.
   PNG de 1800 a 7200 px de ancho; el fondo raster se vuelve a descargar a ese ancho (máximo 4096 px por los
   servicios) antes de rasterizar.
+
+### 21.6 quater Valores del mapa (desde V22)
+- En el modo «valor», la media de cada sondeo usa **solo las muestras con dato real** de la variable (con «rellenar
+  con la media» las muestras sin dato valen z = 0 y antes entraban en la media y en la interpolación). Un sondeo sin
+  datos reales en la ventana se dibuja como «sin datos».
+- Los modelos de edad con **inversiones** (edad que disminuye hacia abajo) se señalan en la interfaz; la conversión
+  edad → profundidad es ambigua en ese caso.
 
 ### 21.7 Superposición con el registro del sondeo
 - En el modo «Multiproxy», el registro de cada sondeo muestra sus variables numéricas y una banda

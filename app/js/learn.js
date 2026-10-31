@@ -16,6 +16,7 @@ export class Classifier {
   fit(examples) {
     this.n = examples.length;
     this.X = examples.map((e) => e.x);
+    this.g = examples.map((e) => e.g ?? null); // group (image section): leave-one-out leaves out the whole group
     this.y = examples.map((e) => e.y);
     this.counts = {};
     for (const y of this.y) this.counts[y] = (this.counts[y] || 0) + 1;
@@ -28,12 +29,15 @@ export class Classifier {
     this.Z = examples.map((e) => this.z(e.x));
     // Leave-one-out: typical nearest-neighbour distance (novelty scale) and accuracy estimate.
     // (at most LOO_MAX evenly spaced examples, so that very large libraries stay fast)
-    const nn = [], ok = [], step = Math.max(1, this.n / LOO_MAX);
+    const nn = [], ok = [], step = Math.max(1, this.n / LOO_MAX), useG = new Set(this.g.filter((v) => v != null)).size >= 2;
+    this.grouped = useG;
     for (let f = 0; f < this.n; f += step) {
       const i = Math.floor(f);
       const r = this.vote(this.Z[i], i);
-      nn.push(r.dmin);
-      if (Object.keys(this.counts).length > 1) ok.push(r.y === this.y[i] ? 1 : 0);
+      nn.push(r.dmin); // novelty scale: nearest other example, whatever its group
+      // accuracy: leaving out the whole group (image section) when there are several groups, else the example alone
+      const rg = useG ? this.vote(this.Z[i], i, this.g[i]) : r;
+      if (Object.keys(this.counts).length > 1 && rg.y != null) ok.push(rg.y === this.y[i] ? 1 : 0);
     }
     nn.sort((a, b) => a - b);
     this.scale = nn[nn.length >> 1] || 1;
@@ -43,10 +47,10 @@ export class Classifier {
 
   z(x) { return x.map((v, j) => (v - this.mu[j]) / this.sd[j]); }
 
-  vote(z, skip = -1) {
+  vote(z, skip = -1, group = null) {
     const best = [];
     for (let i = 0; i < this.n; i++) {
-      if (i === skip) continue;
+      if (i === skip || (group != null && this.g?.[i] === group)) continue;
       const zi = this.Z[i]; let s = 0;
       for (let j = 0; j < zi.length; j++) { const t = zi[j] - z[j]; s += t * t; }
       const d = Math.sqrt(s);
@@ -94,6 +98,26 @@ export class Classifier {
 
 /** Small seeded generator (mulberry32) so that evaluations can be repeated exactly. */
 export function rng(seed = 42) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+/**
+ * Grouped folds: whole groups (image sections) go to one fold, so traces of the same section are never both trained
+ * and tested. Groups are shuffled (seeded) and each one goes to the fold with fewest examples of its main class.
+ * Falls back to stratifiedFolds when there are fewer than k groups.
+ */
+export function groupedFolds(y, groups, k = 5, seed = 42) {
+  const ids = [...new Set(groups)]; if (ids.length < k) return stratifiedFolds(y, k, seed);
+  const r = rng(seed), by = new Map(ids.map((g) => [g, []]));
+  groups.forEach((g, i) => by.get(g).push(i));
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  const folds = Array.from({ length: k }, () => []), cnt = folds.map(() => ({}));
+  ids.sort((a, b) => by.get(b).length - by.get(a).length);
+  for (const g of ids) {
+    const m = by.get(g), main = Object.entries(m.reduce((o, i) => ((o[y[i]] = (o[y[i]] || 0) + 1), o), {})).sort((a, b) => b[1] - a[1])[0][0];
+    let best = 0; for (let f = 1; f < k; f++) if ((cnt[f][main] || 0) < (cnt[best][main] || 0) || ((cnt[f][main] || 0) === (cnt[best][main] || 0) && folds[f].length < folds[best].length)) best = f;
+    folds[best].push(...m); for (const i of m) cnt[best][y[i]] = (cnt[best][y[i]] || 0) + 1;
+  }
+  return folds.filter((q) => q.length);
+}
 
 /** Stratified folds: indices of each class shuffled (seeded) and dealt round-robin into k folds. */
 export function stratifiedFolds(y, k = 5, seed = 42) {
@@ -149,21 +173,26 @@ export class TaxonModel {
  * Returns {scope: {method: {accuracy, balanced, classes, cm, n}}}.
  */
 export function evaluateModels({ test, pools, methods, opt, k = 5, seed = 42 }) {
-  const folds = stratifiedFolds(test.map((e) => e.y), Math.min(k, test.length), seed), out = {};
+  const kk = Math.min(k, test.length), folds = test.some((e) => e.g != null) ? groupedFolds(test.map((e) => e.y), test.map((e) => e.g ?? e.key), kk, seed) : stratifiedFolds(test.map((e) => e.y), kk, seed), out = {};
+  // rows = true classes of the test traces; columns add every class the models can predict, so a prediction of a class
+  // absent from the test set still counts as an error (column «other»)
   const classes = [...new Set(test.map((e) => e.y))].sort();
   for (const sc of Object.keys(pools)) {
     out[sc] = {};
     for (const m of methods) {
-      const cm = classes.map(() => classes.map(() => 0));
+      const cm = classes.map(() => classes.map(() => 0)), other = classes.map(() => 0), none = classes.map(() => 0);
       for (const f of folds) {
         const keys = new Set(f.map((i) => test[i].key)), train = pools[sc].filter((e) => !keys.has(e.key));
-        if (new Set(train.map((e) => e.y)).size < 2) continue;
-        const model = new TaxonModel({ ...opt, method: m }).fit(train);
-        for (const i of f) { const p = model.predict(test[i].x, { ignoreNovelty: true }); const a = classes.indexOf(test[i].y), b = classes.indexOf(p?.y); if (a >= 0 && b >= 0) cm[a][b]++; }
+        const trainable = new Set(train.map((e) => e.y)).size >= 2, model = trainable ? new TaxonModel({ ...opt, method: m }).fit(train) : null;
+        for (const i of f) {
+          const a = classes.indexOf(test[i].y), p = model?.predict(test[i].x, { ignoreNovelty: true }), b = classes.indexOf(p?.y);
+          if (b >= 0) cm[a][b]++; else if (p?.y != null) other[a]++; else none[a]++;
+        }
       }
-      const tot = cm.reduce((s, r) => s + r.slice(0, classes.length).reduce((a, b) => a + b, 0), 0), ok = classes.reduce((s, _, i) => s + cm[i][i], 0);
-      const rec = classes.map((_, i) => { const n = cm[i].slice(0, classes.length).reduce((a, b) => a + b, 0); return n ? cm[i][i] / n : null; }).filter((v) => v != null);
-      out[sc][m] = { accuracy: tot ? ok / tot : null, balanced: rec.length ? rec.reduce((a, b) => a + b, 0) / rec.length : null, classes, cm: cm.map((r) => r.slice(0, classes.length)), n: tot };
+      const n = test.length, okc = classes.reduce((s, _, i) => s + cm[i][i], 0);
+      const rows = classes.map((_, i) => cm[i].reduce((a, b) => a + b, 0) + other[i] + none[i]);
+      const rec = classes.map((_, i) => (rows[i] ? cm[i][i] / rows[i] : null)).filter((v) => v != null);
+      out[sc][m] = { accuracy: n ? okc / n : null, balanced: rec.length ? rec.reduce((a, b) => a + b, 0) / rec.length : null, classes, cm, other, none, n };
     }
   }
   return out;

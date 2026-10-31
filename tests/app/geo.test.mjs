@@ -125,3 +125,15 @@ test('V15 map style: symbols, labels, background image, zoom', async () => {
   const zo = zoomBBox([-170, -80, 170, 80], 0.5); assert.deepEqual([zo[0], zo[2], zo[1], zo[3]], [-180, 180, -85, 85]);
   assert.equal(mapGeometry(bbox).W, 900);
 });
+
+test('V22: map values use only real samples; rule labels are not scored', async () => {
+  const { mapSummary, crossValidate, autoGap } = await import('../../app/js/geo.js');
+  const samples = [{ core: 'a', age: 1, t: [null], zc: [0] }, { core: 'b', age: 1, t: [2], zc: [1.5] }];
+  const pts = mapSummary(samples, [], [{ id: 'a', name: 'a', lat: 0, lon: 0 }, { id: 'b', name: 'b', lat: 1, lon: 1 }], { a0: 0, a1: 2, mode: 'value', feature: 0 });
+  assert.equal(pts[0].n, 0); assert.equal(pts[0].value, undefined); assert.equal(pts[1].value, 1.5);
+  const S = [], L = [];
+  for (const c of ['x', 'y']) for (let i = 0; i < 20; i++) { S.push({ core: c, x: i, f: [i < 10 ? 0 : 5] }); L.push(i < 10 ? 'lo' : 'hi'); }
+  const cv = crossValidate(S, L, 'knn', { k: 3 }, 42, { scored: (i) => i % 2 === 0, minProb: 0.5 });
+  assert.equal(cv.nScored, 20); assert.ok(cv.coverage.share > 0);
+  assert.equal(autoGap([0, 1, 2, 10], [1, 1, 1, 1]), 3);
+});

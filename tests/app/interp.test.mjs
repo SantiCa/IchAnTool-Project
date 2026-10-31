@@ -7,7 +7,7 @@ const bbox = [0, 0, 2, 2];
 
 test('every method reproduces a plane on its data and stays finite', () => {
   for (const method of ['idw', 'nearest', 'tin', 'mincurv', 'rbf', 'kriging', 'movavg']) {
-    const r = interpolate(pts, bbox, 10, 10, { method, radius: method === 'movavg' ? 1.5 : 0 });
+    const r = interpolate(pts, bbox, 10, 10, { method, hull: false, mask: 'both', radius: method === 'movavg' ? 170 : 0, shape: 100 });
     const vals = r.grid.filter((v) => v != null);
     assert.ok(vals.length > 50, method); assert.ok(vals.every(Number.isFinite), method);
     if (['tin', 'mincurv'].includes(method)) { const c = r.grid[5 * 10 + 5]; assert.ok(Math.abs(c - (1.1 + 0.9)) < 0.15, `${method} ${c}`); }
@@ -19,7 +19,7 @@ test('every method reproduces a plane on its data and stays finite', () => {
 test('variogram, contours, colours and land mask', () => {
   const f = fitVariogram(pts.map((p) => [p.lon, p.lat]), pts.map((p) => p.value));
   assert.ok(f.sill > 0 && f.range > 0); assert.equal(variogram('spherical', 10, 0, 1, 2), 1);
-  const r = interpolate(pts, bbox, 20, 20, { method: 'tin' });
+  const r = interpolate(pts, bbox, 20, 20, { method: 'tin', hull: false });
   assert.ok(contourSegments(r.grid, 20, 20, 2).length > 5);
   assert.deepEqual(contourLevels(0, 4, 3), [1, 2, 3]);
   assert.equal(rampColor('grey', 0, 0, 1), 'rgb(30,30,30)');

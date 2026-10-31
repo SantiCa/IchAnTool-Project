@@ -39,6 +39,7 @@ La descripción detallada de los algoritmos está en
 | V19 | 31-10-2026 | Aplicación web 1.3 | Proyecto de entrenamiento con 7 sondeos sintéticos del Mediterráneo e imagen con trazas, carteles de ayuda por pestaña y recorrido guiado de 25 pasos |
 | V20 | 31-10-2026 | Aplicación web 1.4 | Paneles laterales sin cortes; mapa con 7 métodos de interpolación (IDW, vecino, triangulación, curvatura mínima, RBF, kriging, media móvil), isolíneas, celdas ajustables, solo mar/tierra, escalas y barra de color, lista de sondeos, proyecciones, mapa ampliable y PNG a la resolución elegida |
 | V21 | 31-10-2026 | Aplicación web 1.6 | Gráficos tipo Grapher en Datos: registros estratigráficos multipanel y XY con eje Y2, ejes log/invertidos, 6 tipos de serie, ajustes de curva con ecuación y R², estadística y exportación |
+| V22 | 31-10-2026 | Aplicación web 1.7 | Revisión de un concilio de 3 agentes (métodos, usabilidad, interfaz y código): evaluación sin inflar, validación por sección e intervalos descritos, mapas solo con datos reales y distancias en km, nombres coherentes, confirmaciones, atajos seguros, pantalla inicial y contraste |
 
 ---
 
@@ -610,6 +611,58 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V22 — Revisión del concilio: métodos, usabilidad, interfaz y código (31-10-2026)
+
+**Qué se hizo.** Tres agentes revisaron el proyecto por separado (métodos científicos; navegación y
+usabilidad; diseño visual y código) y se aplicaron los cambios de más valor.
+- **Métodos (se corrigen resultados):**
+  - La evaluación de icnotaxones contaba mal: las predicciones de un taxón ausente del conjunto de prueba
+    se descartaban y el acierto salía inflado (en una prueba, 100 % con 0 aciertos). Ahora cuentan como error.
+  - Validación **por imagen (sección)**: trazas de la misma imagen nunca están a la vez en entrenamiento y
+    prueba (grupos y dejar-uno-fuera).
+  - El clasificador de intervalos ya no se puntúa con sus propias reglas (era circular); da también el acierto
+    por sondeo (media ± desviación) y la cobertura con la probabilidad mínima.
+  - El mapa de valores ya no promedia los ceros de relleno: solo datos reales.
+  - Interpolación con distancias en **km** (proyección de áreas iguales), sondeos coincidentes promediados,
+    variograma ponderado n/h², aviso con pocos sondeos; por defecto sin extrapolar y solo en el mar.
+  - Remuestreo que no cruza huecos (3 × espaciado mediano por defecto); Bayes sin la varianza artificial 1;
+    k-NN de Multiproxy sin votos casi seguros; aviso de inversiones en el modelo de edad.
+- **Usabilidad:** los atajos de teclado solo actúan en Bioturbación (antes «x» en Datos cambiaba la
+  herramienta y Espacio bloqueaba los botones); confirmación en dos pasos para borrar imágenes, capas,
+  columnas, registros, ajustes e intervalos automáticos; **un nombre por concepto** («Columna» para la vista
+  del sondeo, «Curvas» en Multiproxy, «Tramos» para la discretización, «Opacidad de trazas», «Sugerencias»,
+  «categorías»); textos que aún citaban modos antiguos; parámetros con nombre en español; pantalla inicial con
+  «Primeros pasos» (aprender, crear, tesis) y copias de seguridad plegadas; el recorrido empieza en el proyecto
+  abierto, entrena antes de explicar el modelo y deja la pantalla inicial al final; cartel de ayuda a la
+  derecha; Esc cierra la pantalla inicial; pestañas con roles accesibles; botón «Entrenar» en Modelo vacío.
+- **Interfaz y código:** el panel derecho quedaba en blanco al usar las pestañas de Multiproxy (selector
+  compartido); la lista de icnotaxones se cortaba (clase CSS duplicada); contraste AA (texto sobre acento,
+  bordes de campos, botones activos en modo oscuro); cartel de ayuda con colores de tema; móvil sin
+  desbordamiento horizontal; guardado sin solapes y aviso de espacio lleno; modelos guardados sin reajustar en
+  cada guardado; el modelo en uso se ajusta al momento y los otros dos en segundo plano; miniaturas que ya no
+  se pierden; IndexedDB cierra al actualizarse en otra pestaña; escape de apóstrofos.
+
+**Cambios.** `learn.js` (evaluación, `groupedFolds`, dejar-uno-fuera por grupo), `geo.js` (`crossValidate`
+con `scored`/`minProb`, `mapSummary`, `autoGap`, NB, k-NN), `interp.js` (km, fusión, Cressie, pivote, valores
+por defecto), `core.js` (inversiones), `app.js`, `storage.js`, `index.html`, `i18n.js` (bloque final de
+terminología), pruebas nuevas en `learn.test.mjs` y `geo.test.mjs`.
+
+**Por qué.** Santiago pidió revisar todo con un concilio de al menos 3 agentes desde el punto de vista
+científico, de navegación, de criterios científicos y de usabilidad e interfaz, y cambiar lo necesario.
+
+**Comprobación.** 40 pruebas de la aplicación y 9 de Python. En Chromium: recorrido de 25 pasos; validación del
+proyecto de entrenamiento: dejando un sondeo fuera, acierto equilibrado 90,6 %, por sondeo 92,7 ± 10,0 % (4
+sondeos), cobertura 100 % con acierto 97,3 % a probabilidad 0,5; «x» en Datos ya no cambia la herramienta; el
+panel derecho no desborda ni queda vacío; borrar una imagen pide confirmación; a 412 px no hay desbordamiento
+horizontal; ningún error.
+
+**Pendiente o problemas conocidos.** Queda del informe: unificar la importación de datos en un solo sitio y
+mover el modelo de edad al diálogo del sondeo; guardar las imágenes en un almacén aparte (guardado más ligero);
+fuentes incrustadas para el archivo sin conexión; varianza de kriging como mapa; importancia por permutación;
+plurales. Los resultados de clasificación de V12–V21 pueden cambiar con la evaluación corregida.
 
 ---
 
