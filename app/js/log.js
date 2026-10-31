@@ -96,7 +96,8 @@ const lbl = (v) => String(+(+v).toPrecision(6));
  * Build the composite log as an SVG string.
  * o = { title, subtitle, axisLabel, from, to, height, rows, classes:[{name,color,index}],
  *       tracks:{image,total,species,BI,ii,manual}, image:{href}|null, imageWidth,
- *       records:[{name, color, reverse, pts:[[axisValue, y], ...]}], boundaries:[{a,label}], labels:{...} }
+ *       records:[{name, color, reverse, pts:[[axisValue, y], ...]}], boundaries:[{a,label}], labels:{...},
+ *       bands:[{title, w, segs:[{a0,a1,color,opacity}]}], bandLegend, shade:[{a0,a1,color}] (class colours behind the record curves) }
  */
 export function buildLogSVG(o) {
   const L = { total: 'Bioturbation (%)', species: 'Ichnotaxa (%)', image: 'Core', ...(o.labels || {}) };
@@ -200,6 +201,7 @@ export function buildLogSVG(o) {
       if (pts.length) {
         const [lo, hi] = niceRange(Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1])));
         const sx = xScale(c, lo, hi, c.rec.reverse);
+        for (const g of o.shade || []) if (g.a1 > from && g.a0 < to) out.push(`<rect x="${c.x}" y="${y(Math.max(g.a0, from))}" width="${c.w}" height="${f2(Math.max(0.4, y(Math.min(g.a1, to)) - y(Math.max(g.a0, from))))}" fill="${g.color}" fill-opacity="0.22"/>`);
         out.push(`<polyline fill="none" stroke="${c.rec.color}" stroke-width="1.1" points="${pts.map((p) => `${sx(p[1])},${y(p[0])}`).join(' ')}"/>`);
       }
     }

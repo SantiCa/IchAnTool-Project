@@ -1431,7 +1431,7 @@ function setMode(m) {
   $('work').classList.toggle('geo', m === 'geo');
   for (const [id, k] of [['modeSection', 'section'], ['modeLog', 'log'], ['modeGeo', 'geo']]) $(id).setAttribute('aria-pressed', String(m === k));
   if (m === 'log') { renderLogPanel(); scheduleLog(0); }
-  else if (m === 'geo') busy(async () => { await loadLand(); renderGeo(); });
+  else if (m === 'geo') busy(async () => { await loadLand(); if (PRELOAD_THESIS && !S.geo.cores.length) await loadThesisCores(); renderGeo(); });
   else requestAnimationFrame(resizeCanvases);
 }
 $('modeSection').addEventListener('click', () => setMode('section'));
@@ -1667,6 +1667,8 @@ const geoLayerOf = (catId) => S.geo.layers.find((l) => l.cats.some((c) => c.id =
 function geoCat(id) {
   if (id == null) return null;
   for (const l of S.geo.layers) { const c = l.cats.find((k) => k.id === id); if (c) return c; }
+  if (id === '__ok') return { id, name: t('geo.testOk'), color: '#2e7d4f' };
+  if (id === '__bad') return { id, name: t('geo.testBad'), color: '#c0392b' };
   if (/^G\d+$/.test(id)) return { id, name: S.geo.groupNames[id] || id, color: GROUP_COLORS[(parseInt(id.slice(1), 10) - 1) % GROUP_COLORS.length] };
   return null;
 }
@@ -1721,7 +1723,7 @@ function geoComputeSamples() {
   geoRT.nNum = st.features.length;
   geoRT.labels = labelSamples(geoRT.samples, { intervals: g.intervals, rules: g.rules, useRules: st.useRules, features: geoRT.featNames, axis: st.axis, cores: g.cores, layer: st.target });
   geoRT.orphans = new Set(orphanIntervals(g.intervals, g.layers, g.cores));
-  geoRT.dirty = false;
+  geoRT.dirty = false; geoRT.test = null;
   geoPredictAll();
 }
 
@@ -2015,6 +2017,38 @@ async function loadGeoDemo() {
   geoMarkDirty(); geoTrain();
 }
 
+/** First version only: the thesis cores are loaded when the Multiproxy mode opens on a project without cores. Set to false for the clean release. */
+const PRELOAD_THESIS = true;
+
+/** Real data of the cores of Casanova-Arenillas (2023): PANGAEA records + intervals from the thesis (examples/tesis_casanova/README.md). */
+async function loadThesisCores(train = true) {
+  const g = S.geo, txt = async (f) => (await fetchAsset('tesis_casanova/' + f)).text();
+  const t977 = parseTable(await txt('ODP977A_pangaea.csv')), t976 = parseTable(await txt('ODP976_pangaea.csv'));
+  const ix = (tab, n) => tab.headers.indexOf(n);
+  const c977 = coreFromRows('ODP 977A', t977.rows, t977.headers, { depth: 0, age: 1, proxies: t977.headers.slice(2).map((n) => ix(t977, n)) });
+  const c976 = coreFromRows('ODP 976', t976.rows, t976.headers, { depth: -1, age: 0, proxies: t976.headers.slice(1).map((n) => ix(t976, n)) });
+  const model = (await txt('LC10_age_model.txt')).split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+  const lc10 = { name: 'LC10', depth: model.map((l) => +l.split(',')[0]), age: null, ageText: model.join('\n'), proxies: {}, units: 'cm' };
+  const gp03 = { name: 'GP03', depth: null, age: null, proxies: {} };
+  c977.units = 'm';
+  const list = [c977, c976, gp03, lc10];
+  for (const c of list) { c.id = 'tesis-' + c.name.replace(/\W+/g, ''); c.source = 'tesis'; c.lat = null; c.lon = null; }
+  g.cores = [...g.cores.filter((c) => c.source !== 'tesis'), ...list];
+  applyCatalogue(g.cores, parseTable(await txt('catalogue.csv')), { core: 0, lat: 1, lon: 2, wd: 3 });
+  g.intervals = g.intervals.filter((q) => !String(q.core).startsWith('tesis-'));
+  addNamedIntervals(intervalsFromTable(parseTable(await txt('intervals_age.csv')), { core: 0, from: 1, to: 2, layer: 3, values: [4] }), 'age');
+  addNamedIntervals(intervalsFromTable(parseTable(await txt('intervals_depth.csv')), { core: 0, from: 1, to: 2, layer: 4, values: [5] }), 'depth');
+  const L = (n) => g.layers.find((l) => l.name === n);
+  if (L('Fases internas') && L('Capas orgánicas')) L('Fases internas').parent = L('Capas orgánicas').id;
+  const col = { 'ORL tipo 1 (bioturbada)': '#4f8f5f', 'ORL tipo 2 (larga y cíclica)': '#2b6f8f', 'ORL tipo 3 (laminada)': '#1c2f5a', 'ORL (sin tipo)': '#5a6f8f', Sapropel: '#4a2f63', 'Fuera de capa orgánica': '#d9d2bf', 'Fase euxínica': '#14213d', 'Fase subóxica': '#7f9fcf', 'Interrupción': '#e0b04a', 'Heinrich Stadial 1': '#8fc1e3' };
+  for (const l of g.layers) for (const c of l.cats) if (col[c.name]) c.color = col[c.name];
+  const st = g.settings;
+  Object.assign(st, { features: ['SST_alkenonas_C', 'CaCO3_pct', 'TOC_pct', 'L_star', 'a_star', 'b_star', 'MS_kappa_1e-6SI'], logs: [], axis: 'age', step: 0.5, scaling: 'global', target: L('Capas orgánicas').id, useLayers: null });
+  g.activeLayer = L('Capas orgánicas').id; g.view.core = c977.id; g.map = { ...g.map, a0: 9, a1: 14, mode: 'class' };
+  geoMarkDirty(); if (train) geoTrain();
+}
+$('geoThesis').addEventListener('click', () => busy(loadThesisCores));
+
 /** Join touching intervals of the same core, layer and category (keeps the list short). */
 function mergeIntervals(list) {
   const out = [], key = (q) => `${q.core}|${q.layer}|${q.axis}|${q.cat}|${q.auto ? 1 : 0}`;
@@ -2069,6 +2103,12 @@ function coreBands(core, axis, withPred = true) {
     const segs = segmentsFor(core.id, (i) => geoRT.preds[i]?.label, axis, st.step);
     if (segs.length) bands.push({ title: t('geo.bandPredShort'), segs, w: 56 });
   }
+  const T = geoRT.test;
+  if (withPred && T?.core === core.id) {
+    bands.push({ title: t('geo.bandTest'), segs: segmentsFor(core.id, (i) => T.preds[i]?.label, axis, st.step), w: 56 });
+    const hit = segmentsFor(core.id, (i) => (T.preds[i]?.label != null && geoRT.labels[i]?.label ? (T.preds[i].label === geoRT.labels[i].label ? '__ok' : '__bad') : null), axis, st.step);
+    if (hit.length) bands.push({ title: t('geo.bandHit'), segs: hit, w: 46 });
+  }
   return bands;
 }
 const bandLegendOf = (bands) => [...new Set(bands.flatMap((b) => b.segs.map((s) => s.label)))].map(geoCat).filter(Boolean).map((c) => ({ name: c.name, color: c.color, index: -1 }));
@@ -2095,6 +2135,14 @@ function renderGeoLogs() {
     return { name: k, color: GROUP_COLORS[j % GROUP_COLORS.length], reverse: false, pts: xs.map((x, i) => [x, ser[i]]) };
   }).filter((r) => r.pts.some((p) => p[1] != null)) : [];
   const bands = coreBands(core, axis);
+  $('geoShade').checked = !!g.view.shade;
+  let shade = null;
+  if (g.view.shade) {
+    const T = geoRT.test?.core === core.id ? geoRT.test.preds : null;
+    shade = segmentsFor(core.id, T ? (i) => T[i]?.label : geoRT.preds.length ? (i) => geoRT.preds[i]?.label : (i) => geoRT.labels[i]?.label, axis, st.step);
+  }
+  const T = geoRT.test;
+  $('geoTestOut').textContent = T?.core === core.id ? t(T.n ? 'geo.testRes' : 'geo.testResNo', { s: t('geo.testScheme.' + T.scheme), p: T.n ? fmt((100 * T.ok) / T.n, 1) : '', n: T.n }) : '';
   let rows = [], image = null, tracks = { image: false, total: false, species: false, BI: false, ii: false, manual: false };
   if (core.source === 'main' && S.sections.length && (axis === 'depth' || S.age.model)) {
     const D = compositeData();
@@ -2105,7 +2153,7 @@ function renderGeoLogs() {
   const res = buildLogSVG({
     title: core.name, subtitle: t('geo.subtitleLogs', { n: geoRT.samples.filter((s) => s.core === core.id).length, step: st.step }),
     axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`,
-    from, to, height: 700, rows, classes: [], tracks, image, imageWidth: 64, records, boundaries: [], bands, bandLegend: bandLegendOf(bands),
+    from, to, height: 700, rows, classes: [], tracks, image, imageWidth: 64, records, boundaries: [], bands, bandLegend: bandLegendOf(bands), shade,
     labels: { total: t('log.total'), species: t('log.species'), image: t('log.image') },
   });
   box.innerHTML = res.svg;
@@ -2135,6 +2183,38 @@ function renderIntervalList(core) {
   $('geoAccept').disabled = !geoRT.preds.length;
 }
 $('geoCoreSel').addEventListener('change', (e) => { S.geo.view.core = e.target.value; renderGeo(); });
+$('geoShade').addEventListener('change', (e) => { S.geo.view.shade = e.target.checked; markDirty(); renderGeo(); });
+$('geoTestBtn').addEventListener('click', () => busy(geoTestCore));
+
+/**
+ * Try the automatic classification on the current core without using its own labels:
+ * trained on the other cores' labels when they cover ≥ 2 classes; otherwise 5 contiguous blocks
+ * of this core, each predicted by a model trained without that block (out-of-block prediction).
+ */
+function geoTestCore() {
+  if (geoRT.dirty) geoComputeSamples();
+  const g = S.geo, st = g.settings, core = geoCore(g.view.core); if (!core) return;
+  const method = st.method === 'kmeans' ? 'rf' : st.method, params = { ...METHODS[method].defaults, ...st.params[method] };
+  const X = geoRT.samples, lab = geoRT.labels, out = new Array(X.length).fill(null);
+  const mine = X.map((s, i) => (s.core === core.id ? i : -1)).filter((i) => i >= 0);
+  if (!mine.length) { toast(t('geo.testNoSamples')); return; }
+  const fit = (idx) => fitModel(method, idx.map((i) => X[i].f), idx.map((i) => lab[i].label), params, st.seed);
+  const others = X.map((s, i) => (s.core !== core.id && lab[i].label ? i : -1)).filter((i) => i >= 0);
+  let scheme;
+  if (new Set(others.map((i) => lab[i].label)).size >= 2) { scheme = 'others'; const m = fit(others); for (const i of mine) out[i] = predictLabel(m, X[i].f, st.minProb); }
+  else {
+    scheme = 'blocks'; const sorted = [...mine].sort((a, b) => X[a].x - X[b].x), k = Math.min(5, sorted.length);
+    for (let f = 0; f < k; f++) {
+      const test = sorted.slice(Math.floor((f * sorted.length) / k), Math.floor(((f + 1) * sorted.length) / k)), ts = new Set(test);
+      const train = X.map((s, i) => (lab[i].label && !ts.has(i) ? i : -1)).filter((i) => i >= 0);
+      if (new Set(train.map((i) => lab[i].label)).size < 2) continue;
+      const m = fit(train); for (const i of test) out[i] = predictLabel(m, X[i].f, st.minProb);
+    }
+  }
+  const scored = mine.filter((i) => lab[i].label && out[i]?.label != null);
+  geoRT.test = { core: core.id, preds: out, scheme, n: scored.length, ok: scored.filter((i) => out[i].label === lab[i].label).length };
+  g.view.shade = true; renderGeo();
+}
 $('geoIntervals').addEventListener('click', (e) => {
   const g = S.geo, d = e.target.closest('button')?.dataset; if (!d) return;
   if (d.del) g.intervals = g.intervals.filter((q) => q.id !== d.del);
@@ -2263,6 +2343,15 @@ function geoOverlay(axis) {
 }
 
 /* ───────────── misc ───────────── */
+
+/* light / dark theme (follows the system until the user chooses) */
+const currentTheme = () => document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+function applyTheme(th) {
+  if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th; else delete document.documentElement.dataset.theme;
+  $('themeBtn').textContent = currentTheme() === 'dark' ? '☀' : '☾';
+}
+$('themeBtn').addEventListener('click', () => { const th = currentTheme() === 'dark' ? 'light' : 'dark'; applyTheme(th); try { localStorage.setItem('ichantool.theme', th); } catch { /* storage blocked */ } });
+try { applyTheme(localStorage.getItem('ichantool.theme')); } catch { applyTheme(null); }
 
 let toastTimer = 0;
 function toast(msg) { const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => (el.hidden = true), 3200); }

@@ -75,12 +75,14 @@ export function coreAges(core) {
 }
 
 /** Convert a value between depth and age within one core (linear interpolation between its rows). */
-export function coreConvert(core, v, from, to) {
+export function coreConvert(core, v, from, to, clamp = false) {
   if (from === to || v == null) return v;
   const ages = coreAges(core); if (!ages || !core.depth) return null;
   const pairs = core.depth.map((d, i) => [d, ages[i]]).filter((p) => p[0] != null && p[1] != null);
+  if (!pairs.length) return null;
   const src = from === 'depth' ? 0 : 1, dst = 1 - src;
   pairs.sort((a, b) => a[src] - b[src]);
+  if (clamp) v = Math.min(pairs[pairs.length - 1][src], Math.max(pairs[0][src], v));
   return lerp(pairs.map((p) => p[src]), pairs.map((p) => p[dst]), v);
 }
 
@@ -163,8 +165,9 @@ export function intervalsOnAxis(list, axis, core) {
   return list.map((q) => {
     if (q.axis === axis) return q;
     if (!core) return null;
-    const a = coreConvert(core, q.from, q.axis, axis), b = coreConvert(core, q.to, q.axis, axis);
-    return a == null || b == null ? null : { ...q, from: Math.min(a, b), to: Math.max(a, b) };
+    // Ends beyond the core's depth–age data are clamped to the first/last value (no extrapolation).
+    const a = coreConvert(core, q.from, q.axis, axis, true), b = coreConvert(core, q.to, q.axis, axis, true);
+    return a == null || b == null || a === b ? null : { ...q, from: Math.min(a, b), to: Math.max(a, b) };
   }).filter(Boolean);
 }
 

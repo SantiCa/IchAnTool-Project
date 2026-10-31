@@ -266,6 +266,7 @@ dialog input[type=text] { min-width: 0; }
       <span class="savestate" id="saveState"></span>
       <button class="btn small danger" id="bkReactivateTop" hidden data-i18n="bk.reactivate"></button>
       <button class="btn ghost" id="helpBtn" data-i18n="top.help"></button>
+      <button class="btn ghost" id="themeBtn" data-i18n-title="top.theme">☾</button>
       <button class="btn ghost" id="langBtn">EN</button>
     </div>
   </header>
@@ -453,6 +454,7 @@ dialog input[type=text] { min-width: 0; }
           <label class="btn small file"><span data-i18n="geo.impCat"></span><input type="file" id="giFileCat" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods"></label>
           <label class="btn small file"><span data-i18n="geo.impIv"></span><input type="file" id="giFileIv" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods" multiple></label>
           <div class="row"><button class="btn small" id="geoIncludeMain" data-i18n="geo.includeMain"></button><button class="btn small" id="geoDemo" data-i18n="geo.demo"></button></div>
+          <button class="btn small" id="geoThesis" data-i18n="geo.thesis"></button>
           <p class="note" data-i18n="geo.impNote"></p>
           <div class="gcores" id="geoCores"></div>
         </div>
@@ -515,7 +517,8 @@ dialog input[type=text] { min-width: 0; }
       </div>
       <div class="gpane" data-pane="logs">
         <div class="gctl"><label class="f"><span data-i18n="geo.core"></span><select id="geoCoreSel"></select></label>
-          <label class="chk"><input type="checkbox" id="geoMark"><span data-i18n="geo.mark"></span></label><span id="geoMarkHint" class="note"></span></div>
+          <label class="chk"><input type="checkbox" id="geoMark"><span data-i18n="geo.mark"></span></label><span id="geoMarkHint" class="note"></span>
+          <button class="btn small primary" id="geoTestBtn" data-i18n="geo.test"></button><label class="chk"><input type="checkbox" id="geoShade"><span data-i18n="geo.shade"></span></label><span id="geoTestOut" class="note"></span></div>
         <div class="glogwrap"><div id="geoLogSvg"></div>
           <div class="glogside"><b data-i18n="geo.intervals"></b><p class="note" data-i18n="geo.markNote"></p>
             <div class="row"><button class="btn small" id="geoAccept" data-i18n="geo.accept"></button><button class="btn small" id="geoClearAuto" data-i18n="geo.clearAuto"></button><button class="btn small" id="geoIvCsv" data-i18n="geo.ivCsv"></button></div>

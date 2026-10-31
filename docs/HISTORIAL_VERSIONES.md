@@ -28,6 +28,7 @@ La descripción detallada de los algoritmos está en
 | V7 | 31-10-2026 | Aplicación web 0.2 | Carpetas de proyecto, registro compuesto del sondeo (profundidad/edad), registros externos, sondeo de prueba IODP U1385I |
 | V9 | 31-10-2026 | Aplicación web 0.4 | Herramienta de geoquímica: muchos sondeos y proxies, etiquetas por intervalos y reglas, aprendizaje automático configurable, mapas por edad, superposición con el registro icnológico |
 | V10 | 31-10-2026 | Aplicación web 0.5 | «Geoquímica» pasa a «Multiproxy»: cualquier registro numérico, capas de intervalos descritos con subdivisiones (litología, turbiditas…), editables e importables, usadas por el clasificador automático de intervalos |
+| V11 | 31-10-2026 | Aplicación web 0.6 | Modo claro/oscuro, prueba de la autoclasificación con coloreado de registros, sondeos reales de la tesis (ODP 977A, ODP 976, GP03, LC10) precargados; la rama pasa a `master` |
 
 ---
 
@@ -482,6 +483,57 @@ separarlo claramente del sistema que sugiere la clasificación de la bioturbaci�
   descrito» de «ausente».
 - Los intervalos en profundidad deben estar en las mismas unidades que los registros del sondeo.
 - Importancia por permutación y validación con datos reales siguen pendientes (V9).
+
+---
+
+## V11 — Modo oscuro, prueba de la autoclasificación y sondeos de la tesis (31-10-2026)
+
+**Qué se hizo.** Botón para cambiar entre modo claro y oscuro. Botón para **probar la
+autoclasificación** en un sondeo sin usar sus propias etiquetas, con bandas de resultado y de
+acierto y la opción de **colorear los registros** por clase. Para esta primera versión, el modo
+Multiproxy carga solo los **sondeos de la tesis** (capítulos VI–IX) con datos reales. Desde esta
+entrega los cambios van a la rama principal (`master`).
+
+**Cambios.**
+- Tema: botón ☾/☀ en la cabecera; se guarda en `localStorage` (`ichantool.theme`); sin elección,
+  sigue al sistema.
+- `geoTestCore` (app.js): si otros sondeos tienen etiquetas de al menos dos clases, entrena con
+  ellos y predice el sondeo actual; si no, divide el sondeo en 5 bloques contiguos y predice cada
+  bloque con un modelo entrenado sin él. Bandas «Prueba» y «Acierto» (verde = coincide con la
+  etiqueta, rojo = no) y porcentaje de coincidencia.
+- «Colorear registros por clase»: fondo translúcido de cada columna de registro con la clase de la
+  prueba, de la clasificación o de las etiquetas (`log.js`, opción `shade`).
+- `geo.js`: al convertir intervalos entre profundidad y edad, los extremos fuera de los datos del
+  sondeo se ajustan al primer/último valor (antes se perdía el intervalo entero; p. ej. la unidad
+  superior de 977A, que empieza en 0 mbsf).
+- `examples/tesis_casanova/` (ver su README):
+  - registros de PANGAEA: ODP 977A (SST de alquenonas y C37:4, CaCO3, TOC, color L\*a\*b\*,
+    susceptibilidad magnética) y ODP 976 (SST, K37, tasa de sedimentación, δ18O, Mg/Ca);
+  - intervalos de la tesis: ORL L1–L8 de 977A con su tipo (Cap. VII), unidades icnológicas de 977A
+    (Cap. VI), ORL 1 de GP03 con sus fases euxínica y subóxica como subdivisión, HS1 (Cap. VIII),
+    sapropeles S2–S6 de LC10 con la interrupción de S4 como subdivisión (Cap. IX);
+  - posiciones (Tabla IV.1) y modelo de edad de LC10 (Tabla IX.1).
+- `PRELOAD_THESIS = true` en app.js: los carga al abrir Multiproxy en un proyecto sin sondeos, y
+  hay un botón para cargarlos cuando se quiera. En la versión final se pondrá en `false`.
+
+**Por qué.** Petición de Santiago: modo oscuro/claro, probar la autoclasificación con coloreado,
+tener sus sondeos en esta primera versión y empezar a trabajar sobre la rama principal.
+
+**Comprobación.**
+- 28 pruebas de la aplicación (ampliada la de capas con el ajuste de extremos) y 9 de Python.
+- En Chromium: se cargan los 4 sondeos con posición, 30 intervalos en 5 capas, ninguno fuera de su
+  capa madre; ODP 977A da 311 muestras (0,5 ka). Random Forest con capa objetivo «Capas
+  orgánicas»: validación por 5 bloques, acierto 78,8 % y **acierto equilibrado 36 %**; la prueba
+  en 977A coincide con la etiqueta en el 73,8 % de 263 muestras. Las ORL de tipo 1–3 son pocas y
+  cortas: el modelo acierta sobre todo «fuera de capa orgánica». Es un resultado real y modesto,
+  útil como punto de partida, no como validación.
+- Modo oscuro aplicado y guardado; ningún error de JavaScript.
+
+**Pendiente o problemas conocidos.**
+- Faltan los datos propios de la tesis (XRF/WDXRF de GP03 y LC10, bioturbación de 976/977): GP03
+  y LC10 solo tienen intervalos y no aportan muestras hasta importar sus registros.
+- ODP 976 solo tiene en común con 977A la SST de alquenonas.
+- Quitar la precarga (`PRELOAD_THESIS = false`) en la versión final.
 
 ---
 

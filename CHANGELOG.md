@@ -2,6 +2,15 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V11 — Web app 0.6 — 2026-10-31
+- Light/dark mode toggle.
+- "Test automatic classification on this core" (trained on other cores, or out-of-block within the
+  core), with Test/Match bands and optional class colouring behind the record curves.
+- Interval ends outside a core's depth–age data are clamped instead of dropping the interval.
+- Real thesis cores preloaded in Multiproxy (first version only): ODP 977A and 976 records from
+  PANGAEA, and intervals from the thesis (ORL types, ichnological units, ORL 1 phases, sapropels).
+- Development moves to the `master` branch.
+
 ## V10 — Web app 0.5 — 2026-10-31
 - "Geochemistry" mode renamed "Multiproxy": any numeric record (geochemistry, foraminifera, TOC, sedimentology…).
 - Interval layers (lithology, turbidites, metal migration zones, events…) with categories and

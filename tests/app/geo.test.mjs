@@ -106,4 +106,7 @@ test('interval layers: import, 0/1 features, target layer, nesting check', async
   const lab = labelSamples(smp, { intervals: iv, rules: [{ layer: 'other', cat: 'z', conds: [{ feature: 'A', op: '>', value: 0 }] }], features: ['A'], axis: 'depth', cores: [c], layer: 'tb' });
   assert.deepEqual(lab.map((l) => l.label), [null, null, 'y', 'y', null, null]);
   assert.deepEqual(orphanIntervals(iv, layers, [c]), [4]);
+  const { intervalsOnAxis } = await import('../../app/js/geo.js');
+  assert.deepEqual(intervalsOnAxis([{ core: 'X', axis: 'depth', from: -1, to: 2 }], 'age', c).map((q) => [q.from, q.to]), [[0, 20]]);   // clamped end
+  assert.equal(intervalsOnAxis([{ core: 'X', axis: 'depth', from: 7, to: 9 }], 'age', c).length, 0);                                  // fully outside
 });

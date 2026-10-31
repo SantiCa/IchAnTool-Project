@@ -214,7 +214,10 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 
 ### Qué se puede afirmar hoy
 - La implementación funciona y es reproducible (semilla) con datos sintéticos de verdad conocida
-  (§21.8). **Nada** sobre datos reales.
+  (§21.8).
+- Primera prueba con datos reales (§21.8 bis): con registros públicos de ODP 977A, los tipos de ORL
+  de la tesis se reconocen mal (acierto equilibrado 36 % por bloques). No se puede afirmar
+  capacidad predictiva; faltan los datos geoquímicos propios (XRF) y más sondeos etiquetados.
 
 ### Experimentos necesarios
 1. **Datos reales con interpretación independiente:** sondeos con eventos publicados (p. ej.

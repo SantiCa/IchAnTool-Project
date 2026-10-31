@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V10 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.5.
+Versión del documento: V11 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.6.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -529,6 +529,7 @@ Los ajustes activos se guardan en el proyecto, así que cualquier resultado se p
 | `*_mapa_<a0>-<a1>.svg` / `.csv` | Mapa de una ventana de edad (§21.6) |
 | `*_clasificacion_intervalos.csv` | Muestras con etiqueta y clase predicha (§21.7) |
 | `*_intervalos.csv` | Intervalos de todas las capas (§21.7) |
+| Preferencia `ichantool.theme` (localStorage) | Tema claro u oscuro elegido |
 | `*.ichantool.json` | Proyecto completo (formato v2; también abre v1): clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE. La v2 añade `ds` (factor de reducción), `records` (registros externos), `logView` (vista del registro) y `notes`. Desde V9, `geo`: sondeos (nombre, lat, lon, profundidad, edad, variables), razones, capas de intervalos con su jerarquía y categorías (desde V10; en V9, lista de etiquetas), intervalos, reglas, ajustes de preparación y del método, mapa y nombres de grupos; el modelo entrenado no se guarda (se reentrena con su semilla) |
 
 **RLE (codificación por longitud de series):** `[valor, repeticiones, valor, repeticiones, …]`.
@@ -882,6 +883,9 @@ idéntico a uno existente (mismo sondeo, capa, eje, categoría, techo y base) no
   intervalo de una capa hija, se recorta al intervalo madre donde empieza el arrastre. Los
   intervalos hijos que no caben enteros en un intervalo madre del mismo sondeo se marcan con ⚠
   (`orphanIntervals`), pero se conservan.
+- Al convertir un intervalo entre profundidad y edad, un extremo fuera del rango de datos del
+  sondeo se ajusta al primer o último valor (`coreConvert(..., clamp)`); un intervalo entero fuera
+  del rango se descarta. No se extrapola.
 - **Intervalo:** `{id, core, layer, axis, from, to, cat, auto?}`. Se crean arrastrando sobre el
   registro, importándolos o aceptando la clasificación; se editan en la lista (categoría, techo,
   base) y se exportan en CSV.
@@ -945,6 +949,20 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
   cada clase, que no se deja engañar por una clase mayoritaria como el fondo), precisión,
   sensibilidad y F1 por clase. En validación se usa probabilidad mínima 0.
 
+### 21.5 bis Prueba de la autoclasificación en un sondeo
+`geoTestCore` (botón «Probar la autoclasificación en este sondeo»), con el método y los parámetros
+elegidos (k-medias se sustituye por Random Forest):
+- si las muestras etiquetadas de **otros sondeos** cubren al menos dos clases, se entrena con ellas
+  y se predice el sondeo actual;
+- si no, el sondeo se divide en **5 bloques contiguos** a lo largo del eje y cada bloque se
+  predice con un modelo entrenado con todas las etiquetas menos las de ese bloque.
+
+Se muestran las bandas «Prueba» y «Acierto» (verde si la predicción coincide con la etiqueta,
+rojo si no) y el porcentaje de coincidencia sobre las muestras etiquetadas del sondeo. Es una
+comprobación visual de la validación cruzada (§21.5) en un sondeo concreto; no cambia el modelo
+entrenado. «Colorear registros por clase» rellena el fondo de cada columna de registro (opacidad
+0,22) con la clase de la prueba, si existe; si no, de la clasificación; si no, de las etiquetas.
+
 ### 21.6 Mapas por edad
 - **Ventana de edad** `[a0, a1)` (por defecto 6–10 ka); los botones ◀ ▶ la desplazan su propia
   anchura.
@@ -973,6 +991,21 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
   edad, variables, etiqueta, origen de la etiqueta, clase predicha y probabilidad.
 - Exportación de intervalos (`*_intervalos.csv`): sondeo, capa, capa madre, categoría, eje, techo,
   base, automático y fuera de la capa madre. Se puede volver a importar.
+
+### 21.8 bis Sondeos de la tesis (datos reales, primera versión)
+`examples/tesis_casanova/` y `loadThesisCores` (app.js). Registros de PANGAEA de ODP 977A (0–30 mbsf;
+color y susceptibilidad promediados cada 5 cm; edad interpolada con el modelo de Martrat et al.,
+2004) y ODP 976 (por edad), e intervalos y posiciones tomados de la tesis (Caps. IV, VI–IX). Fuentes
+y DOI en el README de la carpeta. Configuración al cargar: eje edad, paso 0,5 ka, escalado global,
+variables SST, CaCO3, TOC, L\*, a\*, b\* y susceptibilidad; capa objetivo «Capas orgánicas»
+(ORL tipo 1, 2 y 3, ORL sin tipo, sapropel, fuera de capa orgánica); «Fases internas» es
+subdivisión de «Capas orgánicas». Se cargan solos al abrir Multiproxy en un proyecto sin sondeos
+mientras `PRELOAD_THESIS` sea `true`.
+
+Resultado en V11 (Random Forest, valores por defecto, semilla 42): validación por 5 bloques en
+977A, acierto 78,8 %, acierto equilibrado 36 %. Las ORL tipo 1–3 suman pocas muestras; el modelo
+aprende sobre todo «fuera de capa orgánica». «Fuera de capa orgánica» es el complemento de las ORL
+descritas, no una observación.
 
 ### 21.8 Datos de demostración (sintéticos)
 `tools/make_geochem_demo.py` (semilla 397) genera 15 sondeos **ficticios** en el Mediterráneo

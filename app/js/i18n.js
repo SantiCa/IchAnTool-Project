@@ -399,6 +399,24 @@ Object.assign(D.en, {
   'geo.cvNote': 'Each core (or block) is predicted by a model trained without it, so autocorrelation does not inflate accuracy. If labels come from rules, the model relearns those rules: accuracy measures consistency, not truth. Automatic intervals are never used for training.',
 });
 
+// V11: theme, classification test with colouring, thesis cores
+Object.assign(D.es, {
+  'top.theme': 'Modo claro / oscuro', 'geo.thesis': 'Sondeos de la tesis (Casanova-Arenillas, 2023)',
+  'geo.test': 'Probar la autoclasificación en este sondeo', 'geo.shade': 'Colorear registros por clase',
+  'geo.bandTest': 'Prueba', 'geo.bandHit': 'Acierto', 'geo.testOk': 'Prueba = etiqueta', 'geo.testBad': 'Prueba ≠ etiqueta',
+  'geo.testScheme.others': 'entrenado con los otros sondeos', 'geo.testScheme.blocks': '5 bloques de este sondeo, cada uno sin verse a sí mismo',
+  'geo.testRes': 'Prueba ({s}): coincide con la etiqueta en el {p} % de {n} muestras etiquetadas.', 'geo.testResNo': 'Prueba ({s}): este sondeo no tiene etiquetas con las que comparar.',
+  'geo.testNoSamples': 'Este sondeo no tiene muestras con las variables elegidas.',
+});
+Object.assign(D.en, {
+  'top.theme': 'Light / dark mode', 'geo.thesis': 'Thesis cores (Casanova-Arenillas, 2023)',
+  'geo.test': 'Test automatic classification on this core', 'geo.shade': 'Colour records by class',
+  'geo.bandTest': 'Test', 'geo.bandHit': 'Match', 'geo.testOk': 'Test = label', 'geo.testBad': 'Test ≠ label',
+  'geo.testScheme.others': 'trained on the other cores', 'geo.testScheme.blocks': '5 blocks of this core, each predicted without itself',
+  'geo.testRes': 'Test ({s}): matches the label in {p} % of {n} labelled samples.', 'geo.testResNo': 'Test ({s}): this core has no labels to compare with.',
+  'geo.testNoSamples': 'This core has no samples with the chosen variables.',
+});
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';

@@ -4,11 +4,14 @@ Owner: Santiago Casanova-Arenillas. Communicate in Spanish.
 
 ## Documentation is part of every change
 Every delivery that changes code, algorithms, defaults or files must, in the same commit:
-1. Get the next delivery number **V<n>** (see `docs/HISTORIAL_VERSIONES.md`; last: V10) and mention it in the reply.
+1. Get the next delivery number **V<n>** (see `docs/HISTORIAL_VERSIONES.md`; last: V11) and mention it in the reply.
 2. Add a `V<n>` section to `docs/HISTORIAL_VERSIONES.md` (Qué se hizo / Cambios / Por qué / Comprobación / Pendiente) and a row in its summary table.
 3. Update `docs/DOCUMENTACION_TECNICA.md` if any algorithm, formula, default value, file format or validation result changes. Formulas there must match the code exactly.
 4. Update `publications/METODOS_Y_DEFENSA.md` if the change affects what a paper can claim.
 5. Add a short English entry to `CHANGELOG.md`.
+
+## Git
+- Work on `master` (the main branch); commit each delivery there.
 
 ## Code
 - Python package: `src/ichantool/` — tests `pytest`.
