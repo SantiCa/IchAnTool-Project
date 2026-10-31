@@ -64,7 +64,7 @@ label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 label.file:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 /* main grid */
-.work { min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; }
+.work { min-height: 0; display: grid; grid-template-columns: var(--lw, 280px) minmax(0, 1fr) var(--rw, 320px); position: relative; }
 .side { min-height: 0; overflow: auto; background: var(--panel); }
 .side.left { border-right: 1px solid var(--line); }
 .side.right { border-left: 1px solid var(--line); display: flex; flex-direction: column; }
@@ -196,7 +196,7 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 .rec .srow .chk { min-width: 0; }
 .rec .srow input[type=color] { width: 22px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 4px; }
 #logPanel, #logStage { display: none; }
-.work.log { grid-template-columns: 300px minmax(0, 1fr); }
+.work.log { grid-template-columns: var(--lw, 300px) minmax(0, 1fr); }
 .work.log > .side, .work.log > .stage { display: none; }
 .work.log > #logPanel { display: block; border-right: 1px solid var(--line); }
 .work.log > #logStage { display: block; min-width: 0; min-height: 0; overflow: auto; padding: 16px; }
@@ -208,7 +208,7 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 #logSvg { display: inline-block; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r); }
 #logSvg svg { display: block; }
 #geoPanel, #geoStage { display: none; }
-.work.geo { grid-template-columns: 320px minmax(0, 1fr); }
+.work.geo { grid-template-columns: var(--lw, 320px) minmax(0, 1fr); }
 .work.geo > .side, .work.geo > .stage, .work.geo > #logStage { display: none; }
 .work.geo > #geoPanel { display: block; border-right: 1px solid var(--line); overflow: auto; }
 .work.geo > #geoStage { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
@@ -300,7 +300,7 @@ dialog input[type=text] { min-width: 0; }
 .corebar select { max-width: 220px; }
 #dataView { display: none; }
 #figPanel, #figStage { display: none; }
-.work.fig { grid-template-columns: 330px minmax(0, 1fr); }
+.work.fig { grid-template-columns: var(--lw, 330px) minmax(0, 1fr); }
 .work.fig > * { display: none !important; }
 .work.fig > #figPanel { display: block !important; border-right: 1px solid var(--line); overflow: auto; }
 .work.fig > #figStage { display: block !important; overflow: auto; padding: 16px; min-width: 0; }
@@ -350,7 +350,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
 .bkstatus[data-state="ok"] { color: var(--ok); }
 .bkstatus[data-state="needs"], .bkstatus[data-state="error"], .bkstatus[data-state="none"] { color: var(--danger); }
 
-@media (max-width: 1100px) { .work { grid-template-columns: 250px minmax(0, 1fr) 280px; } .viewport { grid-template-columns: minmax(0, 1fr) 180px; } }
+@media (max-width: 1100px) { .work { grid-template-columns: var(--lw, 250px) minmax(0, 1fr) var(--rw, 280px); } .viewport { grid-template-columns: minmax(0, 1fr) 180px; } }
 @media (max-width: 860px) {
   .app { height: auto; }
   .work { grid-template-columns: minmax(0, 1fr); }
@@ -366,13 +366,6 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
 
 /* V22 council review */
-.startcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-.startcard { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--field); cursor: pointer; font: inherit; color: inherit; }
-.startcard b { font: 600 15px/1.25 var(--font-head); }
-.startcard span { color: var(--muted); font-size: 12px; }
-.startcard.main { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.startcard.main span { color: inherit; opacity: .85; }
-.startcard:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 details.bk > summary { cursor: pointer; font-weight: 600; }
 .pane { grid-template-columns: minmax(0, 1fr); }
 .pane table, .clfscope table { display: block; overflow-x: auto; max-width: 100%; }
@@ -391,6 +384,68 @@ details.bk > summary { cursor: pointer; font-weight: 600; }
   .tools { flex-wrap: wrap; }
   .tipcard { left: 8px; right: 8px; max-width: none; }
 }
+
+/* V23 start screen: projects shown as core trays */
+#home { padding: 0 0 32px; }
+#home .hhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px max(16px, 3vw); background: var(--panel); border-bottom: 1px solid var(--line); }
+#home .hbrand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+#home .hbrand b { font: 600 22px/1 var(--font-head); letter-spacing: .01em; }
+#home .hbrand b i { font-style: normal; color: var(--accent-text); }
+#home .hbrand span { color: var(--muted); font-size: 13px; }
+#home .hacts { display: flex; gap: 8px; flex-wrap: wrap; }
+#home .newproj { display: flex; gap: 8px; max-width: 1500px; margin: 14px auto 0; padding: 0 max(16px, 3vw); }
+#home .newproj input { max-width: 420px; }
+#home .hbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; max-width: 1500px; margin: 18px auto 12px; padding: 0 max(16px, 3vw); }
+#home .hbar .htabs { margin: 0; }
+#home .hbar input[type=search] { max-width: 280px; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 6px 9px; background: var(--field); }
+#home .count { font: 600 11px/1 var(--font-data); padding: 2px 6px; border-radius: 9px; background: var(--bg); color: var(--muted); }
+#home .btn[aria-pressed="true"] .count { background: color-mix(in srgb, var(--accent-ink) 22%, transparent); color: inherit; }
+#home .hgrid { padding: 0 max(16px, 3vw); }
+#home .hpane { display: grid; gap: 14px; }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.pcard { display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px; padding: 12px 14px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; text-align: left; min-width: 0; }
+.pcard:hover { border-color: var(--line-strong); }
+.pcard:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pcard.current { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.pcard .tray { height: 74px; display: flex; align-items: flex-start; gap: 4px; padding: 6px 8px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.pcard .tray .liner { width: 11px; flex: none; border-radius: 3px; border: 1px solid var(--line-strong); background: #c2b393; position: relative; }
+.pcard .tray .liner.img { background: linear-gradient(#7a6347, #5f4c36 40%, #8a7354 70%, #6b563e); }
+.pcard .tray .liner.iv::after { content: ""; position: absolute; left: -1px; right: -1px; top: 38%; height: 18%; background: var(--accent); opacity: .75; }
+.pcard .tray .liner.shared { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pcard .tray .more { align-self: center; color: var(--muted); font: 600 11px var(--font-data); }
+.pcard .tray .emptytray { align-self: center; color: var(--muted); font-size: 12px; }
+.pcard h3 { margin: 0; font: 600 15px/1.25 var(--font-head); overflow-wrap: anywhere; }
+.pcard .facts { margin: 0; color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.pcard .facts .warnshare { color: var(--focus); }
+.pcard .pacts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pcard .pacts .tag { margin-left: auto; font-size: 11px; color: var(--muted); }
+.pempty { grid-column: 1 / -1; padding: 28px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--panel); display: grid; gap: 10px; justify-items: start; }
+.pempty h3 { margin: 0; font: 600 17px var(--font-head); }
+.hmore { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.hmore > summary { cursor: pointer; font-weight: 600; }
+.hmore[open] > summary { margin-bottom: 8px; }
+.sharedtag { font-size: 11px; color: var(--focus); }
+@media (max-width: 860px) { #home .hbar input[type=search] { max-width: none; width: 100%; } }
+
+/* V23: resizable and collapsible side panels, resizable maps */
+.splitter { position: absolute; top: 0; bottom: 0; width: 9px; margin-left: -4px; z-index: 20; cursor: col-resize; touch-action: none; }
+.splitter::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: transparent; transition: background .15s; }
+.splitter:hover::before, .splitter.drag::before { background: var(--accent); width: 2px; left: 3.5px; }
+.splitter button { position: absolute; top: 50%; left: -6px; width: 20px; height: 36px; padding: 0; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--panel); color: var(--muted); font: 600 12px/1 var(--font-body); cursor: pointer; opacity: .0; transition: opacity .15s; }
+.splitter:hover button, .splitter button:focus-visible, .work.lcollapsed .splitter.l button, .work.rcollapsed .splitter.r button { opacity: 1; }
+.work.lcollapsed > aside.side.left, .work.rcollapsed > aside.side.right { visibility: hidden; overflow: hidden; border: 0; }
+.mapframe { position: relative; width: var(--fw, 100%); max-width: none; }
+.mapframe > .zmap { width: 100%; }
+#geoMapSvg { width: 100%; }
+.rszh { position: absolute; top: 0; right: -6px; bottom: 0; width: 12px; cursor: ew-resize; touch-action: none; }
+.rszv { position: absolute; left: 0; right: 0; bottom: -6px; height: 12px; cursor: ns-resize; touch-action: none; }
+.rszh::after { content: ""; position: absolute; right: 4px; top: 50%; width: 4px; height: 44px; margin-top: -22px; border-radius: 2px; background: var(--line-strong); }
+.rszv::after { content: ""; position: absolute; bottom: 4px; left: 50%; height: 4px; width: 44px; margin-left: -22px; border-radius: 2px; background: var(--line-strong); }
+.rszh:hover::after, .rszv:hover::after { background: var(--accent); }
+.mapframe.hfixed { min-height: var(--fh); }
+.mapframe.sizing { outline: 2px dashed var(--accent); outline-offset: 2px; }
+#geoStage { overflow: auto; }
+@media (max-width: 860px) { .splitter { display: none; } }
 </style>
 </head>
 <body>
@@ -625,7 +680,6 @@ details.bk > summary { cursor: pointer; font-weight: 600; }
           <label class="btn small file"><span data-i18n="geo.impCat"></span><input type="file" id="giFileCat" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods"></label>
           <label class="btn small file"><span data-i18n="geo.impIv"></span><input type="file" id="giFileIv" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods" multiple></label>
           <div class="row"><button class="btn small" id="geoDemo" data-i18n="geo.demo"></button></div>
-          <button class="btn small" id="geoThesis" data-i18n="geo.thesis"></button>
           <p class="note" data-i18n="geo.impNote"></p>
           <div class="gcores" id="geoCores"></div>
         </div>
@@ -710,7 +764,7 @@ details.bk > summary { cursor: pointer; font-weight: 600; }
         <div class="mapstyle" id="gmCores"></div>
         <div class="mapstyle" id="gmInterp"></div>
         <div class="mapstyle" id="gmStyle"></div>
-        <div id="geoMapSvg" class="zmap"></div>
+        <div class="mapframe" id="gmFrame"><div id="geoMapSvg" class="zmap"></div><div class="rszh" data-frame="gmFrame" data-i18n-title="ui.resizeMap"></div><div class="rszv" data-frame="gmFrame" data-i18n-title="ui.resizeMap"></div></div>
         <p class="note" data-i18n="geo.mapHelp"></p>
       </div>
       <div class="gpane" data-pane="model" hidden>
@@ -729,43 +783,48 @@ details.bk > summary { cursor: pointer; font-weight: 600; }
   <div class="row" style="justify-content:flex-end"><button class="btn" id="helpClose" data-i18n="help.close"></button></div>
 </dialog>
 <section id="home" hidden>
-  <h1 data-i18n="home.title"></h1>
-  <div class="htabs" role="tablist"><button class="btn" role="tab" data-htab="projects" data-i18n="home.tab.projects"></button><button class="btn" role="tab" data-htab="all" data-i18n="home.tab.all"></button></div>
-  <div class="hgrid">
-    <section class="card" data-hpane="projects">
-  <div class="startcards">
-    <button class="startcard main" id="startLearn"><b data-i18n="start.learn"></b><span data-i18n="start.learnNote"></span></button>
-    <button class="startcard" id="startNew"><b data-i18n="start.new"></b><span data-i18n="start.newNote"></span></button>
-    <button class="startcard" id="startThesis"><b data-i18n="start.thesis"></b><span data-i18n="start.thesisNote"></span></button>
-  </div>
-  <div id="projList" class="plist"></div>
-  <div class="row" style="flex-wrap:nowrap;margin-top:12px"><input type="text" id="newProjName" data-i18n-ph="proj.newPh"><button class="btn primary" id="newProjBtn" data-i18n="proj.create"></button></div>
-  <div class="row" style="margin-top:10px">
-    <button class="btn small" id="openTest" data-i18n="proj.test"></button>
-    <button class="btn small" id="openIdeal" data-i18n="proj.ideal"></button>
-    <button class="btn small" id="openTutorial" data-i18n="tut.open"></button>
-    <label class="btn small file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json" multiple></label>
-    <button class="btn small" id="expProj" data-i18n="proj.export"></button>
-  </div>
-  <p class="note" data-i18n="proj.note"></p>
-  <details class="bk" id="bkBox">
-    <summary data-i18n="bk.summary"></summary>
-    <h3 data-i18n="bk.title"></h3>
-    <p class="bkstatus" id="bkStatus"></p>
-    <p class="note" id="bkPersist"></p>
-    <div class="row">
-      <button class="btn small" id="bkChoose" data-i18n="bk.choose"></button>
-      <button class="btn small danger" id="bkReactivate" hidden data-i18n="bk.reactivate"></button>
-      <button class="btn small" id="bkFull" data-i18n="bk.full"></button>
+  <header class="hhead">
+    <div class="hbrand"><b>Cor<i>An</i>Tool</b><span data-i18n="home.tagline"></span></div>
+    <div class="hacts">
+      <label class="btn file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json" multiple></label>
+      <button class="btn primary" id="newProjOpen" data-i18n="home.newProject"></button>
+      <button class="btn" id="projClose" data-i18n="home.back"></button>
     </div>
-    <p class="note" id="bkNoFs" hidden data-i18n="bk.noFs"></p>
-    <p class="note" data-i18n="bk.help"></p>
-  </details>
-  
-
-      <div class="row" style="justify-content:flex-end"><button class="btn" id="projClose" data-i18n="home.back"></button></div>
+  </header>
+  <form class="newproj" id="newProjForm" hidden><input type="text" id="newProjName" data-i18n-ph="proj.newPh" required><button class="btn primary" id="newProjBtn" data-i18n="proj.create"></button><button class="btn ghost" type="button" id="newProjCancel" data-i18n="geo.cancel"></button></form>
+  <div class="hbar">
+    <div class="htabs" role="tablist"><button class="btn" role="tab" data-htab="projects"><span data-i18n="home.tab.projects"></span> <span class="count" id="nProjects"></span></button><button class="btn" role="tab" data-htab="all"><span data-i18n="home.tab.all"></span> <span class="count" id="nCores"></span></button></div>
+    <input type="search" id="homeSearch" data-i18n-ph="home.search">
+  </div>
+  <div class="hgrid">
+    <section data-hpane="projects" class="hpane">
+      <div id="projList" class="pgrid"></div>
+      <details class="hmore">
+        <summary data-i18n="home.examples"></summary>
+        <p class="note" data-i18n="home.examplesNote"></p>
+        <div class="row">
+          <button class="btn small" id="openTutorial" data-i18n="tut.open"></button>
+          <button class="btn small" id="openTest" data-i18n="proj.test"></button>
+          <button class="btn small" id="openIdeal" data-i18n="proj.ideal"></button>
+        </div>
+      </details>
+      <details class="hmore bk" id="bkBox">
+        <summary data-i18n="bk.summary"></summary>
+        <h3 data-i18n="bk.title"></h3>
+        <p class="bkstatus" id="bkStatus"></p>
+        <p class="note" id="bkPersist"></p>
+        <div class="row">
+          <button class="btn small" id="bkChoose" data-i18n="bk.choose"></button>
+          <button class="btn small danger" id="bkReactivate" hidden data-i18n="bk.reactivate"></button>
+          <button class="btn small" id="bkFull" data-i18n="bk.full"></button>
+          <button class="btn small" id="expProj" data-i18n="proj.export"></button>
+        </div>
+        <p class="note" id="bkNoFs" hidden data-i18n="bk.noFs"></p>
+        <p class="note" data-i18n="bk.help"></p>
+      </details>
+      <p class="note" data-i18n="proj.note"></p>
     </section>
-    <section class="card" data-hpane="all" hidden>
+    <section class="card hpane" data-hpane="all" hidden>
       <h2 data-i18n="home.all"></h2>
       <p class="note" data-i18n="home.allNote"></p>
       <div class="gctl" id="allCtl" style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
@@ -779,7 +838,7 @@ details.bk > summary { cursor: pointer; font-weight: 600; }
       <div class="mapstyle" id="amCores"></div>
       <div class="mapstyle" id="amInterp"></div>
       <div class="mapstyle" id="amStyle"></div>
-      <div id="allMap" class="zmap"></div>
+      <div class="mapframe" id="amFrame"><div id="allMap" class="zmap"></div><div class="rszh" data-frame="amFrame" data-i18n-title="ui.resizeMap"></div><div class="rszv" data-frame="amFrame" data-i18n-title="ui.resizeMap"></div></div>
       <div class="mpbox"><h3 data-i18n="mp.title"></h3><p class="note" data-i18n="mp.note"></p>
         <div class="row"><button class="btn small" id="mpAll" data-i18n="mp.all"></button><button class="btn small" id="mpNone" data-i18n="mp.none"></button><span class="note" id="mpCount"></span>
           <input type="text" id="mpName" data-i18n-ph="mp.name" style="max-width:240px"><button class="btn small primary" id="mpCreate" data-i18n="mp.create"></button></div></div>

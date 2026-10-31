@@ -40,6 +40,7 @@ La descripción detallada de los algoritmos está en
 | V20 | 31-10-2026 | Aplicación web 1.4 | Paneles laterales sin cortes; mapa con 7 métodos de interpolación (IDW, vecino, triangulación, curvatura mínima, RBF, kriging, media móvil), isolíneas, celdas ajustables, solo mar/tierra, escalas y barra de color, lista de sondeos, proyecciones, mapa ampliable y PNG a la resolución elegida |
 | V21 | 31-10-2026 | Aplicación web 1.6 | Gráficos tipo Grapher en Datos: registros estratigráficos multipanel y XY con eje Y2, ejes log/invertidos, 6 tipos de serie, ajustes de curva con ecuación y R², estadística y exportación |
 | V22 | 31-10-2026 | Aplicación web 1.7 | Revisión de un concilio de 3 agentes (métodos, usabilidad, interfaz y código): evaluación sin inflar, validación por sección e intervalos descritos, mapas solo con datos reales y distancias en km, nombres coherentes, confirmaciones, atajos seguros, pantalla inicial y contraste |
+| V23 | 31-10-2026 | Aplicación web 1.8 | Pantalla inicial genérica (todos los proyectos como tarjetas, sin acceso propio de la tesis), sondeos presentes en varios proyectos, paneles laterales redimensionables u ocultables y mapa redimensionable arrastrando sus bordes |
 
 ---
 
@@ -611,6 +612,55 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V23 — Pantalla inicial para cualquier usuario, sondeos compartidos y paneles redimensionables (31-10-2026)
+
+**Qué se hizo.** La pantalla inicial deja de estar pensada para la tesis: muestra todos los proyectos
+guardados (ninguno, dos o los que haya) como tarjetas iguales, con una miniatura de sus sondeos. Los
+sondeos que aparecen en más de un proyecto se reconocen y no se cuentan dos veces. Los paneles laterales
+de configuración se pueden ensanchar, estrechar u ocultar, y el mapa se redimensiona arrastrando su
+borde derecho o inferior (pedido antes y no hecho hasta ahora).
+
+**Cambios.**
+- Pantalla inicial: cabecera con «Importar archivo», «Nuevo proyecto» (formulario con nombre
+  obligatorio) y «Volver al proyecto abierto»; pestañas «Proyectos» y «Todos los sondeos» con su número;
+  buscador de proyectos y sondeos; tarjeta por proyecto (sondeos como columnas con imagen, intervalos o
+  aviso de sondeo compartido; número de sondeos, imágenes y compartidos; Abrir, Renombrar, Eliminar
+  con confirmación en dos pasos; etiqueta de tipo). Estado vacío con acciones. Ejemplos (recorrido
+  guiado, sondeo IODP, ejemplo idealizado) en un desplegable «Ejemplos y aprendizaje»; «Exportar este
+  proyecto» pasa a «Copias de seguridad». Desaparece el botón propio de la tesis: es un proyecto más.
+- Sondeos compartidos (mismo nombre normalizado: sin mayúsculas, acentos ni signos; solo letras y cifras):
+  - mapa de todos los sondeos: un único punto; el valor es la media de los proyectos con datos;
+  - tabla: ordenada por sondeo, con la etiqueta «en N proyectos» y la lista de los otros;
+  - análisis multiproyecto: el mismo sondeo de varios proyectos se une en un solo sondeo (eje común,
+    filas a la misma profundidad o edad fusionadas, intervalos repetidos eliminados);
+  - modelo de icnotaxones: los ejemplos de otros proyectos idénticos (mismos descriptores a 3
+    decimales) a los propios, a la biblioteca o a otros ya incluidos se descartan.
+- Paneles: divisores entre paneles (arrastrar = ancho, doble clic = ancho por defecto, botón =
+  ocultar/mostrar). Se guardan en el navegador (`ichantool.panels`).
+- Mapas del proyecto y de todos los sondeos: asas en el borde derecho (ancho) e inferior (alto); doble
+  clic restaura. Al fijar el alto, la extensión se amplía (nunca se recorta) para llenar el marco
+  (`fitBBoxAspect`). Se guardan en `ichantool.mapFrames`.
+- Plurales correctos en los textos de recuento (clave `.one`).
+
+**Por qué.** El programa debe servir a cualquiera desde el primer arranque; los datos de la tesis
+solo son una prueba. Un sondeo puede estar en dos proyectos (por ejemplo, uno de imágenes y otro de
+geoquímica): contarlo dos veces sesgaría el mapa, duplicaría muestras en el análisis multiproyecto y
+filtraría ejemplos repetidos entre entrenamiento y evaluación del modelo de todos los proyectos.
+
+**Comprobación.** `npm test`: 41 pruebas correctas (nueva: `fitBBoxAspect` en tres proyecciones);
+`pytest`: 9 correctas. En navegador (Playwright): tarjetas con 3 proyectos, búsqueda sin resultados,
+modo oscuro; un sondeo renombrado a GP03 en el proyecto de entrenamiento aparece como compartido en las
+tarjetas y en la tabla, un solo punto en el mapa, y el análisis multiproyecto crea un único GP03 con 51
+variables; divisor izquierdo arrastrado (436 px), panel derecho ocultado, mapa reducido en alto (689 →
+383 px) y en ancho; sin errores de consola.
+
+**Pendiente o problemas conocidos.** La coincidencia de sondeos es por nombre: dos sondeos distintos
+con el mismo nombre se unirían (avisado con la etiqueta). Sigue pendiente lo que dejó el concilio:
+importación unificada, modelo de edad en el diálogo del sondeo, imágenes en almacén aparte, fuentes
+incrustadas, mapa de varianza de kriging, importancia por permutación y red neuronal (MLP) opcional.
 
 ---
 

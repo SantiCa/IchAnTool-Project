@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
 import { coresFromLongTable, applyCatalogue, buildSamples, labelSamples, ruleMatches, resample, coreConvert,
-  fitModel, predictLabel, crossValidate, kmeansFit, mapSummary, idwGrid, buildMapSVG, mapBBox, seededRandom } from '../../app/js/geo.js';
+  fitModel, predictLabel, crossValidate, kmeansFit, mapSummary, idwGrid, buildMapSVG, mapBBox, seededRandom, fitBBoxAspect, mapGeometry } from '../../app/js/geo.js';
 
 const tab = parseTable(readFileSync(new URL('../../examples/geochem_demo/demo_long.csv', import.meta.url), 'utf8'));
 const H = tab.headers, col = (n) => H.indexOf(n);
@@ -136,4 +136,18 @@ test('V22: map values use only real samples; rule labels are not scored', async 
   const cv = crossValidate(S, L, 'knn', { k: 3 }, 42, { scored: (i) => i % 2 === 0, minProb: 0.5 });
   assert.equal(cv.nScored, 20); assert.ok(cv.coverage.share > 0);
   assert.equal(autoGap([0, 1, 2, 10], [1, 1, 1, 1]), 3);
+});
+
+test('fitBBoxAspect widens the extent to the requested plot-area ratio and never narrows it (V23)', () => {
+  const b = [-6, 35, 20, 42];
+  for (const kind of ['plate', 'mercator', 'laea']) {
+    for (const r of kind === 'laea' ? [0.8] : [0.8, 0.15]) {
+      const f = fitBBoxAspect(b, r, kind), g = mapGeometry(f, kind);
+      assert.ok(Math.abs(g.H / g.W / r - 1) < 0.05, `${kind} ${r}: ${g.H / g.W}`);
+      assert.ok(f[0] <= b[0] && f[1] <= b[1] && f[2] >= b[2] && f[3] >= b[3]);
+    }
+  }
+  const w = mapGeometry(fitBBoxAspect(b, 0.15, 'laea'), 'laea'), w0 = mapGeometry(b, 'laea');
+  assert.ok(w.H / w.W <= w0.H / w0.W);   // Lambert: gets as close as the curvature allows, never worse
+  assert.deepEqual(fitBBoxAspect(b, 0), b);
 });

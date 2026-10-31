@@ -8,7 +8,7 @@ import { buildXYPlot, buildStratPlot, PLOT_TYPES, FIT_KINDS, PLOT_COLORS } from 
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
 import { Classifier, TaxonModel, evaluateModels, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, mapGeometry, mapFrame } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, fitBBoxAspect, mapGeometry, mapFrame } from './geo.js';
 
 /** App name (V16: IchAnTool → CorAnTool). Files written by IchAnTool are still accepted; browser storage keys keep the old name. */
 const APP = 'CorAnTool', APP_NAMES = ['CorAnTool', 'IchAnTool'];
@@ -362,7 +362,10 @@ function mlSets() {
   const lib = S.library.filter((e) => e.name && Array.isArray(e.x)).map((e, i) => ({ key: e.key || `lib|${i}`, g: grp(e.key || `lib|${i}`), y: e.name, x: e.x, lib: e }));
   const cur = S.cores.find((c) => c.id === S.curCore), exCore = ownExamples(cur ? [cur] : []), exProj = ownExamples(S.cores);
   const keys = new Set([...exProj, ...lib].map((e) => e.key));
-  const other = otherExamples.filter((e) => !mlExcluded.has(e.key) && !keys.has(e.key)).map((e) => ({ ...e, g: grp(e.key) }));
+  // the same trace can exist in two projects (shared core, duplicated or imported project): identical descriptors are
+  // used once, otherwise it would count twice and could be both trained on and tested in the evaluation
+  const sig = (e) => e.x.map((v) => (+v).toFixed(3)).join(','), seen = new Set(exProj.concat(lib).map(sig));
+  const other = otherExamples.filter((e) => !mlExcluded.has(e.key) && !keys.has(e.key)).filter((e) => { const k = sig(e); if (seen.has(k)) return false; seen.add(k); return true; }).map((e) => ({ ...e, g: grp(e.key) }));
   return { core: exCore.concat(lib), project: exProj.concat(lib), all: exProj.concat(lib, other) };
 }
 function learnNow() {
@@ -1582,22 +1585,58 @@ async function flushSave() { if (dirty) await saveToDB(); if (backupPending) awa
 
 function updateProjHeader() { $('projName').textContent = S.name; }
 
+/** Identity of a core across projects: the same name (ignoring case, spaces and punctuation). */
+const coreKey = (name) => String(name ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+/** For each core identity, the projects that contain it (from the light index). */
+function sharedCores(lites) {
+  const m = new Map();
+  for (const l of lites) if (l.kind !== 'multi') for (const c of l.cores || []) { const k = coreKey(c.name); if (!k) continue; if (!m.has(k)) m.set(k, new Map()); m.get(k).set(l.id, l.name); }
+  return m;
+}
 async function renderProjects() {
   const box = $('projList');
   if (!storageOK) { box.innerHTML = `<p class="note">${t('save.off')}</p>`; return; }
-  const list = (await listProjects().catch(() => [])).sort((a, b) => b.updated - a.updated);
-  $('startThesis').hidden = !list.some((m) => m.id === THESIS_ID);
-  if (!list.length) { box.innerHTML = `<p class="note">${t('proj.none')}</p>`; return; }
-  const date = (ms) => new Date(ms).toLocaleString(lang(), { dateStyle: 'medium', timeStyle: 'short' });
-  box.innerHTML = list.map((p) => `
-    <div class="prow ${p.id === S.id ? 'current' : ''}" data-id="${p.id}">
-      <div class="pinfo"><b>${esc(p.name)}${p.kind === 'multi' ? ` <span class="pill">${t('mp.badge')}</span>` : ''}</b><span class="note">${t('home.cores', { n: p.cores ?? 1 })}${p.coreNames ? ': ' + esc(p.coreNames.slice(0, 6).join(', ')) + (p.coreNames.length > 6 ? '…' : '') : ''} · ${t('proj.sections', { n: p.sections })} · ${date(p.updated)}${p.id === S.id ? ' · ' + t('proj.current') : ''}</span></div>
-      <div class="row"><button class="btn small" data-act="open">${t('proj.open')}</button><button class="btn small" data-act="rename">${t('proj.rename')}</button>${p.kind === 'multi' ? `<button class="btn small" data-act="mpupdate">${t('mp.update')}</button>` : ''}<button class="btn small ghost" data-act="del">${t('proj.del')}</button></div>
-    </div>`).join('');
+  const [list, lites] = await Promise.all([listProjects().catch(() => []), listLite().catch(() => [])]);
+  list.sort((a, b) => b.updated - a.updated);
+  const L = new Map(lites.map((l) => [l.id, l])), shared = sharedCores(lites), q = coreKey($('homeSearch').value);
+  $('nProjects').textContent = list.length;
+  $('nCores').textContent = shared.size;
+  $('projClose').hidden = !S.cores.length && !S.sections.length;
+  if (!list.length) {
+    box.innerHTML = `<div class="pempty"><h3>${t('home.emptyTitle')}</h3><p class="note">${t('home.emptyText')}</p>
+      <div class="row"><button class="btn primary" data-empty="new">${t('home.newProject')}</button><button class="btn" data-empty="tutorial">${t('tut.open')}</button></div></div>`;
+    return;
+  }
+  const rel = (ms) => { const d = (Date.now() - ms) / 60000; return d < 1 ? t('home.now') : d < 60 ? t('home.min', { n: Math.round(d) }) : d < 1440 ? t('home.hours', { n: Math.round(d / 60) }) : new Date(ms).toLocaleDateString(lang(), { dateStyle: 'medium' }); };
+  const shown = list.filter((p) => !q || coreKey(p.name).includes(q) || (p.coreNames || []).some((n) => coreKey(n).includes(q)));
+  box.innerHTML = shown.map((p) => {
+    const lite = L.get(p.id), cores = lite?.cores || (p.coreNames || []).map((n) => ({ name: n }));
+    const len = (c) => { const d = (c.depth || []).filter((v) => v != null); return d.length ? Math.max(...d) - Math.min(...d) : 0; };
+    const maxLen = Math.max(1, ...cores.map(len)), ivCores = new Set((lite?.intervals || []).map((iv) => iv.core));
+    const nShared = cores.filter((c) => (shared.get(coreKey(c.name))?.size || 0) > 1).length;
+    const liners = cores.slice(0, 22).map((c) => {
+      const others = [...(shared.get(coreKey(c.name)) || new Map()).entries()].filter(([id]) => id !== p.id).map(([, n]) => n);
+      const h = len(c) ? Math.max(16, Math.round((len(c) / maxLen) * 60)) : 30;
+      const tip = `${c.name}${len(c) ? ` — ${fmt(len(c), 3)} ${c.units || ''}` : ''}${c.nImages ? `, ${t('home.nImg', { n: c.nImages })}` : ''}${Object.keys(c.proxies || {}).length ? `, ${t('home.nVar', { n: Object.keys(c.proxies).length })}` : ''}${others.length && p.kind !== 'multi' ? `. ${t('home.alsoIn', { p: others.join(', ') })}` : ''}`;
+      return `<span class="liner ${c.nImages ? 'img' : ''} ${ivCores.has(c.id) ? 'iv' : ''} ${others.length && p.kind !== 'multi' ? 'shared' : ''}" style="height:${h}px" title="${esc(tip)}"></span>`;
+    }).join('') + (cores.length > 22 ? `<span class="more">+${cores.length - 22}</span>` : '') || `<span class="emptytray">${t('home.noCores')}</span>`;
+    const kind = p.kind === 'multi' ? t('mp.badge') : p.kind === 'tutorial' ? t('home.kindTutorial') : '';
+    return `<article class="pcard ${p.id === S.id ? 'current' : ''}" data-id="${p.id}" tabindex="0" aria-label="${esc(p.name)}">
+      <div class="tray" aria-hidden="true">${liners}</div>
+      <h3>${esc(p.name)}</h3>
+      <p class="facts"><span>${t('home.cores', { n: p.cores ?? cores.length })}</span><span>${t('home.nImg', { n: p.sections ?? 0 })}</span>${nShared && p.kind !== 'multi' ? `<span class="warnshare">${t('home.shared', { n: nShared })}</span>` : ''}<span>${p.id === S.id ? t('proj.current') : rel(p.updated)}</span></p>
+      <div class="pacts"><button class="btn small primary" data-act="open">${t('proj.open')}</button><button class="btn small" data-act="rename">${t('proj.rename')}</button>${p.kind === 'multi' ? `<button class="btn small" data-act="mpupdate">${t('mp.update')}</button>` : ''}<button class="btn small ghost" data-act="del">${t('proj.del')}</button>${kind ? `<span class="tag">${esc(kind)}</span>` : ''}</div>
+    </article>`;
+  }).join('') || `<p class="note">${t('home.noMatch')}</p>`;
 }
-
+$('homeSearch').addEventListener('input', () => { renderProjects(); renderAllProjects(); });
+$('projList').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('pcard')) e.target.querySelector('[data-act=open]').click(); });
 $('projList').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button'), row = e.target.closest('.prow'); if (!btn || !row) return;
+  const em = e.target.closest('[data-empty]')?.dataset.empty;
+  if (em === 'new') { $('newProjOpen').click(); return; }
+  if (em === 'tutorial') { openTutorial(true); return; }
+  const row = e.target.closest('.pcard'); if (!row) return;
+  const btn = e.target.closest('button') || (e.target.closest('input') ? null : row.querySelector('[data-act=open]')); if (!btn) return;
   const id = row.dataset.id, act = btn.dataset.act;
   if (act === 'mpupdate') { await updateMultiProject(id); return; }
   if (act === 'open') {
@@ -1610,7 +1649,7 @@ $('projList').addEventListener('click', async (e) => {
     if (id === S.id) { resetState(); dirty = false; syncSettingsForm(); updateProjHeader(); setSaveState('saved'); }
     renderProjects(); renderAllProjects();
   } else if (act === 'rename') {
-    const b = row.querySelector('b'), inp = document.createElement('input');
+    const b = row.querySelector('h3'), inp = document.createElement('input');
     inp.type = 'text'; inp.value = b.textContent; b.replaceWith(inp); inp.focus(); inp.select();
     const commit = async () => {
       const name = inp.value.trim() || b.textContent;
@@ -1626,7 +1665,12 @@ $('projList').addEventListener('click', async (e) => {
 
 $('projBtn').addEventListener('click', () => showHome());
 $('projClose').addEventListener('click', () => hideHome());
+$('newProjOpen').addEventListener('click', () => { $('newProjForm').hidden = false; $('newProjName').focus(); });
+$('newProjCancel').addEventListener('click', () => { $('newProjForm').hidden = true; });
+$('newProjForm').addEventListener('submit', (e) => e.preventDefault());
 $('newProjBtn').addEventListener('click', async () => {
+  if (!$('newProjName').value.trim()) { $('newProjName').focus(); return; }
+  $('newProjForm').hidden = true;
   await flushSave();
   resetState(); S.name = $('newProjName').value.trim() || t('proj.untitled'); $('newProjName').value = '';
   syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0);
@@ -1828,7 +1872,7 @@ S.logView = defaultLogView();
 let mode = 'section', logTimer = 0, lastLog = null;
 
 function setMode(m) {
-  mode = m; setTimeout(updateTip, 0);
+  mode = m; setTimeout(updateTip, 0); setTimeout(() => applyPanels(), 0);
   $('work').classList.toggle('log', m === 'log');
   $('work').classList.toggle('geo', m === 'geo');
   $('work').classList.toggle('data', m === 'data');
@@ -2511,7 +2555,6 @@ async function loadThesisCores(train = true) {
   g.activeLayer = org.id; g.view.core = (priv ? gp03 : c977).id; g.map = { ...g.map, a0: 9, a1: 14, mode: 'class' };
   geoMarkDirty(); if (train) geoTrain();
 }
-$('geoThesis').addEventListener('click', () => busy(loadThesisCores));
 
 /** Join touching intervals of the same core, layer and category (keeps the list short). */
 function mergeIntervals(list) {
@@ -2740,8 +2783,9 @@ function renderGeoMap() {
   const off = new Set(m.off || []);
   const pts = mapSummary(geoRT.samples, preds, S.cores, { a0: m.a0, a1: m.a1, mode: m.mode, feature: names.indexOf(m.feature), ref: m.ref ? [m.r0, m.r1] : null }).filter((p) => !off.has(p.core));
   m.interp ||= {}; for (const [k, v] of Object.entries(INTERP_DEFAULT)) if (!(k in m.interp)) m.interp[k] = v; m.interp.on = m.idw;
-  const auto = mapBBox(pts); auto[2] += 3; geoAutoBBox = auto;
-  const bbox = m.view || auto, style = geoMapStyle();
+  const style = geoMapStyle(), fr = frameRatio('gmFrame');
+  let auto = mapBBox(pts); auto[2] += 3; if (fr) { auto = fitBBoxAspect(auto, fr, style.proj); if (m.view) m.view = fitBBoxAspect(m.view, fr, style.proj); } geoAutoBBox = auto;
+  const bbox = m.view || auto;
   const nx = 90, ny = Math.max(10, Math.round((90 * (bbox[3] - bbox[1])) / ((bbox[2] - bbox[0]) * Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180))));
   const bg = mapBackground(style.bg, bbox, refreshProjectMaps, style.proj);
   const vl = m.mode === 'value' ? valueLayer(pts, bbox, m.interp, m.ref ? `Δ ${m.feature}` : `z ${m.feature}`) : null;
@@ -2830,6 +2874,81 @@ function coreListUI(boxId, cores, off, save, redraw) {
   box.onchange = (e) => { const id = e.target.dataset.id; if (id == null) return; if (e.target.checked) off.delete(id); else off.add(id); save(); setTimeout(redraw, 0); };
   box.onclick = (e) => { const a = e.target.dataset.cl; if (!a) return; if (a === 'all') off.clear(); else cores.forEach((c) => off.add(c.id)); save(); setTimeout(redraw, 0); };
 }
+
+
+/* ───────────── resizable / collapsible side panels and resizable maps (V23) ───────────── */
+let panelPrefs = {};
+try { panelPrefs = JSON.parse(localStorage.getItem('ichantool.panels') || '{}'); } catch { panelPrefs = {}; }
+const savePanels = () => { try { localStorage.setItem('ichantool.panels', JSON.stringify(panelPrefs)); } catch { /* storage blocked */ } };
+const panelSides = (m) => (m === 'section' ? ['l', 'r'] : m === 'data' ? [] : ['l']);
+const splitL = document.createElement('div'), splitR = document.createElement('div');
+splitL.className = 'splitter l'; splitR.className = 'splitter r';
+splitL.innerHTML = `<button type="button" data-i18n-title="ui.togglePanel">‹</button>`; splitR.innerHTML = `<button type="button" data-i18n-title="ui.togglePanel">›</button>`;
+$('work').append(splitL, splitR);
+function applyPanels() {
+  const w = $('work'), p = panelPrefs[mode] || {}, sides = panelSides(mode);
+  w.classList.toggle('lcollapsed', sides.includes('l') && !!p.lc); w.classList.toggle('rcollapsed', sides.includes('r') && !!p.rc);
+  if (sides.includes('l') && (p.lc || p.l)) w.style.setProperty('--lw', p.lc ? '0px' : p.l + 'px'); else w.style.removeProperty('--lw');
+  if (sides.includes('r') && (p.rc || p.r)) w.style.setProperty('--rw', p.rc ? '0px' : p.r + 'px'); else w.style.removeProperty('--rw');
+  requestAnimationFrame(() => { placeSplitters(); resizeCanvases?.(); });
+}
+function placeSplitters() {
+  const w = $('work'), sides = panelSides(mode), wide = mode === 'geo' && w.classList.contains('mapwide');
+  const left = [...w.querySelectorAll(':scope > aside.side.left')].find((a) => getComputedStyle(a).display !== 'none');
+  const right = w.querySelector(':scope > aside.side.right');
+  splitL.hidden = !sides.includes('l') || !left || wide || innerWidth <= 860;
+  splitR.hidden = !sides.includes('r') || !right || innerWidth <= 860;
+  if (!splitL.hidden) { splitL.style.left = `${left.offsetLeft + left.offsetWidth}px`; splitL.querySelector('button').textContent = w.classList.contains('lcollapsed') ? '›' : '‹'; }
+  if (!splitR.hidden) { splitR.style.left = `${right.offsetLeft}px`; splitR.querySelector('button').textContent = w.classList.contains('rcollapsed') ? '‹' : '›'; }
+}
+function dragSplitter(el, side) {
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    e.preventDefault(); el.setPointerCapture(e.pointerId); el.classList.add('drag');
+    const w = $('work'), r = w.getBoundingClientRect(), p = (panelPrefs[mode] ||= {});
+    const move = (ev) => {
+      const v = side === 'l' ? ev.clientX - r.left : r.right - ev.clientX, px = Math.round(Math.max(170, Math.min(r.width * 0.6, v)));
+      p[side] = px; p[side + 'c'] = false; w.classList.remove(side === 'l' ? 'lcollapsed' : 'rcollapsed');
+      w.style.setProperty(side === 'l' ? '--lw' : '--rw', px + 'px'); placeSplitters();
+    };
+    const up = () => { el.classList.remove('drag'); el.removeEventListener('pointermove', move); savePanels(); resizeCanvases?.(); if (mode === 'geo' && S.geo.view.tab === 'map') renderGeoMap(); };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up, { once: true });
+  });
+  el.addEventListener('dblclick', (e) => { if (!e.target.closest('button')) { const p = (panelPrefs[mode] ||= {}); delete p[side]; p[side + 'c'] = false; savePanels(); applyPanels(); } });
+  el.querySelector('button').addEventListener('click', () => { const p = (panelPrefs[mode] ||= {}); p[side + 'c'] = !p[side + 'c']; savePanels(); applyPanels(); });
+}
+dragSplitter(splitL, 'l'); dragSplitter(splitR, 'r');
+window.addEventListener('resize', () => placeSplitters());
+try { new ResizeObserver(() => placeSplitters()).observe($('work')); } catch { /* old browsers */ }
+
+// maps: drag the right edge (width) or the bottom edge (height) of the frame; double click restores the default
+let frameSizes = {};
+try { frameSizes = JSON.parse(localStorage.getItem('ichantool.mapFrames') || '{}'); } catch { frameSizes = {}; }
+/** Height/width wanted for the plot area of a map whose frame height was fixed by the user (null = follow the extent). */
+function frameRatio(id) {
+  const z = frameSizes[id], f = $(id); if (!z?.h || !f) return null;
+  const w = f.clientWidth || z.w || 900, sc = w / 900;
+  return Math.max(0.2, (z.h / sc - 44 - 110) / 900);
+}
+function applyFrame(id) {
+  const f = $(id), z = frameSizes[id] || {};
+  if (z.w) f.style.setProperty('--fw', z.w + 'px'); else f.style.removeProperty('--fw');
+  if (z.h) { f.style.setProperty('--fh', z.h + 'px'); f.classList.add('hfixed'); } else { f.style.removeProperty('--fh'); f.classList.remove('hfixed'); }
+}
+for (const h of document.querySelectorAll('.rszh, .rszv')) {
+  const id = h.dataset.frame, horiz = h.classList.contains('rszh');
+  h.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); h.setPointerCapture(e.pointerId);
+    const f = $(id), r = f.getBoundingClientRect(), z = (frameSizes[id] ||= {});
+    const move = (ev) => { if (horiz) z.w = Math.round(Math.max(320, ev.clientX - r.left)); else z.h = Math.round(Math.max(240, ev.clientY - r.top)); applyFrame(id); };
+    const up = () => { h.removeEventListener('pointermove', move); f.classList.remove('sizing'); try { localStorage.setItem('ichantool.mapFrames', JSON.stringify(frameSizes)); } catch { /* storage blocked */ } redrawFrame(id); };
+    f.classList.add('sizing');
+    h.addEventListener('pointermove', move); h.addEventListener('pointerup', up, { once: true });
+  });
+  h.addEventListener('dblclick', () => { const z = (frameSizes[id] ||= {}); if (horiz) delete z.w; else delete z.h; applyFrame(id); try { localStorage.setItem('ichantool.mapFrames', JSON.stringify(frameSizes)); } catch { /* storage blocked */ } redrawFrame(id); });
+}
+function redrawFrame(id) { if (id === 'gmFrame') renderGeoMap(); else redrawAllMap(); }
+applyFrame('gmFrame'); applyFrame('amFrame');
 
 /* ───────────── map customisation, backgrounds and zoom (V15) ───────────── */
 // Backgrounds come as single images in EPSG:4326 (lon/lat) for the exact extent, so they lie on the plate carrée map unchanged.
@@ -2995,7 +3114,7 @@ $('geoMapCtl').addEventListener('change', (e) => {
 });
 for (const [id, dir] of [['gmPrev', -1], ['gmNext', 1]]) $(id).addEventListener('click', () => { const m = S.geo.map, w = m.a1 - m.a0; m.a0 += dir * w; m.a1 += dir * w; markDirty(); renderGeoMap(); });
 $('gmPng').addEventListener('click', () => busy(() => exportMapPNG(() => renderGeoMap() || '', `${safe(S.name)}_mapa_${S.geo.map.a0}-${S.geo.map.a1}.png`, +$('gmPngW').value)));
-$('gmBig').addEventListener('click', () => { $('work').classList.toggle('mapwide'); $('gmBig').setAttribute('aria-pressed', String($('work').classList.contains('mapwide'))); });
+$('gmBig').addEventListener('click', () => { $('work').classList.toggle('mapwide'); $('gmBig').setAttribute('aria-pressed', String($('work').classList.contains('mapwide'))); placeSplitters(); renderGeoMap(); });
 $('gmFull').addEventListener('click', () => { const el = $('geoMapSvg'); if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen?.().catch(() => toast(t('ms.noFull'))); });
 $('gmSvg').addEventListener('click', () => { if (geoLastMap) saveFile(`${safe(S.name)}_mapa_${S.geo.map.a0}-${S.geo.map.a1}.svg`, geoLastMap.svg, 'image/svg+xml'); });
 $('gmCsv').addEventListener('click', () => {
@@ -3084,8 +3203,11 @@ async function renderAllProjects() {
   const mode = $('amMode').value;
   $('amVarRow').hidden = mode !== 'value'; $('amLayRow').hidden = mode !== 'class';
   renderMpCount();
-  $('allTable').innerHTML = `<thead><tr><th></th><th>${t('home.project')}</th><th>${t('geo.core')}</th><th>Lat</th><th>Lon</th><th>${t('home.nVars')}</th><th>${t('geo.ivs')}</th><th>${t('home.images')}</th></tr></thead><tbody>${
-    allLite.flatMap((l) => l.cores.map((c) => `<tr data-p="${l.id}" data-c="${c.id}" style="cursor:pointer"><td><input type="checkbox" class="mpchk" ${mpSel.has(`${l.id}|${c.id}`) ? 'checked' : ''}></td><td class="txt">${esc(l.name)}</td><td class="txt">${esc(c.name)}</td><td>${fmt(c.lat, 3)}</td><td>${fmt(c.lon, 3)}</td><td>${Object.keys(c.proxies || {}).length}</td><td>${(l.intervals || []).filter((q) => q.core === c.id).length}</td><td>${c.nImages || 0}</td></tr>`)).join('')}</tbody>`;
+  const shared = sharedCores(allLite), q = coreKey($('homeSearch').value);
+  const rows = allLite.flatMap((l) => l.cores.map((c) => ({ l, c }))).filter(({ l, c }) => !q || coreKey(c.name).includes(q) || coreKey(l.name).includes(q))
+    .sort((a, b) => coreKey(a.c.name).localeCompare(coreKey(b.c.name)) || a.l.name.localeCompare(b.l.name));
+  $('allTable').innerHTML = `<thead><tr><th></th><th>${t('geo.core')}</th><th>${t('home.project')}</th><th>Lat</th><th>Lon</th><th>${t('home.nVars')}</th><th>${t('geo.ivs')}</th><th>${t('home.images')}</th></tr></thead><tbody>${
+    rows.map(({ l, c }) => { const n = shared.get(coreKey(c.name))?.size || 1; return `<tr data-p="${l.id}" data-c="${c.id}" style="cursor:pointer"><td><input type="checkbox" class="mpchk" ${mpSel.has(`${l.id}|${c.id}`) ? 'checked' : ''}></td><td class="txt">${esc(c.name)}${n > 1 ? ` <span class="sharedtag" title="${esc(t('home.alsoIn', { p: [...shared.get(coreKey(c.name)).values()].filter((x) => x !== l.name).join(', ') }))}">${t('home.inN', { n })}</span>` : ''}</td><td class="txt">${esc(l.name)}</td><td>${fmt(c.lat, 3)}</td><td>${fmt(c.lon, 3)}</td><td>${Object.keys(c.proxies || {}).length}</td><td>${(l.intervals || []).filter((iv) => iv.core === c.id).length}</td><td>${c.nImages || 0}</td></tr>`; }).join('')}</tbody>`;
   redrawAllMap();
 }
 
@@ -3121,11 +3243,20 @@ function buildAllMap(mode) {
       pts.push(p);
     }
   });
-  const shown = pts.filter((p) => !allOff.has(p.key));
-  allCoreItems = pts.map((p) => ({ id: p.key, name: p.name, lat: p.lat, where: p.project }));
-  pts.length = 0; pts.push(...shown);
+  // the same core in several projects is one point: value = mean of the projects that have data; category = first with data
+  const groups = new Map();
+  for (const p of pts) { const k = 'ck:' + coreKey(p.name); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); }
+  const merged = [...groups.entries()].map(([k, g]) => {
+    const withData = g.filter((p) => p.n), base = { ...(withData[0] || g[0]) };
+    if (mode === 'value' && withData.length > 1) { base.value = withData.reduce((a, p) => a + p.value, 0) / withData.length; base.n = withData.reduce((a, p) => a + p.n, 0); }
+    base.key = k; base.project = [...new Set(g.map((p) => p.project))].join(', '); base.nProjects = new Set(g.map((p) => p.project)).size;
+    return base;
+  });
+  allCoreItems = merged.map((p) => ({ id: p.key, name: p.nProjects > 1 ? `${p.name} (${p.nProjects})` : p.name, lat: p.lat, where: p.project }));
+  pts.length = 0; pts.push(...merged.filter((p) => !allOff.has(p.key)));
   if (!pts.length) return `<p class="note" style="padding:16px">${t('home.noSites')}</p>`;
-  const auto = mapBBox(pts); auto[2] += 3; allAutoBBox = auto;
+  const fr = frameRatio('amFrame');
+  let auto = mapBBox(pts); auto[2] += 3; if (fr) { auto = fitBBoxAspect(auto, fr, allStyle.proj); if (allView) allView = fitBBoxAspect(allView, fr, allStyle.proj); } allAutoBBox = auto;
   const bbox = allView || auto;
   const nx = 90, ny = Math.max(10, Math.round((90 * (bbox[3] - bbox[1])) / ((bbox[2] - bbox[0]) * Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180))));
   const bg = mapBackground(allStyle.bg, bbox, redrawAllMap, allStyle.proj);
@@ -3204,9 +3335,7 @@ async function openTutorial(withTour = true) {
   if (withTour) startTour(0);
 }
 $('openTutorial').addEventListener('click', () => openTutorial(true));
-$('startLearn').addEventListener('click', () => openTutorial(true));
-$('startNew').addEventListener('click', () => { $('newProjName').focus(); $('newProjName').scrollIntoView({ block: 'center' }); });
-$('startThesis').addEventListener('click', async () => { await flushSave(); hideHome(); await busy(async () => { const d = await getProject(THESIS_ID); if (d) await loadProject(d); }); });
+
 $('tourBtn').addEventListener('click', () => { $('help').close(); startTour(0); });
 $('tipsToggle').addEventListener('change', (e) => { S.settings.tips = e.target.checked; markDirty(); updateTip(); });
 
@@ -3432,6 +3561,23 @@ $('mlBody').addEventListener('click', (e) => {
 
 /* ───────────── multiproject analysis (V17): cores of several projects in one analysis project ───────────── */
 const mpSel = new Set(); // keys 'projectId|coreId'
+/** Same core found in two projects (V23): one series on a common axis; rows at the same depth/age are fused (first non-empty value wins). */
+function mergeImp(a, b) {
+  const rows = [], add = (t0) => (t0.depth || t0.age || []).forEach((_, i) => rows.push({ d: t0.depth?.[i] ?? null, a: t0.age?.[i] ?? null, t: t0, i }));
+  add(a); add(b);
+  const names = [...new Set([...Object.keys(a.proxies || {}), ...Object.keys(b.proxies || {})])];
+  // sort on depth only if every row has one, else on age if every row has one; otherwise keep the two series one after the other
+  const key = rows.every((r) => r.d != null) ? 'd' : rows.every((r) => r.a != null) ? 'a' : null;
+  if (key) rows.sort((x, y) => x[key] - y[key]);
+  const out = [];
+  for (const r of rows) {
+    const v = Object.fromEntries(names.map((n) => [n, r.t.proxies?.[n]?.[r.i] ?? null])), last = out[out.length - 1];
+    if (key && last && Math.abs(last[key] - r[key]) < 1e-6) { for (const n of names) if (last.v[n] == null) last.v[n] = v[n]; if (last.d == null) last.d = r.d; if (last.a == null) last.a = r.a; }
+    else out.push({ d: r.d, a: r.a, v });
+  }
+  const P = Object.fromEntries(names.map((n) => [n, out.map((r) => r.v[n])]));
+  return { depth: out.some((r) => r.d != null) ? out.map((r) => r.d) : null, age: out.some((r) => r.a != null) ? out.map((r) => r.a) : null, proxies: P };
+}
 /** Build (or refresh) a project of kind 'multi' from the light copies of the chosen cores; layers and categories are merged by name. */
 async function buildMultiProject(name, keys, keepId = null) {
   const lites = (await listLite().catch(() => [])).filter((l) => l.kind !== 'multi');
@@ -3452,19 +3598,25 @@ async function buildMultiProject(name, keys, keepId = null) {
     for (const k of L.cats || []) { let mk = m.cats.find((q) => q.name === k.name); if (!mk) { mk = { ...k, id: 'k' + uid() }; m.cats.push(mk); } catId.set(`${l.id}|${L.id}|${k.id}`, mk.id); }
   }
   for (const m of layers.values()) { m.parent = m.parentName ? layers.get(m.parentName)?.id || null : null; delete m.parentName; }
-  // cores (copy of the merged numeric data; same name in two projects → project name added)
-  const names = new Map(); chosen.forEach(({ c }) => names.set(c.name, (names.get(c.name) || 0) + 1));
-  const coreId = new Map();
-  S.cores = chosen.map(({ l, c }) => {
-    const core = makeCore({ name: names.get(c.name) > 1 ? `${c.name} · ${l.name}` : c.name, lat: c.lat, lon: c.lon, units: c.units, source: 'multi', notes: t('mp.from', { p: l.name }),
-      imp: { depth: c.depth, age: c.age, proxies: c.proxies || {} }, age: { text: c.ageText || '' } });
-    core.origin = { project: l.id, core: c.id }; coreId.set(`${l.id}|${c.id}`, core.id);
+  // cores: the same core chosen from several projects (same name, coreKey) becomes ONE core whose table joins the
+  // rows of every project (no duplicated core, no double weight in models or maps)
+  const coreId = new Map(), byKey = new Map();
+  for (const { l, c } of chosen) { const k = coreKey(c.name) || `${l.id}|${c.id}`; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push({ l, c }); }
+  S.cores = [...byKey.values()].map((grp) => {
+    const { c } = grp[0], projects = grp.map((q) => q.l.name);
+    let imp = { depth: c.depth, age: c.age, proxies: c.proxies || {} };
+    for (const { c: o } of grp.slice(1)) imp = mergeImp(imp, { depth: o.depth, age: o.age, proxies: o.proxies || {} });
+    const core = makeCore({ name: c.name, lat: c.lat ?? grp.find((q) => q.c.lat != null)?.c.lat, lon: c.lon ?? grp.find((q) => q.c.lon != null)?.c.lon, units: c.units, source: 'multi',
+      notes: t('mp.from', { p: projects.join(', ') }), imp, age: { text: c.ageText || grp.find((q) => q.c.ageText)?.c.ageText || '' } });
+    core.origin = grp.map((q) => ({ project: q.l.id, core: q.c.id }));
+    for (const q of grp) coreId.set(`${q.l.id}|${q.c.id}`, core.id);
     return core;
   });
   const g = S.geo;
   g.layers = [...layers.values()];
   g.intervals = chosen.flatMap(({ l, c }) => (l.intervals || []).filter((q) => q.core === c.id && !q.auto).map((q) => ({
-    ...q, id: uid(), core: coreId.get(`${l.id}|${c.id}`), layer: layerId.get(`${l.id}|${q.layer}`), cat: catId.get(`${l.id}|${q.layer}|${q.cat}`) }))).filter((q) => q.layer && q.cat);
+    ...q, id: uid(), core: coreId.get(`${l.id}|${c.id}`), layer: layerId.get(`${l.id}|${q.layer}`), cat: catId.get(`${l.id}|${q.layer}|${q.cat}`) }))).filter((q) => q.layer && q.cat)
+    .filter((q, i, arr) => arr.findIndex((r) => r.core === q.core && r.layer === q.layer && r.cat === q.cat && r.axis === q.axis && Math.abs(r.from - q.from) < 1e-9 && Math.abs(r.to - q.to) < 1e-9) === i);
   const st = g.settings;
   if (!g.layers.some((L) => L.id === st.target)) st.target = g.layers.find((L) => g.intervals.some((q) => q.layer === L.id))?.id || g.layers[0]?.id || null;
   // default variables: columns present in at least two of the cores (up to 12)
@@ -3990,4 +4142,4 @@ resizeCanvases();
 startup();
 
 // Exposed for automated tests.
-window.ichantool = { S, runDetection, analyze, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II, geoRT, geoTrain, renderGeo, loadGeoDemo };
+window.ichantool = { S, saveToDB, renderProjects, showHome, runDetection, analyze, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II, geoRT, geoTrain, renderGeo, loadGeoDemo };

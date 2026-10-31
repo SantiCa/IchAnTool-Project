@@ -1385,7 +1385,33 @@ lista de gráficos (`plots`, `plotCur`).
   vuelve a copiar los datos conservando ajustes, figuras y hoja de cálculo. Crear un análisis con un
   nombre ya usado lo actualiza.
 - Los proyectos `multi` no aparecen en la tabla ni en el mapa de todos los proyectos ni aportan
-  ejemplos al modelo de todos los proyectos.
+  ejemplos al modelo de todos los proyectos. Desde V23 un mismo sondeo de varios proyectos se une
+  (§22.6 bis).
+
+### 22.6 bis Pantalla inicial genérica, sondeos compartidos, paneles y marcos de mapa (desde V23)
+- **Pantalla inicial:** todos los proyectos guardados (también los de ejemplo) como tarjetas; la tesis no tiene acceso propio. Pestañas «Proyectos» y «Todos los sondeos»; buscador
+  sobre nombres de proyecto y de sondeo (`coreKey`).
+- **Clave de sondeo:** `coreKey(nombre)` = minúsculas, sin acentos (NFD) y solo letras a–z y cifras
+  (se quita cualquier otro carácter). `sharedCores(lites)` → `Map(coreKey → Map(idProyecto → nombreProyecto))`
+  sobre proyectos que no son `multi`. Compartido = presente en ≥ 2 proyectos.
+- **Mapa de todos los sondeos:** los puntos con la misma clave se unen; modo valor: media aritmética
+  de los valores de los proyectos con datos en la ventana, `n` = suma de muestras.
+- **Análisis multiproyecto:** sondeos marcados con la misma clave → un solo sondeo
+  (`origin` = lista de `{project, core}`). Tablas unidas con `mergeImp`: filas ordenadas por
+  profundidad si todas la tienen; si no, por edad si todas la tienen; si no, una serie tras otra.
+  Filas con |Δ| < 1e-6 en el eje de orden se fusionan (por columna, primer valor no vacío). Intervalos
+  repetidos (mismo sondeo, capa, clase, eje y límites con |Δ| < 1e-9) se eliminan.
+- **Modelo de icnotaxones «todos los proyectos»:** un ejemplo de otro proyecto se descarta si su vector
+  de descriptores redondeado a 3 decimales coincide con uno propio, de la biblioteca o ya añadido.
+- **Paneles:** columnas de `.work` = `var(--lw, 280px) minmax(0,1fr) var(--rw, 320px)`; divisores con
+  ancho entre 170 px y el 60 % del área de trabajo; ocultar = clase `lcollapsed` / `rcollapsed`. Preferencias en
+  `localStorage['ichantool.panels']`.
+- **Marcos de mapa:** `--fw` (ancho, mínimo 320 px) y `--fh` (alto, mínimo 240 px), en
+  `localStorage['ichantool.mapFrames']`. Con alto fijado, razón alto/ancho del área del mapa
+  r = (fh / s − 44 − 110) / 900, con s = ancho del marco / 900 (mínimo 0,2); la extensión se amplía con
+  `fitBBoxAspect(bbox, r, proyección)`: hasta 12 iteraciones que ensanchan la latitud (si el mapa es
+  más ancho de lo pedido) o la longitud (si es más alto), alrededor del centro, deteniéndose cuando el
+  error |ln(H/W ÷ r)| < 0,01 o deja de mejorar (Lambert muy ancho). Nunca recorta la extensión.
 
 ### 22.7 Proyecto de entrenamiento, carteles de ayuda y recorrido guiado (desde V19)
 - **Datos sintéticos** (`tools/make_tutorial.py`, semilla 2026; `examples/tutorial/`): 7 sondeos ficticios

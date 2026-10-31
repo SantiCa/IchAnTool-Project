@@ -543,6 +543,21 @@ export function mapFrame(bbox, kind = 'plate') {
 /** Size of the plot area of a map with this extent and projection. */
 export function mapGeometry(bbox, kind = 'plate') { const f = mapFrame(bbox, kind); return { W: f.W, H: f.H, top: f.top, bottom: f.bottom }; }
 
+/** Widen an extent (never narrow it) so that its plot area has height/width = ratio (V23: resizable map frames). */
+export function fitBBoxAspect(bbox, ratio, kind = 'plate') {
+  if (!(ratio > 0.05)) return bbox;
+  const err = (q) => { const g = mapFrame(q, kind); return Math.abs(Math.log(g.H / g.W / ratio)); };
+  let b = [...bbox], best = b, bestErr = err(b);
+  for (let it = 0; it < 12 && bestErr > 0.01; it++) {
+    const g = mapFrame(b, kind), cur = g.H / g.W, cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, n = [...b];
+    if (cur < ratio) { const h = ((b[3] - b[1]) / 2) * (ratio / cur); n[1] = Math.max(-85, cy - h); n[3] = Math.min(85, cy + h); }
+    else { const w = Math.min(180, ((b[2] - b[0]) / 2) * (cur / ratio)); n[0] = cx - w; n[2] = cx + w; }
+    const e = err(n); if (e >= bestErr - 1e-4) break;   // e.g. very wide Lambert maps curve and cannot get wider
+    b = n; best = n; bestErr = e;
+  }
+  return best.map((v) => +v.toFixed(4));
+}
+
 /** Zoom an extent by factor f (>1 zooms in) around (lon, lat); pan by (dlon, dlat). Latitudes stay in [-85, 85]. */
 export function zoomBBox(bbox, f, lon, lat, dlon = 0, dlat = 0) {
   let [x0, y0, x1, y1] = bbox;

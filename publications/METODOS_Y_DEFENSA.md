@@ -127,6 +127,11 @@ identificación.
 Nada sobre la precisión en datos reales: todavía no hay datos anotados. Solo que las herramientas
 existen y producen máscaras en un formato abierto.
 
+- Desde V23 un sondeo presente en varios proyectos cuenta una sola vez (mapa, análisis multiproyecto)
+  y los ejemplos de icnotaxones repetidos entre proyectos se descartan, de modo que no inflan la
+  evaluación del modelo de todos los proyectos. La coincidencia es por nombre: conviene declararlo y
+  revisar los sondeos marcados «en N proyectos» antes de publicar resultados.
+
 ### Experimentos necesarios
 1. **Datos:** testigos con imágenes de licencia clara (IODP/ODP son públicas; las imágenes tratadas
    del grupo de la UGR, con permiso). Anotar la resolución y el equipo de cada imagen.

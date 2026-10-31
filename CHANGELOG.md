@@ -2,6 +2,14 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V23 — Web app 1.8 — 2026-10-31
+- Generic start screen: every saved project as a card (core thumbnails, counts, open/rename/delete), search,
+  empty state; examples in a collapsible section; no dedicated thesis entry.
+- Cores present in several projects (matched by normalised name) count once: merged map point, «in N
+  projects» tag, one merged core in multi-project analyses, duplicate ichnotaxon examples dropped.
+- Side panels resizable (drag), resettable (double click) and collapsible; maps resizable from their right
+  and bottom edges, extent widened to fill the frame (`fitBBoxAspect`). Singular/plural counts.
+
 ## V22 — Web app 1.7 — 2026-10-31
 - Council review (3 reviewers). Science: ichnotaxon evaluation no longer drops wrong predictions; folds and
   leave-one-out grouped by image section; interval classifier scored only on described intervals, with per-core
