@@ -205,6 +205,10 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 #geoStage .gpane { flex: 1; overflow: auto; padding: 14px 16px; min-height: 0; }
 #geoStage .gctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-bottom: 10px; }
 #geoStage .gctl .f { min-width: 90px; }
+.clfscope { display: grid; gap: 6px; margin-bottom: 8px; }
+.mtab { font-size: 12px; width: 100%; }
+.mtab th, .mtab td { padding: 2px 5px; }
+.mtab .on { background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 600; }
 .mapstyle details { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
 .mapstyle summary { cursor: pointer; font-weight: 600; font-size: 13px; }
 .mapstyle .msgrid { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-top: 8px; }
@@ -277,7 +281,11 @@ dialog input[type=text] { min-width: 0; }
 .colrow { display: grid; grid-template-columns: 160px minmax(0, 1fr) 140px auto; gap: 6px; align-items: center; }
 #home { position: fixed; inset: 0; z-index: 50; background: var(--bg); overflow: auto; padding: 20px max(16px, 3vw); }
 #home[hidden] { display: none; }
-#home .hgrid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; max-width: 1500px; margin: 0 auto; }
+#home .hgrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; max-width: 1500px; margin: 0 auto; }
+#home .htabs { display: flex; gap: 6px; max-width: 1500px; margin: 0 auto 12px; }
+#home .htabs .btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+#home .mpbox { border: 1px solid var(--line); border-radius: var(--r); padding: 10px; display: grid; gap: 6px; }
+#home .mpbox h3 { margin: 0; font-size: 14px; }
 #home section.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; }
 #home h1 { font: 600 22px var(--font-head); margin: 0 auto 12px; max-width: 1500px; }
 #home h2 { font: 600 15px var(--font-head); margin: 0; }
@@ -456,6 +464,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
       </div>
       <div class="pane" data-pane="learn" hidden>
         <p class="note" data-i18n="l.intro"></p>
+        <div id="clfScopeBox" class="clfscope"></div>
         <div id="learnStats"></div>
         <div class="slider"><span data-i18n="l.thr"></span><output id="thrOut"></output><input type="range" id="predThr" min="0.3" max="0.99" step="0.01"></div>
         <div class="slider"><span data-i18n="l.novelty"></span><output id="novOut"></output><input type="range" id="novelty" min="1" max="8" step="0.5"></div>
@@ -642,8 +651,9 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
 </dialog>
 <section id="home" hidden>
   <h1 data-i18n="home.title"></h1>
+  <div class="htabs" role="tablist"><button class="btn" data-htab="projects" data-i18n="home.tab.projects"></button><button class="btn" data-htab="all" data-i18n="home.tab.all"></button></div>
   <div class="hgrid">
-    <section class="card">
+    <section class="card" data-hpane="projects">
   <h2 data-i18n="proj.title"></h2>
   <div id="projList" class="plist"></div>
   <div class="row" style="flex-wrap:nowrap;margin-top:12px"><input type="text" id="newProjName" data-i18n-ph="proj.newPh"><button class="btn primary" id="newProjBtn" data-i18n="proj.create"></button></div>
@@ -670,7 +680,7 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
 
       <div class="row" style="justify-content:flex-end"><button class="btn" id="projClose" data-i18n="home.back"></button></div>
     </section>
-    <section class="card">
+    <section class="card" data-hpane="all" hidden>
       <h2 data-i18n="home.all"></h2>
       <p class="note" data-i18n="home.allNote"></p>
       <div class="gctl" id="allCtl" style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
@@ -683,6 +693,9 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
       </div>
       <div class="mapstyle" id="amStyle"></div>
       <div id="allMap" class="zmap"></div>
+      <div class="mpbox"><h3 data-i18n="mp.title"></h3><p class="note" data-i18n="mp.note"></p>
+        <div class="row"><button class="btn small" id="mpAll" data-i18n="mp.all"></button><button class="btn small" id="mpNone" data-i18n="mp.none"></button><span class="note" id="mpCount"></span>
+          <input type="text" id="mpName" data-i18n-ph="mp.name" style="max-width:240px"><button class="btn small primary" id="mpCreate" data-i18n="mp.create"></button></div></div>
       <div class="tablewrap" style="max-height:40vh"><table class="dtable" id="allTable"></table></div>
     </section>
   </div>

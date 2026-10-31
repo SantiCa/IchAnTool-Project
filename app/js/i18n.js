@@ -561,6 +561,25 @@ Object.assign(D.en, {
   'ms.bgFail': 'The background could not be downloaded (offline or blocked); showing the simple map.',
 });
 
+Object.assign(D.es, {
+  'l.scope': 'Modelo que sugiere', 'l.scope.core': 'Este sondeo', 'l.scope.project': 'Proyecto', 'l.scope.all': 'Todos los proyectos',
+  'obj.probs': 'Probabilidad por modelo', 'obj.novelBy': 'Distinta de todo lo visto según: {m}',
+  'home.tab.projects': 'Proyectos', 'home.tab.all': 'Todos los proyectos',
+  'mp.title': 'Análisis multiproyecto', 'mp.note': 'Marca sondeos de proyectos distintos y crea un análisis: es un proyecto aparte con una copia de sus datos (sin imágenes), capas e intervalos unidos por nombre, donde puedes usar Multiproxy, Datos y Figuras. «Actualizar» vuelve a copiar los datos de los proyectos de origen.',
+  'mp.name': 'Nombre del análisis', 'mp.create': 'Analizar los sondeos marcados', 'mp.all': 'Marcar todos', 'mp.none': 'Ninguno', 'mp.sel': '{n} sondeos marcados',
+  'mp.need': 'Marca al menos dos sondeos.', 'mp.update': 'Actualizar desde los proyectos', 'mp.badge': 'multiproyecto', 'mp.updated': 'Datos copiados de nuevo desde los proyectos de origen.',
+  'mp.from': 'De «{p}»',
+});
+Object.assign(D.en, {
+  'l.scope': 'Model that suggests', 'l.scope.core': 'This core', 'l.scope.project': 'Project', 'l.scope.all': 'All projects',
+  'obj.probs': 'Probability by model', 'obj.novelBy': 'Unlike anything seen according to: {m}',
+  'home.tab.projects': 'Projects', 'home.tab.all': 'All projects',
+  'mp.title': 'Multiproject analysis', 'mp.note': 'Tick cores of different projects and create an analysis: a separate project with a copy of their data (no images), layers and intervals merged by name, where Multiproxy, Data and Figures work. “Update” copies the data from the source projects again.',
+  'mp.name': 'Analysis name', 'mp.create': 'Analyse the ticked cores', 'mp.all': 'Tick all', 'mp.none': 'None', 'mp.sel': '{n} cores ticked',
+  'mp.need': 'Tick at least two cores.', 'mp.update': 'Update from the projects', 'mp.badge': 'multiproject', 'mp.updated': 'Data copied again from the source projects.',
+  'mp.from': 'From “{p}”',
+});
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';

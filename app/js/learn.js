@@ -5,6 +5,9 @@
 
 export const FEATURES = ['logArea', 'logMajor', 'logMinor', 'elong', 'vert', 'compact', 'fill', 'meanL', 'stdL', 'meanA', 'meanB', 'contrast'];
 
+/** Leave-one-out uses at most this many examples (evenly spaced). */
+export const LOO_MAX = 1500;
+
 export const vec = (f) => FEATURES.map((k) => (Number.isFinite(f?.[k]) ? f[k] : 0));
 
 export class Classifier {
@@ -12,6 +15,7 @@ export class Classifier {
 
   fit(examples) {
     this.n = examples.length;
+    this.X = examples.map((e) => e.x);
     this.y = examples.map((e) => e.y);
     this.counts = {};
     for (const y of this.y) this.counts[y] = (this.counts[y] || 0) + 1;
@@ -23,8 +27,10 @@ export class Classifier {
     this.sd = this.sd.map((s) => Math.sqrt(s) || 1);
     this.Z = examples.map((e) => this.z(e.x));
     // Leave-one-out: typical nearest-neighbour distance (novelty scale) and accuracy estimate.
-    const nn = [], ok = [];
-    for (let i = 0; i < this.n; i++) {
+    // (at most LOO_MAX evenly spaced examples, so that very large libraries stay fast)
+    const nn = [], ok = [], step = Math.max(1, this.n / LOO_MAX);
+    for (let f = 0; f < this.n; f += step) {
+      const i = Math.floor(f);
       const r = this.vote(this.Z[i], i);
       nn.push(r.dmin);
       if (Object.keys(this.counts).length > 1) ok.push(r.y === this.y[i] ? 1 : 0);
@@ -51,14 +57,35 @@ export class Classifier {
     for (const [d, i] of best) { const wgt = 1 / (d + 0.05); votes[this.y[i]] = (votes[this.y[i]] || 0) + wgt; tot += wgt; }
     let y = null, v = -1;
     for (const [k, s] of Object.entries(votes)) if (s > v) { y = k; v = s; }
-    return { y, conf: tot ? v / tot : 0, dmin: best.length ? best[0][0] : Infinity };
+    const probs = {};
+    for (const [k, s] of Object.entries(votes)) probs[k] = tot ? s / tot : 0;
+    return { y, conf: tot ? v / tot : 0, probs, dmin: best.length ? best[0][0] : Infinity };
   }
 
-  /** Returns {y, conf} or null (not enough examples, or object unlike any example). */
+  /**
+   * Returns {y, conf, probs} (probs = share of the distance-weighted vote of each class among the k neighbours),
+   * {y: null, novel: true, probs} for an object unlike any example, or null with fewer than 2 examples.
+   */
   predict(x) {
     if (this.n < 2) return null;
     const r = this.vote(this.z(x));
-    if (r.dmin > this.novelty * this.scale) return { y: null, conf: 0, novel: true };
+    if (r.dmin > this.novelty * this.scale) return { y: null, conf: 0, novel: true, probs: r.probs };
     return r;
+  }
+
+  /** Stored model ("weights" of a k-NN model: standardisation, novelty scale and the examples). */
+  toJSON() {
+    const r5 = (v) => +v.toFixed(5);
+    return { kind: 'knn', version: 1, k: this.k, novelty: this.novelty, n: this.n, features: FEATURES, mu: this.mu?.map(r5) || null, sd: this.sd?.map(r5) || null,
+      scale: this.scale ?? null, accuracy: this.accuracy ?? null, counts: this.counts || {}, y: this.y || [], X: (this.X || []).map((x) => x.map(r5)) };
+  }
+
+  /** Model rebuilt from toJSON() without refitting (same standardisation, scale and examples). */
+  static fromJSON(m) {
+    const c = new Classifier({ k: m.k, novelty: m.novelty });
+    if (!m || !Array.isArray(m.X) || JSON.stringify(m.features) !== JSON.stringify(FEATURES)) return c;
+    Object.assign(c, { n: m.n, y: m.y, X: m.X, counts: m.counts, scale: m.scale, accuracy: m.accuracy, mu: m.mu, sd: m.sd });
+    if (c.n >= 2 && c.mu) c.Z = c.X.map((x) => c.z(x));
+    return c;
   }
 }

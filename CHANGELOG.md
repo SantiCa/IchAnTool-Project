@@ -2,6 +2,12 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V17 — Web app 1.1 — 2026-10-31
+- Start screen tabs: Projects / All projects; multiproject analysis (ticked cores of several projects copied into
+  an analysis project where Multiproxy, Data and Figures work; update from sources).
+- Ichnotaxon suggestions from three stored k-NN models (core, project, all projects); probability of each
+  ichnotaxon per model in the object panel.
+
 ## V16 — Web app 1.0 — 2026-10-31
 - Renamed **CorAnTool** (Core Analysis Tool), formerly IchAnTool; old project files, browser data and the
   `ichantool` Python package keep working.

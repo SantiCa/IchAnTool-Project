@@ -1,7 +1,7 @@
 # Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V16 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 1.0.
+Versión del documento: V17 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.1.
 
 **Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
 IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
@@ -511,6 +511,26 @@ ejemplo se clasifica con los demás y se cuenta el porcentaje de aciertos.
 El modelo se recalcula automáticamente 60 ms después de cada cambio. k-NN no necesita
 entrenamiento: el coste es proporcional a (ejemplos × objetos). El botón «Aceptar sugerencias» convierte las
 identificaciones automáticas en etiquetas, que pasan a ser ejemplos.
+
+### 10.6 bis Tres modelos: sondeo, proyecto y todos los proyectos (desde V17)
+- **Sondeo:** ejemplos (objetos etiquetados) del sondeo abierto + biblioteca importada del proyecto.
+- **Proyecto:** ejemplos de todos los sondeos del proyecto + biblioteca.
+- **Todos los proyectos:** los del proyecto + biblioteca + los ejemplos de los demás proyectos (copia
+  ligera `examples: [{name, x}]` que cada proyecto guarda en el índice `lite` al guardarse; se excluyen
+  los proyectos multiproyecto para no duplicar).
+- Las clases se identifican **por nombre** (los identificadores cambian entre proyectos).
+- Los tres se ajustan a la vez con el mismo método (§10.2–10.5) en cada cambio. El acierto dejando uno
+  fuera usa como máximo `LOO_MAX = 1500` ejemplos equiespaciados (el resto del cálculo usa todos).
+- **Probabilidad de cada icnotaxón:** `p(clase) = Σ w de los vecinos de esa clase / Σ w de los k
+  vecinos` (la «confianza» de §10.2 es la `p` de la clase ganadora). El panel del objeto muestra, para
+  las 4 clases con mayor suma de `p`, la probabilidad según cada modelo, y avisa si algún modelo lo
+  considera una forma nueva (§10.3).
+- «Modelo que sugiere» (`settings.clfScope`, por defecto `project`) decide qué modelo pone la
+  sugerencia, la confianza y las identificaciones automáticas.
+- **Pesos guardados** (`Classifier.toJSON`): `k`, `ν`, media y desviación de cada descriptor, escala
+  de novedad `m`, acierto, recuentos y los ejemplos (descriptores redondeados a 5 decimales). El archivo
+  de proyecto guarda `models.project` y `models.cores[id]`; el modelo de todos los proyectos se guarda en
+  las preferencias del navegador (`model.all`). `Classifier.fromJSON` lo reconstruye sin reajustar.
 
 ### 10.7 Por qué k-NN
 - **Pocos ejemplos:** funciona desde el segundo ejemplo. Un usuario etiqueta unas decenas de
@@ -1238,6 +1258,24 @@ el modelo dependa de la descripción y no de los registros.
   elegidas, registros y bandas de intervalos y de clasificación del sondeo.
 - **Registro del sondeo, registro multiproxy y mapa:** las vistas actuales de esos modos.
 - Todas llevan título y pie opcionales y se exportan en SVG (imágenes incrustadas) y PNG (×2).
+
+### 22.6 Pantalla inicial con pestañas y análisis multiproyecto (desde V17)
+- La pantalla inicial tiene dos pestañas: **Proyectos** y **Todos los proyectos** (tabla de los sondeos
+  de todos los proyectos, mapa multiproyecto y análisis multiproyecto).
+- **Análisis multiproyecto:** se marcan sondeos de proyectos distintos y se crea un proyecto de tipo
+  `multi` (`projectKind: 'multi'`, `multiSource.keys = ['proyecto|sondeo', …]`). Cada sondeo es una
+  copia de sus datos ya combinados (profundidad, edad y columnas del índice `lite`, como tabla
+  importada; sin imágenes) con `origin = {project, core}`. Capas y categorías se unen **por nombre**
+  (la capa madre también); los intervalos se copian con los nuevos identificadores. Si dos sondeos se
+  llaman igual se añade el nombre del proyecto.
+- Variables por defecto: las columnas presentes en al menos dos sondeos (hasta 12, las más
+  frecuentes); si había «descartar», los huecos pasan a rellenarse con la media. Capa objetivo: la
+  misma si existe; si no, la primera con intervalos.
+- Ahí funcionan Multiproxy, Datos y Figuras. «Actualizar desde los proyectos» (lista de proyectos)
+  vuelve a copiar los datos conservando ajustes, figuras y hoja de cálculo. Crear un análisis con un
+  nombre ya usado lo actualiza.
+- Los proyectos `multi` no aparecen en la tabla ni en el mapa de todos los proyectos ni aportan
+  ejemplos al modelo de todos los proyectos.
 
 ---
 

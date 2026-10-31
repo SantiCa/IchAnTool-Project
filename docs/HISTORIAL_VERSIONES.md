@@ -34,6 +34,7 @@ La descripción detallada de los algoritmos está en
 | V14 | 31-10-2026 | Aplicación web 0.8 | Reestructuración: pantalla inicial con todos los proyectos y mapa multiproyecto; proyectos con varios sondeos; pestaña Datos (tabla, columnas calculadas y manuales, hoja libre); ventanas sincronizadas y panel flotante; Figuras |
 | V15 | 31-10-2026 | Aplicación web 0.9 | Mapas personalizables: fondo (simple, físico, relieve, topográfico, batimétrico, GEBCO, foto aérea, foto aérea + batimetría), símbolo, tamaño, etiquetas, colores, retícula, escala y norte; zoom con rueda, arrastre y extensión editable |
 | V16 | 31-10-2026 | Aplicación web 1.0 | Nombre CorAnTool (antes IchAnTool); todos los sondeos de la carpeta de la tesis (GP14, LC21, LC01, LC05, LC06, LC12, LC14, LC20) y más foraminíferos (GP03, LC21) |
+| V17 | 31-10-2026 | Aplicación web 1.1 | Pestaña «Todos los proyectos» con análisis multiproyecto (Multiproxy, Datos y Figuras con sondeos de varios proyectos); tres modelos de icnotaxones (sondeo, proyecto, todos) guardados y probabilidad de cada icnotaxón por modelo |
 
 ---
 
@@ -605,6 +606,44 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V17 — Análisis multiproyecto y modelos por sondeo, proyecto y todos (31-10-2026)
+
+**Qué se hizo.**
+- **Todos los proyectos en su propia pestaña** de la pantalla inicial, con tabla, mapa y un nuevo
+  **análisis multiproyecto**: se marcan sondeos de varios proyectos y se crea un proyecto de análisis
+  donde se usan Multiproxy, Datos y Figuras con todos ellos. Se puede actualizar desde los proyectos de
+  origen.
+- **Tres modelos de icnotaxones:** el del sondeo abierto, el de todo el proyecto y el de todos los
+  proyectos, ajustados a la vez y guardados (proyecto y sondeos en el archivo de proyecto; todos los
+  proyectos en el navegador). En Aprendizaje se elige qué modelo sugiere y se ven los ejemplos y el
+  acierto de cada uno. En el panel del objeto aparece la **probabilidad de cada icnotaxón según cada
+  modelo**.
+
+**Cambios.**
+- `learn.js`: `vote` devuelve `probs`; `predict` las incluye (también en formas nuevas); `toJSON`,
+  `fromJSON`; `LOO_MAX`.
+- `app.js`: `clfs`, `CLF_SCOPES`, `learnNow` con tres conjuntos, `refreshOtherExamples`, `saveAllModel`,
+  `projectModels`, `probTable`; `settings.clfScope`; ejemplos en el índice `lite`; `projectKind`,
+  `multiSource` y `models` en el archivo de proyecto; `buildMultiProject`, `updateMultiProject`,
+  pestañas de la pantalla inicial.
+- `index.html`, `i18n.js`: pestañas, recuadro multiproyecto, selector de modelo y tablas.
+- `tests/app/learn.test.mjs` (probabilidades, novedad, guardar y recuperar el modelo).
+
+**Por qué.** Petición de Santiago: ver todos los proyectos en otra pestaña con figuras y análisis
+multiproxy entre proyectos; entrenar la clasificación por sondeo, proyecto y todos los proyectos,
+guardar esos pesos y ver la probabilidad de cada taxón según el modelo.
+
+**Comprobación.** 33 pruebas de la aplicación y 9 de Python. En Chromium: análisis «Prueba multi» con
+GP03, LC10 (Tesis) y U1385I-1H (prueba): 3 sondeos, 7 capas unidas por nombre, 41 intervalos, 12
+variables, 182 muestras; «Actualizar» lo rehace; con 12 objetos etiquetados en el sondeo de prueba los
+tres modelos tienen 12 ejemplos y el panel muestra la tabla de probabilidades; ningún error.
+
+**Pendiente o problemas conocidos.** El análisis multiproyecto copia los datos: no cambia solo cuando
+cambian los proyectos de origen (hay que pulsar «Actualizar»). El modelo de todos los proyectos usa la
+copia ligera guardada de cada proyecto, que se actualiza al guardarlo.
 
 ---
 

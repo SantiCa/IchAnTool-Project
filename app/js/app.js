@@ -46,14 +46,17 @@ const S = {
   classes: defaultClasses(), active: 'undet',
   sections: [], cur: -1, cores: [], curCore: null, sheet: { columns: [], cells: {} },
   id: '', notes: '', records: [], logView: null,
-  settings: { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP: 8 },
+  settings: { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP: 8, clfScope: 'project' },
   age: { text: '', units: 'ka', model: null },
   library: [],
   tool: 'select', prevTool: 'select', brushSize: 10, wandTol: 30,
   selected: 0, view: { x: 0, y: 0, zoom: 1 }, showOrig: false, ovAlpha: 0.5,
   undo: [],
 };
-const clf = new Classifier();
+/** Three ichnotaxon models (V16): trained on the open core, on every core of the project, or on every project. */
+const CLF_SCOPES = ['core', 'project', 'all'];
+const clfs = { core: new Classifier(), project: new Classifier(), all: new Classifier() };
+let clf = clfs.project, otherExamples = [];
 const sec = () => S.sections[S.cur];
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clsById = (id) => S.classes.find((c) => c.id === id);
@@ -338,19 +341,39 @@ function clearCandidates() {
 let learnTimer = 0;
 function scheduleLearn() { clearTimeout(learnTimer); learnTimer = setTimeout(learnNow, 60); }
 function learnNow() {
-  const ex = [];
-  for (const s of S.sections) for (const o of s.objects.values()) if (o.cls && o.feat) ex.push({ y: o.cls, x: vec(o.feat) });
-  for (const e of S.library) { const c = S.classes.find((k) => k.name === e.name); if (c) ex.push({ y: c.id, x: e.x }); }
-  clf.novelty = S.settings.novelty; clf.fit(ex);
+  const own = (cores) => { const ex = []; for (const c of cores) for (const s of c.sections) for (const o of s.objects.values()) if (o.cls && o.feat) { const k = clsById(o.cls); if (k) ex.push({ y: k.name, x: vec(o.feat) }); } return ex; };
+  const lib = S.library.map((e) => ({ y: e.name, x: e.x }));
+  const cur = S.cores.find((c) => c.id === S.curCore), exCore = own(cur ? [cur] : []), exProj = own(S.cores);
+  const sets = { core: exCore.concat(lib), project: exProj.concat(lib), all: exProj.concat(lib, otherExamples) };
+  for (const k of CLF_SCOPES) { clfs[k].novelty = S.settings.novelty; clfs[k].fit(sets[k]); }
+  clf = clfs[S.settings.clfScope] || clfs.project;
+  const idOf = (name) => S.classes.find((c) => c.name === name)?.id || null;
   for (const s of S.sections) {
     for (const o of s.objects.values()) {
       if (o.cls || !o.feat) { o.pred = null; o.conf = 0; o.novel = false; continue; }
       const p = clf.predict(vec(o.feat));
-      o.pred = p?.y || null; o.conf = p?.conf || 0; o.novel = !!p?.novel;
+      o.pred = p?.y ? idOf(p.y) : null; o.conf = o.pred ? p.conf : 0; o.novel = !!p?.novel;
     }
     rebuildLUT(s);
   }
+  saveAllModel();
   renderLearn(); renderClasses(); renderObject(); scheduleAnalysis(); requestRender();
+}
+/** Labelled examples of the other projects (light index), for the all-projects model. */
+async function refreshOtherExamples() {
+  if (!storageOK) return;
+  const lites = await listLite().catch(() => []);
+  otherExamples = lites.filter((l) => l.id !== S.id && l.kind !== 'multi').flatMap((l) => (l.examples || []).map((e) => ({ y: e.name, x: e.x })));
+  scheduleLearn();
+}
+let allModelTimer = 0;
+/** The all-projects model is kept in the browser preferences (available before the other projects are read). */
+function saveAllModel() { clearTimeout(allModelTimer); allModelTimer = setTimeout(() => { if (storageOK && clfs.all.n) setPref('model.all', clfs.all.toJSON()).catch(() => {}); }, 3000); }
+/** Stored models of the project ("weights"): the project model and one per core. */
+function projectModels() {
+  const out = { project: clfs.project.n ? clfs.project.toJSON() : null, cores: {} };
+  for (const c of S.cores) { const ex = []; for (const s of c.sections) for (const o of s.objects.values()) if (o.cls && o.feat) { const k = clsById(o.cls); if (k) ex.push({ y: k.name, x: vec(o.feat) }); } if (ex.length >= 2) out.cores[c.id] = new Classifier({ novelty: S.settings.novelty }).fit(ex).toJSON(); }
+  return out;
 }
 
 /* ───────────── analysis ───────────── */
@@ -848,6 +871,7 @@ function renderObject() {
       <dt>${t('obj.class')}</dt><dd><select id="objCls">${opts}</select></dd>
       <dt>${t('obj.status')}</dt><dd><span class="pill ${st}">${t('obj.' + st)}</span></dd>
       ${o.cls ? '' : `<dt>${t('obj.suggest')}</dt><dd>${sugg}</dd>`}
+      ${o.cls || !o.feat ? '' : `<dt>${t('obj.probs')}</dt><dd>${probTable(o)}</dd>`}
       <dt>${t('obj.depth')}</dt><dd>${fmt(depthAtRow(s, y0), 3)}–${fmt(depthAtRow(s, y1 + 1), 3)} ${u}</dd>
       <dt>${t('obj.size')}</dt><dd>${fmt(toU(f.majorCm), 3)} × ${fmt(toU(f.minorCm), 3)} ${u}</dd>
       <dt>${t('obj.area')}</dt><dd>${fmt(o.area / (ppu * ppu) / UNIT_TO_CM[u] ** 2, 4)} ${u}² · ${o.area} px</dd>
@@ -860,8 +884,26 @@ function renderObject() {
   if ($('objAccept')) $('objAccept').onclick = () => assignClass(o.id, o.pred);
 }
 
+/** Probability of each ichnotaxon for one object according to the three models (top 4 classes). */
+function probTable(o) {
+  const x = vec(o.feat), P = Object.fromEntries(CLF_SCOPES.map((k) => [k, clfs[k].predict(x)]));
+  const tot = {}; for (const k of CLF_SCOPES) for (const [n, v] of Object.entries(P[k]?.probs || {})) tot[n] = (tot[n] || 0) + v;
+  const names = Object.keys(tot).sort((a, b) => tot[b] - tot[a]).slice(0, 4);
+  if (!names.length) return '—';
+  const sc = S.settings.clfScope || 'project', col = (n) => S.classes.find((c) => c.name === n)?.color || '#999';
+  return `<table class="dtable mtab"><thead><tr><th></th>${CLF_SCOPES.map((k) => `<th${k === sc ? ' class="on"' : ''}>${t('l.scope.' + k)}</th>`).join('')}</tr></thead><tbody>${
+    names.map((n) => `<tr><td class="txt"><span class="swatch" style="background:${col(n)}"></span>${esc(n)}</td>${CLF_SCOPES.map((k) => `<td${k === sc ? ' class="on"' : ''}>${P[k] ? Math.round((P[k].probs[n] || 0) * 100) + '%' : '—'}</td>`).join('')}</tr>`).join('')}${
+    CLF_SCOPES.some((k) => P[k]?.novel) ? `<tr><td class="txt" colspan="4">${t('obj.novelBy', { m: CLF_SCOPES.filter((k) => P[k]?.novel).map((k) => t('l.scope.' + k)).join(', ') })}</td></tr>` : ''}</tbody></table>`;
+}
+
 function renderLearn() {
   const counts = clf.counts || {}, total = clf.n || 0, s = sec();
+  const sc = S.settings.clfScope || 'project';
+  $('clfScopeBox').innerHTML = `<label class="f"><span>${t('l.scope')}</span><select id="clfScope">${CLF_SCOPES.map((k) => `<option value="${k}" ${k === sc ? 'selected' : ''}>${t('l.scope.' + k)}</option>`).join('')}</select></label>
+    <table class="dtable mtab"><thead><tr><th></th>${CLF_SCOPES.map((k) => `<th>${t('l.scope.' + k)}</th>`).join('')}</tr></thead><tbody>
+    <tr><td class="txt">${t('l.examples')}</td>${CLF_SCOPES.map((k) => `<td>${clfs[k].n || 0}</td>`).join('')}</tr>
+    <tr><td class="txt">${t('l.accuracy')}</td>${CLF_SCOPES.map((k) => `<td>${clfs[k].accuracy == null ? '—' : Math.round(clfs[k].accuracy * 100) + '%'}</td>`).join('')}</tr></tbody></table>`;
+  $('clfScope').onchange = (e) => { S.settings.clfScope = e.target.value; markDirty(); learnNow(); };
   const pending = s ? [...s.objects.values()].filter((o) => status(o) === 'predicted').length : 0;
   const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([id, n]) => {
     const c = clsById(id); return c ? `<div><span><span class="swatch" style="background:${c.color}"></span>${esc(c.name)}</span><em>${n}</em></div>` : '';
@@ -1253,6 +1295,7 @@ function activateCore(id, silent = false) {
   selectSection(S.sections.length ? 0 : -1, true);
   renderRecList(); renderLogPanel(); renderCoreBar(); scheduleLog(0);
   if (S.geo) S.geo.view.core = c.id;
+  scheduleLearn(); // the core model depends on the open core
   if (!silent) { markDirty(); scheduleGeo(); renderData(); }
 }
 
@@ -1317,12 +1360,13 @@ function applyComputedColumns(c) {
 
 function projectMeta() {
   return { id: S.id, name: S.name, updated: Date.now(), sections: S.cores.reduce((n, c) => n + c.sections.length, 0), cores: S.cores.length,
-    coreNames: S.cores.map((c) => c.name) };
+    coreNames: S.cores.map((c) => c.name), kind: S.kind || 'normal' };
 }
 /** Light copy of the numeric data of the project, for the all-projects view and multiproject maps. */
 function liteSnapshot() {
   return {
-    id: S.id, name: S.name, updated: Date.now(),
+    id: S.id, name: S.name, updated: Date.now(), kind: S.kind || 'normal',
+    examples: S.cores.flatMap((c) => c.sections.flatMap((s) => [...s.objects.values()].filter((o) => o.cls && o.feat).map((o) => ({ name: clsById(o.cls)?.name, x: vec(o.feat).map((v) => +v.toFixed(4)) })))).filter((e) => e.name),
     layers: S.geo.layers, intervals: S.geo.intervals, geo: (({ cores: _c, ...g }) => g)(S.geo),
     cores: S.cores.map((c) => ({ id: c.id, name: c.name, lat: c.lat, lon: c.lon, units: c.units, ageText: c.ageText, depth: c.depth, age: c.age, proxies: c.proxies, src: c.src, nImages: c.sections.length })),
   };
@@ -1381,6 +1425,7 @@ function serialize(binary) {
   return {
     app: APP, kind: 'project', version: 3, appVersion: VERSION, saved: new Date().toISOString(),
     id: S.id, name: S.name, notes: S.notes, classes: S.classes, active: S.active, settings: S.settings, library: S.library,
+    projectKind: S.kind || 'normal', multiSource: S.multiSource || null, models: projectModels(),
     geo, sheet: S.sheet, fig: S.fig, curCore: S.curCore,
     cores: S.cores.map((c) => ({
       id: c.id, name: c.name, lat: c.lat, lon: c.lon, waterDepth: c.waterDepth ?? null, units: c.units, source: c.source || null, notes: c.notes || '',
@@ -1424,7 +1469,7 @@ async function loadProject(p) {
     p = upgradeProject(p);
     S.id = p.id || uid(); S.name = p.name || APP; S.notes = p.notes || '';
     S.classes = p.classes || defaultClasses(); S.active = p.active || 'undet';
-    Object.assign(S.settings, p.settings || {}); S.library = p.library || [];
+    Object.assign(S.settings, p.settings || {}); S.library = p.library || []; S.kind = p.projectKind || 'normal'; S.multiSource = p.multiSource || null;
     S.sheet = { columns: [], cells: {}, ...(p.sheet || {}) };
     S.fig = { ...defaultFig(), ...(p.fig || {}) };
     S.geo = normalizeGeo(p.geo);
@@ -1439,7 +1484,7 @@ async function loadProject(p) {
   } finally { loading = false; }
   const cur = S.cores.find((c) => c.id === p.curCore) || S.cores[0];
   activateCore(cur.id, true);
-  syncSettingsForm(); learnNow(); updateProjHeader();
+  syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples();
   refreshAllCores();
   if (S.geo.trained) setTimeout(() => { try { geoTrain(true); } catch { /* retrained on demand */ } }, 0); else scheduleGeo(0);
   try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
@@ -1449,10 +1494,10 @@ async function loadProject(p) {
 function resetState() {
   const maxMP = S.settings.maxMP || 8;
   S.id = uid(); S.name = t('proj.untitled'); S.notes = '';
-  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig();
+  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig(); S.kind = 'normal'; S.multiSource = null;
   S.geo = defaultGeo(); geoReset();
   S.classes = defaultClasses(); S.active = 'undet';
-  S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP };
+  S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP, clfScope: 'project' };
   $('undoBtn').disabled = true; $('detectStatus').textContent = '';
   S.cores = [makeCore({ name: t('core.first') })];
   activateCore(S.cores[0].id, true);
@@ -1495,14 +1540,15 @@ async function renderProjects() {
   const date = (ms) => new Date(ms).toLocaleString(lang(), { dateStyle: 'medium', timeStyle: 'short' });
   box.innerHTML = list.map((p) => `
     <div class="prow ${p.id === S.id ? 'current' : ''}" data-id="${p.id}">
-      <div class="pinfo"><b>${esc(p.name)}</b><span class="note">${t('home.cores', { n: p.cores ?? 1 })}${p.coreNames ? ': ' + esc(p.coreNames.slice(0, 6).join(', ')) + (p.coreNames.length > 6 ? '…' : '') : ''} · ${t('proj.sections', { n: p.sections })} · ${date(p.updated)}${p.id === S.id ? ' · ' + t('proj.current') : ''}</span></div>
-      <div class="row"><button class="btn small" data-act="open">${t('proj.open')}</button><button class="btn small" data-act="rename">${t('proj.rename')}</button><button class="btn small ghost" data-act="del">${t('proj.del')}</button></div>
+      <div class="pinfo"><b>${esc(p.name)}${p.kind === 'multi' ? ` <span class="pill">${t('mp.badge')}</span>` : ''}</b><span class="note">${t('home.cores', { n: p.cores ?? 1 })}${p.coreNames ? ': ' + esc(p.coreNames.slice(0, 6).join(', ')) + (p.coreNames.length > 6 ? '…' : '') : ''} · ${t('proj.sections', { n: p.sections })} · ${date(p.updated)}${p.id === S.id ? ' · ' + t('proj.current') : ''}</span></div>
+      <div class="row"><button class="btn small" data-act="open">${t('proj.open')}</button><button class="btn small" data-act="rename">${t('proj.rename')}</button>${p.kind === 'multi' ? `<button class="btn small" data-act="mpupdate">${t('mp.update')}</button>` : ''}<button class="btn small ghost" data-act="del">${t('proj.del')}</button></div>
     </div>`).join('');
 }
 
 $('projList').addEventListener('click', async (e) => {
   const btn = e.target.closest('button'), row = e.target.closest('.prow'); if (!btn || !row) return;
   const id = row.dataset.id, act = btn.dataset.act;
+  if (act === 'mpupdate') { await updateMultiProject(id); return; }
   if (act === 'open') {
     if (id === S.id) { hideHome(); return; }
     await flushSave(); hideHome();
@@ -1532,7 +1578,7 @@ $('projClose').addEventListener('click', () => hideHome());
 $('newProjBtn').addEventListener('click', async () => {
   await flushSave();
   resetState(); S.name = $('newProjName').value.trim() || t('proj.untitled'); $('newProjName').value = '';
-  syncSettingsForm(); learnNow(); updateProjHeader();
+  syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples();
   await saveToDB(); renderProjects(); hideHome();
 });
 $('openTest').addEventListener('click', async () => { hideHome(); await openTestProject(); });
@@ -1580,7 +1626,7 @@ async function openTestProject() {
       for (const s of S.sections) detectSection(s);
     } catch (e) { toast(t('err.image', { m: e.message || e })); }
     finally { loading = false; }
-    syncSettingsForm(); setAge(); selectSection(0, true); learnNow(); updateProjHeader(); renderRecList(); renderLogPanel(); scheduleLog(0); refreshAllCores();
+    syncSettingsForm(); setAge(); selectSection(0, true); learnNow(); updateProjHeader(); refreshOtherExamples(); renderRecList(); renderLogPanel(); scheduleLog(0); refreshAllCores();
     await saveToDB();
   });
 }
@@ -2869,15 +2915,16 @@ function hideHome() { $('home').hidden = true; requestAnimationFrame(resizeCanva
 let allLite = [], allMapSvg = '';
 async function renderAllProjects() {
   if (!storageOK) { $('allMap').innerHTML = `<p class="note">${t('save.off')}</p>`; return; }
-  allLite = (await listLite().catch(() => [])).sort((a, b) => a.name.localeCompare(b.name));
+  allLite = (await listLite().catch(() => [])).filter((l) => l.kind !== 'multi').sort((a, b) => a.name.localeCompare(b.name));
   const vars = new Set(), layers = new Set();
   for (const l of allLite) { for (const c of l.cores) Object.keys(c.proxies || {}).forEach((k) => vars.add(k)); for (const L of l.layers || []) if ((l.intervals || []).some((q) => q.layer === L.id)) layers.add(L.name); }
   const fill = (id, list) => { const el = $(id), cur = el.value; el.innerHTML = [...list].sort().map((v) => `<option ${v === cur ? 'selected' : ''}>${esc(v)}</option>`).join(''); };
   fill('amVar', vars); fill('amLayer', layers);
   const mode = $('amMode').value;
   $('amVarRow').hidden = mode !== 'value'; $('amLayRow').hidden = mode !== 'class';
-  $('allTable').innerHTML = `<thead><tr><th>${t('home.project')}</th><th>${t('geo.core')}</th><th>Lat</th><th>Lon</th><th>${t('home.nVars')}</th><th>${t('geo.ivs')}</th><th>${t('home.images')}</th></tr></thead><tbody>${
-    allLite.flatMap((l) => l.cores.map((c) => `<tr data-p="${l.id}" data-c="${c.id}" style="cursor:pointer"><td class="txt">${esc(l.name)}</td><td class="txt">${esc(c.name)}</td><td>${fmt(c.lat, 3)}</td><td>${fmt(c.lon, 3)}</td><td>${Object.keys(c.proxies || {}).length}</td><td>${(l.intervals || []).filter((q) => q.core === c.id).length}</td><td>${c.nImages || 0}</td></tr>`)).join('')}</tbody>`;
+  renderMpCount();
+  $('allTable').innerHTML = `<thead><tr><th></th><th>${t('home.project')}</th><th>${t('geo.core')}</th><th>Lat</th><th>Lon</th><th>${t('home.nVars')}</th><th>${t('geo.ivs')}</th><th>${t('home.images')}</th></tr></thead><tbody>${
+    allLite.flatMap((l) => l.cores.map((c) => `<tr data-p="${l.id}" data-c="${c.id}" style="cursor:pointer"><td><input type="checkbox" class="mpchk" ${mpSel.has(`${l.id}|${c.id}`) ? 'checked' : ''}></td><td class="txt">${esc(l.name)}</td><td class="txt">${esc(c.name)}</td><td>${fmt(c.lat, 3)}</td><td>${fmt(c.lon, 3)}</td><td>${Object.keys(c.proxies || {}).length}</td><td>${(l.intervals || []).filter((q) => q.core === c.id).length}</td><td>${c.nImages || 0}</td></tr>`)).join('')}</tbody>`;
   redrawAllMap();
 }
 
@@ -2928,9 +2975,86 @@ $('amSvg').addEventListener('click', () => { if (allMapSvg.startsWith('<svg')) s
 $('allTable').addEventListener('click', async (e) => {
   const tr = e.target.closest('tr[data-p]'); if (!tr) return;
   const { p, c } = tr.dataset;
+  if (e.target.classList.contains('mpchk')) { const k = `${p}|${c}`; if (e.target.checked) mpSel.add(k); else mpSel.delete(k); renderMpCount(); return; }
   if (p !== S.id) { await flushSave(); await busy(async () => { const d = await getProject(p); if (d) await loadProject(d); }); }
   activateCore(c, true); hideHome();
 });
+
+
+/* ───────────── multiproject analysis (V17): cores of several projects in one analysis project ───────────── */
+const mpSel = new Set(); // keys 'projectId|coreId'
+/** Build (or refresh) a project of kind 'multi' from the light copies of the chosen cores; layers and categories are merged by name. */
+async function buildMultiProject(name, keys, keepId = null) {
+  const lites = (await listLite().catch(() => [])).filter((l) => l.kind !== 'multi');
+  const chosen = [];
+  for (const l of lites) for (const c of l.cores) if (keys.includes(`${l.id}|${c.id}`)) chosen.push({ l, c });
+  if (chosen.length < 2) { toast(t('mp.need')); return false; }
+  await flushSave();
+  const prev = keepId ? await getProject(keepId) : null;
+  if (prev) await loadProject(prev); else { resetState(); S.id = 'mp' + uid(); }
+  S.name = name; S.kind = 'multi'; S.multiSource = { keys: [...keys], built: new Date().toISOString() };
+  S.notes = chosen.map(({ l, c }) => `${c.name} (${l.name})`).join('; ');
+  // layers by name
+  const layers = new Map(), layerId = new Map(), catId = new Map();
+  for (const { l } of chosen) for (const L of l.layers || []) {
+    let m = layers.get(L.name);
+    if (!m) { m = { ...L, id: 'L' + uid(), cats: [], parentName: (l.layers || []).find((q) => q.id === L.parent)?.name || null }; layers.set(L.name, m); }
+    layerId.set(`${l.id}|${L.id}`, m.id);
+    for (const k of L.cats || []) { let mk = m.cats.find((q) => q.name === k.name); if (!mk) { mk = { ...k, id: 'k' + uid() }; m.cats.push(mk); } catId.set(`${l.id}|${L.id}|${k.id}`, mk.id); }
+  }
+  for (const m of layers.values()) { m.parent = m.parentName ? layers.get(m.parentName)?.id || null : null; delete m.parentName; }
+  // cores (copy of the merged numeric data; same name in two projects → project name added)
+  const names = new Map(); chosen.forEach(({ c }) => names.set(c.name, (names.get(c.name) || 0) + 1));
+  const coreId = new Map();
+  S.cores = chosen.map(({ l, c }) => {
+    const core = makeCore({ name: names.get(c.name) > 1 ? `${c.name} · ${l.name}` : c.name, lat: c.lat, lon: c.lon, units: c.units, source: 'multi', notes: t('mp.from', { p: l.name }),
+      imp: { depth: c.depth, age: c.age, proxies: c.proxies || {} }, age: { text: c.ageText || '' } });
+    core.origin = { project: l.id, core: c.id }; coreId.set(`${l.id}|${c.id}`, core.id);
+    return core;
+  });
+  const g = S.geo;
+  g.layers = [...layers.values()];
+  g.intervals = chosen.flatMap(({ l, c }) => (l.intervals || []).filter((q) => q.core === c.id && !q.auto).map((q) => ({
+    ...q, id: uid(), core: coreId.get(`${l.id}|${c.id}`), layer: layerId.get(`${l.id}|${q.layer}`), cat: catId.get(`${l.id}|${q.layer}|${q.cat}`) }))).filter((q) => q.layer && q.cat);
+  const st = g.settings;
+  if (!g.layers.some((L) => L.id === st.target)) st.target = g.layers.find((L) => g.intervals.some((q) => q.layer === L.id))?.id || g.layers[0]?.id || null;
+  // default variables: columns present in at least two of the cores (up to 12)
+  const cnt = {}; for (const c of S.cores) for (const k of Object.keys(c.imp.proxies)) cnt[k] = (cnt[k] || 0) + 1;
+  const names2 = Object.keys(cnt);
+  st.features = (st.features || []).filter((k) => names2.includes(k));
+  if (!st.features.length) st.features = names2.filter((k) => cnt[k] >= 2).sort((a, b) => cnt[b] - cnt[a]).slice(0, 12);
+  if (st.missing === 'drop' && st.features.length > 1) st.missing = 'mean';
+  for (const c of S.cores) refreshCoreData(c);
+  S.curCore = S.cores[0].id; activateCore(S.curCore, true); renderCoreBar();
+  geoReset(); geoMarkDirty();
+  await saveToDB(); updateProjHeader();
+  return true;
+}
+async function updateMultiProject(id) {
+  const meta = (await listProjects().catch(() => [])).find((m) => m.id === id); if (!meta) return;
+  const data = await getProject(id); const keys = data?.multiSource?.keys || [];
+  await busy(async () => { if (await buildMultiProject(meta.name, keys, id)) toast(t('mp.updated')); });
+  await renderProjects();
+}
+function renderMpCount() { $('mpCount').textContent = t('mp.sel', { n: mpSel.size }); }
+$('mpAll').addEventListener('click', () => { for (const l of allLite.filter((x) => x.kind !== 'multi')) for (const c of l.cores) mpSel.add(`${l.id}|${c.id}`); renderAllProjects(); });
+$('mpNone').addEventListener('click', () => { mpSel.clear(); renderAllProjects(); });
+$('mpCreate').addEventListener('click', async () => {
+  const name = $('mpName').value.trim() || t('mp.title');
+  const same = (await listProjects().catch(() => [])).find((m) => m.kind === 'multi' && m.name === name);
+  let ok = false;
+  await busy(async () => { ok = await buildMultiProject(name, [...mpSel], same?.id || null); });
+  if (ok) { hideHome(); setMode('geo'); }
+});
+// tabs of the start screen
+for (const b of document.querySelectorAll('[data-htab]')) b.addEventListener('click', () => setHomeTab(b.dataset.htab));
+function setHomeTab(tab) {
+  for (const b of document.querySelectorAll('[data-htab]')) b.setAttribute('aria-pressed', String(b.dataset.htab === tab));
+  for (const p of document.querySelectorAll('[data-hpane]')) p.hidden = p.dataset.hpane !== tab;
+  try { localStorage.setItem('ichantool.homeTab', tab); } catch { /* storage blocked */ }
+  if (tab === 'all') requestAnimationFrame(() => redrawAllMap());
+}
+try { setHomeTab(localStorage.getItem('ichantool.homeTab') || 'projects'); } catch { setHomeTab('projects'); }
 
 /* ───────────── data tab: all data of the project, computed and manual columns, free cells ───────────── */
 

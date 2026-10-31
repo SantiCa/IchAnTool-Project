@@ -3,6 +3,9 @@
 > Desde V16 el programa se llama **CorAnTool** (antes IchAnTool). En los artículos: «CorAnTool (formerly
 > IchAnTool; Casanova-Arenillas et al., 2020)». Los sondeos LC06, LC14 y LC20 tienen profundidad supuesta
 > (secciones apiladas, §21.8 ter): no usarlos en una figura publicada sin verificarla.
+> Desde V17 hay tres modelos de icnotaxones (sondeo, proyecto, todos los proyectos; §10.6 bis). En un
+> artículo hay que decir cuál se usó y su acierto dejando uno fuera; la «probabilidad» es la proporción del
+> voto ponderado de los k vecinos, no una probabilidad calibrada.
 
 Para cada artículo previsto: qué partes de IchAnTool usa, qué se puede afirmar con lo que ya está
 hecho, qué falta comprobar antes de enviarlo y las preguntas que probablemente hará un revisor,
