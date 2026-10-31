@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V7 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.2.
+Versión del documento: V8 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.3.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -28,7 +28,8 @@ límites del método.
 17. Proyectos (carpetas) y guardado automático
 18. Registro compuesto del sondeo
 19. Registros externos
-20. Referencias
+20. Ajustes del usuario y copias de seguridad
+21. Referencias
 
 ---
 
@@ -238,15 +239,30 @@ original (§9).
 Orden de las operaciones sobre cada píxel `(R, G, B)`, con valores de 0 a 255:
 
 1. **Canal:** color, gris (BT.601), o un solo canal R, G o B copiado a los tres.
-2. **Niveles:** `v₁ = limitar((v − negro) / (blanco − negro), 0, 1)`.
-3. **Gamma:** `v₂ = v₁^(1/γ) · 255`.
+2. **Niveles:** `v₁ = limitar((v − negro) / (blanco − negro), 0, 1)`. Con **niveles automáticos**, negro
+   y blanco son los percentiles 0,5 % y 99,5 % de la luminancia (BT.601, redondeada) dentro de la zona
+   de análisis (`autoLevels`).
+3. **Gamma:** `v₂ = v₁^(1/γ) · 255`. Con **gamma automática** (`gammaForMedian`, adaptación propia),
+   γ = ln(m) / ln(0,5), donde `m` es la mediana normalizada tras los niveles, limitada a [0,01; 0,99].
+   Así la mediana pasa a gris medio. γ se limita al rango 0,19–1 publicado por Dorador et al. (2014).
 4. **Contraste y brillo:** `v₃ = (v₂ − 128) · F + 128 + 2,55 · brillo`, con
    `F = 259 (C + 255) / (255 (259 − C))` y `C = 2,55 · contraste` (contraste entre −100 y 100).
    Los pasos 2 a 4 se precalculan en una tabla de 256 valores.
 5. **Saturación:** `v₄ = l + (v₃ − l) · s`, con `l` = luminancia BT.601 y `s` = saturación / 100.
+5b. **Vibrance:** como la saturación, pero con factor `f = 1 + (vibrance/100) · (1 − sᵥ)`, donde
+   `sᵥ = (máx − mín)/255` es la saturación del píxel. Afecta más a los píxeles poco saturados. Es una
+   aproximación al «Vibrance» de Photoshop, cuyo algoritmo exacto no es público.
 6. **Ecualización del histograma** (opcional): sobre la luminancia, con la función de
    distribución acumulada:
    `T = (CDF(L) − CDF_min) / (n − CDF_min) · 255`.
+6b. **CLAHE** (`clahe`; Zuiderveld, 1994), opcional, sobre la luminancia:
+   - la imagen se divide en `nx × ny` mosaicos de unos `bloque` px (`nx = redondeo(ancho/bloque)`);
+   - en cada mosaico se calcula el histograma de 256 niveles y se recorta cada nivel al límite
+     `pendiente × n/256`;
+   - el exceso se reparte por igual entre los 256 niveles, y la función acumulada normalizada
+     (×255) es la transformación del mosaico;
+   - cada píxel se transforma por **interpolación bilineal** de las cuatro transformaciones de los
+     centros de mosaico más cercanos.
 7. **Contraste local** (máscara de enfoque, *unsharp mask*): sobre la luminancia,
    `T' = T + a · (T − media_r(T))`, con `a = cantidad / 25` y `media_r` = media en una ventana
    cuadrada de lado `2r + 1` (desenfoque de caja separable, coste proporcional al número de
@@ -257,18 +273,39 @@ Orden de las operaciones sobre cada píxel `(R, G, B)`, con valores de 0 a 255:
 
 Ajustes predefinidos (`FILTER_PRESETS`):
 
-| Ajuste | Valores |
-|--------|---------|
-| Sin realce | todo neutro |
-| Niveles y contraste | negro 40, blanco 215, contraste 25, saturación 140 % |
-| Contraste local | cantidad 60, radio 25 px, contraste 15 |
-| Ecualizado + contraste local | gris, ecualizar, cantidad 40, radio 20 px |
+| Ajuste | Valores | Fuente |
+|--------|---------|--------|
+| Sin realce | todo neutro | — |
+| **Dorador et al. (2014)** | niveles automáticos, gamma automática (0,19–1), contraste 20, brillo −3, vibrance −31, saturación 34 % | Dorador, Rodríguez-Tovar e IODP Exp. 339 (2014) |
+| **CLAHE (Miguez-Salas et al., 2019)** | bloque 127 px, pendiente 3 | Miguez-Salas et al. (2019); valores por defecto de Fiji |
+| Niveles y contraste (genérico) | negro 40, blanco 215, contraste 25, saturación 140 % | propio |
+| Contraste local | cantidad 60, radio 25 px, contraste 15 | propio |
+| Ecualizado + contraste local | gris, ecualizar, cantidad 40, radio 20 px | propio |
 
-**Para el revisor.** Son operaciones estándar de procesado de imagen (Gonzalez y Woods, 2018). El
-ajuste «Niveles y contraste» sigue la idea del tratamiento de Dorador y Rodríguez-Tovar (2014)
-(ajuste de niveles, contraste y saturación para resaltar trazas), pero los valores numéricos son
-propios, no los de ese trabajo. Los parámetros de realce de cada sección se guardan en el
-proyecto, así que el procedimiento se puede reproducir.
+**Cómo se trasladó cada protocolo publicado.**
+
+- **Dorador et al. (2014)** describen tres pasos en Photoshop CS6, con valores elegidos en cada
+  imagen (38 testigos y 10 intervalos):
+  1. Niveles: valores mínimo y máximo del histograma de entrada; medias 54,3 y 100; gris medio 0,76,
+     con rango 0,19–1.
+  2. Brillo y contraste: contraste medio 70 (escala −50 a 100); brillo medio −8 (escala −150 a 150).
+  3. Vibrance y saturación: medias −31 y −66.
+
+  Como los niveles dependen de cada imagen (con las imágenes del sondeo de prueba, 54–100 dejaría casi
+  todo en blanco), aquí se calculan con percentiles, y la gamma se ajusta a la mediana dentro del rango
+  publicado. Vibrance y saturación usan las medias publicadas. Las escalas de contraste y brillo de
+  Photoshop no son lineales ni equivalentes a las nuestras, así que 20 y −3 son equivalentes aproximados
+  elegidos visualmente. El usuario puede afinarlos.
+- **Miguez-Salas et al. (2019)** aplican «Enhance Local Contrast (CLAHE)» de Fiji ajustando el tamaño
+  de bloque y los bins del histograma, sin dar valores. Se usan los valores por defecto de Fiji
+  (bloque 127, 256 bins, pendiente 3). El plugin de Fiji calcula el histograma en una ventana deslizante
+  alrededor de cada píxel; aquí se usa la versión por mosaicos con interpolación (Zuiderveld, 1994).
+  El efecto es equivalente, pero no idéntico píxel a píxel.
+
+**Para el revisor.** Son operaciones estándar de procesado de imagen (Gonzalez y Woods, 2018). Los dos
+ajustes con fuente publicada se describen arriba, con sus diferencias respecto al original; los demás
+son puntos de partida propios y así se indican en la interfaz. Los parámetros efectivos de realce de
+cada sección se guardan en el proyecto, así que el procedimiento se puede reproducir.
 
 ---
 
@@ -290,6 +327,14 @@ análisis y fuera de las zonas excluidas.
   de color de fondo a lo largo del testigo.
 - **Global**: candidato si `L < t` (oscuras) o `L > t` (claras). La opción «ambas» se trata como
   «oscuras» en este modo.
+- **K-medias de 2 clases** (`kmeansThreshold`), como la opción K-Means de ICY usada por Miguez-Salas
+  et al. (2019):
+  - centros iniciales en los percentiles 10 y 90 de `L` dentro de la zona;
+  - se iteran asignación y media hasta que los centros cambian < 0,001 (máximo 50 iteraciones);
+  - el umbral es el punto medio entre los dos centros, y se aplica como el umbral global.
+- **Rellenar huecos** (opcional, `fillHoles`): tras la morfología, los píxeles de fondo no
+  alcanzables desde el borde de la zona (relleno 4-conexo) pasan a traza. Equivale al «Fill holes»
+  binario de Fiji del mismo trabajo.
 
 ### 7.2 Limpieza morfológica
 Se repite `s` veces (parámetro «suavizado») una **apertura** (erosión y luego dilatación) para
@@ -698,7 +743,48 @@ Implementación: `log.js::parseTable, guessAxisColumn` y `app.js` (diálogo de r
 
 ---
 
-## 20. Referencias
+## 20. Ajustes del usuario y copias de seguridad (aplicación web)
+
+### 20.1 Ajustes propios
+«Guardar ajuste» guarda con nombre los parámetros de realce y de detección de la sección activa. Los
+ajustes son comunes a todos los proyectos: se guardan en el almacén `prefs` de IndexedDB, con una copia
+en `localStorage`, y se incluyen en las copias de seguridad. «Aplicar este ajuste a todas las
+secciones» copia realce y detección de la sección activa a las demás. Cada sección guarda los valores
+efectivos en el proyecto, así que un análisis sigue siendo reproducible aunque luego se borre el
+ajuste.
+
+### 20.2 Copias de seguridad: tres capas
+
+| Capa | Dónde | Cuándo | Protege de |
+|------|-------|--------|------------|
+| 1. Biblioteca | IndexedDB del navegador, marcada como persistente si el navegador lo concede | 1,5 s después de cada cambio | cierres, recargas, cortes de luz |
+| 2. Carpeta automática | carpeta elegida por el usuario, idealmente sincronizada con OneDrive, Google Drive o Dropbox (Chrome/Edge) | 20 s después de cada cambio y al cambiar de proyecto | avería o pérdida del ordenador, borrado de datos del navegador |
+| 3. Copia completa | archivo descargado por el usuario | a demanda | todo lo anterior; archivo independiente para guardar aparte |
+
+En la carpeta automática se escriben:
+- `<proyecto>__<id>.ichantool.json`: estado actual de cada proyecto;
+- `historial/<proyecto>__<id>__AAAA-MM-DD.ichantool.json`: última versión de cada día, para volver
+  a un día anterior si algo se estropea;
+- `ichantool_ajustes.json`: ajustes propios.
+
+El identificador de la carpeta se guarda en IndexedDB. El navegador pide confirmar el permiso en cada
+sesión, con el botón «Reactivar copia automática».
+
+**Qué incluye cada copia de proyecto:**
+- imágenes originales;
+- profundidades y modelo de edad;
+- máscaras, objetos y clases asignadas por el usuario (las interpretaciones);
+- ejemplos de aprendizaje importados (el entrenamiento: los ejemplos son los objetos etiquetados);
+- registros externos;
+- vista del registro.
+
+**Restauración:** «Importar archivo…» acepta varios archivos de proyecto, copias completas o archivos
+de ajustes. Si un proyecto ya existe con el mismo identificador, se importa como copia
+(«restaurado») sin sobrescribir.
+
+---
+
+## 21. Referencias
 
 - Casanova-Arenillas, S., Rodríguez-Tovar, F.J., Martínez-Ruiz, F. (2020). Applied ichnology in
   sedimentary geology: Python scripts as a method to automatize ichnofabric analysis in marine core
@@ -707,16 +793,29 @@ Implementación: `log.js::parseTable, guessAxisColumn` y `app.js` (diálogo de r
   digital image analysis. *Marine Geology* 349, 55–60.
 - Dorador, J., Rodríguez-Tovar, F.J. (2018). High-resolution image treatment in ichnological core
   analysis: Initial steps, advances and prospects. *Earth-Science Reviews* 177, 226–237.
+- Dorador, J., Rodríguez-Tovar, F.J., IODP Expedition 339 Scientists (2014). Digital image treatment
+  applied to ichnological analysis of marine core sediments. *Facies* 60, 39–44.
+  https://doi.org/10.1007/s10347-013-0383-z
 - Droser, M.L., Bottjer, D.J. (1986). A semiquantitative field classification of ichnofabric.
   *Journal of Sedimentary Petrology* 56, 558–559.
 - Gonzalez, R.C., Woods, R.E. (2018). *Digital Image Processing*, 4.ª ed. Pearson.
+- Kikuchi, K., Naruse, H. (2024). Abundance of trace fossil *Phycosiphon incertum* in core sections
+  measured using a convolutional neural network. *Sedimentary Geology* 461, 106570.
+  https://doi.org/10.1016/j.sedgeo.2023.106570
 - Hu, M.-K. (1962). Visual pattern recognition by moment invariants. *IRE Transactions on
   Information Theory* 8, 179–187.
 - Martrat, B., et al. (2004). Abrupt temperature changes in the Western Mediterranean over the past
   250,000 years. *Science* 306, 1762–1765.
+- Miguez-Salas, O., Dorador, J., Rodríguez-Tovar, F.J. (2019). Introducing Fiji and ICY image
+  processing techniques in ichnological research as a tool for sedimentary basin analysis.
+  *Marine Geology* 413, 1–9. https://doi.org/10.1016/j.margeo.2019.03.013
 - Reineck, H.-E. (1963). Sedimentgefüge im Bereich der südlichen Nordsee. *Abhandlungen der
   Senckenbergischen Naturforschenden Gesellschaft* 505, 1–138.
+- Rodríguez-Tovar, F.J., Miguez-Salas, O., Dorador, J. (2020). Image processing techniques to improve
+  characterization of composite ichnofabrics. *Ichnos*. https://doi.org/10.1080/10420940.2020.1744579
 - Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
+- Zuiderveld, K. (1994). Contrast limited adaptive histogram equalization. En: Heckbert, P. (ed.),
+  *Graphics Gems IV*, Academic Press, 474–485.
 - Taylor, A.M., Goldring, R. (1993). Description and analysis of bioturbation and ichnofabric.
   *Journal of the Geological Society* 150, 141–148.
 

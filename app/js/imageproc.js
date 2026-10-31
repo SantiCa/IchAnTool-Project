@@ -33,17 +33,83 @@ export function boxBlur(src, w, h, r) {
 }
 
 export const DEFAULT_FILTERS = {
-  channel: 'rgb', blackPoint: 0, whitePoint: 255, gamma: 1, brightness: 0, contrast: 0,
-  saturation: 100, equalize: false, localAmount: 0, localRadius: 30, invert: false,
+  channel: 'rgb', autoLevels: false, autoGamma: false, blackPoint: 0, whitePoint: 255, gamma: 1, brightness: 0, contrast: 0,
+  saturation: 100, vibrance: 0, equalize: false, claheBlock: 0, claheSlope: 3, localAmount: 0, localRadius: 30, invert: false,
 };
 
+/**
+ * Built-in presets. `source` names the publication each one follows (shown in the interface and the
+ * documentation); presets without a source are generic starting points.
+ */
 export const FILTER_PRESETS = {
   none: { ...DEFAULT_FILTERS },
-  // Levels + contrast + saturation, after Dorador & Rodríguez-Tovar (2014) image treatment.
+  // Dorador, Rodríguez-Tovar & IODP Exp. 339 Scientists (2014, Facies 60: 39-44): Levels, then
+  // Brightness/Contrast, then Vibrance/Saturation. Levels are image-specific in the paper (chosen case
+  // by case), so they are computed from the histogram; grey (gamma 0.76), vibrance (-31) and saturation
+  // (-66) are the published means; contrast/brightness are approximate equivalents of the Photoshop
+  // means (70 / -8), whose scale differs from ours. autoGamma (our adaptation): gamma that maps the median
+  // grey to mid-grey, limited to the published per-image range 0.19-1.
+  dorador2014: { ...DEFAULT_FILTERS, autoLevels: true, autoGamma: true, gamma: 0.76, contrast: 20, brightness: -3, saturation: 34, vibrance: -31 },
+  // Miguez-Salas, Dorador & Rodríguez-Tovar (2019, Marine Geology 413: 1-9): Fiji "Enhance Local
+  // Contrast (CLAHE)". The paper gives no values; the Fiji defaults are used (block 127, slope 3).
+  clahe2019: { ...DEFAULT_FILTERS, claheBlock: 127, claheSlope: 3 },
   levels: { ...DEFAULT_FILTERS, blackPoint: 40, whitePoint: 215, contrast: 25, saturation: 140 },
   local: { ...DEFAULT_FILTERS, localAmount: 60, localRadius: 25, contrast: 15 },
   strong: { ...DEFAULT_FILTERS, equalize: true, localAmount: 40, localRadius: 20, channel: 'gray' },
 };
+
+/** Luminance percentiles inside the ROI, used as black and white points ("auto levels"). */
+export function autoLevels(rgba, w, h, roi = null, lo = 0.005, hi = 0.995) {
+  const R = roi || { x0: 0, y0: 0, x1: w, y1: h }, hist = new Uint32Array(256);
+  let n = 0;
+  for (let y = R.y0; y < R.y1; y++) for (let x = R.x0; x < R.x1; x++) {
+    const j = (y * w + x) * 4; hist[Math.min(255, Math.round(0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2]))]++; n++;
+  }
+  const pick = (q) => { let c = 0; for (let v = 0; v < 256; v++) { c += hist[v]; if (c >= Math.max(1, q * n)) return v; } return 255; };
+  const b = pick(lo), wt = Math.max(b + 1, pick(hi));
+  return { blackPoint: b, whitePoint: wt, median: pick(0.5) };
+}
+
+/** Gamma that maps the median to mid-grey after levels (out = in^(1/gamma)), limited to [min, max]. */
+export function gammaForMedian(median, blackPoint, whitePoint, min = 0.19, max = 1) {
+  const m = Math.min(0.99, Math.max(0.01, (median - blackPoint) / (whitePoint - blackPoint)));
+  return Math.min(max, Math.max(min, Math.log(m) / Math.log(0.5)));
+}
+
+/**
+ * Contrast-limited adaptive histogram equalisation (Zuiderveld, 1994) of a 0-255 luminance array:
+ * tiles of `block` px, clip limit = slope × mean bin count, excess redistributed uniformly, bilinear
+ * interpolation between the mappings of the four nearest tile centres.
+ */
+export function clahe(L, w, h, block = 127, slope = 3) {
+  const nx = Math.max(1, Math.round(w / block)), ny = Math.max(1, Math.round(h / block));
+  const tw = w / nx, th = h / ny, maps = new Float32Array(nx * ny * 256), hist = new Float64Array(256);
+  for (let ty = 0; ty < ny; ty++) {
+    for (let tx = 0; tx < nx; tx++) {
+      hist.fill(0);
+      const x0 = Math.floor(tx * tw), x1 = Math.floor((tx + 1) * tw), y0 = Math.floor(ty * th), y1 = Math.floor((ty + 1) * th);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) hist[Math.min(255, Math.max(0, L[y * w + x] | 0))]++;
+      const n = (x1 - x0) * (y1 - y0), limit = Math.max(1, (slope * n) / 256);
+      let excess = 0;
+      for (let v = 0; v < 256; v++) if (hist[v] > limit) { excess += hist[v] - limit; hist[v] = limit; }
+      const add = excess / 256, m = (ty * nx + tx) * 256;
+      let c = 0;
+      for (let v = 0; v < 256; v++) { c += hist[v] + add; maps[m + v] = (c / n) * 255; }
+    }
+  }
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const gy = Math.min(ny - 1, Math.max(0, (y + 0.5) / th - 0.5)), y0 = Math.floor(gy), y1 = Math.min(ny - 1, y0 + 1), fy = gy - y0;
+    for (let x = 0; x < w; x++) {
+      const gx = Math.min(nx - 1, Math.max(0, (x + 0.5) / tw - 0.5)), x0 = Math.floor(gx), x1 = Math.min(nx - 1, x0 + 1), fx = gx - x0;
+      const v = Math.min(255, Math.max(0, L[y * w + x] | 0));
+      const a = maps[(y0 * nx + x0) * 256 + v], b = maps[(y0 * nx + x1) * 256 + v];
+      const c = maps[(y1 * nx + x0) * 256 + v], d = maps[(y1 * nx + x1) * 256 + v];
+      out[y * w + x] = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+    }
+  }
+  return out;
+}
 
 export function applyFilters(src, w, h, p) {
   const n = w * h, dst = new Uint8ClampedArray(n * 4);
@@ -55,16 +121,21 @@ export function applyFilters(src, w, h, p) {
     x = Math.pow(x, 1 / p.gamma) * 255;
     lut[v] = (x - 128) * cf + 128 + p.brightness * 2.55;
   }
-  const sat = p.saturation / 100, ch = p.channel;
+  const sat = p.saturation / 100, vib = (p.vibrance || 0) / 100, ch = p.channel;
   for (let i = 0, j = 0; i < n; i++, j += 4) {
     let r = src[j], g = src[j + 1], b = src[j + 2];
     if (ch === 'r') g = b = r; else if (ch === 'g') r = b = g; else if (ch === 'b') r = g = b;
     else if (ch === 'gray') r = g = b = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
     r = lut[r]; g = lut[g]; b = lut[b];
     if (sat !== 1) { const l = 0.299 * r + 0.587 * g + 0.114 * b; r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat; }
+    if (vib) { // vibrance: saturation change weighted towards weakly saturated pixels
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sv = mx > 0 ? Math.min(1, (mx - mn) / 255) : 0;
+      const f = 1 + vib * (1 - sv), l = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = l + (r - l) * f; g = l + (g - l) * f; b = l + (b - l) * f;
+    }
     dst[j] = r; dst[j + 1] = g; dst[j + 2] = b; dst[j + 3] = 255;
   }
-  if (p.equalize || p.localAmount > 0) {
+  if (p.equalize || p.claheBlock > 0 || p.localAmount > 0) {
     const L = lumaOf(dst, n);
     let T = L;
     if (p.equalize) {
@@ -76,6 +147,7 @@ export function applyFilters(src, w, h, p) {
       T = new Float32Array(n);
       for (let i = 0; i < n; i++) T[i] = ((map[L[i] | 0] - cmin) / den) * 255;
     }
+    if (p.claheBlock > 0) T = clahe(T, w, h, p.claheBlock, p.claheSlope);
     if (p.localAmount > 0) {
       const bl = boxBlur(T, w, h, p.localRadius), a = p.localAmount / 25, U = new Float32Array(n);
       for (let i = 0; i < n; i++) U[i] = T[i] + a * (T[i] - bl[i]);
@@ -109,14 +181,49 @@ function morph(m, w, h, dilate) {
   return o;
 }
 
-export const DEFAULT_DETECT = { method: 'adaptive', polarity: 'dark', offset: 12, radius: 40, threshold: 80, minArea: 40, smooth: 1 };
+export const DEFAULT_DETECT = { method: 'adaptive', polarity: 'dark', offset: 12, radius: 40, threshold: 80, minArea: 40, smooth: 1, fillHoles: false };
+
+/** Two-class k-means on luminance inside the ROI (as the ICY K-Means option); returns the threshold between the centres. */
+export function kmeansThreshold(L, w, roi, exclude) {
+  const hist = new Float64Array(256);
+  for (let y = roi.y0; y < roi.y1; y++) for (let x = roi.x0; x < roi.x1; x++) {
+    const i = y * w + x; if (exclude && exclude[i]) continue; hist[Math.min(255, Math.max(0, L[i] | 0))]++;
+  }
+  const n = hist.reduce((a, b) => a + b, 0); if (!n) return 128;
+  const q = (f) => { let c = 0; for (let v = 0; v < 256; v++) { c += hist[v]; if (c >= f * n) return v; } return 255; };
+  let c1 = q(0.1), c2 = q(0.9);
+  for (let it = 0; it < 50; it++) {
+    const t = (c1 + c2) / 2; let s1 = 0, n1 = 0, s2 = 0, n2 = 0;
+    for (let v = 0; v < 256; v++) { if (v < t) { s1 += v * hist[v]; n1 += hist[v]; } else { s2 += v * hist[v]; n2 += hist[v]; } }
+    const a = n1 ? s1 / n1 : c1, b = n2 ? s2 / n2 : c2;
+    if (Math.abs(a - c1) < 1e-3 && Math.abs(b - c2) < 1e-3) break;
+    c1 = a; c2 = b;
+  }
+  return (c1 + c2) / 2;
+}
+
+/** Fill holes: background regions (4-connected) not reached from the ROI border become foreground. */
+export function fillHoles(mask, w, h, roi) {
+  const seen = new Uint8Array(w * h), stack = [];
+  const push = (x, y) => { const i = y * w + x; if (!mask[i] && !seen[i]) { seen[i] = 1; stack.push(i); } };
+  for (let x = roi.x0; x < roi.x1; x++) { push(x, roi.y0); push(x, roi.y1 - 1); }
+  for (let y = roi.y0; y < roi.y1; y++) { push(roi.x0, y); push(roi.x1 - 1, y); }
+  while (stack.length) {
+    const i = stack.pop(), x = i % w, y = (i - x) / w;
+    if (x > roi.x0) push(x - 1, y); if (x < roi.x1 - 1) push(x + 1, y);
+    if (y > roi.y0) push(x, y - 1); if (y < roi.y1 - 1) push(x, y + 1);
+  }
+  const out = mask.slice();
+  for (let y = roi.y0; y < roi.y1; y++) for (let x = roi.x0; x < roi.x1; x++) { const i = y * w + x; if (!mask[i] && !seen[i]) out[i] = 1; }
+  return out;
+}
 
 /** Binary candidate mask from the enhanced image, restricted to the ROI and non-excluded pixels. */
 export function detectMask(rgba, w, h, roi, exclude, p) {
   const n = w * h, L = lumaOf(rgba, n);
   let m = new Uint8Array(n);
   const mean = p.method === 'adaptive' ? boxBlur(L, w, h, p.radius) : null;
-  const off = p.offset, t = p.threshold, pol = p.polarity;
+  const off = p.offset, t = p.method === 'kmeans' ? kmeansThreshold(L, w, roi, exclude) : p.threshold, pol = p.polarity;
   for (let y = roi.y0; y < roi.y1; y++) {
     for (let x = roi.x0; x < roi.x1; x++) {
       const i = y * w + x;
@@ -131,6 +238,7 @@ export function detectMask(rgba, w, h, roi, exclude, p) {
   }
   for (let k = 0; k < p.smooth; k++) m = morph(morph(m, w, h, false), w, h, true); // opening
   for (let k = 0; k < p.smooth; k++) m = morph(morph(m, w, h, true), w, h, false); // closing
+  if (p.fillHoles) m = fillHoles(m, w, h, roi);
   return m;
 }
 

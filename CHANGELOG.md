@@ -2,6 +2,16 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V8 — Web app 0.3 — 2026-10-31
+- Enhancement presets from the literature: Dorador et al. (2014) Levels→Brightness/Contrast→
+  Vibrance/Saturation (auto levels, auto gamma within the published range) and CLAHE
+  (Miguez-Salas et al., 2019). Vibrance, CLAHE, auto levels/gamma controls.
+- Detection: two-class k-means threshold and hole filling.
+- User presets (enhancement + detection), shared across projects.
+- Backups: persistent storage, automatic folder mirror (Chrome/Edge) with daily history,
+  full backup download, multi-file restore.
+- Fix: the generic "levels" preset is no longer attributed to Dorador & Rodríguez-Tovar (2014).
+
 ## V7 — Web app 0.2 — 2026-10-31
 - Project library in the browser (IndexedDB) with autosave; import/export project files (format v2).
 - Core log view: all sections on a depth or age axis, interval window, image resampled to the axis,

@@ -59,6 +59,13 @@ zonas excluidas y modelo de edad en un solo flujo. Ese flujo en ImageJ requiere 
 Pruebas con casos calculados a mano y prueba de regresión frente a los resultados publicados
 (§13.1). Ambas se ejecutan automáticamente en cada cambio.
 
+**¿Los ajustes «de artículo» reproducen fielmente los protocolos publicados?**
+Reproducen la secuencia y los parámetros publicados donde existen (§6). Las diferencias están
+documentadas: los niveles se calculan por percentiles porque el artículo los elige en cada imagen; la
+gamma es automática dentro del rango publicado; el contraste y el brillo de Photoshop solo tienen
+equivalentes aproximados; y el CLAHE es por mosaicos (Zuiderveld, 1994) frente a la ventana deslizante
+de Fiji. Los parámetros efectivos de cada sección se guardan en el proyecto.
+
 **¿Por qué dos implementaciones (Python y JavaScript)?**
 Python para análisis por lotes y reproducibilidad en scripts. Web para el trabajo interactivo sin
 instalar nada. Comparten las mismas definiciones y las pruebas comprueban los mismos casos en las
@@ -105,8 +112,12 @@ existen y producen máscaras en un formato abierto.
    - Error absoluto del porcentaje por intervalo.
    - Coincidencia de BI e ii.
    - Para la identificación: matriz de confusión y F1 por clase.
-6. **Comparaciones:** umbral adaptativo (método base), U-Net y concordancia entre humanos, que es
-   el techo razonable.
+6. **Comparaciones:**
+   - umbral adaptativo (método base);
+   - flujo Fiji/ICY de Miguez-Salas et al. (2019): CLAHE + umbral o K-medias + rellenar huecos, ya implementado;
+   - tratamiento de Dorador et al. (2014), ya implementado;
+   - U-Net, comparable con Kikuchi y Naruse (2024, Dice 0,892 para *Phycosiphon*);
+   - concordancia entre humanos, que es el techo razonable.
 
 ### Preguntas probables de revisores
 **¿Por qué un umbral adaptativo como base y no directamente deep learning?**

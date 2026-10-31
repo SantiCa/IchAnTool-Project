@@ -24,6 +24,7 @@ La descripción detallada de los algoritmos está en
 | V4 | 30-10-2026 | Aplicación web 0.1 (`app/`) | Aplicación en el navegador con detección, edición y aprendizaje |
 | V5 | 30-10-2026 | Documentación | Historial de versiones, documentación técnica y defensa de métodos |
 | V6 | 30-10-2026 | Aplicación web 0.1, archivo único | `IchAnTool.html` que se abre con doble clic, sin servidor ni conexión |
+| V8 | 31-10-2026 | Aplicación web 0.3 | Ajustes de realce de artículos recientes (Dorador et al. 2014 completo, CLAHE de Miguez-Salas et al. 2019), K-medias, ajustes propios, copias de seguridad |
 | V7 | 31-10-2026 | Aplicación web 0.2 | Carpetas de proyecto, registro compuesto del sondeo (profundidad/edad), registros externos, sondeo de prueba IODP U1385I |
 
 ---
@@ -283,6 +284,71 @@ intervalo, imagen adaptada al eje, bioturbación total, por icnotaxón e índice
 - Excel necesita internet la primera vez (librería SheetJS). CSV y TXT funcionan sin conexión.
 - En el registro compuesto, todas las secciones y registros deben usar unidades coherentes. La
   aplicación convierte mm, cm y m entre secciones, pero no los registros externos.
+
+---
+
+## V8 — Ajustes publicados, ajustes propios y copias de seguridad (31-10-2026)
+
+**Qué se hizo.** Se revisó la bibliografía posterior a 2014 sobre tratamiento de imagen en icnología
+de testigos y se añadieron los métodos publicados que faltaban. El usuario puede guardar sus propios
+ajustes, y se añadió un sistema de copias de seguridad en tres capas.
+
+**Bibliografía revisada** (detalle en la documentación técnica, §6, §7 y §20):
+- Dorador, Rodríguez-Tovar e IODP Exp. 339 (2014, *Facies* 60): Niveles → Brillo/Contraste →
+  Vibrance/Saturación, con rangos y medias publicados.
+- Miguez-Salas, Dorador y Rodríguez-Tovar (2019, *Marine Geology* 413): CLAHE en Fiji; ICY con
+  K-medias de 2 clases; filtros binarios (erosión, rellenar huecos, mínimo/máximo).
+- Rodríguez-Tovar, Miguez-Salas y Dorador (2020, *Ichnos*): Fiji e ICY aplicados a icnofábricas
+  compuestas. Solo se consultó la ficha, no el texto.
+- Kikuchi y Naruse (2024, *Sedimentary Geology* 461): U-Net para *Phycosiphon* (Dice 0,892).
+  Se anota para el artículo 2; no se implementa.
+
+**Cambios.**
+- `imageproc.js`:
+  - `autoLevels` (percentiles 0,5 % y 99,5 % en la zona de análisis, y mediana);
+  - `gammaForMedian` (gamma automática limitada a 0,19–1);
+  - `clahe` (Zuiderveld, 1994);
+  - vibrance;
+  - `kmeansThreshold`;
+  - `fillHoles`;
+  - nuevos ajustes `dorador2014` y `clahe2019`;
+  - el ajuste «levels» pasa a llamarse genérico, porque **antes se atribuía erróneamente a Dorador y
+    Rodríguez-Tovar (2014)** y sus valores eran propios.
+- Detección: método K-medias de 2 clases y opción de rellenar huecos.
+- **Ajustes propios:** se guardan realce y detección con nombre. Son comunes a todos los proyectos
+  (IndexedDB más una copia en localStorage). También se puede aplicar un ajuste a todas las
+  secciones.
+- **Copias de seguridad:**
+  - almacenamiento persistente del navegador (`navigator.storage.persist`);
+  - copia automática en una carpeta elegida por el usuario (Chrome/Edge, *File System Access*):
+    proyecto actual 20 s después de cada cambio, copia diaria en `historial/` y
+    `ichantool_ajustes.json`;
+  - descarga de una copia completa (todos los proyectos y ajustes);
+  - restauración de varios archivos a la vez (proyectos, copias completas o ajustes).
+- `storage.js`: base de datos versión 2 con almacén `prefs`.
+
+**Por qué.** Petición de Santiago: métodos más recientes que Dorador (2014), poder guardar sus
+propios ajustes y no perder nada si falla el ordenador.
+
+**Comprobación.**
+- 20 pruebas de la aplicación (6 nuevas: CLAHE, niveles automáticos, gamma automática, K-medias,
+  rellenar huecos, ajustes completos y detección por K-medias) y 9 de Python.
+- En Chromium:
+  - los ajustes nuevos se aplican en la sección 3 del sondeo de prueba (niveles automáticos 65–114);
+  - se guarda un ajuste propio;
+  - la copia completa (3,1 MB) se descarga y se restaura en un navegador limpio con su proyecto y
+    su ajuste;
+  - ningún error.
+- La copia en carpeta no se pudo probar automáticamente, porque el selector de carpeta exige un
+  clic real. Hay que probarla a mano en Chrome o Edge.
+
+**Pendiente o problemas conocidos.**
+- La equivalencia numérica con Photoshop (contraste y brillo) es aproximada (§6).
+- El CLAHE es por mosaicos con interpolación (Zuiderveld, 1994), no la ventana deslizante del
+  plugin de Fiji. El efecto es parecido, pero no idéntico píxel a píxel.
+- La copia automática en carpeta solo funciona en Chrome y Edge, y el navegador pide el permiso
+  de nuevo en cada sesión (un clic en «Reactivar copia automática»).
+- La carpeta `historial/` crece un archivo por proyecto y día; hay que limpiarla a mano.
 
 ---
 

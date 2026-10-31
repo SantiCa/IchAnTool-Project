@@ -198,6 +198,11 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 #logSvg { display: inline-block; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r); }
 #logSvg svg { display: block; }
 dialog input[type=text] { min-width: 0; }
+.bk { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+.bk h3 { margin: 0; font: 600 14px var(--font-head); }
+.bkstatus { margin: 0; font-weight: 600; }
+.bkstatus[data-state="ok"] { color: var(--ok); }
+.bkstatus[data-state="needs"], .bkstatus[data-state="error"], .bkstatus[data-state="none"] { color: var(--danger); }
 
 @media (max-width: 1100px) { .work { grid-template-columns: 250px minmax(0, 1fr) 280px; } .viewport { grid-template-columns: minmax(0, 1fr) 180px; } }
 @media (max-width: 860px) {
@@ -222,6 +227,7 @@ dialog input[type=text] { min-width: 0; }
     <div class="acts">
       <button class="btn proj" id="projBtn"><span class="lbl" data-i18n="proj.label"></span><b id="projName"></b><span aria-hidden="true">▾</span></button>
       <span class="savestate" id="saveState"></span>
+      <button class="btn small danger" id="bkReactivateTop" hidden data-i18n="bk.reactivate"></button>
       <button class="btn ghost" id="helpBtn" data-i18n="top.help"></button>
       <button class="btn ghost" id="langBtn">EN</button>
     </div>
@@ -262,6 +268,11 @@ dialog input[type=text] { min-width: 0; }
         <summary><span class="n">2</span><span data-i18n="s2"></span></summary>
         <div class="body">
           <label class="f"><span data-i18n="f.preset"></span><select id="fPreset"></select></label>
+          <p class="note" id="presetNote"></p>
+          <div class="row" style="flex-wrap:nowrap"><input type="text" id="presetName" data-i18n-ph="f.saveName"><button class="btn small" id="presetSave" data-i18n="f.save"></button><button class="btn small ghost" id="presetDel" data-i18n-title="f.del">✕</button></div>
+          <button class="btn small" id="presetAll" data-i18n="f.applyAll"></button>
+          <label class="chk"><input type="checkbox" id="fAuto"><span data-i18n="f.auto"></span></label>
+          <label class="chk"><input type="checkbox" id="fAutoG"><span data-i18n="f.autoG"></span></label>
           <label class="f"><span data-i18n="f.channel"></span><select id="fChannel"></select></label>
           <div id="filterCtl" style="display:grid;gap:8px"></div>
           <label class="chk"><input type="checkbox" id="fEqualize"><span data-i18n="f.equalize"></span></label>
@@ -271,9 +282,10 @@ dialog input[type=text] { min-width: 0; }
       <details class="step" open>
         <summary><span class="n">3</span><span data-i18n="s3"></span></summary>
         <div class="body">
-          <label class="f"><span data-i18n="d.method"></span><select id="dMethod"><option value="adaptive" data-i18n="d.adaptive"></option><option value="global" data-i18n="d.global"></option></select></label>
+          <label class="f"><span data-i18n="d.method"></span><select id="dMethod"><option value="adaptive" data-i18n="d.adaptive"></option><option value="global" data-i18n="d.global"></option><option value="kmeans" data-i18n="d.kmeans"></option></select></label>
           <label class="f"><span data-i18n="d.polarity"></span><select id="dPol"><option value="dark" data-i18n="d.dark"></option><option value="light" data-i18n="d.light"></option><option value="both" data-i18n="d.both"></option></select></label>
           <div id="detectCtl" style="display:grid;gap:8px"></div>
+          <label class="chk"><input type="checkbox" id="dFill"><span data-i18n="d.fill"></span></label>
           <div class="row"><button class="btn primary" id="detectBtn" data-i18n="d.run"></button><button class="btn" id="clearCand" data-i18n="d.clear"></button></div>
           <p class="status-line" id="detectStatus"></p>
           <p class="note" data-i18n="d.note"></p>
@@ -409,10 +421,22 @@ dialog input[type=text] { min-width: 0; }
   <div class="row" style="margin-top:10px">
     <button class="btn small" id="openTest" data-i18n="proj.test"></button>
     <button class="btn small" id="openIdeal" data-i18n="proj.ideal"></button>
-    <label class="btn small file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json"></label>
+    <label class="btn small file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json" multiple></label>
     <button class="btn small" id="expProj" data-i18n="proj.export"></button>
   </div>
   <p class="note" data-i18n="proj.note"></p>
+  <section class="bk">
+    <h3 data-i18n="bk.title"></h3>
+    <p class="bkstatus" id="bkStatus"></p>
+    <p class="note" id="bkPersist"></p>
+    <div class="row">
+      <button class="btn small primary" id="bkChoose" data-i18n="bk.choose"></button>
+      <button class="btn small danger" id="bkReactivate" hidden data-i18n="bk.reactivate"></button>
+      <button class="btn small" id="bkFull" data-i18n="bk.full"></button>
+    </div>
+    <p class="note" id="bkNoFs" hidden data-i18n="bk.noFs"></p>
+    <p class="note" data-i18n="bk.help"></p>
+  </section>
   <div class="row" style="justify-content:flex-end"><button class="btn" id="projClose" data-i18n="help.close"></button></div>
 </dialog>
 <dialog id="recDlg">

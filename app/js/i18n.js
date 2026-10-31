@@ -156,6 +156,47 @@ Object.assign(D.en, {
   'rec.cols': 'Columns to plot', 'rec.add': 'Add', 'rec.err': 'Could not read the table: {m}', 'rec.short': 'at least two numeric columns are needed',
 });
 
+Object.assign(D.es, {
+  'f.p.dorador2014': 'Dorador et al. (2014): niveles, contraste y vibrance', 'f.p.clahe2019': 'CLAHE (Miguez-Salas et al., 2019; Fiji)',
+  'f.p.levels': 'Niveles y contraste (genérico)', 'f.builtin': 'Ajustes incluidos', 'f.mine': 'Mis ajustes',
+  'f.src.dorador2014': 'Dorador, Rodríguez-Tovar e IODP Exp. 339 (2014, Facies 60): Niveles → Brillo/Contraste → Vibrance/Saturación. Niveles automáticos por percentiles (en el artículo se eligen en cada imagen); gamma automática dentro del rango publicado (0,19–1; media 0,76); vibrance −31 y saturación −66 son las medias publicadas.',
+  'f.src.clahe2019': 'Miguez-Salas, Dorador y Rodríguez-Tovar (2019, Marine Geology 413): ecualización adaptativa con límite de contraste (CLAHE) de Fiji. Valores por defecto de Fiji: bloque 127 px, pendiente 3.',
+  'f.src.none': '', 'f.src.levels': 'Punto de partida genérico, sin fuente publicada.', 'f.src.local': 'Punto de partida genérico, sin fuente publicada.', 'f.src.strong': 'Punto de partida genérico, sin fuente publicada.',
+  'f.auto': 'Niveles automáticos (percentiles 0,5 % y 99,5 % de la zona de análisis)', 'f.vibrance': 'Vibrance', 'f.claheBlock': 'CLAHE: bloque (px; 0 = no)', 'f.claheSlope': 'CLAHE: pendiente máxima',
+  'f.saveName': 'Nombre para guardar este ajuste', 'f.save': 'Guardar ajuste', 'f.del': 'Borrar este ajuste guardado', 'f.applyAll': 'Aplicar este ajuste a todas las secciones',
+  'f.saved': 'Ajuste «{n}» guardado (realce + detección)', 'f.appliedAll': 'Ajuste aplicado a {n} secciones',
+  'd.kmeans': 'K-medias, 2 clases (como ICY; Miguez-Salas et al., 2019)', 'd.fill': 'Rellenar huecos dentro de las trazas',
+  'bk.title': 'Copias de seguridad', 'bk.none': 'Sin copia automática en carpeta.', 'bk.ok': 'Copia automática activa en {dir}. Última: {when}.',
+  'bk.needs': 'La copia automática en {dir} necesita permiso otra vez (el navegador lo pide en cada sesión).', 'bk.error': 'Error en la última copia en {dir}. Última correcta: {when}.',
+  'bk.persistOn': 'El navegador ha marcado los datos de IchAnTool como persistentes: no los borrará para liberar espacio.',
+  'bk.persistOff': 'El navegador no ha confirmado el almacenamiento persistente: podría borrar los datos si falta espacio. Usa la copia en carpeta.',
+  'bk.choose': 'Elegir carpeta de copia automática…', 'bk.reactivate': 'Reactivar copia automática', 'bk.full': 'Descargar copia completa (todos los proyectos)',
+  'bk.noFs': 'Este navegador no permite escribir en carpetas (funciona en Chrome y Edge). Descarga copias completas con regularidad.',
+  'bk.help': 'Recomendado: elige una carpeta dentro de OneDrive, Google Drive o Dropbox. IchAnTool guarda ahí cada proyecto 20 s después de cada cambio, una copia diaria en «historial» y tus ajustes. Para recuperar, usa «Importar archivo…» con esos archivos (admite varios a la vez y copias completas).',
+  'f.autoG': 'Gamma automática: la mediana pasa a gris medio (límites 0,19–1, rango de Dorador et al., 2014)',
+  'bk.restored': 'restaurado', 'bk.restoredN': '{p} proyectos y {s} ajustes restaurados',
+});
+Object.assign(D.en, {
+  'f.p.dorador2014': 'Dorador et al. (2014): levels, contrast and vibrance', 'f.p.clahe2019': 'CLAHE (Miguez-Salas et al., 2019; Fiji)',
+  'f.p.levels': 'Levels and contrast (generic)', 'f.builtin': 'Built-in settings', 'f.mine': 'My settings',
+  'f.src.dorador2014': 'Dorador, Rodríguez-Tovar & IODP Exp. 339 (2014, Facies 60): Levels → Brightness/Contrast → Vibrance/Saturation. Automatic levels from percentiles (chosen per image in the paper); automatic gamma within the published range (0.19–1; mean 0.76); vibrance −31 and saturation −66 are the published means.',
+  'f.src.clahe2019': 'Miguez-Salas, Dorador & Rodríguez-Tovar (2019, Marine Geology 413): Fiji contrast-limited adaptive histogram equalisation (CLAHE). Fiji defaults: block 127 px, slope 3.',
+  'f.src.none': '', 'f.src.levels': 'Generic starting point, no published source.', 'f.src.local': 'Generic starting point, no published source.', 'f.src.strong': 'Generic starting point, no published source.',
+  'f.auto': 'Automatic levels (0.5% and 99.5% percentiles of the analysis area)', 'f.vibrance': 'Vibrance', 'f.claheBlock': 'CLAHE: block (px; 0 = off)', 'f.claheSlope': 'CLAHE: maximum slope',
+  'f.saveName': 'Name to save these settings', 'f.save': 'Save settings', 'f.del': 'Delete these saved settings', 'f.applyAll': 'Apply these settings to all sections',
+  'f.saved': 'Settings “{n}” saved (enhancement + detection)', 'f.appliedAll': 'Settings applied to {n} sections',
+  'd.kmeans': 'K-means, 2 classes (as in ICY; Miguez-Salas et al., 2019)', 'd.fill': 'Fill holes inside traces',
+  'bk.title': 'Backups', 'bk.none': 'No automatic folder backup.', 'bk.ok': 'Automatic backup active in {dir}. Last: {when}.',
+  'bk.needs': 'The automatic backup in {dir} needs permission again (the browser asks every session).', 'bk.error': 'The last backup in {dir} failed. Last good one: {when}.',
+  'bk.persistOn': 'The browser marked IchAnTool data as persistent: it will not delete it to free space.',
+  'bk.persistOff': 'The browser did not confirm persistent storage: it might delete data when space runs low. Use the folder backup.',
+  'bk.choose': 'Choose automatic backup folder…', 'bk.reactivate': 'Reactivate automatic backup', 'bk.full': 'Download full backup (all projects)',
+  'bk.noFs': 'This browser cannot write to folders (it works in Chrome and Edge). Download full backups regularly.',
+  'bk.help': 'Recommended: choose a folder inside OneDrive, Google Drive or Dropbox. IchAnTool saves each project there 20 s after every change, a daily copy in “historial” and your settings. To recover, use “Import file…” with those files (several at once and full backups are accepted).',
+  'f.autoG': 'Automatic gamma: median to mid-grey (limits 0.19–1, range of Dorador et al., 2014)',
+  'bk.restored': 'restored', 'bk.restoredN': '{p} projects and {s} settings restored',
+});
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';

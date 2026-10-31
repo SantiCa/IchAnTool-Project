@@ -1,8 +1,8 @@
 // IchAnTool web — application (UI, state, tools, rendering, files).
 import { BI, II, UNIT_TO_CM, rowCounts, binRows, parseAgeModel, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
-import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA } from './imageproc.js';
+import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian } from './imageproc.js';
 import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
-import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject } from './storage.js';
+import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject, getPref, setPref } from './storage.js';
 import { Classifier, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
 
@@ -65,9 +65,18 @@ function newSection({ name, file, w, h, orig, ds = 1 }) {
     top: 0, bottom: 100, units: 'cm', roi: { x0: 0, y0: 0, x1: w, y1: h },
     filters: { ...DEFAULT_FILTERS }, preset: 'none', detect: { ...DEFAULT_DETECT }, manual: [], bins: [], view: null,
   };
-  s.enh = applyFilters(s.orig, w, h, s.filters);
+  enhance(s);
   return s;
 }
+
+function effectiveFilters(s) {
+  const f = s.filters; if (!f.autoLevels && !f.autoGamma) return f;
+  const a = autoLevels(s.orig, s.w, s.h, s.roi), out = { ...f };
+  if (f.autoLevels) { out.blackPoint = a.blackPoint; out.whitePoint = a.whitePoint; }
+  if (f.autoGamma) out.gamma = +gammaForMedian(a.median, out.blackPoint, out.whitePoint).toFixed(2);
+  return out;
+}
+function enhance(s) { s.enh = applyFilters(s.orig, s.w, s.h, effectiveFilters(s)); }
 
 function pxPerCm(s) {
   const span = (s.bottom - s.top) * UNIT_TO_CM[s.units];
@@ -131,7 +140,7 @@ async function addFiles(files) {
         const { w, h, rgba, k } = await decodeBytes(bytes, file.name, file.type, { maxMP: S.settings.maxMP });
         const s = newSection({ name: file.name.replace(/\.[^.]+$/, ''), file: { name: file.name, type: file.type, bytes }, w, h, orig: rgba, ds: k });
         const prev = sec();
-        if (prev) { s.units = prev.units; s.top = prev.bottom; s.bottom = prev.bottom + (prev.bottom - prev.top); s.filters = { ...prev.filters }; s.preset = prev.preset; s.detect = { ...prev.detect }; s.enh = applyFilters(s.orig, w, h, s.filters); }
+        if (prev) { s.units = prev.units; s.top = prev.bottom; s.bottom = prev.bottom + (prev.bottom - prev.top); s.filters = { ...prev.filters }; s.preset = prev.preset; s.detect = { ...prev.detect }; enhance(s); }
         S.sections.push(s);
         selectSection(S.sections.length - 1, true); markDirty();
       } catch (e) { toast(t('err.image', { m: e.message || e })); }
@@ -630,7 +639,7 @@ function updateStatus(s, p) {
 }
 
 function setRoi(s, roi) {
-  s.roi = roi; s.logVer++; markDirty(); recomputeFeatures(s); scheduleLearn(); scheduleAnalysis(); renderSectionForm(); requestRender();
+  s.roi = roi; s.logVer++; markDirty(); if (s.filters.autoLevels) enhance(s); recomputeFeatures(s); scheduleLearn(); scheduleAnalysis(); renderSectionForm(); requestRender();
 }
 
 /* ───────────── keyboard ───────────── */
@@ -827,26 +836,34 @@ function selectSection(k, fresh = false) {
   analyze(s); renderResults(); renderClasses(); renderObject(); renderLearn(); requestRender();
 }
 
-const FILTER_SLIDERS = [['blackPoint', 0, 254, 1], ['whitePoint', 1, 255, 1], ['gamma', 0.2, 3, 0.05], ['brightness', -100, 100, 1], ['contrast', -100, 100, 1], ['saturation', 0, 300, 5], ['localAmount', 0, 100, 1], ['localRadius', 2, 150, 1]];
+const FILTER_SLIDERS = [['blackPoint', 0, 254, 1], ['whitePoint', 1, 255, 1], ['gamma', 0.2, 3, 0.01], ['brightness', -100, 100, 1], ['contrast', -100, 100, 1], ['saturation', 0, 300, 1], ['vibrance', -100, 100, 1], ['claheBlock', 0, 400, 1], ['claheSlope', 1, 10, 0.1], ['localAmount', 0, 100, 1], ['localRadius', 2, 150, 1]];
+const BUILTIN_PRESETS = ['none', 'dorador2014', 'clahe2019', 'levels', 'local', 'strong'];
 const DETECT_SLIDERS = [['offset', 1, 80, 1, 'adaptive'], ['radius', 3, 200, 1, 'adaptive'], ['threshold', 0, 255, 1, 'global'], ['minArea', 1, 2000, 1], ['smooth', 0, 4, 1]];
+let userPresets = [];
 const slider = (prefix, [k, min, max, step]) => `<div class="slider" data-only="${''}"><span data-i18n="${prefix}.${k}">${t(prefix + '.' + k)}</span><output id="${prefix}o-${k}"></output><input type="range" id="${prefix}-${k}" data-k="${k}" min="${min}" max="${max}" step="${step}"></div>`;
 
 function buildForms() {
   $('filterCtl').innerHTML = FILTER_SLIDERS.map((d) => slider('f', d)).join('');
   $('detectCtl').innerHTML = DETECT_SLIDERS.map((d) => slider('d', d).replace('data-only=""', `data-only="${d[4] || ''}"`)).join('');
-  $('fPreset').innerHTML = ['none', 'levels', 'local', 'strong', 'custom'].map((p) => `<option value="${p}">${t('f.p.' + p)}</option>`).join('');
+  renderPresetOptions();
   $('fChannel').innerHTML = ['rgb', 'gray', 'r', 'g', 'b'].map((c) => `<option value="${c}">${t('ch.' + c)}</option>`).join('');
 }
 
 function renderFilterForm() {
   const s = sec(); if (!s) return; const f = s.filters;
-  for (const [k] of FILTER_SLIDERS) { $('f-' + k).value = f[k]; $('fo-' + k).textContent = f[k]; }
-  $('fPreset').value = s.preset || 'custom'; $('fChannel').value = f.channel; $('fEqualize').checked = f.equalize; $('fInvert').checked = f.invert;
+  const ef = effectiveFilters(s);
+  for (const [k] of FILTER_SLIDERS) { $('f-' + k).value = ef[k] ?? DEFAULT_FILTERS[k]; $('fo-' + k).textContent = ef[k] ?? DEFAULT_FILTERS[k]; }
+  for (const k of ['blackPoint', 'whitePoint']) $('f-' + k).disabled = !!f.autoLevels;
+  $('f-gamma').disabled = !!f.autoGamma;
+  $('fAuto').checked = !!f.autoLevels; $('fAutoG').checked = !!f.autoGamma;
+  renderPresetOptions(); $('fPreset').value = s.preset || 'custom';
+  $('presetDel').disabled = !String(s.preset || '').startsWith('u:');
+  $('presetNote').textContent = BUILTIN_PRESETS.includes(s.preset) ? t('f.src.' + s.preset) : ''; $('fChannel').value = f.channel; $('fEqualize').checked = f.equalize; $('fInvert').checked = f.invert;
 }
 function renderDetectForm() {
   const s = sec(); if (!s) return; const p = s.detect;
   for (const [k] of DETECT_SLIDERS) { $('d-' + k).value = p[k]; $('do-' + k).textContent = p[k]; }
-  $('dMethod').value = p.method; $('dPol').value = p.polarity;
+  $('dMethod').value = p.method; $('dPol').value = p.polarity; $('dFill').checked = !!p.fillHoles;
   document.querySelectorAll('#detectCtl [data-only]').forEach((el) => (el.hidden = !!el.dataset.only && el.dataset.only !== p.method));
 }
 function renderBinNote() {
@@ -858,13 +875,71 @@ let filterTimer = 0;
 function refilter() {
   const s = sec(); if (!s) return;
   clearTimeout(filterTimer);
-  filterTimer = setTimeout(() => { s.enh = applyFilters(s.orig, s.w, s.h, s.filters); s.logVer++; markDirty(); scheduleLog(); requestRender(); }, 90);
+  filterTimer = setTimeout(() => { enhance(s); s.logVer++; markDirty(); scheduleLog(); requestRender(); }, 90);
 }
 $('filterCtl').addEventListener('input', (e) => {
   const s = sec(), k = e.target.dataset.k; if (!s || !k) return;
   s.filters[k] = +e.target.value; $('fo-' + k).textContent = e.target.value; s.preset = 'custom'; $('fPreset').value = 'custom'; refilter();
 });
-$('fPreset').addEventListener('change', (e) => { const s = sec(); if (!s || e.target.value === 'custom') return; s.preset = e.target.value; s.filters = { ...FILTER_PRESETS[s.preset] }; renderFilterForm(); refilter(); });
+$('fPreset').addEventListener('change', (e) => {
+  const s = sec(), v = e.target.value; if (!s || v === 'custom') return;
+  s.preset = v;
+  if (v.startsWith('u:')) {
+    const u = userPresets.find((x) => 'u:' + x.id === v); if (!u) return;
+    s.filters = { ...DEFAULT_FILTERS, ...u.filters }; if (u.detect) s.detect = { ...DEFAULT_DETECT, ...u.detect };
+  } else s.filters = { ...FILTER_PRESETS[v] };
+  renderFilterForm(); renderDetectForm(); refilter();
+});
+$('fAuto').addEventListener('change', (e) => { const s = sec(); if (!s) return; s.filters.autoLevels = e.target.checked; s.preset = 'custom'; renderFilterForm(); refilter(); });
+$('fAutoG').addEventListener('change', (e) => { const s = sec(); if (!s) return; s.filters.autoGamma = e.target.checked; s.preset = 'custom'; renderFilterForm(); refilter(); });
+$('dFill').addEventListener('change', (e) => { const s = sec(); if (s) s.detect.fillHoles = e.target.checked; });
+
+/* user presets: enhancement + detection settings saved by the user, shared by all projects */
+function renderPresetOptions() {
+  const cur = $('fPreset').value;
+  $('fPreset').innerHTML = `<optgroup label="${t('f.builtin')}">${BUILTIN_PRESETS.map((p) => `<option value="${p}">${t('f.p.' + p)}</option>`).join('')}</optgroup>`
+    + (userPresets.length ? `<optgroup label="${t('f.mine')}">${userPresets.map((u) => `<option value="u:${u.id}">${esc(u.name)}</option>`).join('')}</optgroup>` : '')
+    + `<option value="custom">${t('f.p.custom')}</option>`;
+  if (cur) $('fPreset').value = cur;
+}
+async function storePresets() {
+  try { localStorage.setItem('ichantool.presets', JSON.stringify(userPresets)); } catch { /* storage blocked */ }
+  if (storageOK) await setPref('presets', userPresets).catch(() => {});
+  scheduleBackup();
+}
+async function loadPresets() {
+  let list = null;
+  if (storageOK) list = await getPref('presets').catch(() => null);
+  if (!list) { try { list = JSON.parse(localStorage.getItem('ichantool.presets') || 'null'); } catch { /* storage blocked */ } }
+  userPresets = Array.isArray(list) ? list : [];
+  renderPresetOptions();
+}
+function mergePresets(list) {
+  let added = 0;
+  for (const u of list || []) if (u?.id && !userPresets.some((x) => x.id === u.id)) { userPresets.push(u); added++; }
+  if (added) { storePresets(); renderPresetOptions(); }
+  return added;
+}
+$('presetSave').addEventListener('click', () => {
+  const s = sec(); if (!s) return;
+  const name = $('presetName').value.trim() || `${t('f.mine')} ${userPresets.length + 1}`;
+  const u = { id: uid(), name, created: new Date().toISOString(), filters: { ...s.filters }, detect: { ...s.detect } };
+  userPresets.push(u); $('presetName').value = ''; s.preset = 'u:' + u.id;
+  storePresets(); renderFilterForm(); markDirty(); toast(t('f.saved', { n: name }));
+});
+$('presetDel').addEventListener('click', () => {
+  const s = sec(); const v = s?.preset || ''; if (!v.startsWith('u:')) return;
+  userPresets = userPresets.filter((u) => 'u:' + u.id !== v); s.preset = 'custom';
+  storePresets(); renderFilterForm();
+});
+$('presetAll').addEventListener('click', () => {
+  const s = sec(); if (!s) return;
+  busy(() => {
+    for (const o of S.sections) if (o !== s) { o.filters = { ...s.filters }; o.preset = s.preset; o.detect = { ...s.detect }; enhance(o); o.logVer++; }
+    markDirty(); scheduleLog(); toast(t('f.appliedAll', { n: S.sections.length }));
+  });
+});
+
 $('fChannel').addEventListener('change', (e) => { const s = sec(); if (!s) return; s.filters.channel = e.target.value; s.preset = 'custom'; $('fPreset').value = 'custom'; refilter(); });
 for (const [id, key] of [['fEqualize', 'equalize'], ['fInvert', 'invert']]) $(id).addEventListener('change', (e) => { const s = sec(); if (!s) return; s.filters[key] = e.target.checked; s.preset = 'custom'; $('fPreset').value = 'custom'; refilter(); });
 
@@ -907,7 +982,7 @@ for (const [id, dir] of [['rotL', -1], ['rotR', 1]]) $(id).addEventListener('cli
   busy(() => {
     s.orig = rotate90(s.orig, s.w, s.h, 4, dir); s.labels = rotate90(s.labels, s.w, s.h, 1, dir); s.exclude = rotate90(s.exclude, s.w, s.h, 1, dir);
     [s.w, s.h] = [s.h, s.w]; s.rot += dir; s.roi = { x0: 0, y0: 0, x1: s.w, y1: s.h };
-    s.enh = applyFilters(s.orig, s.w, s.h, s.filters);
+    enhance(s);
     refreshObjects(s, new Set(s.objects.keys()), null);
     S.undo = S.undo.filter((op) => op.s !== s); $('undoBtn').disabled = !S.undo.length;
     selectSection(S.cur, true); afterChange(s);
@@ -1060,7 +1135,7 @@ async function loadProject(p) {
       for (let k = 0; k < ((q.rot % 4) + 4) % 4; k++) { rgba = rotate90(rgba, w, h, 4, 1); [w, h] = [h, w]; }
       const s = newSection({ name: q.name, file: { name: q.file.name, type: q.file.type, bytes }, w, h, orig: rgba, ds: q.ds || 1 });
       Object.assign(s, { id: q.id, rot: q.rot, top: q.top, bottom: q.bottom, units: q.units, roi: q.roi, filters: q.filters, preset: q.preset, detect: q.detect, manual: q.manual || [], nextId: q.nextId });
-      s.enh = applyFilters(s.orig, w, h, s.filters);
+      enhance(s);
       s.labels = rleDecode(q.labels, w * h, Int32Array); s.exclude = rleDecode(q.exclude, w * h, Uint8Array);
       for (const o of q.objects) s.objects.set(o.id, { id: o.id, cls: o.cls, src: o.src, pred: null, conf: 0, area: 0, bbox: null, stats: null, feat: null });
       refreshObjects(s, new Set(s.objects.keys()), null);
@@ -1102,10 +1177,10 @@ async function saveToDB() {
     setSaveState('saving');
     await putProject({ id: S.id, name: S.name, updated: Date.now(), sections: S.sections.length }, serialize(true));
     try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
-    dirty = false; setSaveState('saved');
+    dirty = false; setSaveState('saved'); scheduleBackup();
   } catch (e) { setSaveState('error'); console.error(e); }
 }
-async function flushSave() { if (dirty) await saveToDB(); }
+async function flushSave() { if (dirty) await saveToDB(); if (backupPending) await backupNow(); }
 
 function updateProjHeader() { $('projName').textContent = S.name; }
 
@@ -1149,7 +1224,7 @@ $('projList').addEventListener('click', async (e) => {
   }
 });
 
-$('projBtn').addEventListener('click', async () => { await flushSave(); await renderProjects(); $('projDlg').showModal(); });
+$('projBtn').addEventListener('click', async () => { await flushSave(); await renderProjects(); renderBackupState(); $('projDlg').showModal(); });
 $('projClose').addEventListener('click', () => $('projDlg').close());
 $('newProjBtn').addEventListener('click', async () => {
   await flushSave();
@@ -1161,16 +1236,9 @@ $('openTest').addEventListener('click', async () => { $('projDlg').close(); awai
 $('openIdeal').addEventListener('click', async () => { $('projDlg').close(); await busy(loadExample); });
 $('expProj').addEventListener('click', () => busy(() => saveFile(`${safe(S.name)}.ichantool.json`, JSON.stringify(serialize(false)), 'application/json')));
 $('impProj').addEventListener('change', async (e) => {
-  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
   $('projDlg').close();
-  await busy(async () => {
-    let p;
-    try { p = JSON.parse(await f.text()); if (p.app !== 'IchAnTool' || p.kind !== 'project') throw new Error(); }
-    catch { toast(t('err.project')); return; }
-    await flushSave();
-    p.id = uid(); if (!p.name) p.name = f.name.replace(/\.ichantool\.json$|\.json$/i, '');
-    await loadProject(p); await saveToDB(); toast(t('loaded'));
-  });
+  await busy(() => restoreFiles(files));
 });
 
 /* ───────────── test core (IODP 397-U1385I-1H) ───────────── */
@@ -1197,7 +1265,7 @@ async function openTestProject() {
         const m = Math.round(w * 0.1);
         Object.assign(s, { top, bottom, units: 'm', roi: { x0: m, y0: 0, x1: w - m, y1: h }, preset: 'levels', filters: { ...FILTER_PRESETS.levels } });
         s.detect = { ...DEFAULT_DETECT, offset: 14, radius: 50, minArea: 20, smooth: 2 };
-        s.enh = applyFilters(s.orig, w, h, s.filters);
+        enhance(s);
         S.sections.push(s);
       }
       S.settings.binPx = 100;
@@ -1217,6 +1285,7 @@ async function openTestProject() {
 async function startup() {
   storageOK = await storageAvailable();
   setSaveState(storageOK ? 'saved' : 'off');
+  await loadPresets(); await initBackups();
   if (storageOK) {
     let last = null; try { last = localStorage.getItem('ichantool.last'); } catch { /* storage blocked */ }
     const list = await listProjects().catch(() => []);
@@ -1227,6 +1296,119 @@ async function startup() {
     }
   }
   await openTestProject();
+}
+
+/* ───────────── backups ───────────── */
+// Three layers: (1) the browser library (IndexedDB, marked persistent); (2) an automatic mirror in a
+// folder chosen by the user — ideally one synced by OneDrive/Google Drive/Dropbox — with one current
+// file per project, a daily history and the user settings; (3) on-demand full backup files.
+
+let backupDir = null, backupState = 'none', lastBackup = 0, backupTimer = 0, backupPending = false, persisted = false;
+const fsSupported = () => typeof window.showDirectoryPicker === 'function';
+const today = () => new Date().toISOString().slice(0, 10);
+
+function settingsBundle() {
+  return { app: 'IchAnTool', kind: 'settings', version: 1, saved: new Date().toISOString(), presets: userPresets, maxMP: S.settings.maxMP };
+}
+
+async function initBackups() {
+  try { if (navigator.storage?.persist) persisted = await navigator.storage.persist(); } catch { /* not available */ }
+  if (storageOK) {
+    backupDir = await getPref('backupDir').catch(() => null);
+    lastBackup = (await getPref('lastBackup').catch(() => 0)) || 0;
+    if (backupDir?.queryPermission) {
+      const perm = await backupDir.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
+      backupState = perm === 'granted' ? 'ok' : 'needs';
+    } else if (backupDir) backupState = 'needs';
+  }
+  renderBackupState();
+}
+
+function renderBackupState() {
+  const when = lastBackup ? new Date(lastBackup).toLocaleString(lang(), { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  const dir = backupDir?.name ? `«${backupDir.name}»` : '';
+  $('bkStatus').textContent = t('bk.' + backupState, { dir, when });
+  $('bkStatus').dataset.state = backupState;
+  $('bkPersist').textContent = t(persisted ? 'bk.persistOn' : 'bk.persistOff');
+  $('bkChoose').hidden = !fsSupported();
+  $('bkNoFs').hidden = fsSupported();
+  $('bkReactivate').hidden = backupState !== 'needs';
+  $('bkReactivateTop').hidden = backupState !== 'needs';
+}
+
+async function writeText(dir, name, text) {
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable(); await w.write(text); await w.close();
+}
+
+function scheduleBackup() {
+  if (backupState !== 'ok') return;
+  backupPending = true; clearTimeout(backupTimer); backupTimer = setTimeout(backupNow, 20000);
+}
+
+async function backupNow() {
+  clearTimeout(backupTimer);
+  if (backupState !== 'ok' || !backupDir) return;
+  try {
+    if (S.sections.length || S.records.length) {
+      const text = JSON.stringify(serialize(false)), base = `${safe(S.name)}__${S.id}`;
+      await writeText(backupDir, `${base}.ichantool.json`, text);
+      const hist = await backupDir.getDirectoryHandle('historial', { create: true });
+      await writeText(hist, `${base}__${today()}.ichantool.json`, text);
+    }
+    await writeText(backupDir, 'ichantool_ajustes.json', JSON.stringify(settingsBundle(), null, 1));
+    lastBackup = Date.now(); backupPending = false; setPref('lastBackup', lastBackup).catch(() => {});
+  } catch (e) { backupState = 'error'; console.error(e); }
+  renderBackupState();
+}
+
+$('bkChoose').addEventListener('click', async () => {
+  try {
+    backupDir = await window.showDirectoryPicker({ id: 'ichantool-backup', mode: 'readwrite' });
+    await setPref('backupDir', backupDir).catch(() => {});
+    backupState = 'ok'; await backupNow();
+  } catch (e) { if (e?.name !== 'AbortError') toast(e.message || String(e)); }
+  renderBackupState();
+});
+for (const id of ['bkReactivate', 'bkReactivateTop']) $(id).addEventListener('click', async () => {
+  if (!backupDir) return;
+  const perm = await backupDir.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
+  backupState = perm === 'granted' ? 'ok' : 'needs';
+  if (backupState === 'ok') await backupNow(); else renderBackupState();
+});
+
+/** One file with every project of the library plus the user settings. */
+async function portableProject(d) {
+  return { ...d, sections: (d.sections || []).map((q) => (q.file.bytes ? { ...q, file: { name: q.file.name, type: q.file.type, b64: b64encode(new Uint8Array(q.file.bytes)) } } : q)) };
+}
+$('bkFull').addEventListener('click', () => busy(async () => {
+  await flushSave();
+  const projects = [];
+  if (storageOK) for (const m of await listProjects()) { const d = await getProject(m.id); if (d) projects.push(await portableProject(d)); }
+  else projects.push(serialize(false));
+  await saveFile(`ichantool_copia_${today()}.json`, JSON.stringify({ app: 'IchAnTool', kind: 'backup', version: 1, created: new Date().toISOString(), projects, settings: settingsBundle() }), 'application/json');
+}));
+
+/** Restore project files, full backups or settings files (several at once). */
+async function restoreFiles(files) {
+  let nProj = 0, nPre = 0, lastLoaded = null;
+  const existing = storageOK ? new Set((await listProjects()).map((m) => m.id)) : new Set();
+  const addProject = async (p) => {
+    if (!p.id || existing.has(p.id)) { p.id = uid(); if (existing.size) p.name = `${p.name || 'IchAnTool'} (${t('bk.restored')})`; }
+    existing.add(p.id);
+    if (storageOK) await putProject({ id: p.id, name: p.name, updated: Date.now(), sections: (p.sections || []).length }, p);
+    lastLoaded = p; nProj++;
+  };
+  for (const f of files) {
+    let p;
+    try { p = JSON.parse(await f.text()); } catch { toast(t('err.project')); continue; }
+    if (p.app !== 'IchAnTool') { toast(t('err.project')); continue; }
+    if (p.kind === 'project') await addProject(p);
+    else if (p.kind === 'backup') { for (const q of p.projects || []) await addProject(q); nPre += mergePresets(p.settings?.presets); }
+    else if (p.kind === 'settings') nPre += mergePresets(p.presets);
+  }
+  if (lastLoaded) { await flushSave(); await loadProject(lastLoaded); if (!storageOK) dirty = true; }
+  toast(t('bk.restoredN', { p: nProj, s: nPre }));
 }
 
 /* ───────────── composite log ───────────── */
