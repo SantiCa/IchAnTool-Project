@@ -1,4 +1,4 @@
-# Historial de versiones de IchAnTool
+# Historial de versiones de CorAnTool (antes IchAnTool)
 
 Este documento recoge **qué se hizo, qué cambió y por qué** en cada versión del proyecto.
 Cada entrega lleva un número **V** (V1, V2, …). La tabla relaciona ese número con la versión
@@ -33,6 +33,7 @@ La descripción detallada de los algoritmos está en
 | V13 | 31-10-2026 | Aplicación web 0.7.1 | Selección por recuadro arrastrando y Mayús/Ctrl+clic; exclusión de zonas con rectángulo |
 | V14 | 31-10-2026 | Aplicación web 0.8 | Reestructuración: pantalla inicial con todos los proyectos y mapa multiproyecto; proyectos con varios sondeos; pestaña Datos (tabla, columnas calculadas y manuales, hoja libre); ventanas sincronizadas y panel flotante; Figuras |
 | V15 | 31-10-2026 | Aplicación web 0.9 | Mapas personalizables: fondo (simple, físico, relieve, topográfico, batimétrico, GEBCO, foto aérea, foto aérea + batimetría), símbolo, tamaño, etiquetas, colores, retícula, escala y norte; zoom con rueda, arrastre y extensión editable |
+| V16 | 31-10-2026 | Aplicación web 1.0 | Nombre CorAnTool (antes IchAnTool); todos los sondeos de la carpeta de la tesis (GP14, LC21, LC01, LC05, LC06, LC12, LC14, LC20) y más foraminíferos (GP03, LC21) |
 
 ---
 
@@ -604,6 +605,43 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V16 — CorAnTool y todos los sondeos de la tesis (31-10-2026)
+
+**Qué se hizo.**
+- **Nombre:** el programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*, antes IchAnTool), como
+  eligió Santiago, porque ya no es solo icnología. Se conserva todo lo necesario para no perder datos:
+  claves del navegador, paquete Python `ichantool` y lectura de archivos antiguos.
+- **Datos de la tesis completos:** además de ODP 977A, ODP 976, GP03 y LC10, el proyecto «Tesis» carga
+  GP14, LC21, LC01, LC05, LC06, LC12, LC14 y LC20 desde la carpeta «Proyectos Investigación».
+- **Foraminíferos:** GP03 suma arena > 63 µm, P/B, riqueza y N/g de bentónicos (a los grupos de
+  oxigenación ya cargados); LC21 trae los isótopos de foraminíferos planctónicos de Amies et al. (2019).
+- El proyecto «Tesis» guardado en el navegador se actualiza solo una vez.
+
+**Cambios.**
+- `tools/make_thesis_dataset.py`: `extra_cores` (GP14, LC21, LC12, LC01, LC05, LC06, LC14, LC20),
+  `xrf_ratios`, `itrax_txt`, `write_core`; manifiesto `extra_cores.json`; variables nuevas de GP03.
+- `app.js`: carga de los sondeos del manifiesto en `loadThesisCores`; `THESIS_DATA = 2` y
+  actualización en `ensureThesisProject`; `APP`/`APP_NAMES`; nombres de los archivos exportados
+  (`.corantool.json`, `corantool_*`).
+- `index.html`, `i18n.js`, cabeceras de los módulos, `README.md`, `app/README.md`, `CLAUDE.md`,
+  `tools/build_standalone.py` (salida `dist/CorAnTool.html`).
+
+**Por qué.** Santiago pidió que estuvieran todos los sondeos y los foraminíferos de su carpeta, y
+preguntó si era el momento de cambiar el nombre; eligió CorAnTool.
+
+**Comprobación.** 32 pruebas de la aplicación y 9 de Python. Salidas: GP14 401 filas (83 variables),
+LC21 2726 (18), LC12 265, LC01 1356, LC05 2082, LC06 2669, LC14 316, LC20 290 (medias de 1 cm). En
+Chromium, el proyecto «Tesis» se crea con los 12 sondeos y sin errores; el título y la marca dicen
+CorAnTool.
+
+**Pendiente o problemas conocidos.** Coordenadas de GP14, LC01, LC05, LC06, LC12, LC14 y LC20 (no
+están en los archivos): añadir con ✎. Modelos de edad de LC01, LC05, LC06, LC12, LC14 y LC20. La
+profundidad de LC06, LC14 y LC20 es supuesta (secciones apiladas). El repositorio de GitHub sigue
+llamándose IchAnTool-Project (renombrarlo es decisión de Santiago). Los recuentos por especie de
+foraminíferos de GP03 (≈ 200 especies) no se cargan, solo los índices y grupos.
 
 ---
 

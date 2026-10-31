@@ -39,3 +39,9 @@ Notas:
   aparte. ORL L6 es tipo 3* (incierto en la tesis).
 - Las profundidades de ODP 976 de los dos conjuntos vienen de agujeros distintos; por eso este sondeo
   se carga solo por edad.
+
+## V16: other cores (private folder)
+`privado/` also holds GP14, LC21, LC01, LC05, LC06, LC12, LC14 and LC20 (`*_tesis.csv`), the LC21 age model and
+`extra_cores.json` (manifest read by the app). LC21 includes published PANGAEA data (Amies et al., 2019; biomarkers;
+Nd–Sm, Osborne et al., 2010). The depth of LC06, LC14 and LC20 is assumed (raw ITRAX sections stacked from the top
+section number down) and must be checked. See docs/DOCUMENTACION_TECNICA.md §21.8 ter.

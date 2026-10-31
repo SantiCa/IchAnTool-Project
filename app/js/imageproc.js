@@ -1,4 +1,4 @@
-// IchAnTool web — image processing (no DOM): enhancement, detection, selection tools, shape features.
+// CorAnTool web — image processing (no DOM): enhancement, detection, selection tools, shape features.
 
 export function lumaOf(rgba, n) {
   const L = new Float32Array(n);

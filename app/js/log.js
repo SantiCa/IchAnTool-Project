@@ -1,4 +1,4 @@
-// IchAnTool web — composite core log (no DOM): table parsing, axis transforms, SVG and CSV of a window.
+// CorAnTool web — composite core log (no DOM): table parsing, axis transforms, SVG and CSV of a window.
 import { interpAge, toCSV } from './core.js';
 
 /** Parse CSV / TXT tables: delimiter , ; tab | or spaces; optional header; decimal comma; '#' comments. */

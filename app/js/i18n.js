@@ -1,4 +1,4 @@
-// IchAnTool web — interface strings (es / en).
+// CorAnTool web — interface strings (es / en).
 
 const D = {
   es: {
@@ -50,7 +50,7 @@ const D = {
     'r.empty': 'Los resultados aparecen al detectar o marcar bioturbación.', 'r.manualNote': 'BI e ii manuales: elige un valor para registrar tu estimación visual junto a la automática.',
     'p.pct': 'Bioturbación %',
     'busy': 'Procesando…', 'saved': 'Archivo guardado', 'loaded': 'Proyecto cargado', 'err.image': 'No se pudo leer la imagen: {m}',
-    'err.project': 'Ese archivo no es un proyecto de IchAnTool.', 'confirm.new': '¿Empezar un proyecto nuevo? Se perderá lo que no hayas guardado.',
+    'err.project': 'Ese archivo no es un proyecto de CorAnTool.', 'confirm.new': '¿Empezar un proyecto nuevo? Se perderá lo que no hayas guardado.',
     'confirm.yes': 'Sí, empezar de nuevo', 'confirm.no': 'Cancelar', 'example.name': 'Ejemplo idealizado (Casanova-Arenillas et al., 2020)',
     'status.depth': 'Prof. {d} {u}', 'help.title': 'Cómo funciona', 'help.close': 'Cerrar',
     'help.body': '<ol><li><b>Sondeo e imagen.</b> Añade una o varias imágenes (una por sección), indica techo y muro y, si quieres, un modelo de edad. Dibuja la zona de análisis para dejar fuera la escala y los bordes.</li><li><b>Realce.</b> Ajusta niveles, contraste o contraste local hasta que las trazas se vean bien.</li><li><b>Detección.</b> Detecta candidatos automáticamente. Completa o corrige con la varita, el pincel, el lazo y el borrador. Excluye grietas, huecos y zonas muestreadas.</li><li><b>Identificación.</b> Selecciona un objeto y pulsa 1–9 para asignar el icnotaxón (0 = artefacto). El programa aprende y propone la clase del resto.</li><li><b>Resultados.</b> Porcentaje de bioturbación, BI, ii y porcentaje por icnotaxón por intervalo, junto a la imagen. Exporta CSV, máscara y proyecto.</li></ol><p><b>Atajos:</b> V seleccionar · W varita · B pincel · L lazo · E borrador · X excluir · H mano · O original · F ajustar · N siguiente · Enter aceptar · Supr eliminar · [ ] tamaño · Ctrl+rueda zoom · Ctrl+Z deshacer. Mayús añade al objeto seleccionado; Alt resta.</p>',
@@ -104,7 +104,7 @@ const D = {
     'r.empty': 'Results appear once bioturbation is detected or drawn.', 'r.manualNote': 'Manual BI and ii: pick a value to record your visual estimate next to the automatic one.',
     'p.pct': 'Bioturbation %',
     'busy': 'Processing…', 'saved': 'File saved', 'loaded': 'Project loaded', 'err.image': 'Could not read the image: {m}',
-    'err.project': 'That file is not an IchAnTool project.', 'confirm.new': 'Start a new project? Anything unsaved will be lost.',
+    'err.project': 'That file is not an CorAnTool project.', 'confirm.new': 'Start a new project? Anything unsaved will be lost.',
     'confirm.yes': 'Yes, start over', 'confirm.no': 'Cancel', 'example.name': 'Idealised example (Casanova-Arenillas et al., 2020)',
     'status.depth': 'Depth {d} {u}', 'help.title': 'How it works', 'help.close': 'Close',
     'help.body': '<ol><li><b>Core and image.</b> Add one or more images (one per section), set top and bottom depths and, optionally, an age model. Draw the analysis area to leave out the scale bar and core edges.</li><li><b>Enhancement.</b> Adjust levels, contrast or local contrast until traces stand out.</li><li><b>Detection.</b> Detect candidates automatically. Complete or correct them with the wand, brush, lasso and eraser. Exclude cracks, voids and sampled areas.</li><li><b>Identification.</b> Select an object and press 1–9 to assign the ichnotaxon (0 = artefact). The program learns and suggests the class of the rest.</li><li><b>Results.</b> Bioturbation percentage, BI, ii and percentage per ichnotaxon per interval, beside the image. Export CSV, mask and project.</li></ol><p><b>Shortcuts:</b> V select · W wand · B brush · L lasso · E eraser · X exclude · H hand · O original · F fit · N next · Enter accept · Del delete · [ ] size · Ctrl+wheel zoom · Ctrl+Z undo. Shift adds to the selected object; Alt subtracts.</p>',
@@ -168,11 +168,11 @@ Object.assign(D.es, {
   'd.kmeans': 'K-medias, 2 clases (como ICY; Miguez-Salas et al., 2019)', 'd.fill': 'Rellenar huecos dentro de las trazas',
   'bk.title': 'Copias de seguridad', 'bk.none': 'Sin copia automática en carpeta.', 'bk.ok': 'Copia automática activa en {dir}. Última: {when}.',
   'bk.needs': 'La copia automática en {dir} necesita permiso otra vez (el navegador lo pide en cada sesión).', 'bk.error': 'Error en la última copia en {dir}. Última correcta: {when}.',
-  'bk.persistOn': 'El navegador ha marcado los datos de IchAnTool como persistentes: no los borrará para liberar espacio.',
+  'bk.persistOn': 'El navegador ha marcado los datos de CorAnTool como persistentes: no los borrará para liberar espacio.',
   'bk.persistOff': 'El navegador no ha confirmado el almacenamiento persistente: podría borrar los datos si falta espacio. Usa la copia en carpeta.',
   'bk.choose': 'Elegir carpeta de copia automática…', 'bk.reactivate': 'Reactivar copia automática', 'bk.full': 'Descargar copia completa (todos los proyectos)',
   'bk.noFs': 'Este navegador no permite escribir en carpetas (funciona en Chrome y Edge). Descarga copias completas con regularidad.',
-  'bk.help': 'Recomendado: elige una carpeta dentro de OneDrive, Google Drive o Dropbox. IchAnTool guarda ahí cada proyecto 20 s después de cada cambio, una copia diaria en «historial» y tus ajustes. Para recuperar, usa «Importar archivo…» con esos archivos (admite varios a la vez y copias completas).',
+  'bk.help': 'Recomendado: elige una carpeta dentro de OneDrive, Google Drive o Dropbox. CorAnTool guarda ahí cada proyecto 20 s después de cada cambio, una copia diaria en «historial» y tus ajustes. Para recuperar, usa «Importar archivo…» con esos archivos (admite varios a la vez y copias completas).',
   'f.autoG': 'Gamma automática: la mediana pasa a gris medio (límites 0,19–1, rango de Dorador et al., 2014)',
   'bk.restored': 'restaurado', 'bk.restoredN': '{p} proyectos y {s} ajustes restaurados',
 });
@@ -188,11 +188,11 @@ Object.assign(D.en, {
   'd.kmeans': 'K-means, 2 classes (as in ICY; Miguez-Salas et al., 2019)', 'd.fill': 'Fill holes inside traces',
   'bk.title': 'Backups', 'bk.none': 'No automatic folder backup.', 'bk.ok': 'Automatic backup active in {dir}. Last: {when}.',
   'bk.needs': 'The automatic backup in {dir} needs permission again (the browser asks every session).', 'bk.error': 'The last backup in {dir} failed. Last good one: {when}.',
-  'bk.persistOn': 'The browser marked IchAnTool data as persistent: it will not delete it to free space.',
+  'bk.persistOn': 'The browser marked CorAnTool data as persistent: it will not delete it to free space.',
   'bk.persistOff': 'The browser did not confirm persistent storage: it might delete data when space runs low. Use the folder backup.',
   'bk.choose': 'Choose automatic backup folder…', 'bk.reactivate': 'Reactivate automatic backup', 'bk.full': 'Download full backup (all projects)',
   'bk.noFs': 'This browser cannot write to folders (it works in Chrome and Edge). Download full backups regularly.',
-  'bk.help': 'Recommended: choose a folder inside OneDrive, Google Drive or Dropbox. IchAnTool saves each project there 20 s after every change, a daily copy in “historial” and your settings. To recover, use “Import file…” with those files (several at once and full backups are accepted).',
+  'bk.help': 'Recommended: choose a folder inside OneDrive, Google Drive or Dropbox. CorAnTool saves each project there 20 s after every change, a daily copy in “historial” and your settings. To recover, use “Import file…” with those files (several at once and full backups are accepted).',
   'f.autoG': 'Automatic gamma: median to mid-grey (limits 0.19–1, range of Dorador et al., 2014)',
   'bk.restored': 'restored', 'bk.restoredN': '{p} projects and {s} settings restored',
 });

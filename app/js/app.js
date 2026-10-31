@@ -1,4 +1,4 @@
-// IchAnTool web — application (UI, state, tools, rendering, files).
+// CorAnTool web (antes IchAnTool) — application (UI, state, tools, rendering, files).
 import { BI, II, UNIT_TO_CM, rowCounts, binRows, parseAgeModel, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
 import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian, separability } from './imageproc.js';
 import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
@@ -8,6 +8,8 @@ import { Classifier, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
 import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, MAP_STYLE, MAP_SYMBOLS, zoomBBox, mapGeometry } from './geo.js';
 
+/** App name (V16: IchAnTool → CorAnTool). Files written by IchAnTool are still accepted; browser storage keys keep the old name. */
+const APP = 'CorAnTool', APP_NAMES = ['CorAnTool', 'IchAnTool'];
 const $ = (id) => document.getElementById(id);
 const VERSION = '3.0.0-dev';
 const ASSET_BASES = ['', '../examples/'];
@@ -1202,8 +1204,8 @@ function modelExamples() {
 }
 $('exportModel').addEventListener('click', () => {
   const used = new Set(modelExamples().map((e) => e.name));
-  const model = { app: 'IchAnTool', kind: 'model', version: 1, features: FEATURES, classes: S.classes.filter((c) => used.has(c.name)).map(({ name, color, counts }) => ({ name, color, counts })), examples: modelExamples() };
-  saveFile('ichantool_model.json', JSON.stringify(model), 'application/json');
+  const model = { app: APP, kind: 'model', version: 1, features: FEATURES, classes: S.classes.filter((c) => used.has(c.name)).map(({ name, color, counts }) => ({ name, color, counts })), examples: modelExamples() };
+  saveFile('corantool_model.json', JSON.stringify(model), 'application/json');
 });
 $('importModel').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -1377,7 +1379,7 @@ function serSection(s, binary) {
 function serialize(binary) {
   const { cores: _c, ...geo } = S.geo;
   return {
-    app: 'IchAnTool', kind: 'project', version: 3, appVersion: VERSION, saved: new Date().toISOString(),
+    app: APP, kind: 'project', version: 3, appVersion: VERSION, saved: new Date().toISOString(),
     id: S.id, name: S.name, notes: S.notes, classes: S.classes, active: S.active, settings: S.settings, library: S.library,
     geo, sheet: S.sheet, fig: S.fig, curCore: S.curCore,
     cores: S.cores.map((c) => ({
@@ -1420,7 +1422,7 @@ async function loadProject(p) {
   resetState(); loading = true;
   try {
     p = upgradeProject(p);
-    S.id = p.id || uid(); S.name = p.name || 'IchAnTool'; S.notes = p.notes || '';
+    S.id = p.id || uid(); S.name = p.name || APP; S.notes = p.notes || '';
     S.classes = p.classes || defaultClasses(); S.active = p.active || 'undet';
     Object.assign(S.settings, p.settings || {}); S.library = p.library || [];
     S.sheet = { columns: [], cells: {}, ...(p.sheet || {}) };
@@ -1535,7 +1537,7 @@ $('newProjBtn').addEventListener('click', async () => {
 });
 $('openTest').addEventListener('click', async () => { hideHome(); await openTestProject(); });
 $('openIdeal').addEventListener('click', async () => { hideHome(); await busy(loadExample); });
-$('expProj').addEventListener('click', () => busy(() => saveFile(`${safe(S.name)}.ichantool.json`, JSON.stringify(serialize(false)), 'application/json')));
+$('expProj').addEventListener('click', () => busy(() => saveFile(`${safe(S.name)}.corantool.json`, JSON.stringify(serialize(false)), 'application/json')));
 $('impProj').addEventListener('change', async (e) => {
   const files = [...e.target.files]; e.target.value = ''; if (!files.length) return;
   hideHome();
@@ -1614,7 +1616,7 @@ const fsSupported = () => typeof window.showDirectoryPicker === 'function';
 const today = () => new Date().toISOString().slice(0, 10);
 
 function settingsBundle() {
-  return { app: 'IchAnTool', kind: 'settings', version: 1, saved: new Date().toISOString(), presets: userPresets, maxMP: S.settings.maxMP };
+  return { app: APP, kind: 'settings', version: 1, saved: new Date().toISOString(), presets: userPresets, maxMP: S.settings.maxMP };
 }
 
 async function initBackups() {
@@ -1658,11 +1660,11 @@ async function backupNow() {
   try {
     if (S.sections.length || S.records.length) {
       const text = JSON.stringify(serialize(false)), base = `${safe(S.name)}__${S.id}`;
-      await writeText(backupDir, `${base}.ichantool.json`, text);
+      await writeText(backupDir, `${base}.corantool.json`, text);
       const hist = await backupDir.getDirectoryHandle('historial', { create: true });
-      await writeText(hist, `${base}__${today()}.ichantool.json`, text);
+      await writeText(hist, `${base}__${today()}.corantool.json`, text);
     }
-    await writeText(backupDir, 'ichantool_ajustes.json', JSON.stringify(settingsBundle(), null, 1));
+    await writeText(backupDir, 'corantool_ajustes.json', JSON.stringify(settingsBundle(), null, 1));
     lastBackup = Date.now(); backupPending = false; setPref('lastBackup', lastBackup).catch(() => {});
   } catch (e) { backupState = 'error'; console.error(e); }
   renderBackupState();
@@ -1693,7 +1695,7 @@ $('bkFull').addEventListener('click', () => busy(async () => {
   const projects = [];
   if (storageOK) for (const m of await listProjects()) { const d = await getProject(m.id); if (d) projects.push(await portableProject(d)); }
   else projects.push(serialize(false));
-  await saveFile(`ichantool_copia_${today()}.json`, JSON.stringify({ app: 'IchAnTool', kind: 'backup', version: 1, created: new Date().toISOString(), projects, settings: settingsBundle() }), 'application/json');
+  await saveFile(`corantool_copia_${today()}.json`, JSON.stringify({ app: APP, kind: 'backup', version: 1, created: new Date().toISOString(), projects, settings: settingsBundle() }), 'application/json');
 }));
 
 /** Restore project files, full backups or settings files (several at once). */
@@ -1701,7 +1703,7 @@ async function restoreFiles(files) {
   let nProj = 0, nPre = 0, lastLoaded = null;
   const existing = storageOK ? new Set((await listProjects()).map((m) => m.id)) : new Set();
   const addProject = async (p) => {
-    if (!p.id || existing.has(p.id)) { p.id = uid(); if (existing.size) p.name = `${p.name || 'IchAnTool'} (${t('bk.restored')})`; }
+    if (!p.id || existing.has(p.id)) { p.id = uid(); if (existing.size) p.name = `${p.name || APP} (${t('bk.restored')})`; }
     existing.add(p.id);
     const nSec = p.cores ? p.cores.reduce((n, c) => n + (c.sections || []).length, 0) : (p.sections || []).length;
     if (storageOK) await putProject({ id: p.id, name: p.name, updated: Date.now(), sections: nSec, cores: p.cores?.length || 1, coreNames: p.cores?.map((c) => c.name) }, p);
@@ -1710,7 +1712,7 @@ async function restoreFiles(files) {
   for (const f of files) {
     let p;
     try { p = JSON.parse(await f.text()); } catch { toast(t('err.project')); continue; }
-    if (p.app !== 'IchAnTool') { toast(t('err.project')); continue; }
+    if (!APP_NAMES.includes(p.app)) { toast(t('err.project')); continue; }
     if (p.kind === 'project') await addProject(p);
     else if (p.kind === 'backup') { for (const q of p.projects || []) await addProject(q); nPre += mergePresets(p.settings?.presets); }
     else if (p.kind === 'settings') nPre += mergePresets(p.presets);
@@ -2354,8 +2356,24 @@ async function loadThesisCores(train = true) {
   lc10.ageText = lcModel.join('\n');
   Object.assign(c977, { units: 'm' }); Object.assign(gp03, { units: 'cm' }); Object.assign(lc10, { units: 'cm' });
   S.cores = S.cores.filter((c) => c.source !== 'tesis' && (c.sections.length || c.imp || c.records.length));
-  const list = [c977, c976, gp03, lc10].map((c) => addImported(c, 'tesis', 'tesis-' + c.name.replace(/\W+/g, '')));
+  // V16: the other cores of the thesis folder (manifest written by tools/make_thesis_dataset.py; private builds only)
+  const extra = [];
+  if (priv) {
+    let man = [];
+    try { man = JSON.parse(await txt('privado/extra_cores.json')); } catch { man = []; }
+    for (const m of man) {
+      try {
+        const tb = parseTable(await txt('privado/' + m.file)), off = m.age ? 2 : 1;
+        const c = coreFromRows(m.name, tb.rows, tb.headers, { depth: 0, age: m.age ? 1 : -1, proxies: tb.headers.slice(off).map((n) => ix(tb, n)) });
+        c.units = m.units || 'cm';
+        if (m.ageModel) c.ageText = (await txt('privado/' + m.ageModel)).split('\n').filter((l) => l.trim() && !l.startsWith('#')).join('\n');
+        extra.push([c, m]);
+      } catch (e) { console.warn('tesis', m.name, e); }
+    }
+  }
+  const list = [c977, c976, gp03, lc10, ...extra.map((q) => q[0])].map((c) => addImported(c, 'tesis', 'tesis-' + c.name.replace(/\W+/g, '')));
   [c977, c976, gp03, lc10] = list;
+  extra.forEach(([, m], i) => { const core = list[4 + i]; if (m.lat != null) core.lat = m.lat; if (m.lon != null) core.lon = m.lon; if (m.wd != null) core.waterDepth = m.wd; core.notes = m.note || ''; });
   if (!S.cores.find((c) => c.id === S.curCore)) activateCore(list[0].id, true);
   renderCoreBar();
   applyCatalogue(S.cores, parseTable(await txt('catalogue.csv')), { core: 0, lat: 1, lon: 2, wd: 3 });
@@ -2824,14 +2842,19 @@ function geoOverlay(axis) {
 
 const THESIS_ID = 'tesis-casanova';
 /** First version only: the thesis cores live in their own project, created once. */
+/** Version of the bundled thesis data: a stored thesis project older than this is refreshed once (V16: all cores of the thesis folder). */
+const THESIS_DATA = 2;
 async function ensureThesisProject() {
-  const metas = await listProjects().catch(() => []);
-  if (metas.some((m) => m.id === THESIS_ID)) return;
+  const metas = await listProjects().catch(() => []), have = metas.some((m) => m.id === THESIS_ID);
+  const ver = (await getPref('thesisData').catch(() => 0)) || 0;
+  if (have && ver >= THESIS_DATA) return;
   await busy(async () => {
-    resetState(); S.id = THESIS_ID; S.name = 'Tesis Casanova-Arenillas (2023)';
-    S.notes = 'Sondeos de la tesis doctoral (ODP 977A, ODP 976, GP03, LC10). Ver examples/tesis_casanova/README.md.';
-    S.cores = []; await loadThesisCores(true);
-    await saveToDB();
+    const d = have ? await getProject(THESIS_ID) : null;
+    if (d) await loadProject(d);
+    else { resetState(); S.id = THESIS_ID; S.name = 'Tesis Casanova-Arenillas (2023)'; S.cores = []; }
+    S.notes = 'Sondeos de la tesis doctoral (ODP 977A, ODP 976, GP03, LC10, GP14, LC21, LC01, LC05, LC06, LC12, LC14, LC20). Ver examples/tesis_casanova/README.md.';
+    await loadThesisCores(true);
+    await saveToDB(); await setPref('thesisData', THESIS_DATA).catch(() => {});
   });
 }
 
@@ -2901,7 +2924,7 @@ function buildAllMap(mode) {
 }
 $('allCtl').addEventListener('change', () => renderAllProjects());
 for (const [id, dir] of [['amPrev', -1], ['amNext', 1]]) $(id).addEventListener('click', () => { const a = +$('amA0').value, b = +$('amA1').value, w = b - a; $('amA0').value = a + dir * w; $('amA1').value = b + dir * w; renderAllProjects(); });
-$('amSvg').addEventListener('click', () => { if (allMapSvg.startsWith('<svg')) saveFile('ichantool_mapa_proyectos.svg', allMapSvg, 'image/svg+xml'); });
+$('amSvg').addEventListener('click', () => { if (allMapSvg.startsWith('<svg')) saveFile('corantool_mapa_proyectos.svg', allMapSvg, 'image/svg+xml'); });
 $('allTable').addEventListener('click', async (e) => {
   const tr = e.target.closest('tr[data-p]'); if (!tr) return;
   const { p, c } = tr.dataset;

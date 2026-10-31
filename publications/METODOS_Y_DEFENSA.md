@@ -1,5 +1,9 @@
 # Métodos y defensa ante revisores
 
+> Desde V16 el programa se llama **CorAnTool** (antes IchAnTool). En los artículos: «CorAnTool (formerly
+> IchAnTool; Casanova-Arenillas et al., 2020)». Los sondeos LC06, LC14 y LC20 tienen profundidad supuesta
+> (secciones apiladas, §21.8 ter): no usarlos en una figura publicada sin verificarla.
+
 Para cada artículo previsto: qué partes de IchAnTool usa, qué se puede afirmar con lo que ya está
 hecho, qué falta comprobar antes de enviarlo y las preguntas que probablemente hará un revisor,
 con una respuesta preparada.

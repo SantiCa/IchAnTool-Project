@@ -1,4 +1,4 @@
-// IchAnTool web — multi-proxy geochemical interpretation (no DOM).
+// CorAnTool web — multi-proxy geochemical interpretation (no DOM).
 // Cores → resampled samples → labels (intervals + rules) → machine learning → classes per sample → maps.
 import { parseAgeModel, interpAge } from './core.js';
 import { niceTicks } from './log.js';

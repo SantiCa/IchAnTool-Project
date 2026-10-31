@@ -1,8 +1,12 @@
-# IchAnTool
+# CorAnTool (formerly IchAnTool)
+
+> Core Analysis Tool. Since V16 the program is called **CorAnTool**: it started as IchAnTool (ichnology analysis tool,
+> Casanova-Arenillas et al. 2020) and now also handles multiproxy records (geochemistry, foraminifera, TOC, sedimentology…).
+> The Python package keeps the import name `ichantool` for compatibility.
 
 **Quantitative ichnofabric analysis of sediment core images.**
 
-IchAnTool turns segmented core images (bioturbation painted or labelled on the image) into
+CorAnTool turns segmented core images (bioturbation painted or labelled on the image) into
 continuous depth or age series of:
 
 - percentage of bioturbated surface,
@@ -29,7 +33,7 @@ composite core log with external records, and a **multiproxy mode** (any numeric
 hierarchical described intervals — lithology, turbidites… — for many cores, user-defined labels by
 intervals or rules, configurable automatic interval classification, maps by age, overlay on the core log).
 See [`app/`](app/) and run it with any static server (`python -m http.server`, then open `/app/`),
-or build a single offline file with `python tools/build_standalone.py` (-> `dist/IchAnTool.html`, open by double-click).
+or build a single offline file with `python tools/build_standalone.py` (-> `dist/CorAnTool.html`, open by double-click).
 
 ## Install
 
@@ -100,7 +104,7 @@ web application, LAS export.
 
 ## Citing
 
-If you use IchAnTool, please cite the 2020 paper above (see also `CITATION.cff`).
+If you use CorAnTool (IchAnTool), please cite the 2020 paper above (see also `CITATION.cff`).
 
 ## License
 

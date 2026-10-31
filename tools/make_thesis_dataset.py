@@ -187,8 +187,15 @@ def main(src: Path):
             continue
         rowsgp.append({"depth_cm": num(r[1]), "Bentonicos_alto_O2_pct": num(r[2]), "Bentonicos_bajo_O2_pct": num(r[3]), "Gyroidina_pct": num(r[4]),
                        "Bentonicos_flujo_organico_pct": num(r[5]), "Hyalinea_balthica_pct": num(r[6])})
+    fc = sheet(gp / "Data foraminifera GP03 260422.xlsx", "core GP03")
+    for r in fc[1:]:
+        if num(r[3]) is None:
+            continue
+        rowsgp.append({"depth_cm": num(r[3]), "Foram_arena_63um_pct": num(r[6]), "Foram_P_B_pct": num(r[8]), "Foram_bentonicos_riqueza_S": num(r[14]),
+                       "Foram_bentonicos_N_g": num(r[17])})
     colsgp = [f"XRF {c}" for c in want] + [icp_name(c) for c in wi] + ["Susceptibilidad_LF_1e-8_m3kg", "Bentonicos_alto_O2_pct", "Bentonicos_bajo_O2_pct",
-                                                                                 "Gyroidina_pct", "Bentonicos_flujo_organico_pct", "Hyalinea_balthica_pct"]
+                                                                                 "Gyroidina_pct", "Bentonicos_flujo_organico_pct", "Hyalinea_balthica_pct",
+                                                                                 "Foram_arena_63um_pct", "Foram_P_B_pct", "Foram_bentonicos_riqueza_S", "Foram_bentonicos_N_g"]
     rowsgp.sort(key=lambda r: r["depth_cm"])
     write("GP03_tesis.csv", ["depth_cm", "age_ka", *colsgp], [[r["depth_cm"], age_at(r["depth_cm"]), *[r.get(c) for c in colsgp]] for r in rowsgp])
     with open(OUT / "GP03_age_model.txt", "w", encoding="utf-8") as f:
@@ -239,6 +246,8 @@ def main(src: Path):
         prev = b
     ivs_age.append(("ODP 976", prev, 135, "Capas orgánicas", "Fuera de capa orgánica", "complemento de las ORL A1-A6"))
 
+    print("otros sondeos:", extra_cores(src, ivs_age, ivs_depth))
+
     with open(OUT / "intervals_age.csv", "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["core", "top_ka", "bottom_ka", "layer", "value", "source"])
@@ -248,6 +257,266 @@ def main(src: Path):
         w.writerow(["core", "top", "bottom", "units", "layer", "value", "source"])
         w.writerows([(c, round(a, 3), round(b, 3), u, l, v, s) for c, a, b, u, l, v, s in ivs_depth])
     print("977:", len(rows977), "GP03:", len(rowsgp), "LC10:", len(rowslc), "intervals:", len(ivs_age), "+", len(ivs_depth))
+
+
+
+# ───────────── V16: the other cores of the thesis folder ─────────────
+RATIOS = [("Ti", "Ca"), ("Fe", "Ca"), ("Zr", "Ti"), ("Zr", "Rb"), ("Mn", "Ti"), ("Ba", "Ti"), ("Br", "Cl"), ("S", "Cl"),
+          ("Sr", "Ca"), ("K", "Ti"), ("Si", "Ti"), ("Rb", "Ti"), ("Fe", "Ti")]
+
+
+def xrf_ratios(depths, elem):
+    """1-cm means of XRF element ratios. depths (cm) and elem {name: values}; zero or missing denominators are skipped."""
+    d = np.asarray(depths, float)
+    out = {}
+    for a, b in RATIOS:
+        if a in elem and b in elem:
+            x, y = np.asarray(elem[a], float), np.asarray(elem[b], float)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                out[f"XRF {a}/{b}"] = np.where((y > 0) & np.isfinite(x) & np.isfinite(y), x / y, np.nan)
+    rows = []
+    k = np.floor(d)
+    for bk in np.unique(k[np.isfinite(k)]):
+        m = k == bk
+        row = {"depth_cm": round(float(d[m].mean()), 3)}
+        for n, v in out.items():
+            vv = v[m]
+            vv = vv[np.isfinite(vv)]
+            row[n] = float(vv.mean()) if len(vv) else None
+        rows.append(row)
+    return rows, list(out)
+
+
+def itrax_txt(p):
+    """ITRAX result.txt (tab separated, 'peakarea' block): position (mm) and element counts of valid points."""
+    lines = Path(p).read_text(encoding="latin-1").splitlines()
+    i = next(j for j, l in enumerate(lines) if l.startswith("filename"))
+    H = [h.strip() for h in lines[i].split("\t")]
+    pos, el = [], {h: [] for h in H[3:] if h}
+    for l in lines[i + 1:]:
+        c = l.split("\t")
+        if len(c) < len(H) - 1 or num(c[2]) != 1:
+            continue
+        pos.append(num(c[1]))
+        for j, h in enumerate(H[3:], 3):
+            if h:
+                el[h].append(num(c[j]) if j < len(c) else None)
+    return np.array(pos, float), {h: np.array([np.nan if v is None else v for v in vs], float) for h, vs in el.items()}
+
+
+def write_core(name, rows, cols, age=False):
+    rows.sort(key=lambda r: r["depth_cm"])
+    head = ["depth_cm", "age_ka"] if age else ["depth_cm"]
+    write(f"{name}_tesis.csv", head + cols, [[r["depth_cm"], *([r.get("age_ka")] if age else []), *[r.get(c) for c in cols]] for r in rows])
+    return len(rows)
+
+
+def extra_cores(src, ivs_age, ivs_depth):
+    pub = src / "Articulos en proceso de publicacion"
+    em = pub / "2_EasternMed and Southampton"
+    manifest, n = [], {}
+
+    # GP14 (Alboran): pellet XRF (FRX) oxides/ppm, ICP-MS trace elements, ratios and EF; age of each sample from the author's table
+    wb = openpyxl.load_workbook(pub / "3_GP14_Alboranbasin" / "Datos geoquimicas_santiago.xlsx", read_only=True, data_only=True)
+    todo = list(wb["todo"].iter_rows(values_only=True))
+    H = list(todo[0])
+    frx = H[3:23]
+    icp = H[23:]
+    rows = []
+    for r in todo[1:]:
+        if num(r[1]) is None:
+            continue
+        row = {"depth_cm": num(r[1]), "age_ka": num(r[2]) / 1000 if num(r[2]) is not None else None}
+        for i, c in enumerate(frx, 3):
+            row[f"FRX {c.replace(' (%)', '_pct').replace(' (PPM)', '_ppm')}"] = num(r[i])
+        for i, c in enumerate(icp, 23):
+            row[f"ICP {c}"] = num(r[i])
+        rows.append(row)
+    rat = list(wb["ratios"].iter_rows(values_only=True))
+    Hr = [c for c in rat[0]]
+    keep = [j for j, c in enumerate(Hr) if c and (" EF" in c or "/" in c or c.startswith("U aut"))]
+    byd = {r["depth_cm"]: r for r in rows}
+    for r in rat[1:]:
+        d = num(r[1])
+        if d is None:
+            continue
+        row = byd.setdefault(d, {"depth_cm": d})
+        for j in keep:
+            row[f"ICP {Hr[j].replace('U aut (U//Th/3))', 'U aut')}"] = num(r[j])
+    rows = list(byd.values())
+    cols = [f"FRX {c.replace(' (%)', '_pct').replace(' (PPM)', '_ppm')}" for c in frx] + [f"ICP {c}" for c in icp]
+    cols += [f"ICP {Hr[j].replace('U aut (U//Th/3))', 'U aut')}" for j in keep if f"ICP {Hr[j]}" not in cols]
+    cols = list(dict.fromkeys(cols))
+    n["GP14"] = write_core("GP14", rows, cols, age=True)
+    manifest.append({"name": "GP14", "file": "GP14_tesis.csv", "units": "cm", "age": True,
+                     "note": "Alborán (Big One West off mound); FRX en pastilla, ICP-MS, ratios y EF; edad de cada muestra de la tabla del autor"})
+
+    # LC21 (Aegean, Kasos Strait): magnetic susceptibility and greyscale, ARM, Sr–Nd isotopes, planktonic foraminifera isotopes (Amies et al., 2019),
+    # biomarkers and Nd–Sm (PANGAEA); age model 'Generado por mi' (Age models.xlsx)
+    c21 = pub / "capitulo LC10 and 21 southampton" / "LC21" / "DATA"
+    am = list(openpyxl.load_workbook(c21 / "Data Raw" / "Age models.xlsx", read_only=True, data_only=True)["Generado por mi"].iter_rows(values_only=True))[1:]
+    model = [(num(a), num(b)) for a, b in am if num(a) is not None and num(b) is not None]
+    with open(OUT / "LC21_age_model.txt", "w", encoding="utf-8") as f:
+        f.write("# LC21 age model (depth cm, age ka): sheet 'Generado por mi' of Age models.xlsx (14C, tephra, RSL tie points), every 10 cm\n")
+        for d, a in model[::10] + [model[-1]]:
+            f.write(f"{d},{round(a, 4)}\n")
+    rows = []
+    for l in (c21 / "Procesed Data" / "Nueva carpeta" / "Magnetic and color data.dat").read_text(encoding="latin-1").splitlines()[1:]:
+        c = l.split(",")
+        if len(c) >= 5 and num(c[0]) is not None:
+            rows.append({"depth_cm": num(c[0]), "Susceptibilidad_magnetica_SI": num(c[3]), "Gris_reflectancia": num(c[4])})
+    ms = list(openpyxl.load_workbook(c21 / "Data Raw" / "Magnetic propieties" / "MagSusc_LC21_nov2021" / "LC21 Mag susc_Santiago.xlsx", read_only=True, data_only=True).worksheets[0].iter_rows(values_only=True))
+    for r in ms[2:]:
+        if num(r[1]) is not None and num(r[10]) is not None:
+            rows.append({"depth_cm": num(r[1]), "Susceptibilidad_masica_muestras": num(r[10])})
+    arm = list(openpyxl.load_workbook(c21 / "Procesed Data" / "LC21_ARMdata.xlsx", read_only=True, data_only=True)["Sheet1"].iter_rows(values_only=True))
+    ia = list(arm[0]).index("Intensity")
+    for r in arm[1:]:
+        if num(r[1]) is not None and num(r[ia]) is not None:
+            rows.append({"depth_cm": num(r[1]), "ARM_intensidad": num(r[ia])})
+    sr = list(openpyxl.load_workbook(c21 / "Procesed Data" / "Sr _Nd resulkts.xlsx", read_only=True, data_only=True).worksheets[0].iter_rows(values_only=True))
+    for r in sr[1:]:
+        if num(r[2]) is not None:
+            rows.append({"depth_cm": num(r[2]), "eNd": num(r[7]), "Sr87_86": num(r[13])})
+
+    def pangaea(p):
+        L = Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
+        i = L.index("*/")
+        return L[i + 1].split("\t"), [l.split("\t") for l in L[i + 2:] if l.strip()]
+    h, data = pangaea(c21 / "From other publications" / "Amies-etal_2019" / "datasets" / "LC21_S5_multispecies.tab")
+    di = h.index("Depth [m] (Downhole depth)")
+    iso = [(j, c.split(" [")[0].replace(" ", "_").replace("δ", "d")) for j, c in enumerate(h) if "δ" in c]
+    for r in data:
+        if num(r[di]) is not None:
+            rows.append({"depth_cm": num(r[di]) * 100, **{f"Foram_{nm}": num(r[j]) if j < len(r) else None for j, nm in iso}})
+    h, data = pangaea(c21 / "From other publications" / "MD81-LC21_biomarker.tab")
+    for r in data:
+        if num(r[1]) is not None:
+            rows.append({"depth_cm": num(r[1]) * 100, "BHT_TOC_ug_g": num(r[5]), "Lad_OC_ng_g": num(r[6])})
+    h, data = pangaea(c21 / "From other publications" / "MD81-LC21_Nd_Sm_isotope.tab")
+    for r in data:
+        if num(r[0]) is not None:
+            rows.append({"depth_cm": num(r[0]) * 100, "eNd_Osborne2010": num(r[3]), "Nd_mg_kg": num(r[5])})
+    cols = ["Susceptibilidad_magnetica_SI", "Gris_reflectancia", "Susceptibilidad_masica_muestras", "ARM_intensidad", "eNd", "Sr87_86",
+            *[f"Foram_{nm}" for _, nm in iso], "BHT_TOC_ug_g", "Lad_OC_ng_g", "eNd_Osborne2010", "Nd_mg_kg"]
+    n["LC21"] = write_core("LC21", rows, cols)
+    manifest.append({"name": "LC21", "file": "LC21_tesis.csv", "units": "cm", "ageModel": "LC21_age_model.txt", "lat": 35.66, "lon": 26.58, "wd": 1522,
+                     "note": "Egeo (estrecho de Kasos); susceptibilidad, gris, ARM, Sr-Nd del autor; isótopos de foraminíferos planctónicos (Amies et al., 2019), biomarcadores y Nd-Sm (PANGAEA)"})
+    for s, a, b in [("S1", 6.1, 8.3), ("S3", 80.8, 85.8), ("S4", 101.8, 107.8), ("S5", 121, 128.3)]:
+        ivs_age.append(("LC21", a, b, "Capas orgánicas", "Sapropel", f"Age models.xlsx, hoja 'Sapropel ages' ({s})"))
+    ivs_age.append(("LC21", 104, 105.4, "Fases internas", "Interrupción", "Age models.xlsx (S4 interruption)"))
+
+    # LC12 (Eastern basin): ITRAX ratios from the author's Grapher table (depth cm)
+    L = (em / "Eastern basin" / "LC12" / "Poyecto Grapher" / "Proyecto de grapher LC12.dat").read_text(encoding="latin-1").splitlines()
+    H = L[0].split(",")
+    name = {h: "XRF " + h.replace(" (NORM)", "_norm").replace("ti/ca", "Ti/Ca").replace("/ti", "/Ti") for h in H[1:-1]}
+    raw = []
+    for l in L[1:]:
+        c = l.split(",")
+        if num(c[0]) is not None:
+            raw.append((num(c[0]), {name[h]: num(c[j]) for j, h in enumerate(H[1:-1], 1)}))
+    rows = []
+    D = np.array([d for d, _ in raw])
+    for bk in np.unique(np.floor(D)):
+        m = np.where(np.floor(D) == bk)[0]
+        row = {"depth_cm": round(float(D[m].mean()), 3)}
+        for nm in name.values():
+            v = [raw[i][1][nm] for i in m if raw[i][1][nm] is not None]
+            row[nm] = float(np.mean(v)) if v else None
+        rows.append(row)
+    n["LC12"] = write_core("LC12", rows, list(name.values()))
+    manifest.append({"name": "LC12", "file": "LC12_tesis.csv", "units": "cm", "note": "Cuenca oriental; ratios ITRAX del proyecto Grapher del autor (medias de 1 cm). Sin coordenadas: añádelas con ✎"})
+
+    # LC01 (Western basin): ITRAX normalised table, depth in mm
+    ws = openpyxl.load_workbook(em / "Western basin" / "MD81_LC 01" / "DATOS" / "MD81_LC01_TOTAL NORMALIZADO.xlsx", read_only=True, data_only=True).worksheets[0]
+    it = ws.iter_rows(values_only=True)
+    H = list(next(it))
+    els = [h for h in H[11:] if h and h.isalpha() and len(h) <= 2]
+    dep, el = [], {e: [] for e in els}
+    for r in it:
+        if num(r[1]) is None or num(r[4]) != 1:
+            continue
+        dep.append(num(r[1]) / 10)
+        for e in els:
+            v = num(r[H.index(e)])
+            el[e].append(np.nan if v is None else v)
+    rows, cols = xrf_ratios(dep, el)
+    n["LC01"] = write_core("LC01", rows, cols)
+    manifest.append({"name": "LC01", "file": "LC01_tesis.csv", "units": "cm", "note": "Cuenca occidental; ratios ITRAX (tabla normalizada del autor, medias de 1 cm). Sin coordenadas: añádelas con ✎"})
+
+    # LC05 (Western basin): normalised ratios and PCA of the author, depth in mm
+    ws = openpyxl.load_workbook(em / "Western basin" / "MD81_LC 05" / "Datos LC 05" / "Relaciones normalizadas.xlsx", read_only=True, data_only=True).worksheets[0]
+    it = ws.iter_rows(values_only=True)
+    H = list(next(it))
+    nm = {"Ti/Ca": "XRF Ti/Ca", "Fe/Ca": "XRF Fe/Ca", "Si (2)": "XRF Si_norm", "S (2)": "XRF S_norm", "Zr/Ti": "XRF Zr/Ti", "Zr/Rb": "XRF Zr/Rb", "Mn/Ti": "XRF Mn/Ti", "PC1": "XRF PC1", "PC2": "XRF PC2"}
+    raw = [(num(r[7]) / 10, r) for r in it if num(r[7]) is not None]
+    D = np.array([d for d, _ in raw])
+    rows = []
+    for bk in np.unique(np.floor(D)):
+        m = np.where(np.floor(D) == bk)[0]
+        row = {"depth_cm": round(float(D[m].mean()), 3)}
+        for j, h in enumerate(H):
+            if h in nm:
+                v = [num(raw[i][1][j]) for i in m if num(raw[i][1][j]) is not None]
+                row[nm[h]] = float(np.mean(v)) if v else None
+        rows.append(row)
+    n["LC05"] = write_core("LC05", rows, [nm[h] for h in H if h in nm])
+    manifest.append({"name": "LC05", "file": "LC05_tesis.csv", "units": "cm", "note": "Cuenca occidental; ratios ITRAX normalizados y PCA del autor (medias de 1 cm). Sin coordenadas: añádelas con ✎"})
+
+    # Raw ITRAX sections: composite depth ASSUMED by stacking the scanned length of each section from the highest number (top, as the LC05
+    # files 'Sec 37_0-1m' … 'Sec 1_36-37m') downwards, without gaps
+    def sections(core, items, top_sec, note):
+        dep, el, off = [], {}, 0.0
+        for sec, p in sorted(items, key=lambda q: -q[0]):   # stacked from the highest section number down, end to end
+            pos, e = p
+            if not len(pos):
+                continue
+            dep.extend(off + (pos - pos.min()) / 10)
+            off += (pos.max() - pos.min()) / 10
+            for k, v in e.items():
+                el.setdefault(k, [np.nan] * (len(dep) - len(pos)))
+            for k in el:
+                el[k].extend(e[k] if k in e else [np.nan] * len(pos))
+        rows, cols = xrf_ratios(dep, el)
+        n[core] = write_core(core, rows, cols)
+        manifest.append({"name": core, "file": f"{core}_tesis.csv", "units": "cm", "note": note})
+
+    itx = em / "Western basin" / "MD81_LC 06" / "ITRAX"
+    lc06 = []
+    for d in sorted(itx.iterdir()):
+        m = __import__("re").match(r"LC06_(\d+)(A|Final)?$", d.name)
+        if not m:
+            continue
+        f = next((q for q in d.rglob("*result.txt") if "LC06-4-XRF" in q.name or d.name != "LC06_4"), None)
+        if d.name == "LC06_4":
+            f = d / "LC06-4" / "LC06-4-XRFresult.txt"
+        if f and f.exists():
+            lc06.append((int(m.group(1)), m.group(2) or "", f))
+    best = {}
+    for sec, suf, f in lc06:
+        if sec not in best or suf:
+            best[sec] = f
+    sections("LC06", [(s, itrax_txt(f)) for s, f in sorted(best.items())], max(best),
+             "Cuenca occidental; ITRAX bruto por secciones (ratios, medias de 1 cm). PROFUNDIDAD APROXIMADA: secciones apiladas sin huecos desde la de n\u00famero mayor (techo) (verificar). Sin coordenadas")
+    wb = openpyxl.load_workbook(em / "Western basin" / "MD81_LC14" / "LC14.xlsx", read_only=True, data_only=True)
+    items = []
+    for ws in wb.worksheets:
+        R = list(ws.iter_rows(min_row=3, values_only=True))
+        if not R or not R[0] or R[0][0] != "filename":
+            continue
+        H = list(R[0])
+        ok = [r for r in R[1:] if num(r[1]) is not None and num(r[3]) == 1]
+        pos = np.array([num(r[1]) for r in ok], float)
+        els = [h for h in H[10:46] if isinstance(h, str) and h.isalpha() and len(h) <= 2]
+        items.append((int(ws.title), (pos, {e: np.array([num(r[H.index(e)]) if num(r[H.index(e)]) is not None else np.nan for r in ok], float) for e in els})))
+    sections("LC14", items, max(s for s, _ in items),
+             "Cuenca occidental; ITRAX bruto de las secciones 24-27 (ratios, medias de 1 cm). PROFUNDIDAD RELATIVA (sección 27 = 0-1 m; verificar). Sin coordenadas")
+    l20 = em / "Eastern basin" / "LC20" / "ITRAX"
+    sections("LC20", [(1, itrax_txt(l20 / "LC20-1-1" / "LC20-1result.txt")), (2, itrax_txt(l20 / "LC20-2A" / "LC20-2Aresult.txt"))], 2,
+             "Cuenca oriental; ITRAX bruto de las secciones 1 y 2 (ratios, medias de 1 cm). PROFUNDIDAD RELATIVA (sección 2 encima de la 1; verificar). Sin coordenadas")
+    import json
+    (OUT / "extra_cores.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    return n
 
 
 if __name__ == "__main__":

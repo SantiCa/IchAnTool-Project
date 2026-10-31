@@ -1,4 +1,4 @@
-// IchAnTool web — project library in the browser (IndexedDB). Each project is a "folder" holding its
+// CorAnTool web — project library in the browser (IndexedDB). Each project is a "folder" holding its
 // images, depths, age model, labels and external records. Data stay on this computer and browser.
 
 const DB_NAME = 'ichantool', DB_VERSION = 3;

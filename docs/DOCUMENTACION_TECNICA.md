@@ -1,7 +1,13 @@
-# Documentación técnica de IchAnTool
+# Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V14 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.8.
+Versión del documento: V16 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.0.
+
+**Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
+IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
+Por compatibilidad se mantienen el nombre del paquete Python (`ichantool`), las claves del
+almacenamiento del navegador (`ichantool*`) y la lectura de archivos con `app: 'IchAnTool'`; los
+nuevos archivos llevan `app: 'CorAnTool'` y la extensión `.corantool.json`.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -1074,6 +1080,35 @@ página de prueba privada. Contenido:
 - ODP 976: ORL A1–A6 con profundidad y edad del autor y tipo de la tabla VII.3.
 - «Fuera de capa orgánica» se recalcula al cargar como complemento de las capas orgánicas de cada
   sondeo (977A 0–147 ka, 976 0–135 ka, LC10 0–653 cm; GP03 lo trae en sus etiquetas).
+
+- **Desde V16, el resto de sondeos de la carpeta** (manifiesto `privado/extra_cores.json`, que la
+  aplicación lee para crear un sondeo por entrada):
+  - GP14 (Alborán, «Big One West off mound»): FRX en pastilla (óxidos %, ppm), ICP-MS (traza y
+    tierras raras), razones y factores de enriquecimiento de la hoja «ratios»; edad de cada muestra
+    (`Age1`, años → ka) de `Datos geoquimicas_santiago.xlsx`.
+  - LC21 (Egeo, 35,66° N 26,58° E, 1522 m, PANGAEA): susceptibilidad magnética y gris cada 0,5 cm,
+    susceptibilidad másica, ARM y Sr–Nd de las muestras del autor; isótopos δ13C y δ18O de
+    foraminíferos planctónicos (Amies et al., 2019), biomarcadores y Nd–Sm (PANGAEA, profundidades
+    en m × 100); modelo de edad de la hoja «Generado por mi»; sapropeles S1, S3, S4, S5 e
+    interrupción de S4 (hoja «Sapropel ages») como intervalos en edad.
+  - LC12: razones ITRAX del proyecto Grapher del autor; LC01: tabla ITRAX normalizada
+    (profundidad en mm); LC05: razones normalizadas y PCA del autor (profundidad en mm). Medias de
+    1 cm.
+  - LC06, LC14 y LC20: archivos ITRAX brutos por sección (`result.txt` u hojas de Excel). Solo
+    puntos con `validity = 1`; razones `XRF A/B` = cuentas A / cuentas B (denominador > 0), medias
+    de 1 cm. **La profundidad es supuesta:** las secciones se apilan sin huecos desde la de número
+    mayor (techo, como en LC05 «Sec 37_0-1m»), usando la longitud escaneada de cada una; en LC06 se
+    usa la repetición «A»/«Final» si existe. En LC14 (secciones 24–27) y LC20 (1 y 2) la profundidad
+    es relativa. Hay que verificarla antes de interpretar.
+  - GP03: además, arena > 63 µm, P/B, riqueza S y N/g de foraminíferos bentónicos (hoja «core GP03»).
+  - Razones calculadas: Ti/Ca, Fe/Ca, Zr/Ti, Zr/Rb, Mn/Ti, Ba/Ti, Br/Cl, S/Cl, Sr/Ca, K/Ti, Si/Ti, Rb/Ti y
+    Fe/Ti (las que permitan los elementos de cada archivo).
+  - Sin coordenadas conocidas (no están en los archivos ni en PANGAEA): GP14, LC01, LC05, LC06, LC12,
+    LC14 y LC20; se añaden con ✎. Sin modelo de edad: LC01, LC05, LC06, LC12, LC14 y LC20 (solo en
+    profundidad hasta que se añada).
+  - Un proyecto «Tesis» guardado con una versión anterior de los datos (`THESIS_DATA` < 2) se
+    actualiza una vez al abrir el programa (se recargan los sondeos de la tesis; las imágenes y los
+    sondeos propios del proyecto se conservan).
 
 Configuración al cargar con estos datos: 12 variables (8 razones XRF comunes a GP03 y LC10,
 bioturbación total, gris, TOC y SST), escalado por sondeo (las cuentas de dos escáneres distintos,

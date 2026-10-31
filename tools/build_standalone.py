@@ -1,6 +1,6 @@
 """Build a single self-contained HTML file of the web app (double-click to open, works offline).
 
-Usage:  python tools/build_standalone.py  ->  dist/IchAnTool.html
+Usage:  python tools/build_standalone.py  ->  dist/CorAnTool.html
 
 ES modules cannot be loaded from file:// URLs, so the modules are concatenated (in dependency
 order, with import/export statements removed) into one inline <script type="module">, and the
@@ -32,7 +32,7 @@ def strip_module(src: str) -> str:
     return re.sub(r"^export\s+", "", src, flags=re.M)
 
 
-def build(out: Path = ROOT / "dist" / "IchAnTool.html") -> Path:
+def build(out: Path = ROOT / "dist" / "CorAnTool.html") -> Path:
     seen: dict[str, str] = {}
     parts = []
     for name in ORDER:

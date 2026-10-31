@@ -1,4 +1,4 @@
-# IchAnTool web app
+# CorAnTool web app (formerly IchAnTool)
 
 Browser application for ichnological analysis of core images. Everything runs locally in the
 browser: images are never uploaded.
@@ -42,7 +42,7 @@ python -m http.server 8000
 # open http://localhost:8000/app/
 ```
 
-Single offline file (no server needed): `python tools/build_standalone.py` -> `dist/IchAnTool.html`.
+Single offline file (no server needed): `python tools/build_standalone.py` -> `dist/CorAnTool.html`.
 
 ## Code
 - `js/core.js` — binning, indices, age model, CSV, run-length encoding (mirrors the Python package)

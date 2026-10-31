@@ -2,6 +2,12 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V16 — Web app 1.0 — 2026-10-31
+- Renamed **CorAnTool** (Core Analysis Tool), formerly IchAnTool; old project files, browser data and the
+  `ichantool` Python package keep working.
+- Thesis project now holds all cores of the author's folder (GP14, LC21, LC01, LC05, LC06, LC12, LC14,
+  LC20) and more foraminifera data (GP03 indices, LC21 planktonic isotopes); private build only.
+
 ## V15 — Web app 0.9 — 2026-10-31
 - Map customisation: background (simple vector, physical, shaded relief, topographic, bathymetric,
   GEBCO bathymetry + topography, aerial photo, aerial photo + bathymetry), core symbol, size, colours,
