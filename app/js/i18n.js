@@ -580,6 +580,89 @@ Object.assign(D.en, {
   'mp.from': 'From “{p}”',
 });
 
+Object.assign(D.es, {
+  'ml.open': 'Modelos y entrenamiento…', 'ml.p.method': 'Método', 'ml.title': 'Modelos y entrenamiento de icnotaxones',
+  'ml.tab.guide': 'Cómo funciona', 'ml.tab.train': 'Método y evaluación', 'ml.tab.examples': 'Ejemplos usados', 'ml.tab.others': 'Ejemplos de otros proyectos',
+  'ml.m.knn': 'k vecinos (k-NN)', 'ml.m.rf': 'Bosque aleatorio (Random Forest)', 'ml.m.nb': 'Bayes ingenuo (Naive Bayes)',
+  'ml.d.knn': 'Busca las k trazas etiquetadas más parecidas y vota. Funciona desde 2 ejemplos, se actualiza al instante y se explica viendo los vecinos. Bueno con pocos ejemplos.',
+  'ml.d.rf': 'Cientos de árboles de decisión («si es alargada y vertical…») que votan. Suele acertar más cuando hay muchos ejemplos (decenas por taxón) y descriptores que pesan distinto. Más lento.',
+  'ml.d.nb': 'Supone que cada descriptor sigue una campana (normal) en cada taxón y combina las probabilidades. Muy rápido y estable con pocos ejemplos, pero simplifica (ignora que tamaño y longitud van juntos).',
+  'ml.trainIntro': 'Elige el método y sus parámetros. El cambio se aplica a los tres modelos (sondeo, proyecto y todos). Para saber cuál funciona mejor con tus datos, pulsa «Evaluar y comparar».',
+  'ml.p.k': 'Vecinos (k)', 'ml.p.weights': 'Peso del voto', 'ml.p.wDist': 'Más peso a los más parecidos', 'ml.p.wUni': 'Todos igual',
+  'ml.p.trees': 'Árboles', 'ml.p.depth': 'Profundidad máxima', 'ml.p.leaf': 'Ejemplos mínimos por hoja', 'ml.p.balanced': 'Compensar taxones con pocos ejemplos',
+  'ml.p.priors': 'Probabilidad de partida', 'ml.p.pUni': 'Igual para todos los taxones', 'ml.p.pEmp': 'Según cuántos ejemplos hay de cada uno',
+  'ml.paramHelp.knn': 'k pequeño (3–5) sigue mucho a los ejemplos concretos; k grande (9–15) suaviza pero puede tragarse taxones raros. Con menos de 10 ejemplos por taxón usa k ≤ 5.',
+  'ml.paramHelp.rf': 'Más árboles = más estable pero más lento (100 suele bastar). Menos profundidad y más ejemplos por hoja = menos riesgo de memorizar los ejemplos. «Compensar» evita que el taxón más abundante se lo coma todo.',
+  'ml.paramHelp.nb': '«Igual para todos» no favorece al taxón más frecuente; «según ejemplos» acierta más en total pero menos en los raros.',
+  'ml.noveltyHelp': 'La tolerancia a formas nuevas decide cuándo el programa dice «no se parece a nada» (más baja = más prudente).',
+  'ml.eval': 'Evaluar y comparar', 'ml.evalHint': 'Prueba los 3 métodos con los 3 modelos (validación cruzada de 5 grupos, semilla 42).',
+  'ml.evalNeed': 'Hacen falta al menos 6 ejemplos de 2 taxones para evaluar.',
+  'ml.evalTitle': 'Resultado de la evaluación', 'ml.onCore': 'las trazas etiquetadas de este sondeo', 'ml.onProject': 'las trazas etiquetadas del proyecto',
+  'ml.evalNote': 'Se predicen {n} trazas ({w}) que el modelo no ha visto (5 grupos; cada traza se predice una vez, entrenando sin su grupo). Primera cifra: acierto equilibrado (media del acierto de cada taxón, no se deja engañar por un taxón muy abundante). Entre paréntesis: acierto total.',
+  'ml.useBest': 'Usar esta combinación', 'ml.applied': 'Método y modelo aplicados.',
+  'ml.cm': 'Matriz de confusión de la mejor combinación', 'ml.cmNote': 'Filas: taxón real; columnas: taxón predicho. La diagonal son los aciertos; fuera de ella, qué se confunde con qué.', 'ml.real': 'Real', 'ml.pred': 'Predicho',
+  'ml.rec': 'Recomendación para tus datos', 'ml.recNone': 'Aún no hay trazas etiquetadas: etiqueta algunas (al menos 10 por taxón) y vuelve aquí.',
+  'ml.recCounts': 'Ejemplos disponibles: {c} en este sondeo, {p} en el proyecto, {a} en todos los proyectos.',
+  'ml.recFew': 'Taxones con menos de 10 ejemplos (los modelos los reconocerán mal): {l}.',
+  'ml.recBest': 'Mejor combinación evaluada: modelo «{s}» con {m} — acierto equilibrado {v} %.',
+  'ml.recClose': 'Otras combinaciones quedan a menos de 3 puntos; se recomienda la más sencilla (primero el método más simple, después el modelo más local).', 'ml.recEval': 'Pulsa «Evaluar y comparar» en «Método y evaluación» para saber qué combinación funciona mejor con tus datos.',
+  'ml.exScope': 'Modelo', 'ml.exCount': '{n} ejemplos en uso de {t}', 'ml.exHelp': 'Cada imagen es una traza etiquetada que el modelo usa para aprender. Desmarca «usar» si no es un buen ejemplo (mal recortada, dudosa, mal etiquetada): sigue etiquetada y contando en la bioturbación, pero el modelo no aprende de ella. Clic en la imagen para ir a la traza.',
+  'ml.use': 'usar', 'ml.remove': 'Quitar', 'ml.library': 'Biblioteca', 'ml.noImg': 'sin imagen', 'ml.fewWarn': 'pocos ejemplos',
+  'ml.othersIntro': 'Trazas etiquetadas en otros proyectos. Marca las que quieras y añádelas a la biblioteca de este proyecto: pasan a usarse en los modelos de sondeo y de proyecto. (El modelo «todos los proyectos» ya las usa.)',
+  'ml.othersNone': 'No hay trazas etiquetadas en otros proyectos (o aún no se han guardado).', 'ml.pick': 'elegir', 'ml.inLib': 'ya en la biblioteca', 'ml.addLib': 'Añadir {n} a la biblioteca', 'ml.added': '{n} ejemplos añadidos a la biblioteca.',
+  'ml.guide': `<h3>¿Qué hace el programa?</h3><p>Es <b>aprendizaje supervisado</b>: tú etiquetas algunas trazas (los <b>ejemplos</b>) y el programa aprende a reconocer las demás. No mira la imagen como lo haría una persona: de cada traza mide 12 números (<b>descriptores</b>) y aprende qué combinación de números corresponde a cada icnotaxón.</p>
+<table class="dtable gtab"><tbody><tr><th>Tamaño</th><td>área, longitud y anchura (en cm, escala logarítmica)</td></tr><tr><th>Forma</th><td>alargamiento, verticalidad, compacidad (1 = disco) y cuánto rellena su rectángulo</td></tr><tr><th>Relleno</th><td>brillo, textura (variación del brillo) y dos ejes de color (rojo–verde, amarillo–azul) en la imagen original</td></tr><tr><th>Contraste</th><td>diferencia de brillo con el sedimento que la rodea</td></tr></tbody></table>
+<p>Por eso el programa distingue bien taxones con forma o tamaño distintos (<i>Zoophycos</i> frente a <i>Chondrites</i>) y peor los que solo se diferencian por detalles internos. Los colores dependen de la iluminación y del escáner: mezclar imágenes muy distintas empeora el aprendizaje.</p>
+<h3>Los tres métodos</h3><table class="dtable gtab"><thead><tr><th></th><th>Cómo decide</th><th>Cuándo usarlo</th></tr></thead><tbody>
+<tr><th>k vecinos (k-NN)</th><td>Busca las k trazas etiquetadas más parecidas y vota (las más cercanas pesan más).</td><td>Con pocos ejemplos (menos de ~20 por taxón) y para empezar. Es el método por defecto.</td></tr>
+<tr><th>Bosque aleatorio</th><td>Muchos árboles de preguntas («¿alargamiento mayor que 3?») construidos con partes distintas de los ejemplos; votan.</td><td>Con bastantes ejemplos (decenas por taxón). Suele ser el más preciso, pero puede memorizar si hay pocos.</td></tr>
+<tr><th>Bayes ingenuo</th><td>Calcula, para cada taxón, la probabilidad de esos descriptores suponiendo que cada uno sigue una curva normal.</td><td>Como referencia rápida o con muy pocos ejemplos. Simplifica mucho.</td></tr></tbody></table>
+<p>En todos, el programa además comprueba si la traza <b>se parece a algún ejemplo</b>: si está demasiado lejos de todos, dice «no se parece a nada conocido» en vez de inventar.</p>
+<h3>¿Modelo del sondeo, del proyecto o de todos?</h3><ul><li><b>Este sondeo:</b> solo aprende de las trazas de este sondeo. Mejor si el sondeo es distinto de los demás (otra litología, otro escáner) y ya tiene bastantes ejemplos.</li>
+<li><b>Proyecto:</b> aprende de todos los sondeos del proyecto. Buena opción general: más ejemplos y mismas condiciones de trabajo.</li>
+<li><b>Todos los proyectos:</b> aprende de todo lo etiquetado en cualquier proyecto. Útil para empezar un sondeo nuevo o para taxones raros; puede empeorar si las imágenes de otros proyectos son muy distintas.</li></ul>
+<p>No hay una respuesta fija: depende de tus datos. Por eso existe <b>«Evaluar y comparar»</b>, que prueba las 9 combinaciones con trazas que el modelo no ha visto y te dice cuál acierta más.</p>
+<h3>Cómo leer las cifras</h3><ul><li><b>Acierto:</b> porcentaje de trazas bien clasificadas. Ojo: si el 80 % son de un taxón, decir siempre ese taxón ya da un 80 %.</li>
+<li><b>Acierto equilibrado:</b> media del acierto de cada taxón. Es la cifra más honesta para comparar.</li>
+<li><b>Matriz de confusión:</b> qué taxón se confunde con cuál. Ayuda a decidir si dos taxones deberían unirse o necesitan más ejemplos.</li>
+<li><b>Probabilidad por modelo</b> (panel del objeto): reparto del voto entre taxones. Sirve para ver dudas y comparar modelos, pero no es una probabilidad estadística calibrada.</li>
+<li><b>Acierto estimado</b> (pestaña Aprendizaje): para k-NN se calcula dejando cada ejemplo fuera; para los otros métodos aparece tras evaluar.</li></ul>
+<h3>Buenas prácticas</h3><ul><li>Al menos 10–20 ejemplos por taxón, de distintas partes del sondeo.</li><li>Revisa la pestaña «Ejemplos usados» y desmarca los malos ejemplos (recortes de varias trazas juntas, trazas dudosas, errores de etiqueta).</li>
+<li>Usa los mismos ajustes de imagen en todo el proyecto.</li><li>Las sugerencias son ayudas: acepta solo las que compruebes, sobre todo en taxones con pocos ejemplos.</li><li>Para un artículo, indica el método, el modelo (sondeo/proyecto/todos) y el acierto equilibrado de la evaluación.</li></ul>`,
+});
+Object.assign(D.en, {
+  'ml.open': 'Models and training…', 'ml.p.method': 'Method', 'ml.title': 'Ichnotaxon models and training',
+  'ml.tab.guide': 'How it works', 'ml.tab.train': 'Method and evaluation', 'ml.tab.examples': 'Examples used', 'ml.tab.others': 'Examples from other projects',
+  'ml.m.knn': 'k nearest neighbours (k-NN)', 'ml.m.rf': 'Random Forest', 'ml.m.nb': 'Naive Bayes',
+  'ml.d.knn': 'Finds the k most similar labelled traces and votes. Works from 2 examples, updates instantly and is explained by its neighbours. Good with few examples.',
+  'ml.d.rf': 'Hundreds of decision trees that vote. Usually the most accurate with many examples (tens per ichnotaxon). Slower.',
+  'ml.d.nb': 'Assumes each descriptor follows a bell curve in each ichnotaxon. Very fast and stable with few examples, but simplistic.',
+  'ml.trainIntro': 'Choose the method and its parameters; they apply to the three models. Use “Evaluate and compare” to see which works best with your data.',
+  'ml.p.k': 'Neighbours (k)', 'ml.p.weights': 'Vote weight', 'ml.p.wDist': 'Closer counts more', 'ml.p.wUni': 'All equal',
+  'ml.p.trees': 'Trees', 'ml.p.depth': 'Maximum depth', 'ml.p.leaf': 'Minimum examples per leaf', 'ml.p.balanced': 'Balance rare ichnotaxa',
+  'ml.p.priors': 'Prior probability', 'ml.p.pUni': 'Equal for all', 'ml.p.pEmp': 'From the number of examples',
+  'ml.paramHelp.knn': 'Small k (3–5) follows individual examples; large k (9–15) smooths but may swallow rare ichnotaxa.',
+  'ml.paramHelp.rf': 'More trees = more stable, slower (100 is usually enough). Less depth and more examples per leaf = less memorising.',
+  'ml.paramHelp.nb': '“Equal” does not favour the most frequent ichnotaxon.', 'ml.noveltyHelp': 'Novelty tolerance decides when the program says “unlike anything seen”.',
+  'ml.eval': 'Evaluate and compare', 'ml.evalHint': 'Tests the 3 methods with the 3 models (5-fold cross-validation, seed 42).', 'ml.evalNeed': 'At least 6 examples of 2 ichnotaxa are needed.',
+  'ml.evalTitle': 'Evaluation result', 'ml.onCore': 'the labelled traces of this core', 'ml.onProject': 'the labelled traces of the project',
+  'ml.evalNote': '{n} traces ({w}) predicted without having been seen (5 folds). First figure: balanced accuracy (mean per-ichnotaxon accuracy); in brackets: overall accuracy.',
+  'ml.useBest': 'Use this combination', 'ml.applied': 'Method and model applied.',
+  'ml.cm': 'Confusion matrix of the best combination', 'ml.cmNote': 'Rows: true ichnotaxon; columns: predicted.', 'ml.real': 'True', 'ml.pred': 'Predicted',
+  'ml.rec': 'Recommendation for your data', 'ml.recNone': 'No labelled traces yet: label some (at least 10 per ichnotaxon).', 'ml.recCounts': 'Examples: {c} in this core, {p} in the project, {a} in all projects.',
+  'ml.recFew': 'Ichnotaxa with fewer than 10 examples: {l}.', 'ml.recBest': 'Best evaluated combination: “{s}” model with {m} — balanced accuracy {v} %.',
+  'ml.recClose': 'Other combinations are within 3 points; the simplest is recommended (simplest method first, then the most local model).', 'ml.recEval': 'Run “Evaluate and compare” to find the best combination for your data.',
+  'ml.exScope': 'Model', 'ml.exCount': '{n} examples in use of {t}', 'ml.exHelp': 'Untick “use” for poor examples: they stay labelled and counted, but the model does not learn from them. Click an image to go to the trace.',
+  'ml.use': 'use', 'ml.remove': 'Remove', 'ml.library': 'Library', 'ml.noImg': 'no image', 'ml.fewWarn': 'few examples',
+  'ml.othersIntro': 'Labelled traces of other projects. Tick and add them to this project’s library to use them in the core and project models.',
+  'ml.othersNone': 'No labelled traces in other projects yet.', 'ml.pick': 'pick', 'ml.inLib': 'in library', 'ml.addLib': 'Add {n} to the library', 'ml.added': '{n} examples added to the library.',
+  'ml.guide': `<h3>What does the program do?</h3><p>Supervised learning: you label some traces (examples) and it learns to recognise the others from 12 measured descriptors (size, shape, fill brightness/texture/colour, contrast).</p>
+<h3>Methods</h3><ul><li><b>k-NN</b>: votes of the k most similar examples; best with few examples (default).</li><li><b>Random Forest</b>: many decision trees; usually best with tens of examples per ichnotaxon.</li><li><b>Naive Bayes</b>: bell-curve model per descriptor; quick baseline.</li></ul>
+<h3>Core, project or all projects?</h3><p>Core: only this core. Project: all cores of the project (good default). All projects: everything labelled anywhere (useful for new cores or rare ichnotaxa). Use “Evaluate and compare” to decide with your data.</p>
+<h3>Reading the figures</h3><p>Balanced accuracy is the fairest comparison; the confusion matrix shows which ichnotaxa are confused; probabilities are vote shares, not calibrated probabilities.</p>
+<h3>Good practice</h3><p>10–20 examples per ichnotaxon, review and untick poor examples, keep image settings consistent, and report method, model and balanced accuracy in papers.</p>`,
+});
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';

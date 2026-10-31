@@ -2,6 +2,11 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V18 — Web app 1.2 — 2026-10-31
+- “Models and training” dialog: beginner guide, choice of k-NN / Random Forest / naive Bayes with parameters,
+  evaluation of 3 methods × 3 models on the same unseen traces with a recommendation and confusion matrix,
+  gallery of training examples (exclude, remove, go to trace) and examples from other projects (add to library).
+
 ## V17 — Web app 1.1 — 2026-10-31
 - Start screen tabs: Projects / All projects; multiproject analysis (ticked cores of several projects copied into
   an analysis project where Multiproxy, Data and Figures work; update from sources).

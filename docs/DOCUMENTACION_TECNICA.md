@@ -1,7 +1,7 @@
 # Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V17 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 1.1.
+Versión del documento: V18 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.2.
 
 **Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
 IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
@@ -531,6 +531,38 @@ identificaciones automáticas en etiquetas, que pasan a ser ejemplos.
   de novedad `m`, acierto, recuentos y los ejemplos (descriptores redondeados a 5 decimales). El archivo
   de proyecto guarda `models.project` y `models.cores[id]`; el modelo de todos los proyectos se guarda en
   las preferencias del navegador (`model.all`). `Classifier.fromJSON` lo reconstruye sin reajustar.
+
+### 10.6 ter Métodos, parámetros, evaluación y ejemplos (desde V18)
+Diálogo «Modelos y entrenamiento» (pestaña Aprendizaje): guía para no especialistas, método y
+parámetros, evaluación, galería de ejemplos usados y ejemplos de otros proyectos.
+- **Métodos** (`learn.js::TaxonModel`, ajustes en `settings.ml`, valores por defecto entre paréntesis):
+  - k-NN (§10.2): `k` (5), peso del voto `distance` = `1/(d + 0,05)` o `uniform` = 1.
+  - Random Forest (`geo.js::fitModel('rf')`, §21.4) sobre los descriptores estandarizados `z`:
+    árboles (100), profundidad máxima (12), ejemplos mínimos por hoja (2), compensación de clases (sí);
+    resto de parámetros como en §21.4; semilla 42.
+  - Bayes ingenuo gaussiano (`fitModel('nb')`) sobre `z`: probabilidad de partida uniforme (por
+    defecto) o empírica.
+  - En los tres se ajusta también el k-NN, que da la estandarización (media y desviación de los
+    ejemplos), la prueba de novedad (§10.3) y, para k-NN, el acierto dejando uno fuera. Con RF o NB la
+    probabilidad de cada clase es la del método; la clase sugerida es la de mayor probabilidad salvo
+    que el k-NN la marque como forma nueva. El «acierto estimado» de RF y NB es el acierto equilibrado
+    de la última evaluación (no hay dejar-uno-fuera).
+- **Evaluación** (`evaluateModels`): conjunto de prueba = trazas etiquetadas del sondeo abierto si hay
+  ≥ 10 de ≥ 2 taxones; si no, las del proyecto. Se reparten en 5 grupos estratificados por taxón
+  (barajado con semilla 42, `stratifiedFolds`). Para cada grupo y cada modelo (sondeo, proyecto, todos)
+  se entrena con su conjunto de ejemplos **sin las trazas de ese grupo** y se predicen (sin prueba de
+  novedad). Así los 9 casos (3 métodos × 3 modelos) se juzgan con las mismas trazas. Se dan acierto
+  total, acierto equilibrado (media de la sensibilidad de cada taxón) y matriz de confusión.
+- **Recomendación:** la combinación con mayor acierto equilibrado; si otras quedan a ≤ 3 puntos, se
+  elige la más sencilla (k-NN, después Bayes, después RF; y sondeo, después proyecto, después todos).
+- **Ejemplos usados:** miniaturas (recorte del rectángulo envolvente con contorno, 64 px, JPEG 0,7)
+  agrupadas por taxón. Desmarcar «usar» en una traza del proyecto pone `o.nt = true` (se guarda como
+  `nt: 1`): sigue etiquetada y cuenta en la bioturbación, pero no es ejemplo de ningún modelo. En las
+  de otros proyectos se guarda una lista de exclusión en el navegador (`ml.excluded`). Los ejemplos de
+  la biblioteca se pueden quitar.
+- **Ejemplos de otros proyectos:** el índice `lite` guarda de cada traza etiquetada `{key, name, x,
+  core, thumb}` (`key = proyecto|sondeo|sección|objeto`). Se pueden añadir a la biblioteca del
+  proyecto (`library: {key, name, x, thumb, from}`); si el taxón no existe, se crea con ese nombre.
 
 ### 10.7 Por qué k-NN
 - **Pocos ejemplos:** funciona desde el segundo ejemplo. Un usuario etiqueta unas decenas de

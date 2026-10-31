@@ -6,6 +6,10 @@
 > Desde V17 hay tres modelos de icnotaxones (sondeo, proyecto, todos los proyectos; §10.6 bis). En un
 > artículo hay que decir cuál se usó y su acierto dejando uno fuera; la «probabilidad» es la proporción del
 > voto ponderado de los k vecinos, no una probabilidad calibrada.
+> Desde V18 se puede elegir k-NN, Random Forest o Bayes ingenuo; la evaluación integrada (5 grupos
+> estratificados, semilla 42, mismas trazas para los 9 casos; §10.6 ter) da el acierto equilibrado que hay que
+> citar. Los grupos son aleatorios dentro del sondeo: trazas vecinas pueden caer en grupos distintos, así que
+> el acierto puede ser algo optimista frente a un sondeo nuevo (para eso, comparar con el modelo «todos»).
 
 Para cada artículo previsto: qué partes de IchAnTool usa, qué se puede afirmar con lo que ya está
 hecho, qué falta comprobar antes de enviarlo y las preguntas que probablemente hará un revisor,

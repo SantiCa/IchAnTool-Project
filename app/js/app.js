@@ -4,9 +4,9 @@ import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMa
 import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
 import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject, getPref, setPref, putLite, listLite, getMeta } from './storage.js';
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
-import { Classifier, vec, FEATURES } from './learn.js';
+import { Classifier, TaxonModel, evaluateModels, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, MAP_STYLE, MAP_SYMBOLS, zoomBBox, mapGeometry } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, zoomBBox, mapGeometry } from './geo.js';
 
 /** App name (V16: IchAnTool → CorAnTool). Files written by IchAnTool are still accepted; browser storage keys keep the old name. */
 const APP = 'CorAnTool', APP_NAMES = ['CorAnTool', 'IchAnTool'];
@@ -46,7 +46,7 @@ const S = {
   classes: defaultClasses(), active: 'undet',
   sections: [], cur: -1, cores: [], curCore: null, sheet: { columns: [], cells: {} },
   id: '', notes: '', records: [], logView: null,
-  settings: { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP: 8, clfScope: 'project' },
+  settings: { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP: 8, clfScope: 'project', ml: { method: 'knn', k: 5, weights: 'distance', trees: 100, maxDepth: 12, minLeaf: 2, balanced: true, priors: 'uniform' } },
   age: { text: '', units: 'ka', model: null },
   library: [],
   tool: 'select', prevTool: 'select', brushSize: 10, wandTol: 30,
@@ -55,8 +55,15 @@ const S = {
 };
 /** Three ichnotaxon models (V16): trained on the open core, on every core of the project, or on every project. */
 const CLF_SCOPES = ['core', 'project', 'all'];
-const clfs = { core: new Classifier(), project: new Classifier(), all: new Classifier() };
-let clf = clfs.project, otherExamples = [];
+/** Training settings of the ichnotaxon models (V18); stored in the project settings. */
+const ML_DEFAULT = { method: 'knn', k: 5, weights: 'distance', trees: 100, maxDepth: 12, minLeaf: 2, balanced: true, priors: 'uniform' };
+const mlOpt = () => { const m = { ...ML_DEFAULT, ...(S.settings.ml || {}) };
+  return { method: m.method, k: m.k, weights: m.weights, novelty: S.settings.novelty, seed: 42, fitFn: fitModel, probaFn: predictProba,
+    rf: { trees: m.trees, maxDepth: m.maxDepth, minLeaf: m.minLeaf, balanced: m.balanced }, nb: { priors: m.priors } }; };
+const mkModel = () => new TaxonModel(mlOpt());
+const clfs = { core: new TaxonModel(), project: new TaxonModel(), all: new TaxonModel() };
+let clf = clfs.project, otherExamples = [], mlExcluded = new Set(), mlEval = null;
+getPref('ml.excluded').then((v) => { mlExcluded = new Set(v || []); }).catch(() => {});
 const sec = () => S.sections[S.cur];
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clsById = (id) => S.classes.find((c) => c.id === id);
@@ -339,13 +346,25 @@ function clearCandidates() {
 /* ───────────── learning ───────────── */
 
 let learnTimer = 0;
-function scheduleLearn() { clearTimeout(learnTimer); learnTimer = setTimeout(learnNow, 60); }
+function scheduleLearn() { clearTimeout(learnTimer); learnTimer = setTimeout(learnNow, (S.settings.ml?.method || 'knn') === 'knn' ? 60 : 500); }
+/** Labelled examples of this project with a stable key; objects marked «not for training» (o.nt) are left out. */
+function ownExamples(cores, withExcluded = false) {
+  const ex = [];
+  for (const c of cores) for (const s of c.sections) for (const o of s.objects.values()) if (o.cls && o.feat && (withExcluded || !o.nt)) {
+    const k = clsById(o.cls); if (k) ex.push({ key: `${S.id}|${c.id}|${s.id}|${o.id}`, y: k.name, x: vec(o.feat), c, s, o });
+  }
+  return ex;
+}
+function mlSets() {
+  const lib = S.library.filter((e) => e.name && Array.isArray(e.x)).map((e, i) => ({ key: e.key || `lib|${i}`, y: e.name, x: e.x, lib: e }));
+  const cur = S.cores.find((c) => c.id === S.curCore), exCore = ownExamples(cur ? [cur] : []), exProj = ownExamples(S.cores);
+  const keys = new Set([...exProj, ...lib].map((e) => e.key));
+  const other = otherExamples.filter((e) => !mlExcluded.has(e.key) && !keys.has(e.key));
+  return { core: exCore.concat(lib), project: exProj.concat(lib), all: exProj.concat(lib, other) };
+}
 function learnNow() {
-  const own = (cores) => { const ex = []; for (const c of cores) for (const s of c.sections) for (const o of s.objects.values()) if (o.cls && o.feat) { const k = clsById(o.cls); if (k) ex.push({ y: k.name, x: vec(o.feat) }); } return ex; };
-  const lib = S.library.map((e) => ({ y: e.name, x: e.x }));
-  const cur = S.cores.find((c) => c.id === S.curCore), exCore = own(cur ? [cur] : []), exProj = own(S.cores);
-  const sets = { core: exCore.concat(lib), project: exProj.concat(lib), all: exProj.concat(lib, otherExamples) };
-  for (const k of CLF_SCOPES) { clfs[k].novelty = S.settings.novelty; clfs[k].fit(sets[k]); }
+  const sets = mlSets();
+  for (const k of CLF_SCOPES) { clfs[k] = mkModel(); clfs[k].cv = mlEval?.res?.[k]?.[clfs[k].method]?.balanced ?? null; clfs[k].fit(sets[k]); }
   clf = clfs[S.settings.clfScope] || clfs.project;
   const idOf = (name) => S.classes.find((c) => c.name === name)?.id || null;
   for (const s of S.sections) {
@@ -358,12 +377,13 @@ function learnNow() {
   }
   saveAllModel();
   renderLearn(); renderClasses(); renderObject(); scheduleAnalysis(); requestRender();
+  if ($('mlDlg')?.open) renderMl();
 }
 /** Labelled examples of the other projects (light index), for the all-projects model. */
 async function refreshOtherExamples() {
   if (!storageOK) return;
   const lites = await listLite().catch(() => []);
-  otherExamples = lites.filter((l) => l.id !== S.id && l.kind !== 'multi').flatMap((l) => (l.examples || []).map((e) => ({ y: e.name, x: e.x })));
+  otherExamples = lites.filter((l) => l.id !== S.id && l.kind !== 'multi').flatMap((l) => (l.examples || []).map((e, i) => ({ key: e.key || `${l.id}|${i}`, y: e.name, x: e.x, thumb: e.thumb || null, where: `${l.name} · ${e.core || ''}`, project: l.id })));
   scheduleLearn();
 }
 let allModelTimer = 0;
@@ -372,7 +392,7 @@ function saveAllModel() { clearTimeout(allModelTimer); allModelTimer = setTimeou
 /** Stored models of the project ("weights"): the project model and one per core. */
 function projectModels() {
   const out = { project: clfs.project.n ? clfs.project.toJSON() : null, cores: {} };
-  for (const c of S.cores) { const ex = []; for (const s of c.sections) for (const o of s.objects.values()) if (o.cls && o.feat) { const k = clsById(o.cls); if (k) ex.push({ y: k.name, x: vec(o.feat) }); } if (ex.length >= 2) out.cores[c.id] = new Classifier({ novelty: S.settings.novelty }).fit(ex).toJSON(); }
+  for (const c of S.cores) { const ex = ownExamples([c]); if (ex.length >= 2) out.cores[c.id] = new Classifier({ novelty: S.settings.novelty, k: mlOpt().k, weights: mlOpt().weights }).fit(ex).toJSON(); }
   return out;
 }
 
@@ -899,7 +919,7 @@ function probTable(o) {
 function renderLearn() {
   const counts = clf.counts || {}, total = clf.n || 0, s = sec();
   const sc = S.settings.clfScope || 'project';
-  $('clfScopeBox').innerHTML = `<label class="f"><span>${t('l.scope')}</span><select id="clfScope">${CLF_SCOPES.map((k) => `<option value="${k}" ${k === sc ? 'selected' : ''}>${t('l.scope.' + k)}</option>`).join('')}</select></label>
+  $('clfScopeBox').innerHTML = `<p class="note" style="margin:0">${t('ml.p.method')}: <b>${t('ml.m.' + (S.settings.ml?.method || 'knn'))}</b></p><label class="f"><span>${t('l.scope')}</span><select id="clfScope">${CLF_SCOPES.map((k) => `<option value="${k}" ${k === sc ? 'selected' : ''}>${t('l.scope.' + k)}</option>`).join('')}</select></label>
     <table class="dtable mtab"><thead><tr><th></th>${CLF_SCOPES.map((k) => `<th>${t('l.scope.' + k)}</th>`).join('')}</tr></thead><tbody>
     <tr><td class="txt">${t('l.examples')}</td>${CLF_SCOPES.map((k) => `<td>${clfs[k].n || 0}</td>`).join('')}</tr>
     <tr><td class="txt">${t('l.accuracy')}</td>${CLF_SCOPES.map((k) => `<td>${clfs[k].accuracy == null ? '—' : Math.round(clfs[k].accuracy * 100) + '%'}</td>`).join('')}</tr></tbody></table>`;
@@ -1366,7 +1386,7 @@ function projectMeta() {
 function liteSnapshot() {
   return {
     id: S.id, name: S.name, updated: Date.now(), kind: S.kind || 'normal',
-    examples: S.cores.flatMap((c) => c.sections.flatMap((s) => [...s.objects.values()].filter((o) => o.cls && o.feat).map((o) => ({ name: clsById(o.cls)?.name, x: vec(o.feat).map((v) => +v.toFixed(4)) })))).filter((e) => e.name),
+    examples: ownExamples(S.cores).map((e) => ({ key: e.key, name: e.y, x: e.x.map((v) => +v.toFixed(4)), core: e.c.name, thumb: thumbOf(e.s, e.o) })),
     layers: S.geo.layers, intervals: S.geo.intervals, geo: (({ cores: _c, ...g }) => g)(S.geo),
     cores: S.cores.map((c) => ({ id: c.id, name: c.name, lat: c.lat, lon: c.lon, units: c.units, ageText: c.ageText, depth: c.depth, age: c.age, proxies: c.proxies, src: c.src, nImages: c.sections.length })),
   };
@@ -1414,7 +1434,7 @@ function serSection(s, binary) {
     id: s.id, name: s.name, ds: s.ds, rot: s.rot, w: s.w, h: s.h,
     file: { name: s.file.name, type: s.file.type, ...(binary ? { bytes: s.file.bytes } : { b64: b64encode(s.file.bytes) }) },
     top: s.top, bottom: s.bottom, units: s.units, roi: s.roi, filters: s.filters, preset: s.preset, detect: s.detect, manual: s.manual,
-    nextId: s.nextId, objects: [...s.objects.values()].map((o) => ({ id: o.id, cls: o.cls, src: o.src })),
+    nextId: s.nextId, objects: [...s.objects.values()].map((o) => ({ id: o.id, cls: o.cls, src: o.src, ...(o.nt ? { nt: 1 } : {}) })),
     labels: rleEncode(s.labels), exclude: rleEncode(s.exclude),
   };
 }
@@ -1443,7 +1463,7 @@ async function loadSection(q) {
   Object.assign(s, { id: q.id, rot: q.rot, top: q.top, bottom: q.bottom, units: q.units, roi: q.roi, filters: q.filters, preset: q.preset, detect: q.detect, manual: q.manual || [], nextId: q.nextId });
   enhance(s);
   s.labels = rleDecode(q.labels, w * h, Int32Array); s.exclude = rleDecode(q.exclude, w * h, Uint8Array);
-  for (const o of q.objects) s.objects.set(o.id, { id: o.id, cls: o.cls, src: o.src, pred: null, conf: 0, area: 0, bbox: null, stats: null, feat: null });
+  for (const o of q.objects) s.objects.set(o.id, { id: o.id, cls: o.cls, src: o.src, nt: !!o.nt, pred: null, conf: 0, area: 0, bbox: null, stats: null, feat: null });
   refreshObjects(s, new Set(s.objects.keys()), null);
   return s;
 }
@@ -1497,7 +1517,7 @@ function resetState() {
   S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; S.fig = defaultFig(); S.kind = 'normal'; S.multiSource = null;
   S.geo = defaultGeo(); geoReset();
   S.classes = defaultClasses(); S.active = 'undet';
-  S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP, clfScope: 'project' };
+  S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP, clfScope: 'project', ml: { ...ML_DEFAULT } };
   $('undoBtn').disabled = true; $('detectStatus').textContent = '';
   S.cores = [makeCore({ name: t('core.first') })];
   activateCore(S.cores[0].id, true);
@@ -2980,6 +3000,153 @@ $('allTable').addEventListener('click', async (e) => {
   activateCore(c, true); hideHome();
 });
 
+
+
+/* ───────────── models and training dialog (V18): guide, method and parameters, evaluation, examples ───────────── */
+/** Small cached image of a labelled trace (JPEG data URL), for the example galleries. */
+function thumbOf(s, o) {
+  if (o._thumb !== undefined) return o._thumb;
+  try { o._thumb = s.enh && o.bbox ? traceCanvas(s, o, 64, 'enh', true).canvas.toDataURL('image/jpeg', 0.7) : null; } catch { o._thumb = null; }
+  return o._thumb;
+}
+let mlTab = 'guide', mlScope = null, mlOtherProj = '';
+const mlPicked = new Set();
+function openMl(tab) { if (tab) mlTab = tab; mlScope ||= S.settings.clfScope || 'project'; renderMl(); if (!$('mlDlg').open) $('mlDlg').showModal(); }
+$('mlOpen').addEventListener('click', () => openMl());
+$('mlClose').addEventListener('click', () => $('mlDlg').close());
+$('mlTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-mltab]'); if (b) { mlTab = b.dataset.mltab; renderMl(); } });
+
+function renderMl() {
+  for (const b of document.querySelectorAll('[data-mltab]')) b.setAttribute('aria-pressed', String(b.dataset.mltab === mlTab));
+  const box = $('mlBody');
+  if (mlTab === 'guide') box.innerHTML = t('ml.guide') + mlRecommendation();
+  else if (mlTab === 'train') box.innerHTML = mlTrainHTML();
+  else if (mlTab === 'examples') box.innerHTML = mlExamplesHTML();
+  else box.innerHTML = mlOthersHTML();
+}
+
+/** Plain-language recommendation from the counts and, if done, from the last evaluation. */
+function mlRecommendation() {
+  const sets = mlSets(), cnt = (sc) => { const c = {}; for (const e of sets[sc]) c[e.y] = (c[e.y] || 0) + 1; return c; };
+  const few = Object.entries(cnt('project')).filter(([, n]) => n < 10).map(([k]) => k);
+  let h = `<h3>${t('ml.rec')}</h3><ul>`;
+  if (!sets.project.length) h += `<li>${t('ml.recNone')}</li>`;
+  else {
+    h += `<li>${t('ml.recCounts', { c: sets.core.length, p: sets.project.length, a: sets.all.length })}</li>`;
+    if (few.length) h += `<li>${t('ml.recFew', { l: few.map(esc).join(', ') })}</li>`;
+    if (mlEval?.best) { const b = mlEval.best; h += `<li><b>${t('ml.recBest', { s: t('l.scope.' + b.scope), m: t('ml.m.' + b.method), v: Math.round(b.balanced * 100) })}</b> ${b.close ? t('ml.recClose') : ''}</li>`; }
+    else h += `<li>${t('ml.recEval')}</li>`;
+  }
+  return h + '</ul>';
+}
+
+function mlTrainHTML() {
+  const m = { ...ML_DEFAULT, ...(S.settings.ml || {}) }, num = (k, a, b, st) => `<input type="number" data-ml="${k}" min="${a}" max="${b}" step="${st}" value="${m[k]}" style="width:80px">`;
+  const methods = ['knn', 'rf', 'nb'].map((k) => `<label class="mlm ${m.method === k ? 'on' : ''}"><input type="radio" name="mlMethod" data-ml="method" value="${k}" ${m.method === k ? 'checked' : ''}><b>${t('ml.m.' + k)}</b><span class="note">${t('ml.d.' + k)}</span></label>`).join('');
+  const params = m.method === 'knn' ? `<label class="f"><span>${t('ml.p.k')}</span>${num('k', 1, 25, 1)}</label><label class="f"><span>${t('ml.p.weights')}</span><select data-ml="weights"><option value="distance" ${m.weights === 'distance' ? 'selected' : ''}>${t('ml.p.wDist')}</option><option value="uniform" ${m.weights === 'uniform' ? 'selected' : ''}>${t('ml.p.wUni')}</option></select></label>`
+    : m.method === 'rf' ? `<label class="f"><span>${t('ml.p.trees')}</span>${num('trees', 10, 500, 10)}</label><label class="f"><span>${t('ml.p.depth')}</span>${num('maxDepth', 2, 30, 1)}</label><label class="f"><span>${t('ml.p.leaf')}</span>${num('minLeaf', 1, 20, 1)}</label><label class="chk"><input type="checkbox" data-ml="balanced" ${m.balanced ? 'checked' : ''}><span>${t('ml.p.balanced')}</span></label>`
+      : `<label class="f"><span>${t('ml.p.priors')}</span><select data-ml="priors"><option value="uniform" ${m.priors === 'uniform' ? 'selected' : ''}>${t('ml.p.pUni')}</option><option value="empirical" ${m.priors === 'empirical' ? 'selected' : ''}>${t('ml.p.pEmp')}</option></select></label>`;
+  let ev = '';
+  if (mlEval) {
+    const r = mlEval.res, cell = (sc, me) => { const v = r[sc]?.[me]; const on = mlEval.best && mlEval.best.scope === sc && mlEval.best.method === me; return `<td class="${on ? 'on' : ''}">${v?.balanced == null ? '—' : `${Math.round(v.balanced * 100)}% <span class="note">(${Math.round(v.accuracy * 100)}%)</span>`}</td>`; };
+    const b = mlEval.best, cm = b ? r[b.scope][b.method] : null;
+    ev = `<h3>${t('ml.evalTitle')}</h3><p class="note">${t('ml.evalNote', { n: mlEval.nTest, w: t(mlEval.on === 'core' ? 'ml.onCore' : 'ml.onProject') })}</p>
+      <table class="dtable mtab"><thead><tr><th></th>${['knn', 'rf', 'nb'].map((me) => `<th>${t('ml.m.' + me)}</th>`).join('')}</tr></thead><tbody>${CLF_SCOPES.map((sc) => `<tr><td class="txt">${t('l.scope.' + sc)}</td>${['knn', 'rf', 'nb'].map((me) => cell(sc, me)).join('')}</tr>`).join('')}</tbody></table>
+      ${b ? `<p>${t('ml.recBest', { s: t('l.scope.' + b.scope), m: t('ml.m.' + b.method), v: Math.round(b.balanced * 100) })} ${b.close ? t('ml.recClose') : ''} <button class="btn small primary" id="mlUseBest">${t('ml.useBest')}</button></p>
+      <details><summary>${t('ml.cm')}</summary><p class="note">${t('ml.cmNote')}</p><div class="tablewrap"><table class="dtable mtab"><thead><tr><th>${t('ml.real')} \\ ${t('ml.pred')}</th>${cm.classes.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${cm.classes.map((c, i) => `<tr><td class="txt">${esc(c)}</td>${cm.cm[i].map((v, j) => `<td class="${i === j ? 'on' : ''}">${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>` : ''}`;
+  }
+  return `<p class="note">${t('ml.trainIntro')}</p><div class="mlmethods">${methods}</div><div class="row" style="align-items:end;gap:12px">${params}
+    <label class="f"><span>${t('l.novelty')}</span><input type="number" data-ml="novelty" min="1" max="8" step="0.5" value="${S.settings.novelty}" style="width:80px"></label></div>
+    <p class="note">${t('ml.paramHelp.' + m.method)} ${t('ml.noveltyHelp')}</p>
+    <div class="row"><button class="btn primary" id="mlEvalBtn">${t('ml.eval')}</button><span class="note">${t('ml.evalHint')}</span></div>${ev}`;
+}
+
+function runMlEval() {
+  const sets = mlSets(), cur = S.cores.find((c) => c.id === S.curCore);
+  const coreTest = ownExamples(cur ? [cur] : []), on = coreTest.length >= 10 && new Set(coreTest.map((e) => e.y)).size >= 2 ? 'core' : 'project';
+  const test = on === 'core' ? coreTest : sets.project;
+  if (test.length < 6 || new Set(test.map((e) => e.y)).size < 2) { toast(t('ml.evalNeed')); return; }
+  const res = evaluateModels({ test, pools: sets, methods: ['knn', 'rf', 'nb'], opt: mlOpt(), k: 5, seed: 42 });
+  // best = highest balanced accuracy; when another option is within 3 points, the simpler one is preferred (k-NN, then naive Bayes, then RF; this core, then project)
+  const order = { knn: 0, nb: 1, rf: 2 }, list = [];
+  for (const sc of CLF_SCOPES) for (const me of ['knn', 'rf', 'nb']) if (res[sc][me].balanced != null) list.push({ scope: sc, method: me, balanced: res[sc][me].balanced });
+  list.sort((a, b) => b.balanced - a.balanced);
+  let best = list[0];
+  if (best) { const near = list.filter((q) => best.balanced - q.balanced <= 0.03).sort((a, b) => order[a.method] - order[b.method] || CLF_SCOPES.indexOf(a.scope) - CLF_SCOPES.indexOf(b.scope)); best = { ...near[0], close: near.length > 1 }; }
+  mlEval = { res, best, on, nTest: test.length, when: Date.now() };
+  learnNow(); renderMl();
+}
+
+function mlExamplesHTML() {
+  const sc = mlScope || 'project', sets = mlSets();
+  let list = sc === 'core' ? ownExamples(S.cores.filter((c) => c.id === S.curCore), true) : ownExamples(S.cores, true);
+  const lib = S.library.map((e, i) => ({ key: e.key || `lib|${i}`, y: e.name, lib: e, libIndex: i, thumb: e.thumb || null, where: `${t('ml.library')}${e.from ? ': ' + e.from : ''}` }));
+  list = list.map((e) => ({ ...e, thumb: thumbOf(e.s, e.o), where: `${e.c.name} · ${e.s.name}`, excluded: !!e.o.nt })).concat(lib);
+  if (sc === 'all') list = list.concat(otherExamples.filter((e) => !list.some((q) => q.key === e.key)).map((e) => ({ ...e, other: true, excluded: mlExcluded.has(e.key) })));
+  const by = {}; for (const e of list) (by[e.y] ||= []).push(e);
+  const used = sets[sc].length;
+  const card = (e) => `<figure class="mlx ${e.excluded ? 'off' : ''}" data-key="${esc(e.key)}">${e.thumb ? `<img src="${e.thumb}" alt="" ${e.o ? 'data-go="1"' : ''}>` : `<div class="noimg">${t('ml.noImg')}</div>`}
+    <figcaption title="${esc(e.where)}">${esc(e.where)}</figcaption>
+    <div class="row">${e.lib ? `<button class="btn small ghost" data-act="libdel">${t('ml.remove')}</button>` : `<label class="chk"><input type="checkbox" data-act="use" ${e.excluded ? '' : 'checked'}><span>${t('ml.use')}</span></label>`}</div></figure>`;
+  return `<div class="row" style="align-items:end"><label class="f"><span>${t('ml.exScope')}</span><select id="mlScopeSel">${CLF_SCOPES.map((k) => `<option value="${k}" ${k === sc ? 'selected' : ''}>${t('l.scope.' + k)}</option>`).join('')}</select></label>
+    <span class="note">${t('ml.exCount', { n: used, t: list.length })}</span></div><p class="note">${t('ml.exHelp')}</p>
+    ${Object.keys(by).sort().map((y) => `<h3>${esc(y)} <span class="note">${by[y].filter((e) => !e.excluded).length}/${by[y].length}${by[y].filter((e) => !e.excluded).length < 10 ? ' · ' + t('ml.fewWarn') : ''}</span></h3><div class="mlgrid">${by[y].map(card).join('')}</div>`).join('') || `<p class="note">${t('l.none')}</p>`}`;
+}
+
+function mlOthersHTML() {
+  const projs = [...new Map(otherExamples.map((e) => [e.project, e.where.split(' · ')[0]])).entries()];
+  if (!projs.length) return `<p class="note">${t('ml.othersNone')}</p>`;
+  if (!projs.some(([id]) => id === mlOtherProj)) mlOtherProj = projs[0][0];
+  const inLib = new Set(S.library.map((e) => e.key)), list = otherExamples.filter((e) => e.project === mlOtherProj);
+  const by = {}; for (const e of list) (by[e.y] ||= []).push(e);
+  return `<p class="note">${t('ml.othersIntro')}</p><div class="row" style="align-items:end"><label class="f"><span>${t('home.project')}</span><select id="mlOtherSel">${projs.map(([id, n]) => `<option value="${id}" ${id === mlOtherProj ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+    <button class="btn small" id="mlPickAll">${t('mp.all')}</button><button class="btn small" id="mlPickNone">${t('mp.none')}</button><button class="btn small primary" id="mlAddLib">${t('ml.addLib', { n: mlPicked.size })}</button></div>
+    ${Object.keys(by).sort().map((y) => `<h3>${esc(y)} <span class="note">${by[y].length}</span></h3><div class="mlgrid">${by[y].map((e) => `<figure class="mlx ${inLib.has(e.key) ? 'off' : ''}" data-key="${esc(e.key)}">${e.thumb ? `<img src="${e.thumb}" alt="">` : `<div class="noimg">${t('ml.noImg')}</div>`}<figcaption>${esc(e.where)}</figcaption>
+      <div class="row">${inLib.has(e.key) ? `<span class="note">${t('ml.inLib')}</span>` : `<label class="chk"><input type="checkbox" data-act="pick" ${mlPicked.has(e.key) ? 'checked' : ''}><span>${t('ml.pick')}</span></label>`}</div></figure>`).join('')}</div>`).join('')}`;
+}
+
+$('mlBody').addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.dataset.ml) {
+    const k = el.dataset.ml, v = el.type === 'checkbox' ? el.checked : el.type === 'number' ? +el.value : el.value;
+    if (k === 'novelty') { S.settings.novelty = v; $('novelty').value = v; $('novOut').textContent = '×' + v; }
+    else S.settings.ml = { ...ML_DEFAULT, ...(S.settings.ml || {}), [k]: v };
+    if (k === 'method') mlEval = mlEval && { ...mlEval };
+    markDirty(); learnNow(); renderMl(); return;
+  }
+  if (el.id === 'mlScopeSel') { mlScope = el.value; renderMl(); return; }
+  if (el.id === 'mlOtherSel') { mlOtherProj = el.value; mlPicked.clear(); renderMl(); return; }
+  const fig = el.closest('.mlx'); if (!fig) return;
+  const key = fig.dataset.key;
+  if (el.dataset.act === 'use') {
+    const own = ownExamples(S.cores, true).find((q) => q.key === key);
+    if (own) { own.o.nt = !el.checked; markDirty(); }
+    else { if (el.checked) mlExcluded.delete(key); else mlExcluded.add(key); setPref('ml.excluded', [...mlExcluded]).catch(() => {}); }
+    learnNow();
+  } else if (el.dataset.act === 'pick') { if (el.checked) mlPicked.add(key); else mlPicked.delete(key); const b = $('mlAddLib'); if (b) b.textContent = t('ml.addLib', { n: mlPicked.size }); }
+});
+$('mlBody').addEventListener('click', (e) => {
+  const el = e.target;
+  if (el.id === 'mlEvalBtn') { busy(async () => runMlEval()); return; }
+  if (el.id === 'mlUseBest' && mlEval?.best) { S.settings.clfScope = mlEval.best.scope; S.settings.ml = { ...ML_DEFAULT, ...(S.settings.ml || {}), method: mlEval.best.method }; markDirty(); learnNow(); renderMl(); toast(t('ml.applied')); return; }
+  if (el.id === 'mlPickAll') { for (const q of otherExamples) if (q.project === mlOtherProj) mlPicked.add(q.key); renderMl(); return; }
+  if (el.id === 'mlPickNone') { mlPicked.clear(); renderMl(); return; }
+  if (el.id === 'mlAddLib') {
+    const have = new Set(S.library.map((q) => q.key));
+    for (const q of otherExamples) if (mlPicked.has(q.key) && !have.has(q.key)) S.library.push({ key: q.key, name: q.y, x: q.x, thumb: q.thumb, from: q.where });
+    if (!S.classes.length) return;
+    for (const q of S.library) if (!S.classes.some((c) => c.name === q.name)) S.classes.splice(S.classes.length - 1, 0, { id: 'c' + uid(), name: q.name, color: GROUP_COLORS[S.classes.length % GROUP_COLORS.length], counts: true });
+    toast(t('ml.added', { n: mlPicked.size })); mlPicked.clear(); markDirty(); renderClasses(); learnNow(); return;
+  }
+  const fig = el.closest('.mlx'); if (!fig) return;
+  if (el.dataset.act === 'libdel') { const i = S.library.findIndex((q, k) => (q.key || `lib|${k}`) === fig.dataset.key); if (i >= 0) S.library.splice(i, 1); markDirty(); learnNow(); return; }
+  if (el.dataset.go) { // go to the trace in the image
+    const own = ownExamples(S.cores, true).find((q) => q.key === fig.dataset.key); if (!own) return;
+    $('mlDlg').close();
+    if (own.c.id !== S.curCore) activateCore(own.c.id, true);
+    selectSection(S.sections.indexOf(own.s)); centerOn(own.o); select(own.o.id);
+  }
+});
 
 /* ───────────── multiproject analysis (V17): cores of several projects in one analysis project ───────────── */
 const mpSel = new Set(); // keys 'projectId|coreId'

@@ -35,6 +35,7 @@ La descripción detallada de los algoritmos está en
 | V15 | 31-10-2026 | Aplicación web 0.9 | Mapas personalizables: fondo (simple, físico, relieve, topográfico, batimétrico, GEBCO, foto aérea, foto aérea + batimetría), símbolo, tamaño, etiquetas, colores, retícula, escala y norte; zoom con rueda, arrastre y extensión editable |
 | V16 | 31-10-2026 | Aplicación web 1.0 | Nombre CorAnTool (antes IchAnTool); todos los sondeos de la carpeta de la tesis (GP14, LC21, LC01, LC05, LC06, LC12, LC14, LC20) y más foraminíferos (GP03, LC21) |
 | V17 | 31-10-2026 | Aplicación web 1.1 | Pestaña «Todos los proyectos» con análisis multiproyecto (Multiproxy, Datos y Figuras con sondeos de varios proyectos); tres modelos de icnotaxones (sondeo, proyecto, todos) guardados y probabilidad de cada icnotaxón por modelo |
+| V18 | 31-10-2026 | Aplicación web 1.2 | Diálogo «Modelos y entrenamiento»: guía para no especialistas, k-NN / Random Forest / Bayes con parámetros, evaluación de 3 métodos × 3 modelos con recomendación, galería de ejemplos (excluir, quitar) y ejemplos de otros proyectos |
 
 ---
 
@@ -606,6 +607,45 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V18 — Control del entrenamiento y guía de los modelos (31-10-2026)
+
+**Qué se hizo.** En Aprendizaje hay un botón «Modelos y entrenamiento…» que abre un diálogo con cuatro
+pestañas:
+- **Cómo funciona:** guía para alguien sin formación en aprendizaje automático (qué mide el programa
+  de cada traza, los tres métodos, qué modelo usar, cómo leer las cifras, buenas prácticas) y una
+  recomendación con los datos del proyecto.
+- **Método y evaluación:** elegir k-NN, Random Forest o Bayes ingenuo y sus parámetros, con
+  explicación de cada uno; «Evaluar y comparar» prueba los 3 métodos con los 3 modelos sobre las mismas
+  trazas no vistas, muestra acierto equilibrado y total, la matriz de confusión, recomienda una
+  combinación y la aplica con un clic.
+- **Ejemplos usados:** las imágenes de las trazas que usa cada modelo, por taxón; se puede desmarcar
+  una traza como ejemplo (sigue etiquetada), quitar ejemplos de la biblioteca o ir a la traza.
+- **Ejemplos de otros proyectos:** ver las trazas etiquetadas de otro proyecto con su imagen y añadir
+  las elegidas a la biblioteca de este.
+
+**Cambios.**
+- `learn.js`: peso del voto configurable; `rng`, `stratifiedFolds`, `TaxonModel`, `evaluateModels`.
+- `app.js`: `ML_DEFAULT`, `mlOpt`, `mkModel`, `ownExamples`, `mlSets`; modelos `TaxonModel`; `o.nt`
+  guardado; lista de exclusión `ml.excluded`; ejemplos del índice `lite` con clave y miniatura;
+  `thumbOf`; diálogo (`renderMl`, `mlTrainHTML`, `runMlEval`, `mlExamplesHTML`, `mlOthersHTML`).
+- `index.html`, `i18n.js`: diálogo, estilos y textos (guía en español e inglés).
+- `tests/app/learn.test.mjs`: grupos estratificados, Random Forest y evaluación.
+
+**Por qué.** Santiago pidió control sobre el entrenamiento, saber qué aprendizaje automático se usa,
+información para elegir modelo sin ser especialista, y ver, quitar y añadir (de otros proyectos) las
+imágenes de entrenamiento.
+
+**Comprobación.** 34 pruebas de la aplicación y 9 de Python. En Chromium, con 40 trazas etiquetadas en
+el sondeo de prueba (3 taxones, etiquetas de prueba asignadas por forma): evaluación de las 9
+combinaciones (k-NN 81 %, RF 93 %, Bayes 88 % de acierto equilibrado), «Usar esta combinación» aplica
+RF; desmarcar un ejemplo deja 39 de 40 en uso; 40 miniaturas; ningún error.
+
+**Pendiente o problemas conocidos.** Con un solo sondeo etiquetado los tres modelos dan lo mismo. RF se
+reajusta en cada cambio (con muchos ejemplos puede tardar algo). Las miniaturas de otros proyectos
+aparecen cuando esos proyectos se guardan con esta versión.
 
 ---
 
