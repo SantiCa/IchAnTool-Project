@@ -4,7 +4,7 @@ import { parseTable, guessAxisColumn, niceTicks, invertModel, toAxis, compositeR
 import { downsampleRGBA } from '../../app/js/imageproc.js';
 
 test('parseTable: comma, semicolon with decimal comma, whitespace, comments', () => {
-  assert.deepEqual(parseTable('depth,L*\n0.1,41.7\n0.2,45.5\n'), { headers: ['depth', 'L*'], rows: [[0.1, 41.7], [0.2, 45.5]] });
+  assert.deepEqual(parseTable('depth,L*\n0.1,41.7\n0.2,45.5\n').rows, [[0.1, 41.7], [0.2, 45.5]]);
   assert.deepEqual(parseTable('# c\nprof;Ca\n1,5;3,25\n').rows, [[1.5, 3.25]]);
   assert.deepEqual(parseTable('1 2\n3 4').headers, ['col1', 'col2']);
 });

@@ -4,7 +4,7 @@ import { interpAge, toCSV } from './core.js';
 /** Parse CSV / TXT tables: delimiter , ; tab | or spaces; optional header; decimal comma; '#' comments. */
 export function parseTable(text) {
   const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim() && !/^\s*#/.test(l));
-  if (!lines.length) return { headers: [], rows: [] };
+  if (!lines.length) return { headers: [], rows: [], text: [] };
   const head = lines.slice(0, 6);
   const delim = ['\t', ';', ',', '|'].find((d) => head.every((l) => l.split(d).length > 1)) || /\s+/;
   const split = (l) => (delim instanceof RegExp ? l.trim().split(delim) : l.split(delim)).map((c) => c.trim().replace(/^"(.*)"$/, '$1'));
@@ -17,8 +17,10 @@ export function parseTable(text) {
   const first = split(lines[0]);
   const hasHeader = first.some((c) => c !== '' && num(c) === null);
   const headers = hasHeader ? first : first.map((_, i) => `col${i + 1}`);
-  const rows = (hasHeader ? lines.slice(1) : lines).map((l) => { const c = split(l); return headers.map((_, i) => num(c[i])); });
-  return { headers, rows };
+  const body = (hasHeader ? lines.slice(1) : lines).map(split);
+  const rows = body.map((c) => headers.map((_, i) => num(c[i])));
+  const cells = body.map((c) => headers.map((_, i) => c[i] ?? ''));
+  return { headers, rows, text: cells };
 }
 
 /** Guess which column holds depth/age and which axis it is. */
@@ -111,11 +113,12 @@ export function buildLogSVG(o) {
   if (t.species) cols.push({ key: 'species', w: 150, title: L.species });
   if (t.BI) cols.push({ key: 'BI', w: 46, title: 'BI' });
   if (t.ii) cols.push({ key: 'ii', w: 46, title: 'ii' });
+  for (const b of o.bands || []) cols.push({ key: 'band', w: 46, title: b.title, band: b });
   for (const r of o.records) cols.push({ key: 'rec', w: 120, title: r.name, rec: r });
   let x = 8;
   for (const c of cols) { c.x = x; x += c.w + 14; }
   const W = x;
-  const legendItems = t.species ? presentClasses : [];
+  const legendItems = [...(t.species ? presentClasses : []), ...(o.bandLegend || [])];
   const perRow = Math.max(1, Math.floor((W - 16) / 170));
   const legendH = legendItems.length ? Math.ceil(legendItems.length / perRow) * 16 + 14 : 0;
   const Htot = top + H + 22 + legendH;
@@ -187,6 +190,11 @@ export function buildLogSVG(o) {
         const m = t.manual ? r[c.key === 'BI' ? 'BIm' : 'iim'] : null;
         if (m != null) out.push(`<line x1="${sx(m)}" y1="${y(r.a0)}" x2="${sx(m)}" y2="${y(r.a1)}" stroke="#1c2422" stroke-width="2"/>`);
       }
+    } else if (c.key === 'band') {
+      for (const g of c.band.segs) {
+        if (g.a1 <= from || g.a0 >= to) continue;
+        out.push(`<rect x="${c.x}" y="${y(g.a0)}" width="${c.w}" height="${f2(Math.max(0.4, y(g.a1) - y(g.a0)))}" fill="${g.color}"${g.opacity != null ? ` fill-opacity="${g.opacity}"` : ''}/>`);
+      }
     } else if (c.key === 'rec') {
       const pts = c.rec.pts.filter((p) => p[0] != null && p[1] != null && p[0] >= from - span * 0.02 && p[0] <= to + span * 0.02);
       if (pts.length) {
@@ -208,7 +216,7 @@ export function buildLogSVG(o) {
     out.push(`<rect x="${lx}" y="${ly}" width="10" height="10" fill="${k.color}"/><text x="${lx + 14}" y="${ly + 9}" fill="#1c2422">${escXml(k.name)}</text>`);
   });
   out.push('</svg>');
-  return { svg: out.join(''), width: W, height: Htot };
+  return { svg: out.join(''), width: W, height: Htot, plotTop: top, plotHeight: H };
 }
 
 /** CSV of the intervals inside the window, plus external records interpolated at each interval centre. */

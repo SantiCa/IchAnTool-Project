@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V8 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.3.
+Versión del documento: V9 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.4.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -29,7 +29,8 @@ límites del método.
 18. Registro compuesto del sondeo
 19. Registros externos
 20. Ajustes del usuario y copias de seguridad
-21. Referencias
+21. Herramienta de geoquímica: interpretación multiproxy y aprendizaje automático
+22. Referencias
 
 ---
 
@@ -68,11 +69,12 @@ Módulos de la aplicación web:
 | `app/js/imageproc.js` | Realce, detección, componentes, varita, lazo, descriptores, giro | No |
 | `app/js/learn.js` | Clasificador k-NN con rechazo de novedades | No |
 | `app/js/log.js` | Registro compuesto: tablas, ejes, SVG y CSV de una ventana | No |
+| `app/js/geo.js` | Geoquímica: muestras, etiquetas, Random Forest, k-NN, Bayes, k-medias, validación cruzada, mapas | No |
 | `app/js/storage.js` | Biblioteca de proyectos (IndexedDB) | Sí |
 | `app/js/app.js` | Interfaz, herramientas, dibujo, archivos | Sí |
 | `app/js/i18n.js` | Textos en español e inglés | Sí |
 
-`core.js`, `imageproc.js`, `learn.js` y `log.js` no usan el navegador. Por eso se prueban automáticamente con Node
+`core.js`, `imageproc.js`, `learn.js`, `log.js` y `geo.js` no usan el navegador. Por eso se prueban automáticamente con Node
 (`tests/app/core.test.mjs`).
 
 ---
@@ -524,7 +526,9 @@ Los ajustes activos se guardan en el proyecto, así que cualquier resultado se p
 | `*_palette.json` | `{nombre de clase: "#rrggbb"}` |
 | `ichantool_model.json` | Modelo de aprendizaje: lista de descriptores, clases y ejemplos `{name, x}` |
 | `*_registro.svg` / `*_registro.csv` | Registro compuesto de la ventana elegida (§18) |
-| `*.ichantool.json` | Proyecto completo (formato v2; también abre v1): clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE. La v2 añade `ds` (factor de reducción), `records` (registros externos), `logView` (vista del registro) y `notes` |
+| `*_mapa_<a0>-<a1>.svg` / `.csv` | Mapa de una ventana de edad (§21.6) |
+| `*_clasificacion.csv` | Muestras geoquímicas con etiqueta y clase predicha (§21.7) |
+| `*.ichantool.json` | Proyecto completo (formato v2; también abre v1): clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE. La v2 añade `ds` (factor de reducción), `records` (registros externos), `logView` (vista del registro) y `notes`. Desde V9, `geo`: sondeos geoquímicos (nombre, lat, lon, profundidad, edad, proxies), razones, etiquetas, intervalos, reglas, ajustes de preparación y del método, mapa y nombres de grupos; el modelo entrenado no se guarda (se reentrena con su semilla) |
 
 **RLE (codificación por longitud de series):** `[valor, repeticiones, valor, repeticiones, …]`.
 Reduce mucho el tamaño de las máscaras, que tienen grandes zonas iguales.
@@ -542,6 +546,12 @@ Reduce mucho el tamaño de las máscaras, que tienen grandes zonas iguales.
   Python, exclusiones, modelo de edad, RLE y CSV, detección de una madriguera vertical sintética
   (verticalidad > 0,9 y alargamiento > 3), varita, lazo, giro, realce, y un clasificador que
   aprende dos clases (acierto 100 %) y rechaza un objeto lejano.
+- **Geoquímica (`geo.test.mjs`, 7 pruebas desde V9):** tabla larga y catálogo, conversión
+  profundidad↔edad, remuestreo con huecos, razones, escalado por sondeo, reglas con z-score
+  (precisión > 0,8 frente a la verdad sintética), prioridad intervalo > regla y conversión de
+  intervalos entre ejes, Random Forest, k-NN y Bayes entrenados con 3 sondeos y probados en los
+  otros 12 (acierto > 0,8), validación dejando un sondeo fuera, reproducibilidad con semilla,
+  k-medias, resumen por ventana, IDW y SVG del mapa. Total de la web: 27 pruebas.
 - Se ejecutan automáticamente en GitHub en cada cambio (`.github/workflows/tests.yml`).
 
 ### 13.2 Comparación de la aplicación web con la V2 publicada
@@ -585,6 +595,10 @@ Estos puntos son el objetivo de los artículos 2 y 3 (ver `publications/METODOS_
    navegador los elimina; hay que exportar copias.
 9. **Registro en edad:** la imagen y las series dependen del modelo de edad, que se supone
    monótono. No se propaga su incertidumbre.
+10. **Geoquímica (§21):** los métodos no tienen en cuenta la autocorrelación de las series ni la
+    incertidumbre de los modelos de edad de cada sondeo; la interpolación IDW de los mapas es
+    exploratoria; el k-NN compara cada muestra con todas las de entrenamiento (lento con cientos de
+    miles de muestras); todo el cálculo se hace en el navegador.
 
 ---
 
@@ -784,7 +798,153 @@ de ajustes. Si un proyecto ya existe con el mismo identificador, se importa como
 
 ---
 
-## 21. Referencias
+## 21. Herramienta de geoquímica: interpretación multiproxy y aprendizaje automático (aplicación web)
+
+Tercer modo de la aplicación («Geoquímica»), separado de las imágenes pero guardado en el mismo
+proyecto (campo `geo` del archivo de proyecto). Interpreta registros de muchos proxies en muchos
+sondeos, etiqueta eventos (baja oxigenación, aporte detrítico, corriente de fondo intensa o
+cualquier etiqueta del usuario), entrena un clasificador que se aplica a todos los sondeos y
+dibuja mapas por ventana de edad. Código: `app/js/geo.js` (sin navegador, probado en
+`tests/app/geo.test.mjs`) y el bloque «geochemistry tool» de `app/js/app.js` (interfaz).
+
+### 21.1 Entrada de datos
+- **Tabla larga:** una fila por muestra con columna de sondeo (`coresFromLongTable`). Lat/lon se
+  toman de la primera fila del sondeo que las tenga.
+- **Un archivo por sondeo:** el nombre del archivo (sin extensión) es el nombre del sondeo
+  (`coreFromRows`).
+- **Catálogo:** asigna lat, lon y profundidad de agua por nombre de sondeo, sin distinguir
+  mayúsculas (`applyCatalogue`).
+- Formatos: CSV/TXT (mismo lector que §19, `parseTable`) y Excel/ODS (SheetJS, primera hoja).
+- El usuario elige qué columna es sondeo, lat, lon, profundidad, edad y qué proxies importa. Hace
+  falta profundidad o edad. Los valores no numéricos se ignoran.
+- Las filas de cada sondeo se ordenan por profundidad (o por edad si no hay profundidad).
+- **Sondeo de las imágenes** (`mainCoreFromImages`): convierte el proyecto de imágenes en un sondeo
+  más, con id `main`. Sus variables son, por intervalo del registro compuesto (§18): porcentaje de
+  bioturbación, BI, ii, porcentaje de cada icnotaxón que cuenta y los registros externos (§19)
+  interpolados linealmente a la profundidad (o edad) del intervalo. Su edad sale del modelo de edad
+  del proyecto. Así la interpretación icnológica entra como dato en el análisis geoquímico.
+
+### 21.2 Muestras: remuestreo, transformación y escalado
+`buildSamples(cores, cfg)`:
+1. **Eje** (`axis`): edad o profundidad. La edad de un sondeo es su columna de edad o, si no hay,
+   su modelo de edad aplicado a la profundidad (`coreAges`).
+2. **Malla común** por sondeo: desde `ceil(min/paso)·paso` hasta el máximo, cada `paso`
+   (por defecto 1; 0,5 en la demostración).
+3. **Remuestreo lineal** (`resample`): interpolación entre las dos muestras vecinas; nulo fuera
+   del rango del sondeo (no se extrapola) o si las dos vecinas están separadas más que `maxGap`
+   (por defecto sin límite).
+4. **Razones** A/B creadas por el usuario: se calculan fila a fila sobre los datos originales
+   (nulo si el divisor es 0 o falta) antes de remuestrear.
+5. **Logaritmo** opcional por variable: `t = log10(v)` si `v > 0`; si no, nulo.
+6. Una muestra entra solo si **todas** las variables elegidas tienen valor. Un sondeo sin alguna
+   variable no aporta muestras (la interfaz avisa con «le falta: …»).
+7. **z-score dentro del sondeo** (siempre calculado, usado por las reglas y los mapas):
+   `zc_j = (t_j − μ_j,sondeo) / σ_j,sondeo`, con σ de población (divisor n; si σ = 0 se usa 1).
+8. **Variables del modelo** (`scaling`):
+   - `global` (por defecto): `f_j = (t_j − μ_j) / σ_j` con μ y σ de todas las muestras de todos
+     los sondeos (σ de población). Conserva las diferencias de nivel entre sondeos.
+   - `core`: `f = zc`. Elimina diferencias de nivel entre sondeos (útil si cambian la
+     calibración o la litología de fondo).
+   - `none`: `f = t`.
+
+### 21.3 Etiquetas: intervalos y reglas
+`labelSamples`:
+- **Intervalos** `{core, axis, from, to, label}` dibujados arrastrando sobre el registro de un
+  sondeo, en el eje activo. Si el eje cambia, se convierten con la relación profundidad–edad del
+  sondeo (`coreConvert`, interpolación lineal). Una muestra está en el intervalo si
+  `from ≤ x < to`.
+- **Reglas** (asociaciones de proxies): `{label, enabled, conds:[{feature, op, value}]}`. Se
+  cumple si se cumplen **todas** las condiciones. `op`: `z>` / `z<` comparan `zc` (z-score dentro
+  del sondeo); `>` / `<` comparan el valor original remuestreado (sin log).
+- Prioridad: intervalo manual → primera regla activa que se cumpla (si «Usar reglas» está
+  activo) → sin etiqueta.
+- Etiquetas por defecto: Baja oxigenación, Aporte detrítico, Corriente de fondo intensa, Fondo / sin
+  evento. El usuario puede renombrarlas, cambiar el color, borrarlas y crear otras.
+
+### 21.4 Métodos de aprendizaje
+Todos usan un generador pseudoaleatorio con semilla (mulberry32, `seededRandom`; semilla por
+defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en `METHODS`:
+
+| Método | Parámetros por defecto | Descripción |
+|--------|------------------------|-------------|
+| Random Forest (`rf`, recomendado) | `trees` 100, `maxDepth` 12, `minLeaf` 3, `mtry` √d, `bins` 32, `bootstrap` sí, `balanced` sí | Árboles CART con impureza de Gini. Umbrales candidatos de cada variable: los cuantiles `b/bins` (b = 1…bins−1) de los datos de entrenamiento. En cada nodo se prueban `mtry` variables al azar. Con `balanced`, cada muestra pesa `n / (K · n_clase)`. Hoja: proporciones de clase ponderadas. Probabilidad = media de las hojas de todos los árboles. Importancia: reducción de Gini ponderada por el peso del nodo, sumada por variable y normalizada a 1 (MDI). |
+| k vecinos (`knn`) | `k` 7, `weights` distance | Distancia euclídea en las variables escaladas. Voto `1/(d + 10⁻⁹)` (distance) o 1 (uniform), normalizado. |
+| Bayes ingenuo gaussiano (`nb`) | `smoothing` 10⁻⁶, `priors` uniform | Media y varianza por clase y variable; a cada varianza se suma `smoothing · max_j var_j`. A priori uniforme o según la frecuencia. Log-verosimilitud normalizada con softmax. |
+| k-medias (`kmeans`, sin etiquetas) | `k` 4, `restarts` 5, `maxIter` 100 | Inicio k-means++, iteraciones de Lloyd hasta que no cambian las asignaciones o `maxIter`; se queda la repetición con menor inercia. Grupos `G1…Gk`, que el usuario puede nombrar. |
+
+- **Entrenamiento:** con las muestras etiquetadas (intervalos y reglas). k-medias usa todas las
+  muestras. Hacen falta al menos dos etiquetas distintas (salvo k-medias).
+- **Clasificación:** cada muestra recibe la clase de mayor probabilidad si esta es ≥ la
+  probabilidad mínima (por defecto 0,5); si no, queda sin clasificar.
+- **Sondeos nuevos:** el modelo se aplica a todas las muestras, también a las de sondeos añadidos
+  después de entrenar (`geoPredictAll`). Con escalado global, se usan la media y la desviación
+  **congeladas al entrenar**, para que añadir sondeos no cambie la escala del modelo. Si cambian
+  las variables, el eje o el escalado, hay que volver a entrenar.
+- El modelo no se guarda en el archivo de proyecto (solo el método, los parámetros y la fecha).
+  Al abrir el proyecto se reentrena con la misma semilla, por lo que el resultado es el mismo si
+  los datos no han cambiado.
+
+### 21.5 Validación cruzada
+`crossValidate`:
+- Con muestras etiquetadas en **dos o más sondeos: dejando un sondeo fuera** (cada sondeo se
+  predice con un modelo entrenado sin él).
+- Con un solo sondeo: **5 bloques contiguos** a lo largo del eje.
+- Ambos esquemas evitan que muestras vecinas (autocorrelacionadas) estén a la vez en
+  entrenamiento y prueba, lo que inflaría el acierto.
+- Se informa: matriz de confusión, acierto, **acierto equilibrado** (media de la sensibilidad de
+  cada clase, que no se deja engañar por una clase mayoritaria como el fondo), precisión,
+  sensibilidad y F1 por clase. En validación se usa probabilidad mínima 0.
+
+### 21.6 Mapas por edad
+- **Ventana de edad** `[a0, a1)` (por defecto 6–10 ka); los botones ◀ ▶ la desplazan su propia
+  anchura.
+- **Clase dominante** (`mapSummary`, modo `class`): por sondeo, fracción de muestras de cada
+  clase predicha (o de las etiquetas si no hay modelo) en la ventana; el punto toma el color de la
+  dominante y su radio es `5 + 5 · fracción` px.
+- **Valor de un proxy** (modo `value`): media de `zc` de la variable en la ventana; opcionalmente
+  menos su media en una ventana de referencia (anomalía). Escala divergente azul–beige–rojo
+  saturada en ±2.
+- **Interpolación IDW** (`idwGrid`, solo modo valor, ≥ 3 sondeos con dato): malla de 90 columnas;
+  `v = Σ w_i v_i / Σ w_i`, `w_i = 1 / d_i^p` (p por defecto 2), con `d` en grados y la longitud
+  multiplicada por `cos(latitud central)`. Es exploratoria: no estima incertidumbre ni respeta
+  barreras de tierra.
+- **Proyección** equirectangular con la longitud escalada por `cos(latitud central)`. Costa:
+  Natural Earth 1:50 m (dominio público), 1223 anillos en `examples/data/land-50m.json`.
+- Exportación SVG y CSV (`core, lat, lon, n_samples, dominant_class, fraction, value`).
+
+### 21.7 Superposición con el registro del sondeo
+- En el modo «Geoquímica», el registro de cada sondeo muestra sus variables y dos bandas:
+  **Etiquetas** (intervalos opacos, reglas claras) y **Clasificación** (predicción).
+- Si el sondeo de las imágenes está incluido y clasificado, el registro compuesto (§18) añade
+  una banda **«Clases geoq.»** junto a la imagen y la bioturbación, en profundidad o en edad.
+- Exportación de la clasificación: CSV con sondeo, eje, profundidad, edad, variables, etiqueta,
+  origen de la etiqueta, clase predicha y probabilidad.
+
+### 21.8 Datos de demostración (sintéticos)
+`tools/make_geochem_demo.py` (semilla 397) genera 15 sondeos **ficticios** en el Mediterráneo
+(0–150 ka cada 0,5 ka, 4515 muestras) con eventos conocidos (columna `event_true`): baja
+oxigenación en 6–10, 79–86, 100–105 y 122–128 ka solo al este de ~11° E (Ba/Al y TOC altos, Mn/Al
+bajo, más intensos hacia el este); aporte detrítico en 14–29, 57–71 y 130–150 ka (Ti/Al alto,
+Ca bajo); pulsos de corriente al oeste de 10° E (Zr/Rb alto). Ruido AR(1) multiplicativo. Archivos:
+`examples/geochem_demo/` (tabla larga, catálogo y un archivo por sondeo).
+
+El botón «Datos de demostración» etiqueta intervalos a partir de la verdad sintética en dos sondeos
+por evento (DEMO-02 y DEMO-12 detrítico; DEMO-09 y DEMO-14 baja oxigenación; DEMO-01 y DEMO-04
+corriente) más el fondo de esos sondeos, añade una regla de ejemplo (Ba/Al z > 1,5 y Mn/Al z < −0,5
+→ baja oxigenación) y entrena un Random Forest.
+
+**Para el revisor.** Los resultados con estos datos (V9: acierto 98,6 %, acierto equilibrado
+97,7 %, dejando un sondeo fuera, 1730 muestras etiquetadas) **solo comprueban que la
+implementación funciona**: los eventos sintéticos están muy separados y no representan la
+dificultad de datos reales. La validez para interpretar eventos reales debe medirse con sondeos
+con interpretación publicada e independiente, dejando sondeos enteros fuera. Las etiquetas por
+reglas hacen que el modelo reaprenda las reglas: su acierto mide coherencia, no verdad. La
+importancia MDI reparte el mérito de forma desigual entre proxies correlacionados (p. ej. Ba/Al y
+TOC); para un artículo conviene añadir importancia por permutación.
+
+---
+
+## 22. Referencias
 
 - Casanova-Arenillas, S., Rodríguez-Tovar, F.J., Martínez-Ruiz, F. (2020). Applied ichnology in
   sedimentary geology: Python scripts as a method to automatize ichnofabric analysis in marine core

@@ -31,6 +31,7 @@ bioturbación a partir de imágenes de testigos.
 | Formatos de exportación | §12 |
 | Resolución de trabajo, proyectos | §16–§17 |
 | Registro compuesto y registros externos | §18–§19 |
+| Herramienta de geoquímica (si se incluye) | §21 |
 
 ### Qué se puede afirmar hoy
 - Integra en una sola herramienta las imágenes, la bioturbación y otros registros del mismo sondeo, en profundidad o en edad, con exportación vectorial (§18). Demostrado con datos públicos del IODP (sondeo de prueba U1385I-1H).
@@ -40,6 +41,9 @@ bioturbación a partir de imágenes de testigos.
   (§3.4, §13.2).
 - Es determinista y el archivo de proyecto permite reproducir cualquier análisis (§15).
 - Tiene pruebas automáticas en integración continua (§13.1).
+- Integra en el mismo proyecto la interpretación icnológica y la interpretación geoquímica
+  multiproxy con aprendizaje automático (§21). Sobre esta parte solo puede afirmarse que funciona
+  como herramienta; su capacidad de detectar eventos reales no está validada (ver artículo 4).
 
 ### Qué falta antes de enviarlo
 - [ ] Publicar en PyPI y crear la release con DOI en Zenodo.
@@ -184,6 +188,70 @@ Se indica como limitación (§14) y se mantiene la comparación en las mismas co
 **¿Cómo afecta la incertidumbre del modelo de edad a las correlaciones?**
 Se discute aparte. Si hace falta, se repite el análisis con modelos de edad alternativos. El
 programa no propaga esa incertidumbre (§5).
+
+---
+
+## Artículo 4 — Clasificación de eventos paleoambientales con proxies geoquímicos e icnológicos
+
+### Qué describirá
+Un método reproducible para etiquetar eventos (baja oxigenación, aporte detrítico, corrientes de
+fondo…) en muchos sondeos a partir de asociaciones de proxies, combinando el criterio experto
+(intervalos y reglas) con aprendizaje supervisado, y su cartografía por ventanas de edad. Incluye
+la icnología (bioturbación, BI, ii, icnotaxones) como variables.
+
+### Métodos que usa
+| Método | § |
+|--------|---|
+| Importación, remuestreo, razones, log y escalado | §21.1–§21.2 |
+| Etiquetas por intervalos y reglas | §21.3 |
+| Random Forest, k-NN, Bayes ingenuo, k-medias | §21.4 |
+| Validación dejando un sondeo fuera | §21.5 |
+| Mapas por edad e IDW | §21.6 |
+| Bioturbación e índices como variables | §3–§4, §18, §21.1 |
+
+### Qué se puede afirmar hoy
+- La implementación funciona y es reproducible (semilla) con datos sintéticos de verdad conocida
+  (§21.8). **Nada** sobre datos reales.
+
+### Experimentos necesarios
+1. **Datos reales con interpretación independiente:** sondeos con eventos publicados (p. ej.
+   sapropeles datados, contornitas, niveles detríticos) que no hayan servido para definir las
+   reglas.
+2. **Etiquetas solo por intervalos** para entrenar y evaluar. Las reglas se evalúan aparte, como
+   «modelo experto», frente a la misma verdad.
+3. **Validación dejando sondeos enteros fuera** y, si hay suficientes, por regiones (bloques
+   espaciales), para medir la transferencia a sondeos lejanos.
+4. **Métricas:** acierto equilibrado, F1 por clase y matriz de confusión; incertidumbre por
+   remuestreo de sondeos (bootstrap por sondeo).
+5. **Comparaciones:** reglas expertas solas; Random Forest; k-NN; Bayes; y el efecto de añadir
+   la icnología como variable (con y sin bioturbación/índices).
+6. **Importancia por permutación** (por implementar) además de MDI.
+7. **Sensibilidad** al paso de remuestreo, al escalado (global frente a por sondeo) y a la
+   probabilidad mínima.
+8. **Modelos de edad:** repetir los mapas con modelos alternativos o con la incertidumbre
+   publicada de cada sondeo.
+
+### Preguntas probables de revisores
+**¿El acierto no está inflado por la autocorrelación de las series?**
+Por eso la validación deja sondeos enteros fuera (o bloques contiguos si solo hay uno) y nunca
+mezcla muestras vecinas entre entrenamiento y prueba (§21.5).
+
+**Si las etiquetas salen de reglas, ¿el modelo no aprende solo las reglas?**
+Sí, y así se declara (§21.8). Para la evaluación se usan intervalos con interpretación
+independiente; las reglas solo sirven para proponer etiquetas o como referencia experta.
+
+**¿Por qué Random Forest y no deep learning?**
+Con pocas decenas o cientos de intervalos etiquetados, los métodos de árboles son robustos, no
+necesitan normalizar la forma de cada proxy y dan una medida de importancia. Se comparan con
+métodos más simples (k-NN, Bayes) en el mismo esquema de validación.
+
+**¿La interpolación del mapa es fiable?**
+La IDW es solo visual y exploratoria (§21.6): no estima incertidumbre ni tiene en cuenta la
+geografía. Las conclusiones se basan en los valores de cada sondeo, que también se exportan.
+
+**¿Cómo se combinan proxies medidos con técnicas o calibraciones distintas?**
+Con el z-score por sondeo (§21.2) se eliminan diferencias de nivel; se documenta qué escalado se
+usó y se muestra su efecto (experimento 7).
 
 ---
 

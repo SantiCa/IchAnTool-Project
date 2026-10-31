@@ -7,8 +7,8 @@ browser: images are never uploaded.
 1. **Core and image** — one image per core section; top/bottom depth of the analysis area; optional
    age model (`depth, age` per line). Draw the analysis area to leave out scale bars and core edges.
 2. **Enhancement** — levels, gamma, brightness/contrast, saturation, histogram equalisation, local
-   contrast, channel selection, invert. Presets include the levels/contrast treatment of
-   Dorador & Rodríguez-Tovar (2014).
+   contrast, CLAHE, vibrance, channel selection, invert. Presets include Dorador et al. (2014,
+   *Facies*) and the CLAHE workflow of Miguez-Salas et al. (2019); users can save their own.
 3. **Automatic detection** — adaptive (local) or global threshold, dark/light traces, morphological
    smoothing, minimum size. Re-detection keeps objects already identified.
 4. **Editing** — wand (colour region growing), brush, lasso, eraser, and an exclusion brush for cracks,
@@ -20,6 +20,12 @@ browser: images are never uploaded.
 6. **Results** — per-interval bioturbation %, % per ichnotaxon, BI and ii (automatic and manual), drawn
    next to the image at the same depth scale. Exports: results CSV, objects CSV, colour mask PNG and
    palette JSON (compatible with `ichantool analyze --palette`), and the whole project (JSON).
+7. **Core log** — all sections on one depth or age axis with the image resampled to the axis,
+   bioturbation, indices and external records (CSV/TXT/Excel); SVG and CSV export.
+8. **Geochemistry** — many cores and proxies (long table, one file per core, catalogue); event labels
+   by dragged intervals or proxy rules; random forest / k-NN / naive Bayes / k-means with seeded,
+   leave-one-core-out validation; maps by age window; the image core and its ichnological data can
+   join the analysis and its classes are overlaid on the core log.
 
 The analysis reproduces the published v2.1 results (BI/ii identical on the example image).
 
@@ -39,6 +45,7 @@ Single offline file (no server needed): `python tools/build_standalone.py` -> `d
 - `js/learn.js` — incremental k-NN classifier with novelty detection
 - `js/app.js` — interface, tools, rendering, files
 - `js/log.js` — composite core log: table parsing, depth/age axis, SVG and CSV of a window
+- `js/geo.js` — geochemistry: multi-core samples, interval/rule labels, random forest, k-NN, naive Bayes, k-means, cross-validation, IDW maps
 - `js/storage.js` — project library in IndexedDB
 - `js/i18n.js` — Spanish / English strings
 

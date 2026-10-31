@@ -26,6 +26,7 @@ La descripción detallada de los algoritmos está en
 | V6 | 30-10-2026 | Aplicación web 0.1, archivo único | `IchAnTool.html` que se abre con doble clic, sin servidor ni conexión |
 | V8 | 31-10-2026 | Aplicación web 0.3 | Ajustes de realce de artículos recientes (Dorador et al. 2014 completo, CLAHE de Miguez-Salas et al. 2019), K-medias, ajustes propios, copias de seguridad |
 | V7 | 31-10-2026 | Aplicación web 0.2 | Carpetas de proyecto, registro compuesto del sondeo (profundidad/edad), registros externos, sondeo de prueba IODP U1385I |
+| V9 | 31-10-2026 | Aplicación web 0.4 | Herramienta de geoquímica: muchos sondeos y proxies, etiquetas por intervalos y reglas, aprendizaje automático configurable, mapas por edad, superposición con el registro icnológico |
 
 ---
 
@@ -349,6 +350,76 @@ propios ajustes y no perder nada si falla el ordenador.
 - La copia automática en carpeta solo funciona en Chrome y Edge, y el navegador pide el permiso
   de nuevo en cada sesión (un clic en «Reactivar copia automática»).
 - La carpeta `historial/` crece un archivo por proyecto y día; hay que limpiarla a mano.
+
+---
+
+## V9 — Herramienta de geoquímica y aprendizaje automático (31-10-2026)
+
+**Qué se hizo.** Se añadió a la aplicación un tercer modo, «Geoquímica», separado de las imágenes
+pero dentro del mismo proyecto. Sirve para interpretar registros de muchos proxies en muchos
+sondeos (pensado para llegar a cientos), etiquetar eventos, entrenar un clasificador que
+autoclasifica los sondeos nuevos y hacer mapas por edad al estilo del atlas. La interpretación
+icnológica del proyecto entra como datos más.
+
+**Cambios.**
+- Nuevo módulo `app/js/geo.js` (sin navegador):
+  - importación de tabla larga, un archivo por sondeo y catálogo de posiciones;
+  - muestras remuestreadas a una malla común de edad o profundidad, razones A/B, log10, z-score
+    por sondeo y escalado global o por sondeo;
+  - etiquetas por intervalos y por reglas (asociaciones de proxies con z-score o valor);
+  - Random Forest (CART, Gini, pesos equilibrados, importancia MDI), k vecinos, Bayes ingenuo
+    gaussiano y k-medias, todos con semilla;
+  - validación cruzada dejando un sondeo fuera (o 5 bloques contiguos con un solo sondeo), matriz
+    de confusión y acierto equilibrado;
+  - resumen por ventana de edad, interpolación IDW y mapa SVG con costa de Natural Earth.
+- Interfaz (`app.js`, `index.html`, `i18n.js`):
+  - modo «Geoquímica» con cuatro pasos: sondeos y datos, preparación, etiquetas y reglas,
+    aprendizaje (con explicación de cada método y parámetro, valores sugeridos y semilla);
+  - pestañas Registros (variables + bandas de etiquetas y clasificación, marcar intervalos
+    arrastrando), Mapa (ventana de edad, ◀ ▶, clase dominante o valor, IDW, anomalía, SVG y CSV) y
+    Modelo (métricas, matriz de confusión, importancia, nombres de grupos de k-medias, CSV);
+  - «Añadir el sondeo de las imágenes»: bioturbación, BI, ii, % por icnotaxón y registros
+    externos como variables;
+  - el modelo se aplica también a sondeos añadidos después de entrenar, con la escala congelada;
+  - banda «Clases geoq.» en el registro compuesto del sondeo de imágenes;
+  - aviso por sondeo de las variables que le faltan.
+- `log.js`: `parseTable` devuelve también el texto de cada celda; `buildLogSVG` admite bandas de
+  clases (`bands`, `bandLegend`) y devuelve la posición del gráfico.
+- Archivo de proyecto: campo `geo` (sondeos, etiquetas, intervalos, reglas, ajustes). El modelo
+  no se guarda: se reentrena con la misma semilla al abrir.
+- Datos: `examples/data/land-50m.json` (costa Natural Earth 1:50 m, dominio público) y
+  `examples/geochem_demo/` con `tools/make_geochem_demo.py` (15 sondeos **sintéticos**).
+- `tools/build_standalone.py`: añade `geo.js`, la costa y la tabla de demostración al archivo único.
+
+**Por qué.** Petición de Santiago: integrar una herramienta de interpretación geoquímica
+multiproxy con etiquetas propias, aprendizaje automático ajustable con ayuda para no expertos,
+autoclasificación de muchos sondeos, mapas por edad y superposición con la interpretación
+icnológica en los mismos proyectos. Formatos elegidos por él: tabla larga y archivos por sondeo;
+etiquetado por intervalos y reglas; mapas de puntos con interpolación.
+
+**Comprobación.**
+- 27 pruebas de la aplicación (7 de geoquímica) y 9 de Python.
+- En Chromium, servidor local y archivo único:
+  - la demostración entrena un Random Forest con 1730 muestras etiquetadas: acierto 98,6 % y
+    acierto equilibrado 97,7 % dejando un sondeo fuera (datos sintéticos: **solo comprueba la
+    implementación**, §21.8);
+  - el mapa de 6–10 ka muestra baja oxigenación al este y fondo al oeste, como en la verdad
+    sintética;
+  - importación de tres archivos por sondeo y del catálogo con asignación automática de columnas;
+  - sondeo de las imágenes incluido (440 intervalos, 8 variables), marcado de intervalos
+    arrastrando, entrenamiento con un solo sondeo (5 bloques) y banda «Clases geoq.» en el
+    registro compuesto;
+  - tras recargar, se recuperan los intervalos y el modelo se reentrena solo;
+  - ningún error de JavaScript.
+
+**Pendiente o problemas conocidos.**
+- Validar con sondeos reales con interpretación publicada (dejando sondeos enteros fuera) antes
+  de afirmar nada sobre la capacidad de detectar eventos reales.
+- Importancia por permutación (más fiable que MDI con proxies correlacionados).
+- Con cientos de miles de muestras, el k-NN y la validación cruzada pueden tardar: todo corre en
+  el navegador. Si hace falta, pasar el entrenamiento a un *web worker* o al paquete Python.
+- No se propaga la incertidumbre de los modelos de edad ni se modela la autocorrelación.
+- El paquete Python todavía no tiene la parte de geoquímica.
 
 ---
 

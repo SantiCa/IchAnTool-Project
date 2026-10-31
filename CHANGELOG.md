@@ -2,6 +2,18 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V9 — Web app 0.4 — 2026-10-31
+- New "Geochemistry" mode in the same projects: import many cores (long table, one file per core,
+  catalogue), resampling to a common age/depth grid, ratios, log10, per-core or global z-scores.
+- User-defined event labels; labelling by dragged intervals and by proxy-association rules.
+- Configurable machine learning with in-app guidance: Random Forest, k-NN, Gaussian naive Bayes,
+  k-means; seeded; leave-one-core-out validation, confusion matrix, balanced accuracy, MDI importance.
+- Trained model classifies cores added later (scaling frozen at training).
+- Maps by age window (dominant class or proxy value/anomaly, exploratory IDW), SVG/CSV export.
+- The image core (bioturbation, BI, ii, ichnotaxa, external records) can join the analysis, and its
+  geochemical classes are overlaid on the composite core log.
+- Synthetic demo dataset (15 cores) and Natural Earth coastline.
+
 ## V8 — Web app 0.3 — 2026-10-31
 - Enhancement presets from the literature: Dorador et al. (2014) Levels→Brightness/Contrast→
   Vibrance/Saturation (auto levels, auto gamma within the published range) and CLAHE
