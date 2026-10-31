@@ -2,6 +2,15 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V10 — Web app 0.5 — 2026-10-31
+- "Geochemistry" mode renamed "Multiproxy": any numeric record (geochemistry, foraminifera, TOC, sedimentology…).
+- Interval layers (lithology, turbidites, metal migration zones, events…) with categories and
+  parent/child hierarchy; import (wide or long tables), drawing, editing, CSV export; child intervals
+  clipped to parent; warnings for intervals outside their parent.
+- Interval layers enter the automatic interval classifier as 0/1 variables; any layer can be the target.
+- Accept predictions as automatic intervals; confirm them to use them for training.
+- V9 projects are converted (label list → "Events" layer). Demo gains synthetic lithology/turbidite intervals.
+
 ## V9 — Web app 0.4 — 2026-10-31
 - New "Geochemistry" mode in the same projects: import many cores (long table, one file per core,
   catalogue), resampling to a common age/depth grid, ratios, log10, per-core or global z-scores.

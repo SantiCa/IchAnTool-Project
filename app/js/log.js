@@ -113,7 +113,7 @@ export function buildLogSVG(o) {
   if (t.species) cols.push({ key: 'species', w: 150, title: L.species });
   if (t.BI) cols.push({ key: 'BI', w: 46, title: 'BI' });
   if (t.ii) cols.push({ key: 'ii', w: 46, title: 'ii' });
-  for (const b of o.bands || []) cols.push({ key: 'band', w: 46, title: b.title, band: b });
+  for (const b of o.bands || []) cols.push({ key: 'band', w: b.w || 46, title: b.title, band: b });
   for (const r of o.records) cols.push({ key: 'rec', w: 120, title: r.name, rec: r });
   let x = 8;
   for (const c of cols) { c.x = x; x += c.w + 14; }

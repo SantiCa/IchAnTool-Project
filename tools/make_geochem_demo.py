@@ -7,6 +7,8 @@ Output (examples/geochem_demo/):
   demo_long.csv       one long table: core, lat, lon, depth_m, age_ka, proxies, event_true
   catalogue.csv       core, lat, lon, water_depth_m
   cores/DEMO-xx.csv   one file per core (depth_m, age_ka, proxies, event_true)
+  intervals.csv       described intervals (depth, m): Litologia (silty clay in glacial windows ± 1 ka,
+                      nannofossil marl otherwise) and Turbidita, thin beds nested inside silty clay
 
 Usage: python tools/make_geochem_demo.py
 """
@@ -71,14 +73,36 @@ def make_core(rng, name, lat, lon):
     return rows
 
 
+def make_intervals(rng, name, rows):
+    age = np.array([r[4] for r in rows]); depth = np.array([r[3] for r in rows])
+    d = lambda a: round(float(np.interp(a, age, depth)), 4)
+    edges = []
+    for a, b in GLACIALS:
+        edges.append((max(0.0, a + rng.uniform(-1, 1)), min(150.0, b + rng.uniform(-1, 1))))
+    out, cur = [], 0.0
+    for a, b in edges:
+        if a > cur:
+            out.append([name, d(cur), d(a), "Marga nanofosilifera", ""])
+        out.append([name, d(a), d(b), "Arcilla limosa", ""])
+        cur = b
+    if cur < 150:
+        out.append([name, d(cur), d(150), "Marga nanofosilifera", ""])
+    for _ in range(int(rng.integers(0, 4))):              # turbidites only inside silty clay
+        a, b = edges[int(rng.integers(0, len(edges)))]
+        t0 = rng.uniform(a, max(a, b - 1.3)); t1 = t0 + rng.uniform(0.3, 1.2)
+        out.append([name, d(t0), d(min(t1, b)), "", "Turbidita"])
+    return out
+
+
 def main():
     rng = np.random.default_rng(SEED)
     head = ["core", "lat", "lon", "depth_m", "age_ka", "Ti/Al", "Zr/Rb", "Ba/Al", "Mn/Al", "Ca_pct", "TOC_pct", "event_true"]
     (OUT / "cores").mkdir(parents=True, exist_ok=True)
-    allrows = []
+    allrows, ivrows, rng_iv = [], [], np.random.default_rng(SEED + 1)
     for name, (lat, lon, wd) in CORES.items():
         rows = make_core(rng, name, lat, lon)
         allrows += rows
+        ivrows += make_intervals(rng_iv, name, rows)
         with open(OUT / "cores" / f"{name}.csv", "w", encoding="utf-8") as f:
             f.write(",".join(head[3:]) + "\n")
             for r in rows:
@@ -92,6 +116,10 @@ def main():
         f.write("core,lat,lon,water_depth_m\n")
         for name, (lat, lon, wd) in CORES.items():
             f.write(f"{name},{lat},{lon},{wd}\n")
+    with open(OUT / "intervals.csv", "w", encoding="utf-8") as f:
+        f.write("core,top_m,bottom_m,Litologia,Turbidita\n")
+        for r in ivrows:
+            f.write(",".join(map(str, r)) + "\n")
     print(len(allrows), "samples,", len(CORES), "cores ->", OUT)
 
 

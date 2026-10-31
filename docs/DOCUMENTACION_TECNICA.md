@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V9 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.4.
+Versión del documento: V10 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.5.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -29,7 +29,7 @@ límites del método.
 18. Registro compuesto del sondeo
 19. Registros externos
 20. Ajustes del usuario y copias de seguridad
-21. Herramienta de geoquímica: interpretación multiproxy y aprendizaje automático
+21. Herramienta multiproxy: registros numéricos, capas de intervalos y clasificación automática de intervalos
 22. Referencias
 
 ---
@@ -69,7 +69,7 @@ Módulos de la aplicación web:
 | `app/js/imageproc.js` | Realce, detección, componentes, varita, lazo, descriptores, giro | No |
 | `app/js/learn.js` | Clasificador k-NN con rechazo de novedades | No |
 | `app/js/log.js` | Registro compuesto: tablas, ejes, SVG y CSV de una ventana | No |
-| `app/js/geo.js` | Geoquímica: muestras, etiquetas, Random Forest, k-NN, Bayes, k-medias, validación cruzada, mapas | No |
+| `app/js/geo.js` | Multiproxy: muestras, capas de intervalos, etiquetas, Random Forest, k-NN, Bayes, k-medias, validación cruzada, mapas | No |
 | `app/js/storage.js` | Biblioteca de proyectos (IndexedDB) | Sí |
 | `app/js/app.js` | Interfaz, herramientas, dibujo, archivos | Sí |
 | `app/js/i18n.js` | Textos en español e inglés | Sí |
@@ -527,8 +527,9 @@ Los ajustes activos se guardan en el proyecto, así que cualquier resultado se p
 | `ichantool_model.json` | Modelo de aprendizaje: lista de descriptores, clases y ejemplos `{name, x}` |
 | `*_registro.svg` / `*_registro.csv` | Registro compuesto de la ventana elegida (§18) |
 | `*_mapa_<a0>-<a1>.svg` / `.csv` | Mapa de una ventana de edad (§21.6) |
-| `*_clasificacion.csv` | Muestras geoquímicas con etiqueta y clase predicha (§21.7) |
-| `*.ichantool.json` | Proyecto completo (formato v2; también abre v1): clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE. La v2 añade `ds` (factor de reducción), `records` (registros externos), `logView` (vista del registro) y `notes`. Desde V9, `geo`: sondeos geoquímicos (nombre, lat, lon, profundidad, edad, proxies), razones, etiquetas, intervalos, reglas, ajustes de preparación y del método, mapa y nombres de grupos; el modelo entrenado no se guarda (se reentrena con su semilla) |
+| `*_clasificacion_intervalos.csv` | Muestras con etiqueta y clase predicha (§21.7) |
+| `*_intervalos.csv` | Intervalos de todas las capas (§21.7) |
+| `*.ichantool.json` | Proyecto completo (formato v2; también abre v1): clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE. La v2 añade `ds` (factor de reducción), `records` (registros externos), `logView` (vista del registro) y `notes`. Desde V9, `geo`: sondeos (nombre, lat, lon, profundidad, edad, variables), razones, capas de intervalos con su jerarquía y categorías (desde V10; en V9, lista de etiquetas), intervalos, reglas, ajustes de preparación y del método, mapa y nombres de grupos; el modelo entrenado no se guarda (se reentrena con su semilla) |
 
 **RLE (codificación por longitud de series):** `[valor, repeticiones, valor, repeticiones, …]`.
 Reduce mucho el tamaño de las máscaras, que tienen grandes zonas iguales.
@@ -546,12 +547,14 @@ Reduce mucho el tamaño de las máscaras, que tienen grandes zonas iguales.
   Python, exclusiones, modelo de edad, RLE y CSV, detección de una madriguera vertical sintética
   (verticalidad > 0,9 y alargamiento > 3), varita, lazo, giro, realce, y un clasificador que
   aprende dos clases (acierto 100 %) y rechaza un objeto lejano.
-- **Geoquímica (`geo.test.mjs`, 7 pruebas desde V9):** tabla larga y catálogo, conversión
+- **Multiproxy (`geo.test.mjs`, 8 pruebas):** tabla larga y catálogo, conversión
   profundidad↔edad, remuestreo con huecos, razones, escalado por sondeo, reglas con z-score
   (precisión > 0,8 frente a la verdad sintética), prioridad intervalo > regla y conversión de
   intervalos entre ejes, Random Forest, k-NN y Bayes entrenados con 3 sondeos y probados en los
   otros 12 (acierto > 0,8), validación dejando un sondeo fuera, reproducibilidad con semilla,
-  k-medias, resumen por ventana, IDW y SVG del mapa. Total de la web: 27 pruebas.
+  k-medias, resumen por ventana, IDW y SVG del mapa; desde V10, importación de intervalos en formato
+ancho y largo, columnas 0/1 de capas (con conversión de eje), capa objetivo y comprobación de
+intervalos fuera de la capa madre. Total de la web: 28 pruebas.
 - Se ejecutan automáticamente en GitHub en cada cambio (`.github/workflows/tests.yml`).
 
 ### 13.2 Comparación de la aplicación web con la V2 publicada
@@ -595,7 +598,7 @@ Estos puntos son el objetivo de los artículos 2 y 3 (ver `publications/METODOS_
    navegador los elimina; hay que exportar copias.
 9. **Registro en edad:** la imagen y las series dependen del modelo de edad, que se supone
    monótono. No se propaga su incertidumbre.
-10. **Geoquímica (§21):** los métodos no tienen en cuenta la autocorrelación de las series ni la
+10. **Multiproxy (§21):** los métodos no tienen en cuenta la autocorrelación de las series ni la
     incertidumbre de los modelos de edad de cada sondeo; la interpolación IDW de los mapas es
     exploratoria; el k-NN compara cada muestra con todas las de entrenamiento (lento con cientos de
     miles de muestras); todo el cálculo se hace en el navegador.
@@ -798,16 +801,22 @@ de ajustes. Si un proyecto ya existe con el mismo identificador, se importa como
 
 ---
 
-## 21. Herramienta de geoquímica: interpretación multiproxy y aprendizaje automático (aplicación web)
+## 21. Herramienta multiproxy: registros numéricos, capas de intervalos y clasificación automática de intervalos (aplicación web)
 
-Tercer modo de la aplicación («Geoquímica»), separado de las imágenes pero guardado en el mismo
-proyecto (campo `geo` del archivo de proyecto). Interpreta registros de muchos proxies en muchos
-sondeos, etiqueta eventos (baja oxigenación, aporte detrítico, corriente de fondo intensa o
-cualquier etiqueta del usuario), entrena un clasificador que se aplica a todos los sondeos y
-dibuja mapas por ventana de edad. Código: `app/js/geo.js` (sin navegador, probado en
-`tests/app/geo.test.mjs`) y el bloque «geochemistry tool» de `app/js/app.js` (interfaz).
+Tercer modo de la aplicación («Multiproxy»; hasta V9 se llamaba «Geoquímica»), separado de las
+imágenes pero guardado en el mismo proyecto (campo `geo` del archivo de proyecto, nombre conservado
+por compatibilidad). Combina **registros numéricos** de cualquier tipo (geoquímica, foraminíferos,
+TOC, granulometría, color…) y **capas de intervalos descritos** (litología, turbiditas, zonas de
+migración de metales, eventos…), que pueden subdividirse unas dentro de otras. Con todo ello
+entrena un **clasificador automático de intervalos** que se aplica a todos los sondeos, y dibuja
+mapas por ventana de edad. Código: `app/js/geo.js` (sin navegador, probado en
+`tests/app/geo.test.mjs`) y el bloque «multiproxy tool» de `app/js/app.js` (interfaz).
+
+Este clasificador es **independiente** del que sugiere icnotaxones en el modo Sección (§10): usa
+otro código, otras variables y otro objetivo.
 
 ### 21.1 Entrada de datos
+**Registros numéricos:**
 - **Tabla larga:** una fila por muestra con columna de sondeo (`coresFromLongTable`). Lat/lon se
   toman de la primera fila del sondeo que las tenga.
 - **Un archivo por sondeo:** el nombre del archivo (sin extensión) es el nombre del sondeo
@@ -815,14 +824,25 @@ dibuja mapas por ventana de edad. Código: `app/js/geo.js` (sin navegador, proba
 - **Catálogo:** asigna lat, lon y profundidad de agua por nombre de sondeo, sin distinguir
   mayúsculas (`applyCatalogue`).
 - Formatos: CSV/TXT (mismo lector que §19, `parseTable`) y Excel/ODS (SheetJS, primera hoja).
-- El usuario elige qué columna es sondeo, lat, lon, profundidad, edad y qué proxies importa. Hace
-  falta profundidad o edad. Los valores no numéricos se ignoran.
+- El usuario elige qué columna es sondeo, lat, lon, profundidad, edad y qué variables importa. Hace
+  falta profundidad o edad. Los valores no numéricos se ignoran. Si el sondeo ya existe, las
+  variables nuevas se añaden a las que tenía.
+
+**Intervalos descritos** (`intervalsFromTable`): una fila por intervalo con techo y base (en
+profundidad o en edad, en las unidades de los registros del sondeo) y:
+- **formato ancho:** cada columna de texto marcada es una capa (p. ej. `Litologia`, `Turbidita`) y
+  el texto de la fila es la categoría; las celdas vacías no crean intervalo;
+- **formato largo:** una columna dice la capa y otra la categoría.
+
+El sondeo sale de una columna, del nombre del archivo o de la elección del usuario. Se crean las
+capas, categorías y sondeos que no existan (comparación sin distinguir mayúsculas). Un intervalo
+idéntico a uno existente (mismo sondeo, capa, eje, categoría, techo y base) no se duplica.
 - Las filas de cada sondeo se ordenan por profundidad (o por edad si no hay profundidad).
 - **Sondeo de las imágenes** (`mainCoreFromImages`): convierte el proyecto de imágenes en un sondeo
   más, con id `main`. Sus variables son, por intervalo del registro compuesto (§18): porcentaje de
   bioturbación, BI, ii, porcentaje de cada icnotaxón que cuenta y los registros externos (§19)
   interpolados linealmente a la profundidad (o edad) del intervalo. Su edad sale del modelo de edad
-  del proyecto. Así la interpretación icnológica entra como dato en el análisis geoquímico.
+  del proyecto. Así la interpretación icnológica entra como dato en el análisis multiproxy.
 
 ### 21.2 Muestras: remuestreo, transformación y escalado
 `buildSamples(cores, cfg)`:
@@ -846,20 +866,43 @@ dibuja mapas por ventana de edad. Código: `app/js/geo.js` (sin navegador, proba
    - `core`: `f = zc`. Elimina diferencias de nivel entre sondeos (útil si cambian la
      calibración o la litología de fondo).
    - `none`: `f = t`.
+9. **Capas de intervalos como variables** (`cfg.layers`): por cada capa usada y cada una de sus
+   categorías se añade una columna `«Capa: categoría»` que vale 1 si la muestra está dentro de un
+   intervalo de esa categoría (`from ≤ x < to`, con el intervalo convertido al eje si hace falta)
+   y 0 si no. Estas columnas van **después** de las numéricas y **no se transforman ni se
+   escalan** (valen 0/1 en `raw`, `t`, `zc` y `f`). Una muestra sin intervalo de esa capa vale 0
+   en todas sus categorías (también si el sondeo no tiene esa capa descrita). Los intervalos
+   automáticos (§21.3) no se usan como variables.
 
-### 21.3 Etiquetas: intervalos y reglas
-`labelSamples`:
+### 21.3 Capas de intervalos, jerarquía y etiquetas
+- **Capa:** `{id, name, parent, cats:[{id, name, color}]}`. Por defecto existe la capa «Eventos»
+  con cuatro categorías. El usuario crea capas, las renombra, las borra y define categorías.
+- **Jerarquía:** `parent` hace que una capa sea subdivisión de otra (p. ej. Turbidita dentro de
+  Litología). Se impiden ciclos (no se puede elegir como madre una capa descendiente). Al dibujar un
+  intervalo de una capa hija, se recorta al intervalo madre donde empieza el arrastre. Los
+  intervalos hijos que no caben enteros en un intervalo madre del mismo sondeo se marcan con ⚠
+  (`orphanIntervals`), pero se conservan.
+- **Intervalo:** `{id, core, layer, axis, from, to, cat, auto?}`. Se crean arrastrando sobre el
+  registro, importándolos o aceptando la clasificación; se editan en la lista (categoría, techo,
+  base) y se exportan en CSV.
+- **Capa objetivo:** la capa que el clasificador aprende a asignar (`settings.target`). Las demás
+  capas marcadas (`settings.useLayers`; por defecto todas) entran como variables 0/1. La capa
+  objetivo **nunca** entra como variable.
+
+`labelSamples` (solo intervalos y reglas de la capa objetivo):
 - **Intervalos** `{core, axis, from, to, label}` dibujados arrastrando sobre el registro de un
   sondeo, en el eje activo. Si el eje cambia, se convierten con la relación profundidad–edad del
   sondeo (`coreConvert`, interpolación lineal). Una muestra está en el intervalo si
   `from ≤ x < to`.
-- **Reglas** (asociaciones de proxies): `{label, enabled, conds:[{feature, op, value}]}`. Se
+- **Reglas** (asociaciones de variables): `{layer, cat, enabled, conds:[{feature, op, value}]}`.
+  Las condiciones pueden usar variables numéricas o columnas 0/1 de otras capas. Se
   cumple si se cumplen **todas** las condiciones. `op`: `z>` / `z<` comparan `zc` (z-score dentro
   del sondeo); `>` / `<` comparan el valor original remuestreado (sin log).
 - Prioridad: intervalo manual → primera regla activa que se cumpla (si «Usar reglas» está
   activo) → sin etiqueta.
-- Etiquetas por defecto: Baja oxigenación, Aporte detrítico, Corriente de fondo intensa, Fondo / sin
-  evento. El usuario puede renombrarlas, cambiar el color, borrarlas y crear otras.
+- Los intervalos **automáticos** (`auto: true`) nunca son etiquetas de entrenamiento.
+- Proyectos de V9: la lista de etiquetas se convierte en la capa «Eventos» y sus intervalos y
+  reglas pasan a esa capa (`normalizeGeo`).
 
 ### 21.4 Métodos de aprendizaje
 Todos usan un generador pseudoaleatorio con semilla (mulberry32, `seededRandom`; semilla por
@@ -872,14 +915,21 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
 | Bayes ingenuo gaussiano (`nb`) | `smoothing` 10⁻⁶, `priors` uniform | Media y varianza por clase y variable; a cada varianza se suma `smoothing · max_j var_j`. A priori uniforme o según la frecuencia. Log-verosimilitud normalizada con softmax. |
 | k-medias (`kmeans`, sin etiquetas) | `k` 4, `restarts` 5, `maxIter` 100 | Inicio k-means++, iteraciones de Lloyd hasta que no cambian las asignaciones o `maxIter`; se queda la repetición con menor inercia. Grupos `G1…Gk`, que el usuario puede nombrar. |
 
-- **Entrenamiento:** con las muestras etiquetadas (intervalos y reglas). k-medias usa todas las
+- **Variables del modelo:** las numéricas elegidas más las columnas 0/1 de las capas usadas
+  (§21.2, paso 9).
+- **Entrenamiento:** con las muestras etiquetadas (intervalos y reglas de la capa objetivo). k-medias usa todas las
   muestras. Hacen falta al menos dos etiquetas distintas (salvo k-medias).
 - **Clasificación:** cada muestra recibe la clase de mayor probabilidad si esta es ≥ la
   probabilidad mínima (por defecto 0,5); si no, queda sin clasificar.
 - **Sondeos nuevos:** el modelo se aplica a todas las muestras, también a las de sondeos añadidos
-  después de entrenar (`geoPredictAll`). Con escalado global, se usan la media y la desviación
-  **congeladas al entrenar**, para que añadir sondeos no cambie la escala del modelo. Si cambian
-  las variables, el eje o el escalado, hay que volver a entrenar.
+  después de entrenar (`geoPredictAll`). Con escalado global, se usan la media y la desviación de
+  las variables numéricas **congeladas al entrenar**, para que añadir sondeos no cambie la escala
+  del modelo. Si cambian las variables, el eje, el escalado o la capa objetivo, hay que volver a
+  entrenar.
+- **Aceptar como intervalos:** las muestras contiguas de la misma clase predicha en un sondeo se
+  convierten en intervalos de la capa objetivo con `auto: true` (se muestran claros y en cursiva).
+  Sustituyen a los automáticos anteriores de ese sondeo y capa. El botón ✓ los confirma (dejan de
+  ser automáticos y cuentan para entrenar).
 - El modelo no se guarda en el archivo de proyecto (solo el método, los parámetros y la fecha).
   Al abrir el proyecto se reentrena con la misma semilla, por lo que el resultado es el mismo si
   los datos no han cambiado.
@@ -913,34 +963,47 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
 - Exportación SVG y CSV (`core, lat, lon, n_samples, dominant_class, fraction, value`).
 
 ### 21.7 Superposición con el registro del sondeo
-- En el modo «Geoquímica», el registro de cada sondeo muestra sus variables y dos bandas:
-  **Etiquetas** (intervalos opacos, reglas claras) y **Clasificación** (predicción).
-- Si el sondeo de las imágenes está incluido y clasificado, el registro compuesto (§18) añade
-  una banda **«Clases geoq.»** junto a la imagen y la bioturbación, en profundidad o en edad.
-- Exportación de la clasificación: CSV con sondeo, eje, profundidad, edad, variables, etiqueta,
-  origen de la etiqueta, clase predicha y probabilidad.
+- En el modo «Multiproxy», el registro de cada sondeo muestra sus variables numéricas y una banda
+  por capa de intervalos en orden jerárquico (las hijas con «↳»), dibujada desde los intervalos;
+  en la capa objetivo se añaden, en claro, las muestras etiquetadas por reglas. Al final, la banda
+  **«Clasif. auto»** (predicción).
+- Si el sondeo de las imágenes está incluido, el registro compuesto (§18) añade sus bandas de
+  intervalos y de clasificación junto a la imagen y la bioturbación, en profundidad o en edad.
+- Exportación de la clasificación (`*_clasificacion_intervalos.csv`): sondeo, eje, profundidad,
+  edad, variables, etiqueta, origen de la etiqueta, clase predicha y probabilidad.
+- Exportación de intervalos (`*_intervalos.csv`): sondeo, capa, capa madre, categoría, eje, techo,
+  base, automático y fuera de la capa madre. Se puede volver a importar.
 
 ### 21.8 Datos de demostración (sintéticos)
 `tools/make_geochem_demo.py` (semilla 397) genera 15 sondeos **ficticios** en el Mediterráneo
 (0–150 ka cada 0,5 ka, 4515 muestras) con eventos conocidos (columna `event_true`): baja
 oxigenación en 6–10, 79–86, 100–105 y 122–128 ka solo al este de ~11° E (Ba/Al y TOC altos, Mn/Al
 bajo, más intensos hacia el este); aporte detrítico en 14–29, 57–71 y 130–150 ka (Ti/Al alto,
-Ca bajo); pulsos de corriente al oeste de 10° E (Zr/Rb alto). Ruido AR(1) multiplicativo. Archivos:
-`examples/geochem_demo/` (tabla larga, catálogo y un archivo por sondeo).
+Ca bajo); pulsos de corriente al oeste de 10° E (Zr/Rb alto). Ruido AR(1) multiplicativo. Además, `intervals.csv` (generador aleatorio aparte, semilla 398,
+para no cambiar los registros numéricos): capa **Litologia** («Arcilla limosa» en las ventanas
+detríticas con los límites desplazados ±1 ka; «Marga nanofosilifera» el resto) y capa
+**Turbidita**, de 0 a 3 capas finas (0,3–1,2 ka) por sondeo, siempre dentro de arcilla limosa
+(subdivisión). Archivos: `examples/geochem_demo/` (tabla larga, catálogo, un archivo por sondeo e
+intervalos en profundidad).
 
 El botón «Datos de demostración» etiqueta intervalos a partir de la verdad sintética en dos sondeos
 por evento (DEMO-02 y DEMO-12 detrítico; DEMO-09 y DEMO-14 baja oxigenación; DEMO-01 y DEMO-04
-corriente) más el fondo de esos sondeos, añade una regla de ejemplo (Ba/Al z > 1,5 y Mn/Al z < −0,5
-→ baja oxigenación) y entrena un Random Forest.
+corriente) más el fondo de esos sondeos, importa `intervals.csv` (Turbidita como subdivisión de
+Litologia), añade una regla de ejemplo (Ba/Al z > 1,5 y Mn/Al z < −0,5 → baja oxigenación) y
+entrena un Random Forest con capa objetivo «Eventos» y 9 variables (6 numéricas y 3 de capas).
 
-**Para el revisor.** Los resultados con estos datos (V9: acierto 98,6 %, acierto equilibrado
-97,7 %, dejando un sondeo fuera, 1730 muestras etiquetadas) **solo comprueban que la
+**Para el revisor.** Los resultados con estos datos (V10: acierto 98,4 %, acierto equilibrado
+96,7 %, dejando un sondeo fuera, 1730 muestras etiquetadas; en V9, sin capas de intervalos, 98,6 %
+y 97,7 %) **solo comprueban que la
 implementación funciona**: los eventos sintéticos están muy separados y no representan la
 dificultad de datos reales. La validez para interpretar eventos reales debe medirse con sondeos
 con interpretación publicada e independiente, dejando sondeos enteros fuera. Las etiquetas por
 reglas hacen que el modelo reaprenda las reglas: su acierto mide coherencia, no verdad. La
 importancia MDI reparte el mérito de forma desigual entre proxies correlacionados (p. ej. Ba/Al y
-TOC); para un artículo conviene añadir importancia por permutación.
+TOC); para un artículo conviene añadir importancia por permutación. En la demostración la
+litología se construyó a partir de las ventanas detríticas, así que está muy ligada a la etiqueta
+«aporte detrítico»: con datos reales, una capa descrita así de cerca del objetivo puede hacer que
+el modelo dependa de la descripción y no de los registros.
 
 ---
 

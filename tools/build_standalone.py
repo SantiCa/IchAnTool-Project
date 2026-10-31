@@ -21,7 +21,7 @@ EXAMPLES = ROOT / "examples"
 # Files the app loads with fetchAsset(path); embedded so the single file works offline.
 ASSETS = ["data/idealized_core_0-500cm.jpg"] + [f"U1385I-1H/web/397-U1385I-1H-{i}-A_50pxcm.jpg" for i in range(1, 7)] + [
     "U1385I-1H/records/397-U1385I-1H_RSC_color.csv", "U1385I-1H/records/397-U1385I-1H_MS.csv",
-    "data/land-50m.json", "geochem_demo/demo_long.csv"]
+    "data/land-50m.json", "geochem_demo/demo_long.csv", "geochem_demo/intervals.csv"]
 MIME = {".jpg": "image/jpeg", ".csv": "text/csv", ".json": "application/json"}
 TOP_DECL = re.compile(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)", re.M)
 

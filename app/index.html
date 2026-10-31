@@ -212,6 +212,12 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 .glogside { flex: 1; min-width: 220px; display: grid; gap: 6px; }
 .ivrow { flex-wrap: nowrap; gap: 6px; font-size: 12px; }
 .ivrow .note { flex: 1; }
+.ivrow select { min-width: 0; flex: 1; }
+.ivrow input[type=number] { width: 74px; }
+.ivrow.auto { opacity: .7; font-style: italic; }
+.ivhead { margin-top: 6px; font-size: 12.5px; }
+.warn { color: var(--danger); cursor: help; }
+.glogside { max-width: 520px; }
 .gcore { border: 1px solid var(--line); border-radius: var(--r); padding: 6px 8px; display: grid; gap: 4px; cursor: pointer; }
 .gcore.current { border-color: var(--accent); background: var(--accent-soft); }
 .gcores { display: grid; gap: 6px; max-height: 32vh; overflow: auto; }
@@ -445,6 +451,7 @@ dialog input[type=text] { min-width: 0; }
           <label class="btn small primary file"><span data-i18n="geo.impLong"></span><input type="file" id="giFileLong" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods"></label>
           <label class="btn small file"><span data-i18n="geo.impCores"></span><input type="file" id="giFileCore" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods" multiple></label>
           <label class="btn small file"><span data-i18n="geo.impCat"></span><input type="file" id="giFileCat" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods"></label>
+          <label class="btn small file"><span data-i18n="geo.impIv"></span><input type="file" id="giFileIv" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods" multiple></label>
           <div class="row"><button class="btn small" id="geoIncludeMain" data-i18n="geo.includeMain"></button><button class="btn small" id="geoDemo" data-i18n="geo.demo"></button></div>
           <p class="note" data-i18n="geo.impNote"></p>
           <div class="gcores" id="geoCores"></div>
@@ -469,7 +476,13 @@ dialog input[type=text] { min-width: 0; }
       <details class="step" open>
         <summary><span class="n">3</span><span data-i18n="geo.s3"></span></summary>
         <div class="body">
-          <ul class="clist" id="geoLabels"></ul>
+          <div class="f"><span data-i18n="geo.layer"></span>
+            <div class="row" style="flex-wrap:nowrap"><select id="geoLayerSel"></select><button class="btn small" id="geoLayerDel" data-i18n-title="geo.layerDel">✕</button></div></div>
+          <div class="grid2"><label class="f"><span data-i18n="geo.layerName"></span><input type="text" id="geoLayerName"></label>
+            <label class="f"><span data-i18n="geo.layerParent"></span><select id="geoLayerParent"></select></label></div>
+          <div class="row" style="flex-wrap:nowrap"><input type="text" id="geoNewLayer" data-i18n-ph="geo.newLayer"><button class="btn small" id="geoAddLayer" data-i18n="geo.addLayer"></button></div>
+          <label class="chk"><input type="checkbox" id="geoNewLayerChild"><span data-i18n="geo.newLayerChild"></span></label>
+          <div class="f"><span data-i18n="geo.cats"></span><ul class="clist" id="geoLabels"></ul></div>
           <div class="row" style="flex-wrap:nowrap"><input type="text" id="geoNewLabel" data-i18n-ph="geo.newLabel"><button class="btn small" id="geoAddLabel" data-i18n="geo.addLabel"></button></div>
           <p class="note" data-i18n="geo.labelsNote"></p>
           <div class="f"><span data-i18n="geo.rules"></span><div id="geoRules" style="display:grid;gap:6px"></div>
@@ -481,6 +494,9 @@ dialog input[type=text] { min-width: 0; }
       <details class="step" open>
         <summary><span class="n">4</span><span data-i18n="geo.s4"></span></summary>
         <div class="body">
+          <p class="note" data-i18n="geo.notIchno"></p>
+          <label class="f"><span data-i18n="geo.target"></span><select id="geoTarget"></select></label>
+          <div class="f"><span data-i18n="geo.useLayers"></span><div id="geoUseLayers" style="display:grid;gap:2px"></div></div>
           <label class="f"><span data-i18n="geo.method"></span><select id="geoMethod"><option value="rf" data-i18n="geo.m.name.rf"></option><option value="knn" data-i18n="geo.m.name.knn"></option><option value="nb" data-i18n="geo.m.name.nb"></option><option value="kmeans" data-i18n="geo.m.name.kmeans"></option></select></label>
           <p class="note" id="geoMethodHelp"></p>
           <div class="gparams" id="geoParams"></div>
@@ -499,9 +515,11 @@ dialog input[type=text] { min-width: 0; }
       </div>
       <div class="gpane" data-pane="logs">
         <div class="gctl"><label class="f"><span data-i18n="geo.core"></span><select id="geoCoreSel"></select></label>
-          <label class="chk"><input type="checkbox" id="geoMark"><span data-i18n="geo.mark"></span></label></div>
+          <label class="chk"><input type="checkbox" id="geoMark"><span data-i18n="geo.mark"></span></label><span id="geoMarkHint" class="note"></span></div>
         <div class="glogwrap"><div id="geoLogSvg"></div>
-          <div class="glogside"><b data-i18n="geo.intervals"></b><p class="note" data-i18n="geo.markNote"></p><div id="geoIntervals" style="display:grid;gap:4px"></div></div></div>
+          <div class="glogside"><b data-i18n="geo.intervals"></b><p class="note" data-i18n="geo.markNote"></p>
+            <div class="row"><button class="btn small" id="geoAccept" data-i18n="geo.accept"></button><button class="btn small" id="geoClearAuto" data-i18n="geo.clearAuto"></button><button class="btn small" id="geoIvCsv" data-i18n="geo.ivCsv"></button></div>
+            <div id="geoIntervals" style="display:grid;gap:4px"></div></div></div>
       </div>
       <div class="gpane" data-pane="map" hidden>
         <div class="gctl" id="geoMapCtl">
@@ -571,13 +589,19 @@ dialog input[type=text] { min-width: 0; }
   <div style="display:grid;gap:10px">
     <div class="grid2">
       <label class="f" id="giCoreRow"><span data-i18n="geo.r.core"></span><select id="giCore"></select></label>
-      <label class="f"><span>Lat</span><select id="giLat"></select></label>
-      <label class="f"><span>Lon</span><select id="giLon"></select></label>
       <label class="f" id="giWdRow"><span data-i18n="geo.r.wd"></span><select id="giWd"></select></label>
     </div>
+    <div class="grid2" id="giLatLonRow"><label class="f"><span>Lat</span><select id="giLat"></select></label><label class="f"><span>Lon</span><select id="giLon"></select></label></div>
     <div class="grid2" id="giDepthRow"><label class="f"><span data-i18n="log.depth"></span><select id="giDepth"></select></label><label class="f"><span data-i18n="log.age"></span><select id="giAge"></select></label></div>
+    <div class="grid2" id="giIvRow">
+      <label class="f"><span data-i18n="geo.r.from"></span><select id="giFrom"></select></label><label class="f"><span data-i18n="geo.r.to"></span><select id="giTo"></select></label>
+      <label class="f"><span data-i18n="geo.r.ivAxis"></span><select id="giIvAxis"><option value="depth" data-i18n="log.depth"></option><option value="age" data-i18n="log.age"></option></select></label>
+      <label class="f"><span data-i18n="geo.r.layerCol"></span><select id="giLayer"></select></label>
+    </div>
+    <label class="f" id="giDefRow"><span data-i18n="geo.r.defCore"></span><select id="giDefCore"></select></label>
+    <div class="f" id="giValRow"><span data-i18n="geo.r.vals"></span><div id="giVals" class="reccols"></div><p class="note" id="giValNote"></p></div>
     <div class="f" id="giProxRow"><span data-i18n="geo.r.proxies"></span><div id="giProx" class="reccols"></div></div>
-    <p class="note" data-i18n="geo.r.note"></p>
+    <p class="note" id="giNote"></p>
   </div>
   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" id="giCancel" data-i18n="confirm.no"></button><button class="btn primary" id="giOk" data-i18n="geo.r.ok"></button></div>
 </dialog>

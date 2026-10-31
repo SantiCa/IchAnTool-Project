@@ -22,8 +22,10 @@ browser: images are never uploaded.
    palette JSON (compatible with `ichantool analyze --palette`), and the whole project (JSON).
 7. **Core log** — all sections on one depth or age axis with the image resampled to the axis,
    bioturbation, indices and external records (CSV/TXT/Excel); SVG and CSV export.
-8. **Geochemistry** — many cores and proxies (long table, one file per core, catalogue); event labels
-   by dragged intervals or proxy rules; random forest / k-NN / naive Bayes / k-means with seeded,
+8. **Multiproxy** — many cores with any numeric records (long table, one file per core, catalogue) and
+   described interval layers (lithology, turbidites…) that can subdivide each other; labels by dragged
+   intervals or rules; all of it feeds an automatic interval classifier (independent of the ichnotaxon
+   suggestions): random forest / k-NN / naive Bayes / k-means with seeded,
    leave-one-core-out validation; maps by age window; the image core and its ichnological data can
    join the analysis and its classes are overlaid on the core log.
 
@@ -45,7 +47,7 @@ Single offline file (no server needed): `python tools/build_standalone.py` -> `d
 - `js/learn.js` — incremental k-NN classifier with novelty detection
 - `js/app.js` — interface, tools, rendering, files
 - `js/log.js` — composite core log: table parsing, depth/age axis, SVG and CSV of a window
-- `js/geo.js` — geochemistry: multi-core samples, interval/rule labels, random forest, k-NN, naive Bayes, k-means, cross-validation, IDW maps
+- `js/geo.js` — multiproxy: multi-core samples, interval layers, interval/rule labels, random forest, k-NN, naive Bayes, k-means, cross-validation, IDW maps
 - `js/storage.js` — project library in IndexedDB
 - `js/i18n.js` — Spanish / English strings
 

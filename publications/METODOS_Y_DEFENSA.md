@@ -31,7 +31,7 @@ bioturbación a partir de imágenes de testigos.
 | Formatos de exportación | §12 |
 | Resolución de trabajo, proyectos | §16–§17 |
 | Registro compuesto y registros externos | §18–§19 |
-| Herramienta de geoquímica (si se incluye) | §21 |
+| Herramienta multiproxy (si se incluye) | §21 |
 
 ### Qué se puede afirmar hoy
 - Integra en una sola herramienta las imágenes, la bioturbación y otros registros del mismo sondeo, en profundidad o en edad, con exportación vectorial (§18). Demostrado con datos públicos del IODP (sondeo de prueba U1385I-1H).
@@ -41,8 +41,8 @@ bioturbación a partir de imágenes de testigos.
   (§3.4, §13.2).
 - Es determinista y el archivo de proyecto permite reproducir cualquier análisis (§15).
 - Tiene pruebas automáticas en integración continua (§13.1).
-- Integra en el mismo proyecto la interpretación icnológica y la interpretación geoquímica
-  multiproxy con aprendizaje automático (§21). Sobre esta parte solo puede afirmarse que funciona
+- Integra en el mismo proyecto la interpretación icnológica, registros numéricos de cualquier tipo,
+  intervalos descritos jerárquicos y una clasificación automática de intervalos (§21). Sobre esta parte solo puede afirmarse que funciona
   como herramienta; su capacidad de detectar eventos reales no está validada (ver artículo 4).
 
 ### Qué falta antes de enviarlo
@@ -191,11 +191,13 @@ programa no propaga esa incertidumbre (§5).
 
 ---
 
-## Artículo 4 — Clasificación de eventos paleoambientales con proxies geoquímicos e icnológicos
+## Artículo 4 — Clasificación automática de intervalos con registros multiproxy, descripciones e icnología
 
 ### Qué describirá
-Un método reproducible para etiquetar eventos (baja oxigenación, aporte detrítico, corrientes de
-fondo…) en muchos sondeos a partir de asociaciones de proxies, combinando el criterio experto
+Un método reproducible para etiquetar intervalos (eventos como baja oxigenación, aporte detrítico o
+corrientes de fondo, pero también litologías o facies) en muchos sondeos a partir de registros
+numéricos (geoquímica, foraminíferos, TOC, sedimentología…) y de intervalos descritos (litología,
+turbiditas…), combinando el criterio experto
 (intervalos y reglas) con aprendizaje supervisado, y su cartografía por ventanas de edad. Incluye
 la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 
@@ -203,6 +205,7 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 | Método | § |
 |--------|---|
 | Importación, remuestreo, razones, log y escalado | §21.1–§21.2 |
+| Capas de intervalos jerárquicas como variables (0/1) | §21.2–§21.3 |
 | Etiquetas por intervalos y reglas | §21.3 |
 | Random Forest, k-NN, Bayes ingenuo, k-medias | §21.4 |
 | Validación dejando un sondeo fuera | §21.5 |
@@ -224,7 +227,9 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 4. **Métricas:** acierto equilibrado, F1 por clase y matriz de confusión; incertidumbre por
    remuestreo de sondeos (bootstrap por sondeo).
 5. **Comparaciones:** reglas expertas solas; Random Forest; k-NN; Bayes; y el efecto de añadir
-   la icnología como variable (con y sin bioturbación/índices).
+   la icnología (con y sin bioturbación/índices) y las capas descritas (con y sin litología) como
+   variables. Vigilar que una capa descrita no sea casi la misma información que el objetivo
+   (fuga de información), y declarar qué capas se usaron.
 6. **Importancia por permutación** (por implementar) además de MDI.
 7. **Sensibilidad** al paso de remuestreo, al escalado (global frente a por sondeo) y a la
    probabilidad mínima.
@@ -248,6 +253,10 @@ métodos más simples (k-NN, Bayes) en el mismo esquema de validación.
 **¿La interpolación del mapa es fiable?**
 La IDW es solo visual y exploratoria (§21.6): no estima incertidumbre ni tiene en cuenta la
 geografía. Las conclusiones se basan en los valores de cada sondeo, que también se exportan.
+
+**¿Cómo entran datos categóricos como la litología en un modelo numérico?**
+Como columnas 0/1 por categoría, sin escalar (§21.2). La ausencia de descripción vale 0, igual que
+«no presente»; se declara como limitación y conviene usar solo sondeos con la capa descrita entera.
 
 **¿Cómo se combinan proxies medidos con técnicas o calibraciones distintas?**
 Con el z-score por sondeo (§21.2) se eliminan diferencias de nivel; se documenta qué escalado se

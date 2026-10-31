@@ -113,7 +113,7 @@ export function resample(xs, ys, grid, maxGap = Infinity) {
  * Each sample: {core, x, depth, age, raw[], zc[] (per-core z), f[] (model features)}.
  */
 export function buildSamples(cores, cfg) {
-  const F = cfg.features, out = [];
+  const F = cfg.features, LF = cfg.layers || [], out = [];
   for (const core of cores) {
     const ages = coreAges(core);
     const xs = cfg.axis === 'age' ? ages : core.depth;
@@ -138,6 +138,10 @@ export function buildSamples(cores, cfg) {
       const mu = F.map((_, j) => mean(rows.map((r) => r.t[j]))), sd = F.map((_, j) => std(rows.map((r) => r.t[j]), mu[j]));
       for (const r of rows) r.zc = r.t.map((v, j) => (v - mu[j]) / sd[j]);
     }
+    if (LF.length) {
+      const ivs = intervalsOnAxis((cfg.intervals || []).filter((q) => q.core === (core.id ?? core.name) && !q.auto), cfg.axis, core);
+      for (const r of rows) r.cat = LF.flatMap((l) => l.cats.map((c) => (ivs.some((q) => q.layer === l.id && (q.cat ?? q.label) === c.id && r.x >= q.from && r.x < q.to) ? 1 : 0)));
+    }
     out.push(...rows);
   }
   if (cfg.scaling === 'core') for (const r of out) r.f = r.zc.slice();
@@ -146,6 +150,49 @@ export function buildSamples(cores, cfg) {
     const mu = F.map((_, j) => mean(out.map((r) => r.t[j]))), sd = F.map((_, j) => std(out.map((r) => r.t[j]), mu[j]));
     for (const r of out) r.f = r.t.map((v, j) => (v - mu[j]) / sd[j]);
   }
+  // Interval layers: one 0/1 column per category, appended unscaled after the numeric variables.
+  for (const r of out) if (r.cat) { r.raw.push(...r.cat); r.t.push(...r.cat); r.zc.push(...r.cat); r.f.push(...r.cat); delete r.cat; }
+  return out;
+}
+
+/** Names of the 0/1 columns created from interval layers ("Layer: category"). */
+export function layerFeatureNames(layers) { return layers.flatMap((l) => l.cats.map((c) => `${l.name}: ${c.name}`)); }
+
+/** Intervals expressed on one axis of one core (converted with the core's depth–age relation when needed). */
+export function intervalsOnAxis(list, axis, core) {
+  return list.map((q) => {
+    if (q.axis === axis) return q;
+    if (!core) return null;
+    const a = coreConvert(core, q.from, q.axis, axis), b = coreConvert(core, q.to, q.axis, axis);
+    return a == null || b == null ? null : { ...q, from: Math.min(a, b), to: Math.max(a, b) };
+  }).filter(Boolean);
+}
+
+/** Ids of intervals of a child layer that are not inside any interval of its parent layer (same core). */
+export function orphanIntervals(intervals, layers, cores) {
+  const parent = new Map(layers.map((l) => [l.id, l.parent])), byCore = new Map(cores.map((c) => [c.id ?? c.name, c]));
+  return intervals.filter((q) => {
+    const p = parent.get(q.layer); if (!p) return false;
+    const ps = intervalsOnAxis(intervals.filter((x) => x.layer === p && x.core === q.core), q.axis, byCore.get(q.core));
+    return !ps.some((x) => x.from <= q.from + 1e-9 && x.to >= q.to - 1e-9);
+  }).map((q) => q.id);
+}
+
+/**
+ * Intervals from a table. roles = {core (-1 = use defaultCore), from, to, layer (-1 = each value column is a layer), values:[col]}.
+ * Returns [{core, layer, value, from, to}] with names (text), skipping empty values.
+ */
+export function intervalsFromTable(tab, roles, defaultCore = '') {
+  const out = [];
+  tab.rows.forEach((r, i) => {
+    const a = r[roles.from], b = r[roles.to]; if (a == null || b == null || a === b) return;
+    const txt = tab.text[i], core = roles.core >= 0 ? String(txt[roles.core] ?? '').trim() : defaultCore; if (!core) return;
+    const from = Math.min(a, b), to = Math.max(a, b);
+    if (roles.layer >= 0) {
+      const layer = String(txt[roles.layer] ?? '').trim(), value = String(txt[roles.values[0]] ?? '').trim();
+      if (layer && value) out.push({ core, layer, value, from, to });
+    } else for (const c of roles.values) { const value = String(txt[c] ?? '').trim(); if (value) out.push({ core, layer: tab.headers[c], value, from, to }); }
+  });
   return out;
 }
 
@@ -162,20 +209,19 @@ export function ruleMatches(rule, sample, features) {
 
 /**
  * Label of every sample: manual intervals first; then the first enabled rule that matches (if useRules).
- * intervals: [{core, axis, from, to, label}] (axis in which they were drawn; converted when needed).
+ * intervals: [{core, layer, axis, from, to, cat}] (axis in which they were drawn; converted when needed).
+ * With `layer`, only intervals and rules of that layer (the classification target) are used.
+ * Intervals with `auto` (accepted predictions) never become training labels.
  */
-export function labelSamples(samples, { intervals = [], rules = [], useRules = true, features, axis, cores }) {
+export function labelSamples(samples, { intervals = [], rules = [], useRules = true, features, axis, cores, layer = null }) {
   const byCore = new Map(cores.map((c) => [c.id ?? c.name, c]));
-  const iv = intervals.map((q) => {
-    if (q.axis === axis) return q;
-    const c = byCore.get(q.core); if (!c) return null;
-    const a = coreConvert(c, q.from, q.axis, axis), b = coreConvert(c, q.to, q.axis, axis);
-    return a == null || b == null ? null : { ...q, from: Math.min(a, b), to: Math.max(a, b) };
-  }).filter(Boolean);
+  const mine = intervals.filter((q) => !q.auto && (layer == null || q.layer === layer));
+  const iv = mine.flatMap((q) => intervalsOnAxis([q], axis, byCore.get(q.core)));
+  const rl = rules.filter((r) => layer == null || r.layer === layer);
   return samples.map((s) => {
     const hit = iv.find((q) => q.core === s.core && s.x >= q.from && s.x < q.to);
-    if (hit) return { label: hit.label, source: 'interval' };
-    if (useRules) for (const r of rules) if (r.enabled !== false && ruleMatches(r, s, features)) return { label: r.label, source: 'rule' };
+    if (hit) return { label: hit.cat ?? hit.label, source: 'interval' };
+    if (useRules) for (const r of rl) if (r.enabled !== false && ruleMatches(r, s, features)) return { label: r.cat ?? r.label, source: 'rule' };
     return { label: null, source: null };
   });
 }

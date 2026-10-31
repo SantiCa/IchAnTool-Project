@@ -27,6 +27,7 @@ La descripción detallada de los algoritmos está en
 | V8 | 31-10-2026 | Aplicación web 0.3 | Ajustes de realce de artículos recientes (Dorador et al. 2014 completo, CLAHE de Miguez-Salas et al. 2019), K-medias, ajustes propios, copias de seguridad |
 | V7 | 31-10-2026 | Aplicación web 0.2 | Carpetas de proyecto, registro compuesto del sondeo (profundidad/edad), registros externos, sondeo de prueba IODP U1385I |
 | V9 | 31-10-2026 | Aplicación web 0.4 | Herramienta de geoquímica: muchos sondeos y proxies, etiquetas por intervalos y reglas, aprendizaje automático configurable, mapas por edad, superposición con el registro icnológico |
+| V10 | 31-10-2026 | Aplicación web 0.5 | «Geoquímica» pasa a «Multiproxy»: cualquier registro numérico, capas de intervalos descritos con subdivisiones (litología, turbiditas…), editables e importables, usadas por el clasificador automático de intervalos |
 
 ---
 
@@ -420,6 +421,67 @@ etiquetado por intervalos y reglas; mapas de puntos con interpolación.
   el navegador. Si hace falta, pasar el entrenamiento a un *web worker* o al paquete Python.
 - No se propaga la incertidumbre de los modelos de edad ni se modela la autocorrelación.
 - El paquete Python todavía no tiene la parte de geoquímica.
+
+---
+
+## V10 — Herramienta multiproxy: capas de intervalos y clasificación automática de intervalos (31-10-2026)
+
+**Qué se hizo.** El modo «Geoquímica» pasa a llamarse **«Multiproxy»**, porque admite cualquier
+registro numérico (geoquímica, foraminíferos, TOC, sedimentología…) y además **intervalos
+descritos** organizados en capas (litología, turbiditas, zonas de migración de metales, eventos…).
+Una capa puede ser **subdivisión** de otra. Los intervalos se importan, se dibujan y se editan, y
+**todas** las capas entran como variables en el clasificador automático de intervalos, que puede
+aprender cualquier capa como objetivo. Se deja explícito que este clasificador es independiente
+del que sugiere icnotaxones.
+
+**Cambios.**
+- `geo.js`:
+  - `buildSamples` añade una columna 0/1 por categoría de cada capa usada (sin escalar);
+  - `labelSamples` filtra por capa objetivo y no usa intervalos automáticos;
+  - nuevas `intervalsFromTable` (formato ancho y largo), `intervalsOnAxis`, `orphanIntervals`
+    (intervalos hijos fuera de la capa madre) y `layerFeatureNames`.
+- Interfaz:
+  - paso 3 «Capas de intervalos y etiquetas»: crear, renombrar y borrar capas, elegir la capa
+    madre (sin ciclos), categorías con color y reglas por capa (también con variables de capas);
+  - importación de intervalos (techo, base, eje, columna de capa opcional, columnas de categoría;
+    sondeo por columna, por nombre de archivo o elegido), sin duplicar intervalos idénticos;
+  - registro con una banda por capa en orden jerárquico; al dibujar en una capa hija, el
+    intervalo se recorta al intervalo madre; lista editable (categoría, techo, base), aviso ⚠ de
+    intervalos fuera de su madre, exportación CSV;
+  - paso 4: capa objetivo y capas usadas como variables; la capa objetivo nunca es variable;
+  - «Aceptar la clasificación como intervalos»: crea intervalos automáticos (en claro), que se
+    confirman con ✓ y solo entonces cuentan para entrenar;
+  - el registro compuesto del sondeo de imágenes muestra sus capas de intervalos y la
+    clasificación.
+- Proyectos de V9: la lista de etiquetas se convierte en la capa «Eventos» (`normalizeGeo`).
+- Demostración: `intervals.csv` sintético (Litologia y Turbidita como subdivisión), generado con
+  una semilla aparte para no cambiar los registros numéricos.
+- `log.js`: el ancho de cada banda es configurable.
+
+**Por qué.** Petición de Santiago: no limitarlo a geoquímica; importar y modificar intervalos
+definidos y subdividirlos; que el sistema de clasificación automática de intervalos los use; y
+separarlo claramente del sistema que sugiere la clasificación de la bioturbación.
+
+**Comprobación.**
+- 28 pruebas de la aplicación (1 nueva: importación de intervalos, columnas 0/1 con conversión de
+  eje, capa objetivo y comprobación de anidamiento) y 9 de Python.
+- En Chromium:
+  - demostración: 3 capas, 9 variables, acierto 98,4 % y acierto equilibrado 96,7 % dejando un
+    sondeo fuera (sintético; solo comprueba la implementación);
+  - con «Litologia» como capa objetivo se entrena y se aceptan 7 intervalos automáticos;
+  - arrastre en la capa hija recortado al intervalo madre;
+  - diálogo de importación con detección de techo, base, sondeo y columnas de categoría; volver a
+    importar el mismo archivo no duplica;
+  - proyecto con formato de V9 convertido correctamente;
+  - recarga con todo recuperado; banda de clasificación en el registro compuesto; ningún error.
+
+**Pendiente o problemas conocidos.**
+- Las muestras se sitúan con los registros numéricos: un sondeo que solo tenga intervalos (sin
+  ningún dato numérico) no aporta muestras.
+- Sin intervalo de una capa, sus columnas valen 0, igual que «no presente»: no se distingue «no
+  descrito» de «ausente».
+- Los intervalos en profundidad deben estar en las mismas unidades que los registros del sondeo.
+- Importancia por permutación y validación con datos reales siguen pendientes (V9).
 
 ---
 
