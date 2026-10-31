@@ -2112,9 +2112,10 @@ function defaultGeo() {
       { id: 'background', name: t('geo.l.background'), color: '#cfc8b6' },
     ] }],
     activeLayer: 'events', activeCat: 'lowox',
-    settings: { axis: 'age', step: 1, features: [], logs: [], scaling: 'global', maxGap: null, method: 'rf', params: { rf: {}, knn: {}, nb: {}, kmeans: {} }, minProb: 0.5, useRules: true, seed: 42, target: 'events', useLayers: null, missing: 'drop' },
+    settings: { axis: 'age', step: 1, features: [], logs: [], scaling: 'global', maxGap: null, method: 'rf', params: { rf: {}, knn: {}, nb: {}, kmeans: {}, mlp: {} }, minProb: 0.5, useRules: true, seed: 42, target: 'events', useLayers: null, missing: 'drop' },
+    classifiers: [], lastCat: {},
     map: { a0: 6, a1: 10, mode: 'class', feature: '', ref: false, r0: 0, r1: 4, idw: true, power: 2 },
-    view: { core: null, tab: 'logs' },
+    view: { core: null, tab: 'logs', clf: null, clfTarget: null, showEmpty: true },
   };
 }
 
@@ -2130,14 +2131,17 @@ function normalizeGeo(pg = {}) {
     g.activeCat = pg.activeLabel || g.layers[0].cats[0]?.id;
   }
   delete g.labels; delete g.activeLabel;
+  g.classifiers = (pg.classifiers || []).map((c) => ({ ...classifierDefaults(), ...c, params: { ...(c.params || {}) } }));
+  g.lastCat ||= {};
   return g;
 }
 
 S.geo = defaultGeo();
-const geoRT = { samples: [], labels: [], preds: [], model: null, cv: null, dirty: true, featNames: [], orphans: new Set() };
+const geoRT = { samples: [], labels: [], preds: [], model: null, cv: null, dirty: true, featNames: [], orphans: new Set(), runs: new Map(), layerCols: new Map(), ruleLabels: new Map() };
 
 /** Parameters shown for each method (help text in i18n: geo.p.<method>.<name>). */
 const GEO_PARAMS = {
+  mlp: [['hidden', 'select', ['8', '16', '32', '16,8', '32,16', '64,32']], ['activation', 'select', ['relu', 'tanh']], ['epochs', 'int', 20, 2000, 10], ['lr', 'float', 0.0005, 0.1, 0.0005], ['l2', 'float', 0, 0.1, 0.0001], ['batch', 'int', 4, 256, 4], ['balanced', 'bool'], ['patience', 'int', 5, 200, 5]],
   rf: [['trees', 'int', 10, 500, 10], ['maxDepth', 'int', 2, 30, 1], ['minLeaf', 'int', 1, 50, 1], ['mtry', 'select', ['sqrt', 'log2', 'all']], ['bins', 'int', 8, 128, 8], ['bootstrap', 'bool'], ['balanced', 'bool']],
   knn: [['k', 'int', 1, 50, 1], ['weights', 'select', ['distance', 'uniform']]],
   nb: [['smoothing', 'float', 1e-9, 0.1, 1e-6], ['priors', 'select', ['uniform', 'empirical']]],
@@ -2174,52 +2178,122 @@ function allNumericVars() {
   for (const r of S.geo.ratios) set.add(`${r.a}/${r.b}`);
   return [...set];
 }
-/** Interval layers used as input variables: chosen ones (default all) except the target, with categories. */
+/** Families (interval layers) that can feed a classifier: every one with classes and described intervals (V26: the pool; each classifier picks from it). */
 function featLayers() {
-  const st = S.geo.settings, ids = st.useLayers ?? S.geo.layers.map((l) => l.id);
-  return ids.filter((id) => id !== st.target).map(geoLayer).filter((l) => l && l.cats.length && S.geo.intervals.some((q) => q.layer === l.id));
+  return S.geo.layers.filter((l) => l.cats.length && S.geo.intervals.some((q) => q.layer === l.id && !q.auto));
+}
+
+/* ── classifiers (V26): each one says what it classifies (one or more families), with what (variables and other families) and how (model) ── */
+function classifierDefaults() {
+  return { id: 'c' + uid(), name: '', targets: [], features: null, layers: null, method: 'rf', params: {}, minProb: 0.5, seed: 42, useRules: true, trained: null };
+}
+/** First classifier from the old single-model settings (files before V26 and the built-in examples). */
+function ensureClassifiers() {
+  const g = S.geo, st = g.settings;
+  if (g.classifiers.length || g.clfCleared) return;
+  const tgt = geoLayer(st.target) ? st.target : featLayers()[0]?.id; if (!tgt) return;
+  g.classifiers.push({ ...classifierDefaults(), name: t('cl.default', { n: 1 }), targets: [tgt], layers: st.useLayers ?? null, method: st.method || 'rf', params: JSON.parse(JSON.stringify(st.params || {})), minProb: st.minProb ?? 0.5, seed: st.seed ?? 42, useRules: st.useRules !== false });
+}
+const curClf = () => S.geo.classifiers.find((c) => c.id === S.geo.view.clf) || S.geo.classifiers[0] || null;
+/** Column indices of the sample matrix used by classifier c: its variables (default all of step 2) and the 0/1 columns of its input families. */
+function clfCols(c) {
+  const st = S.geo.settings, F = st.features, num = (c.features ?? F).map((k) => F.indexOf(k)).filter((j) => j >= 0);
+  const inputs = (c.layers ?? featLayers().map((l) => l.id)).filter((id) => !c.targets.includes(id));
+  return [...num, ...inputs.flatMap((id) => geoRT.layerCols?.get(id) || [])];
+}
+/** Current position of the columns a model was trained on (by name, so adding families or variables does not invalidate it); null if one is gone. */
+function modelIdx(m) {
+  if (m.axis !== S.geo.settings.axis || m.scaling !== S.geo.settings.scaling) return null;
+  const idx = m.colNames.map((n) => geoRT.featNames.indexOf(n));
+  return idx.every((j) => j >= 0) ? idx : null;
+}
+/** Input vector of a sample for a trained model: numeric columns re-scaled with the statistics frozen at training (global z-score). */
+function clfX(m, s, idx) { return idx.map((j, k) => (m.zmu && m.isNum[k] ? (s.t[j] == null ? 0 : (s.t[j] - m.zmu[k]) / m.zsd[k]) : s.f[j])); }
+function predictRun(c) {
+  const run = geoRT.runs.get(c.id); if (!run) return;
+  for (const r of run.byTarget.values()) {
+    if (!r.model) { r.preds = []; continue; }
+    const idx = modelIdx(r.model); r.stale = !idx;
+    r.preds = r.stale ? [] : geoRT.samples.map((s) => predictLabel(r.model, clfX(r.model, s, idx), r.model.kind === 'kmeans' ? 0 : c.minProb));
+  }
+}
+function labelsFor(layerId, useRules = true) {
+  const g = S.geo, st = g.settings;
+  return labelSamples(geoRT.samples, { intervals: g.intervals, rules: g.rules, useRules, features: geoRT.featNames, axis: st.axis, cores: S.cores, layer: layerId });
+}
+/** Train classifier c on every family it targets; validation leaving one core out (or by blocks). */
+function trainClassifier(c) {
+  const g = S.geo, st = g.settings, method = c.method, params = { ...METHODS[method].defaults, ...(c.params?.[method] || {}) }, seed = c.seed ?? 42;
+  const cols = clfCols(c), run = { byTarget: new Map(), cols, at: Date.now() };
+  geoRT.runs.set(c.id, run);
+  if (!cols.length) { run.error = 'cl.noInputs'; return run; }
+  const view = geoRT.samples.map((s) => ({ core: s.core, x: s.x, f: cols.map((j) => s.f[j]) }));
+  const scale = st.scaling === 'global' ? scaleOf(geoRT.samples, geoRT.nNum) : null;
+  for (const lid of c.targets) {
+    if (!geoLayer(lid)) continue;
+    const labels = labelsFor(lid, c.useRules !== false), idx = labels.map((l, i) => (l.label ? i : -1)).filter((i) => i >= 0);
+    if (method !== 'kmeans' && new Set(idx.map((i) => labels[i].label)).size < 2) { run.byTarget.set(lid, { labels, preds: [], error: 'cl.needLabels' }); continue; }
+    const X = method === 'kmeans' ? view.map((v) => v.f) : idx.map((i) => view[i].f), y = method === 'kmeans' ? null : idx.map((i) => labels[i].label);
+    const model = fitModel(method, X, y, params, seed);
+    Object.assign(model, { cols, nNum: geoRT.nNum, colNames: cols.map((j) => geoRT.featNames[j]), isNum: cols.map((j) => j < geoRT.nNum), zmu: scale ? cols.map((j) => scale.mu[j] ?? 0) : null, zsd: scale ? cols.map((j) => scale.sd[j] || 1) : null,
+      scaling: st.scaling, axis: st.axis, target: lid, features: cols.map((j) => geoRT.featNames[j]), n: X.length });
+    const cv = method === 'kmeans' ? null : crossValidate(view, labels.map((l) => l.label), method, params, seed, { scored: (i) => labels[i].source !== 'rule', minProb: c.minProb });
+    run.byTarget.set(lid, { model, cv, labels, preds: [] });
+  }
+  predictRun(c);
+  c.trained = { at: new Date().toISOString(), n: [...run.byTarget.values()].reduce((a, r) => a + (r.model?.n || 0), 0) };
+  return run;
+}
+/** Expose the selected classifier/family as geoRT.model/preds/cv/labels (used by the map, the core test and the CSV export). */
+function syncCurrent() {
+  const c = curClf(), st = S.geo.settings;
+  const tgt = c && (c.targets.includes(S.geo.view.clfTarget) ? S.geo.view.clfTarget : c.targets[0]);
+  const r = c && tgt ? geoRT.runs.get(c.id)?.byTarget.get(tgt) : null;
+  geoRT.model = r?.model || null; geoRT.preds = r?.preds || []; geoRT.cv = r?.cv || null;
+  geoRT.labels = r?.labels || (tgt ? labelsFor(tgt, c?.useRules !== false) : geoRT.samples.map(() => ({ label: null, source: null })));
+  if (tgt) st.target = tgt;
+  if (c) { st.method = c.method; st.minProb = c.minProb; st.seed = c.seed; st.params[c.method] = c.params?.[c.method] || {}; }
 }
 
 function geoComputeSamples() {
   refreshAllCores();
   const g = S.geo, st = g.settings;
-  if (!geoLayer(st.target)) st.target = g.layers[0]?.id;
+  ensureClassifiers();
   if (!st.features.length && !featLayers().length) st.features = allNumericVars().filter((k) => S.cores.some((c) => (c.proxies[k] || []).some((v) => v != null))).slice(0, 12);
   const layers = featLayers();
   geoRT.samples = buildSamples(S.cores, { axis: st.axis, step: st.step, features: st.features, ratios: g.ratios, logs: st.logs, scaling: st.scaling, maxGap: st.maxGap || Infinity, layers, intervals: g.intervals, missing: st.missing });
   geoRT.featNames = [...st.features, ...layerFeatureNames(layers)];
   geoRT.nNum = st.features.length;
-  geoRT.labels = labelSamples(geoRT.samples, { intervals: g.intervals, rules: g.rules, useRules: st.useRules, features: geoRT.featNames, axis: st.axis, cores: S.cores, layer: st.target });
+  geoRT.layerCols = new Map(); let j = st.features.length;
+  for (const l of layers) { geoRT.layerCols.set(l.id, l.cats.map((_, k) => j + k)); j += l.cats.length; }
+  geoRT.ruleLabels = new Map(g.layers.filter((l) => g.rules.some((r) => r.layer === l.id && r.enabled !== false)).map((l) => [l.id, labelsFor(l.id, true)]));
   geoRT.orphans = new Set(orphanIntervals(g.intervals, g.layers, S.cores));
   geoRT.dirty = false; geoRT.test = null;
-  geoPredictAll();
+  for (const c of g.classifiers) predictRun(c);
+  syncCurrent();
 }
 
-/** Apply the trained model to every sample (cores added later included), with the numeric scaling frozen at training. */
-function geoPredictAll() {
-  const m = geoRT.model, st = S.geo.settings;
-  if (!m || m.features.join('\u0001') !== geoRT.featNames.join('\u0001') || m.scaling !== st.scaling || m.axis !== st.axis || m.target !== st.target) { geoRT.preds = []; return; }
-  const minProb = m.kind === 'kmeans' ? 0 : st.minProb;
-  geoRT.preds = geoRT.samples.map((s) => predictLabel(m, m.scale ? s.t.map((v, j) => (j < m.nNum ? (v == null ? 0 : (v - m.scale.mu[j]) / m.scale.sd[j]) : v)) : s.f, minProb));
-}
+function geoPredictAll() { for (const c of S.geo.classifiers) predictRun(c); syncCurrent(); }
 
 const scaleOf = (samples, nNum) => colStats(samples, nNum); // same statistics as buildSamples (missing values ignored)
 
-function geoReset() { Object.assign(geoRT, { samples: [], labels: [], preds: [], model: null, cv: null, dirty: true, featNames: [], orphans: new Set() }); }
+function geoReset() { Object.assign(geoRT, { samples: [], labels: [], preds: [], model: null, cv: null, dirty: true, featNames: [], orphans: new Set(), runs: new Map(), layerCols: new Map(), ruleLabels: new Map() }); }
 
-function geoTrain(silent = false) {
+/** Train every classifier (or only the one given). */
+function geoTrain(silent = false, only = null) {
   geoComputeSamples();
-  const st = S.geo.settings, method = st.method, params = { ...METHODS[method].defaults, ...st.params[method] };
   if (!geoRT.samples.length || !geoRT.featNames.length) { if (!silent) toast(t('geo.noSamples')); return; }
-  const idx = geoRT.labels.map((l, i) => (l.label ? i : -1)).filter((i) => i >= 0);
-  if (method !== 'kmeans' && new Set(idx.map((i) => geoRT.labels[i].label)).size < 2) { if (!silent) toast(t('geo.needLabels')); return; }
-  const X = method === 'kmeans' ? geoRT.samples.map((s) => s.f) : idx.map((i) => geoRT.samples[i].f);
-  const y = method === 'kmeans' ? null : idx.map((i) => geoRT.labels[i].label);
-  geoRT.model = fitModel(method, X, y, params, st.seed);
-  Object.assign(geoRT.model, { features: [...geoRT.featNames], nNum: geoRT.nNum, scaling: st.scaling, axis: st.axis, target: st.target, scale: st.scaling === 'global' ? scaleOf(geoRT.samples, geoRT.nNum) : null });
-  geoPredictAll();
-  geoRT.cv = method === 'kmeans' ? null : crossValidate(geoRT.samples, geoRT.labels.map((l) => l.label), method, params, st.seed, { scored: (i) => geoRT.labels[i].source !== 'rule', minProb: st.minProb });
-  if (!silent) { S.geo.trained = { method, params, target: st.target, at: new Date().toISOString(), n: X.length }; markDirty(); }
+  const list = only ? S.geo.classifiers.filter((c) => c.id === only) : S.geo.classifiers;
+  if (!list.length) { if (!silent) toast(t('cl.none')); return; }
+  const problems = [];
+  for (const c of list) {
+    const run = trainClassifier(c);
+    if (run.error) problems.push(`${c.name}: ${t(run.error)}`);
+    for (const [lid, r] of run.byTarget) if (r.error) problems.push(`${c.name} · ${geoLayer(lid)?.name}: ${t(r.error)}`);
+  }
+  syncCurrent();
+  S.geo.trained = { at: new Date().toISOString() };
+  if (!silent) { markDirty(); if (problems.length) toast(problems.join(' · ')); }
   renderGeo(); scheduleLog();
 }
 
@@ -2242,10 +2316,8 @@ function renderGeoSummaries() {
   set('geoSum1', t('home.cores', { n: S.cores.length }));
   set('geoSum2', `${t('gx.nVars', { n: st.features.length })} · ${t(st.axis === 'age' ? 'log.age' : 'log.depth')} ${fmt(st.step, 3)}`);
   set('geoSum3', `${t('gx.nLayers', { n: g.layers.length })} · ${t('gx.nIvs', { n: g.intervals.filter((q) => !q.auto).length })}`);
-  const cv = geoRT.cv, trained = geoRT.model && geoRT.preds.length;
-  const state = !L ? t('gx.noTarget') : trained ? (cv ? t('gx.trainedAcc', { m: t('geo.m.name.' + geoRT.model.kind), a: fmt(cv.balancedAccuracy * 100, 0) }) : t('gx.trained', { m: t('geo.m.name.' + geoRT.model.kind) })) : t('gx.untrained');
-  set('geoSum4', `${L ? L.name + ' · ' : ''}${t('geo.m.name.' + st.method)}`);
-  const ts = $('geoTrainState'); if (ts) ts.textContent = state;
+  set('geoSum4', t('cl.nClf', { n: g.classifiers.length }));
+  const c = curClf(), ts = $('geoTrainState'); if (ts) ts.textContent = c ? `${c.name}: ${clfState(c).txt}` : t('cl.empty');
 }
 function renderGeoPanel() {
   const g = S.geo, st = g.settings, vars = allNumericVars();
@@ -2280,41 +2352,115 @@ function renderGeoPanel() {
       ${r.conds.map((c, ci) => `<div class="row cond" data-c="${ci}" style="flex-wrap:nowrap"><select data-k="feature">${fopts(c.feature)}</select><select data-k="op">${['z>', 'z<', '>', '<'].map((o) => `<option ${o === c.op ? 'selected' : ''}>${o}</option>`).join('')}</select><input type="number" step="any" data-k="value" value="${c.value}"><button class="btn small ghost" data-act="delcond">✕</button></div>`).join('')}
       <button class="btn small" data-act="addcond">${t('geo.addCond')}</button></div>`).join('') || `<p class="note">${t('geo.noRules')}</p>`;
   $('geoUseRules').checked = st.useRules;
-  // learning
-  $('geoTarget').innerHTML = tree.map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === st.target ? 'selected' : ''}>${'  '.repeat(depth)}${esc(layer.name)}</option>`).join('');
-  const useIds = st.useLayers ?? g.layers.map((l) => l.id);
-  $('geoUseLayers').innerHTML = tree.filter(({ layer }) => layer.id !== st.target).map(({ layer }) => `<label class="chk"><input type="checkbox" data-ul="${layer.id}" ${useIds.includes(layer.id) ? 'checked' : ''}><span>${esc(layer.name)} <span class="note">(${layer.cats.length})</span></span></label>`).join('') || `<p class="note">—</p>`;
-  $('geoMethod').value = st.method; $('geoMethodHelp').textContent = t('geo.m.' + st.method);
-  const p = { ...METHODS[st.method].defaults, ...st.params[st.method] };
-  $('geoParams').innerHTML = GEO_PARAMS[st.method].map(([k, type, a, b, step]) => {
-    const help = `<span class="note">${t(`geo.p.${st.method}.${k}`)}</span>`, lab = `${st.method}.${k}`, name = t(lab) === lab ? k : t(lab);
-    if (type === 'bool') return `<label class="chk"><input type="checkbox" data-p="${k}" ${p[k] ? 'checked' : ''}><span title="${k}"><b>${name}</b></span></label>${help}`;
-    if (type === 'select') return `<label class="f"><span title="${k}"><b>${name}</b></span><select data-p="${k}">${a.map((o) => `<option ${o === p[k] ? 'selected' : ''}>${o}</option>`).join('')}</select></label>${help}`;
-    return `<label class="f"><span title="${k}"><b>${name}</b></span><input type="number" data-p="${k}" min="${a}" max="${b}" step="${step}" value="${p[k]}"></label>${help}`;
-  }).join('');
-  $('geoMinProb').value = st.minProb; $('geoSeed').value = st.seed;
-  $('geoMinProbRow').hidden = st.method === 'kmeans';
+  renderClassifiers();
 }
+
+/* ── V26: list of classifiers (step 4) ── */
+const CLF_METHODS = ['rf', 'mlp', 'knn', 'nb', 'kmeans'];
+function clfState(c) {
+  const run = geoRT.runs.get(c.id);
+  if (!run) return { cls: '', txt: c.trained ? t('cl.retrainNeeded') : t('gx.untrained') };
+  if (run.error) return { cls: 'warn', txt: t(run.error) };
+  if (run.outdated) return { cls: 'warn', txt: t('cl.changed') };
+  const rs = [...run.byTarget.values()];
+  if (rs.some((r) => r.stale)) return { cls: 'warn', txt: t('cl.stale') };
+  const acc = rs.map((r) => r.cv?.balancedAccuracy).filter((v) => v != null);
+  if (rs.every((r) => r.error)) return { cls: 'warn', txt: t('cl.needLabels') };
+  return { cls: 'ok', txt: acc.length ? t('cl.acc', { a: fmt((100 * acc.reduce((x, y) => x + y, 0)) / acc.length, 0) }) : t('gx.trained', { m: t('geo.m.name.' + c.method) }) };
+}
+function renderClassifiers() {
+  const g = S.geo, cur = curClf(), fams = layerTree().map((x) => x.layer), vars = g.settings.features;
+  const wasOpen = [...$('clfList').querySelectorAll('.clf.sel details')].map((d) => d.open), wasId = $('clfList').querySelector('.clf.sel')?.dataset.id;
+  const nDesc = (lid) => g.intervals.filter((q) => q.layer === lid && !q.auto).length;
+  $('clfList').innerHTML = g.classifiers.map((c) => {
+    const sel = c === cur, stt = clfState(c);
+    let html = `<section class="clf ${sel ? 'sel' : ''}" data-id="${c.id}"><header data-c="sel" title="${esc(t('cl.tip.sel'))}"><b>⚙ ${esc(c.name || t('cl.unnamed'))}</b><span class="clfstate ${stt.cls}">${esc(stt.txt)}</span></header>`;
+    if (!sel) return html + '</section>';
+    const fv = c.features ?? vars, inFams = fams.filter((l) => !c.targets.includes(l.id)), fl = c.layers ?? featLayers().map((l) => l.id);
+    const p = { ...METHODS[c.method].defaults, ...(c.params?.[c.method] || {}) };
+    const params = GEO_PARAMS[c.method].map(([k, type, a, b, step]) => {
+      const lab = `${c.method}.${k}`, name = t(lab) === lab ? k : t(lab), help = t(`geo.p.${c.method}.${k}`), tip = help === `geo.p.${c.method}.${k}` ? '' : ` title="${esc(help)}"`;
+      if (type === 'bool') return `<label class="chk"${tip}><input type="checkbox" data-p="${k}" ${p[k] ? 'checked' : ''}><span>${esc(name)}</span></label>`;
+      if (type === 'select') return `<label class="f"${tip}><span>${esc(name)}</span><select data-p="${k}">${a.map((o) => `<option ${String(o) === String(p[k]) ? 'selected' : ''}>${o}</option>`).join('')}</select></label>`;
+      return `<label class="f"${tip}><span>${esc(name)}</span><input type="number" data-p="${k}" min="${a}" max="${b}" step="${step}" value="${p[k]}"></label>`;
+    }).join('');
+    const run = geoRT.runs.get(c.id);
+    const res = c.targets.map((lid) => { const r = run?.byTarget.get(lid), L = geoLayer(lid); if (!L) return ''; const cv = r?.cv;
+      return `<div>${esc(L.name)}: ${r?.error ? `<span class="warn">${t(r.error)}</span>` : cv ? t('cl.res', { a: fmt(cv.balancedAccuracy * 100, 0), n: cv.total, k: cv.classes.length }) : r?.model ? t('gx.trained', { m: '' }) : t('gx.untrained')}</div>`; }).join('');
+    html += `<div class="clfbody">
+      <label class="f"><span>${t('cl.name')}</span><input type="text" data-c="name" value="${esc(c.name)}"></label>
+      <div class="f" title="${esc(t('cl.tip.targets'))}"><span>${t('cl.targets')}</span><div class="chips">${fams.map((l) => `<label><input type="checkbox" data-c="target" value="${l.id}" ${c.targets.includes(l.id) ? 'checked' : ''}>${esc(l.name)} <span class="note">${nDesc(l.id)}</span></label>`).join('') || `<span class="note">${t('cl.noFams')}</span>`}</div></div>
+      <div class="f" title="${esc(t('cl.tip.inputs'))}"><span>${t('cl.inputs')}</span>
+        <details><summary>${t('cl.inVars', { n: fv.filter((k) => vars.includes(k)).length, m: vars.length })}</summary><div class="row"><button class="btn small ghost" data-c="vall">${t('cl.all')}</button><button class="btn small ghost" data-c="vnone">${t('cl.none2')}</button></div>
+          <div class="chk2">${vars.map((k) => `<label class="chk"><input type="checkbox" data-c="feat" value="${esc(k)}" ${fv.includes(k) ? 'checked' : ''}><span>${esc(k)}</span></label>`).join('') || `<span class="note">${t('cl.noVars')}</span>`}</div></details>
+        <details><summary>${t('cl.inFams', { n: inFams.filter((l) => fl.includes(l.id)).length })}</summary><div class="chk2">${inFams.map((l) => `<label class="chk"><input type="checkbox" data-c="lay" value="${l.id}" ${fl.includes(l.id) ? 'checked' : ''}><span>${esc(l.name)}</span></label>`).join('') || `<span class="note">${t('cl.noOtherFams')}</span>`}</div><p class="note">${t('cl.famsNote')}</p></details></div>
+      <div class="f"><span>${t('cl.model')}</span><div class="clfmodels">${CLF_METHODS.map((m) => `<label title="${esc(t('geo.m.' + m))}"><input type="radio" name="clfm-${c.id}" data-c="method" value="${m}" ${m === c.method ? 'checked' : ''}><span><b>${t('geo.m.name.' + m)}</b><span class="note">${t('cl.m.' + m)}</span></span></label>`).join('')}</div></div>
+      <details><summary>${t('cl.advanced')}</summary><div class="gparams">${params}
+        ${c.method === 'kmeans' ? '' : `<label class="f" title="${esc(t('gx.tip.minProb'))}"><span>${t('geo.minProb')}</span><input type="number" data-c="minProb" min="0" max="1" step="0.05" value="${c.minProb}"></label>`}
+        <label class="f" title="${esc(t('gx.tip.seed'))}"><span>${t('geo.seed')}</span><input type="number" data-c="seed" step="1" value="${c.seed}"></label>
+        <label class="chk" title="${esc(t('gx.tip.rules'))}"><input type="checkbox" data-c="useRules" ${c.useRules !== false ? 'checked' : ''}><span>${t('geo.useRules')}</span></label>
+        <button class="btn small" data-c="defaults" title="${esc(t('gx.tip.suggest'))}">${t('cl.defaults')}</button></div></details>
+      <div class="clfres">${res}</div>
+      <div class="row"><button class="btn small primary" data-c="train" title="${esc(t('gx.tip.train'))}">${t('cl.train')}</button><button class="btn small" data-c="results">${t('cl.results')}</button><button class="btn small ghost" data-c="del">${t('proj.del')}</button></div>
+    </div></section>`;
+    return html;
+  }).join('') || `<p class="note">${t('cl.empty')}</p>`;
+  if (wasId && wasId === cur?.id) $('clfList').querySelectorAll('.clf.sel details').forEach((d, i) => { if (wasOpen[i]) d.open = true; });
+}
+function newClassifier(base = null) {
+  const g = S.geo, n = g.classifiers.length + 1;
+  const c = base ? { ...JSON.parse(JSON.stringify(base)), id: 'c' + uid(), name: t('cl.copyOf', { n: base.name }), trained: null }
+    : { ...classifierDefaults(), name: t('cl.default', { n }), targets: [featLayers()[0]?.id || g.layers[0]?.id].filter(Boolean) };
+  g.classifiers.push(c); g.view.clf = c.id; g.clfCleared = false; markDirty(); renderGeoPanel(); renderGeo();
+}
+$('clfAdd').addEventListener('click', () => newClassifier());
+$('clfDup').addEventListener('click', () => { const c = curClf(); if (c) newClassifier(c); });
+const clfOutdated = (c) => { const r = geoRT.runs.get(c.id); if (r) r.outdated = true; };
+$('clfList').addEventListener('click', (e) => {
+  const sec = e.target.closest('.clf'); if (!sec) return;
+  const g = S.geo, c = g.classifiers.find((x) => x.id === sec.dataset.id), b = e.target.closest('[data-c]'); if (!c || !b) return;
+  const act = b.dataset.c;
+  if (act === 'sel') { g.view.clf = c.id; g.view.clfTarget = null; syncCurrent(); renderGeoPanel(); renderGeo(); return; }
+  if (act === 'train') { busy(() => geoTrain(false, c.id)); return; }
+  if (act === 'results') { g.view.clf = c.id; g.view.tab = 'model'; syncCurrent(); renderGeo(); return; }
+  if (act === 'del') { if (!armed(b, t('cl.delConfirm'))) return; g.classifiers = g.classifiers.filter((x) => x !== c); geoRT.runs.delete(c.id); if (!g.classifiers.length) g.clfCleared = true; syncCurrent(); markDirty(); renderGeoPanel(); renderGeo(); return; }
+  if (act === 'vall') c.features = null; else if (act === 'vnone') c.features = [];
+  else if (act === 'defaults') { c.params[c.method] = {}; c.minProb = 0.5; }
+  else return;
+  clfOutdated(c); markDirty(); renderClassifiers();
+});
+$('clfList').addEventListener('change', (e) => {
+  const sec = e.target.closest('.clf'); if (!sec) return;
+  const g = S.geo, c = g.classifiers.find((x) => x.id === sec.dataset.id), el = e.target; if (!c) return;
+  const k = el.dataset.c, vars = g.settings.features;
+  if (k === 'name') c.name = el.value.trim() || c.name;
+  else if (k === 'target') { c.targets = el.checked ? [...new Set([...c.targets, el.value])] : c.targets.filter((x) => x !== el.value); if (c.layers) c.layers = c.layers.filter((x) => !c.targets.includes(x)); }
+  else if (k === 'feat') { const cur = new Set(c.features ?? vars); if (el.checked) cur.add(el.value); else cur.delete(el.value); c.features = vars.filter((v) => cur.has(v)); if (c.features.length === vars.length) c.features = null; }
+  else if (k === 'lay') { const cur = new Set(c.layers ?? featLayers().map((l) => l.id)); if (el.checked) cur.add(el.value); else cur.delete(el.value); c.layers = [...cur]; }
+  else if (k === 'method') c.method = el.value;
+  else if (k === 'minProb') c.minProb = Math.max(0, Math.min(1, +el.value || 0));
+  else if (k === 'seed') c.seed = Math.round(+el.value) || 0;
+  else if (k === 'useRules') c.useRules = el.checked;
+  else if (el.dataset.p) { const pk = el.dataset.p; (c.params[c.method] ||= {})[pk] = el.type === 'checkbox' ? el.checked : el.tagName === 'SELECT' ? (isNaN(+el.value) || pk === 'hidden' ? el.value : +el.value) : +el.value; }
+  else return;
+  if (k === 'minProb') { predictRun(c); syncCurrent(); renderGeo(); } else clfOutdated(c);
+  markDirty(); renderClassifiers(); if (k === 'name' || k === 'target') renderGeo();
+});
 
 $('geoPanel').addEventListener('change', (e) => {
   const el = e.target, g = S.geo, st = g.settings, L = geoLayer(g.activeLayer);
+  if (el.closest('#clfList')) return;   // classifiers have their own handler
   if (el.dataset.feat != null) { const k = el.dataset.feat; st.features = el.checked ? [...new Set([...st.features, k])] : st.features.filter((x) => x !== k); }
   else if (el.dataset.log != null) { const k = el.dataset.log; st.logs = el.checked ? [...new Set([...st.logs, k])] : st.logs.filter((x) => x !== k); }
-  else if (el.dataset.ul != null) { const ids = new Set(st.useLayers ?? g.layers.map((l) => l.id)); if (el.checked) ids.add(el.dataset.ul); else ids.delete(el.dataset.ul); st.useLayers = [...ids]; }
   else if (el.id === 'geoAxis') st.axis = el.value;
   else if (el.id === 'geoStep') st.step = Math.max(1e-6, +el.value || 1);
   else if (el.id === 'geoScaling') st.scaling = el.value;
   else if (el.id === 'geoMissing') st.missing = el.value;
   else if (el.id === 'geoMaxGap') st.maxGap = el.value === '' ? null : +el.value;
   else if (el.id === 'geoUseRules') st.useRules = el.checked;
-  else if (el.id === 'geoTarget') st.target = el.value;
-  else if (el.id === 'geoMethod') st.method = el.value;
-  else if (el.id === 'geoMinProb') st.minProb = +el.value;
-  else if (el.id === 'geoSeed') st.seed = Math.round(+el.value) || 0;
   else if (el.id === 'geoLayerSel') { g.activeLayer = el.value; renderGeoPanel(); scheduleGeo(); return; }
   else if (el.id === 'geoLayerName') { if (L && el.value.trim()) L.name = el.value.trim(); }
   else if (el.id === 'geoLayerParent') { if (L) L.parent = el.value || null; }
-  else if (el.dataset.p) { const k = el.dataset.p; st.params[st.method][k] = el.type === 'checkbox' ? el.checked : el.tagName === 'SELECT' ? el.value : +el.value; }
   else if (el.closest('.gcore')) { const c = geoCore(el.closest('.gcore').dataset.id); if (c) c[el.dataset.k] = el.value === '' ? null : +el.value; }
   else if (el.closest('#geoLabels')) {
     const c = L?.cats.find((x) => x.id === el.closest('li').dataset.id);
@@ -2365,7 +2511,6 @@ $('geoLayerDel').addEventListener('click', (e) => {
 });
 $('geoAddRule').addEventListener('click', () => { const g = S.geo; if (!geoLayer(g.activeLayer)?.cats.length) return; g.rules.push({ id: uid(), layer: g.activeLayer, cat: g.activeCat, enabled: true, conds: [{ feature: geoRT.featNames[0] || g.settings.features[0] || allNumericVars()[0], op: 'z>', value: 1 }] }); geoMarkDirty(); renderGeoPanel(); });
 $('geoAddRatio').addEventListener('click', () => { const a = $('geoRatioA').value, b = $('geoRatioB').value; if (a && b && a !== b && !S.geo.ratios.some((r) => r.a === a && r.b === b)) { S.geo.ratios.push({ a, b }); geoMarkDirty(); renderGeoPanel(); } });
-$('geoSuggest').addEventListener('click', () => { S.geo.settings.params[S.geo.settings.method] = {}; geoMarkDirty(); renderGeoPanel(); });
 $('geoTrainBtn').addEventListener('click', () => busy(() => geoTrain()));
 $('geoDemo').addEventListener('click', () => busy(loadGeoDemo));
 
@@ -2647,36 +2792,36 @@ function intervalSegs(core, layerId, axis) {
     .map((q) => ({ label: q.cat, a0: q.from, a1: q.to, color: geoCat(q.cat)?.color || '#999', opacity: q.auto ? 0.45 : 1 }));
 }
 /** All bands of a core: one per interval layer (tree order) + rule labels of the target + automatic classification. */
-function coreBands(core, axis, withPred = true) {
-  const st = S.geo.settings, bands = [];
+/**
+ * Columns of a core: one per family (described intervals; rule labels lighter) — empty ones too when showEmpty —
+ * each followed by the automatic columns of the classifiers that target it (opacity = probability), then the core test.
+ */
+function coreBands(core, axis, withPred = true, showEmpty = false) {
+  const g = S.geo, st = g.settings, bands = [];
   for (const { layer, depth } of layerTree()) {
     let segs = intervalSegs(core, layer.id, axis);
-    if (layer.id === st.target && st.useRules) segs = segs.concat(segmentsFor(core.id, (i) => (geoRT.labels[i]?.source === 'rule' ? geoRT.labels[i].label : null), axis, st.step, () => 0.45));
-    if (segs.length) bands.push({ title: (depth ? '↳ ' : '') + layer.name, full: layer.name, segs, w: 56 });
-  }
-  if (withPred && geoRT.preds.length) {
-    const segs = segmentsFor(core.id, (i) => geoRT.preds[i]?.label, axis, st.step);
-    if (segs.length) bands.push({ title: t('geo.bandPredShort'), segs, w: 56 });
+    const rl = geoRT.ruleLabels?.get(layer.id);
+    if (rl) segs = segs.concat(segmentsFor(core.id, (i) => (rl[i]?.source === 'rule' ? rl[i].label : null), axis, st.step, () => 0.45));
+    if (segs.length || showEmpty) bands.push({ title: (depth ? '↳ ' : '') + layer.name, full: layer.name, key: 'fam:' + layer.id, segs, w: 56 });
+    if (!withPred) continue;
+    for (const c of g.classifiers) {
+      const r = geoRT.runs.get(c.id)?.byTarget.get(layer.id); if (!r?.preds?.length) continue;
+      const name = `⚙ ${c.name}${c.targets.length > 1 ? ' · ' + layer.name : ''}`;
+      const sg = segmentsFor(core.id, (i) => r.preds[i]?.label, axis, st.step, (i) => +(0.3 + 0.7 * (r.preds[i]?.prob ?? 1)).toFixed(2));
+      if (sg.length || showEmpty) bands.push({ title: name, full: `${name} (${t('geo.m.name.' + c.method)})`, key: `auto:${c.id}:${layer.id}`, segs: sg, w: 56 });
+    }
   }
   const T = geoRT.test;
   if (withPred && T?.core === core.id) {
-    bands.push({ title: t('geo.bandTest'), segs: segmentsFor(core.id, (i) => T.preds[i]?.label, axis, st.step), w: 56 });
+    bands.push({ title: t('geo.bandTest'), key: 'test', segs: segmentsFor(core.id, (i) => T.preds[i]?.label, axis, st.step), w: 56 });
     const hit = segmentsFor(core.id, (i) => (T.preds[i]?.label != null && geoRT.labels[i]?.label ? (T.preds[i].label === geoRT.labels[i].label ? '__ok' : '__bad') : null), axis, st.step);
-    if (hit.length) bands.push({ title: t('geo.bandHit'), segs: hit, w: 46 });
+    if (hit.length) bands.push({ title: t('geo.bandHit'), key: 'hit', segs: hit, w: 46 });
   }
   return bands;
 }
 const bandLegendOf = (bands) => [...new Set(bands.flatMap((b) => b.segs.map((s) => s.label)))].map(geoCat).filter(Boolean).map((c) => ({ name: c.name, color: c.color, index: -1 }));
 
-/** Layer and class used to draw intervals, chosen right in the curves toolbar (V25). */
-function renderGeoMarkHint() {
-  const g = S.geo, L = geoLayer(g.activeLayer), c = geoCat(g.activeCat);
-  $('geoMarkLayer').innerHTML = layerTree().map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${esc(layer.name)}</option>`).join('');
-  $('geoMarkCat').innerHTML = (L?.cats || []).map((k) => `<option value="${k.id}" ${k.id === g.activeCat ? 'selected' : ''}>${esc(k.name)}</option>`).join('') || `<option value="">${esc(t('geo.noCat'))}</option>`;
-  $('geoMarkSw').style.background = c?.color || 'transparent';
-}
-$('geoMarkLayer').addEventListener('change', (e) => { const g = S.geo; g.activeLayer = e.target.value; g.activeCat = geoLayer(g.activeLayer)?.cats[0]?.id; renderGeoPanel(); renderGeoMarkHint(); });
-$('geoMarkCat').addEventListener('change', (e) => { S.geo.activeCat = e.target.value; renderGeoPanel(); renderGeoMarkHint(); });
+function renderGeoMarkHint() { /* V26: classes are chosen on the columns themselves */ }
 
 function renderGeoLogs() {
   const g = S.geo, st = g.settings, box = $('geoLogSvg');
@@ -2694,8 +2839,8 @@ function renderGeoLogs() {
     const ser = featureSeries(core, k, g.ratios) || [];
     return { name: k, color: GROUP_COLORS[j % GROUP_COLORS.length], reverse: false, pts: xs.map((x, i) => [x, ser[i]]) };
   }).filter((r) => r.pts.some((p) => p[1] != null)) : [];
-  const bands = coreBands(core, axis);
-  $('geoShade').checked = !!g.view.shade;
+  const bands = coreBands(core, axis, true, g.view.showEmpty !== false);
+  $('geoShade').checked = !!g.view.shade; $('geoShowEmpty').checked = g.view.showEmpty !== false;
   let shade = null;
   if (g.view.shade) {
     const T = geoRT.test?.core === core.id ? geoRT.test.preds : null;
@@ -2723,6 +2868,13 @@ function renderGeoLogs() {
   const sIdx = geoRT.samples.map((sm, i) => [sm, i]).filter(([sm]) => sm.core === core.id);
   logInteract(box, res, { clickHint: t('gx.clickHint'), from, to, axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`, records, bands, widths: g.view.colW,
     onResize: () => { markDirty(); renderGeoLogs(); },
+    bandText: (bkey, a) => {   // automatic columns: class and probability of the nearest sample
+      if (!bkey?.startsWith('auto:')) return null;
+      const [, cid, lid] = bkey.split(':'), r = geoRT.runs.get(cid)?.byTarget.get(lid); if (!r?.preds?.length) return null;
+      let best = null; for (const [sm, i] of sIdx) if (!best || Math.abs(sm.x - a) < Math.abs(best[0].x - a)) best = [sm, i];
+      if (!best || Math.abs(best[0].x - a) > st.step) return '—';
+      const pr = r.preds[best[1]]; return `${geoCat(pr?.label)?.name || t('gx.unsure')} (${Math.round((pr?.prob || 0) * 100)} %)`;
+    },
     extra: (a) => {   // nearest resampled sample: its label and, after training, the class with its probability
       let best = null; for (const [sm, i] of sIdx) if (!best || Math.abs(sm.x - a) < Math.abs(best[0].x - a)) best = [sm, i];
       if (!best || Math.abs(best[0].x - a) > st.step) return [];
@@ -2789,7 +2941,7 @@ function logInteract(box, res, ctx) {
   const line = mk('lgline'), card = mk('lgcard'), guide = mk('lgguide');
   const recs = new Map((ctx.records || []).map((r) => [r.name, { r, gap: 3 * medianGap(r.pts) }]));
   const chips = res.layout.filter((c) => c.key === 'rec').map((c) => ({ c, el: mk('lgval') }));
-  const bandOf = new Map((ctx.bands || []).map((b) => ['band:' + (b.full || b.title), b]));
+  const bandOf = new Map((ctx.bands || []).map((b) => ['band:' + (b.key || b.full || b.title), b]));
   const span = ctx.to - ctx.from, digits = (v) => (v == null || !Number.isFinite(v) ? '—' : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString(lang()) : +v.toPrecision(4) + '');
   const geom = () => { const r = svg.getBoundingClientRect(), b = box.getBoundingClientRect(), s = r.width / res.width; return { r, s, ox: r.left - b.left + box.scrollLeft - box.clientLeft, oy: r.top - b.top + box.scrollTop - box.clientTop }; };
   const hide = () => { line.hidden = card.hidden = true; chips.forEach((k) => (k.el.hidden = true)); };
@@ -2817,7 +2969,7 @@ function logInteract(box, res, ctx) {
     for (const c of res.layout) {
       if (c.key === 'band') {
         const b = bandOf.get(c.id), sg = b?.segs.find((q) => q.a0 <= a && a < q.a1);
-        const lab = !sg ? '—' : sg.label === '__ok' ? t('gx.hitOk') : sg.label === '__bad' ? t('gx.hitBad') : geoCat(sg.label)?.name ?? sg.name ?? '—';
+        const lab = ctx.bandText?.(c.bkey, a) ?? (!sg ? '—' : sg.label === '__ok' ? t('gx.hitOk') : sg.label === '__bad' ? t('gx.hitBad') : geoCat(sg.label)?.name ?? sg.name ?? '—');
         rows.push(`<tr class="${col === c ? 'on' : ''}"><td>${sg?.color ? `<span class="sw" style="background:${sg.color}"></span>` : ''}${esc(c.title)}</td><td>${esc(lab)}</td></tr>`);
       } else if (c.key === 'rec') {
         const R = recs.get(c.title), v = R ? recordAt(R.r.pts, a, R.gap) : null;
@@ -2866,13 +3018,13 @@ function renderIntervalList(core) {
     }
   }
   $('geoIntervals').innerHTML = rows.join('') || `<p class="note">${t('geo.noIntervals')}</p>`;
-  $('geoAccept').disabled = !geoRT.preds.length;
 }
 $('geoCoreSel').addEventListener('change', (e) => { S.geo.view.core = e.target.value; renderGeo(); });
 for (const [id, d] of [['geoCorePrev', -1], ['geoCoreNext', 1]]) $(id).addEventListener('click', () => { const i = S.cores.findIndex((c) => c.id === S.geo.view.core); if (!S.cores.length) return; S.geo.view.core = S.cores[(i + d + S.cores.length) % S.cores.length].id; renderGeo(); });
 $('geoTrackW').addEventListener('input', (e) => { S.geo.view.trackW = +e.target.value; clearTimeout(geoTrackT); geoTrackT = setTimeout(() => { markDirty(); renderGeoLogs(); }, 120); });
 $('geoTrackReset').addEventListener('click', () => { S.geo.view.colW = {}; S.geo.view.trackW = 120; markDirty(); renderGeoLogs(); });
 let geoTrackT = 0;
+$('geoShowEmpty').addEventListener('change', (e) => { S.geo.view.showEmpty = e.target.checked; markDirty(); renderGeoLogs(); });
 $('geoShade').addEventListener('change', (e) => { S.geo.view.shade = e.target.checked; markDirty(); renderGeo(); });
 $('geoTestBtn').addEventListener('click', () => busy(geoTestCore));
 
@@ -2883,22 +3035,24 @@ $('geoTestBtn').addEventListener('click', () => busy(geoTestCore));
  */
 function geoTestCore() {
   if (geoRT.dirty) geoComputeSamples();
-  const g = S.geo, st = g.settings, core = geoCore(g.view.core); if (!core) return;
-  const method = st.method === 'kmeans' ? 'rf' : st.method, params = { ...METHODS[method].defaults, ...st.params[method] };
-  const X = geoRT.samples, lab = geoRT.labels, out = new Array(X.length).fill(null);
+  const g = S.geo, st = g.settings, core = geoCore(g.view.core), c = curClf(); if (!core) return;
+  if (!c) { toast(t('cl.none')); return; }
+  syncCurrent();
+  const method = c.method === 'kmeans' ? 'rf' : c.method, params = { ...METHODS[method].defaults, ...(c.params?.[method] || {}) }, cols = clfCols(c);
+  const X = geoRT.samples.map((s) => ({ ...s, f: cols.map((j) => s.f[j]) })), lab = geoRT.labels, out = new Array(X.length).fill(null);
   const mine = X.map((s, i) => (s.core === core.id ? i : -1)).filter((i) => i >= 0);
   if (!mine.length) { toast(t('geo.testNoSamples')); return; }
-  const fit = (idx) => fitModel(method, idx.map((i) => X[i].f), idx.map((i) => lab[i].label), params, st.seed);
+  const fit = (idx) => fitModel(method, idx.map((i) => X[i].f), idx.map((i) => lab[i].label), params, c.seed ?? 42);
   const others = X.map((s, i) => (s.core !== core.id && lab[i].label ? i : -1)).filter((i) => i >= 0);
   let scheme;
-  if (new Set(others.map((i) => lab[i].label)).size >= 2) { scheme = 'others'; const m = fit(others); for (const i of mine) out[i] = predictLabel(m, X[i].f, st.minProb); }
+  if (new Set(others.map((i) => lab[i].label)).size >= 2) { scheme = 'others'; const m = fit(others); for (const i of mine) out[i] = predictLabel(m, X[i].f, c.minProb); }
   else {
     scheme = 'blocks'; const sorted = [...mine].sort((a, b) => X[a].x - X[b].x), k = Math.min(5, sorted.length);
     for (let f = 0; f < k; f++) {
       const test = sorted.slice(Math.floor((f * sorted.length) / k), Math.floor(((f + 1) * sorted.length) / k)), ts = new Set(test);
       const train = X.map((s, i) => (lab[i].label && !ts.has(i) ? i : -1)).filter((i) => i >= 0);
       if (new Set(train.map((i) => lab[i].label)).size < 2) continue;
-      const m = fit(train); for (const i of test) out[i] = predictLabel(m, X[i].f, st.minProb);
+      const m = fit(train); for (const i of test) out[i] = predictLabel(m, X[i].f, c.minProb);
     }
   }
   const scored = mine.filter((i) => lab[i].label && out[i]?.label != null);
@@ -2919,13 +3073,6 @@ $('geoIntervals').addEventListener('change', (e) => {
   else { const v = parseFloat(e.target.value); if (!Number.isFinite(v)) return; q[k] = v; if (q.from > q.to) [q.from, q.to] = [q.to, q.from]; }
   geoMarkDirty(); renderGeo();
 });
-$('geoAccept').addEventListener('click', () => {
-  const g = S.geo, st = g.settings, core = geoCore(g.view.core); if (!core || !geoRT.preds.length) return;
-  g.intervals = g.intervals.filter((q) => !(q.auto && q.core === core.id && q.layer === st.target));
-  const segs = segmentsFor(core.id, (i) => geoRT.preds[i]?.label, st.axis, st.step).filter((s) => geoLayerOf(s.label)?.id === st.target);
-  g.intervals.push(...segs.map((s) => ({ id: uid(), core: core.id, layer: st.target, axis: st.axis, from: s.a0, to: s.a1, cat: s.label, auto: true })));
-  toast(t('geo.accepted', { n: segs.length })); geoMarkDirty(); renderGeo();
-});
 $('geoClearAuto').addEventListener('click', (e) => { if (!armed(e.currentTarget)) return; const id = S.geo.view.core; S.geo.intervals = S.geo.intervals.filter((q) => !(q.auto && q.core === id)); geoMarkDirty(); renderGeo(); });
 $('geoIvCsv').addEventListener('click', () => {
   const g = S.geo, rows = [['core', 'layer', 'parent_layer', 'category', 'axis', 'from', 'to', 'automatic', 'outside_parent']];
@@ -2939,35 +3086,122 @@ const geoValAt = (ev) => {
   const f = (y - geoLast.top) / geoLast.height; if (f < 0 || f > 1) return null;
   return geoLast.from + f * (geoLast.to - geoLast.from);
 };
-$('geoMark').addEventListener('change', (e) => $('geoLogSvg').classList.toggle('marking', e.target.checked));
-/** Click (not marking) on the curves: select the interval at that level — of the layer of the clicked band, else of the active layer — in the list on the right (V25). */
-let geoSelIv = null;
-$('geoLogSvg').addEventListener('click', (e) => {
-  if ($('geoMark').checked || !geoLast || e.target.closest('.lgrsz')) return;
-  const v = geoValAt(e); if (v == null) return;
-  const svg = $('geoLogSvg').querySelector('svg'), r = svg.getBoundingClientRect(), X = ((e.clientX - r.left) / r.width) * geoLast.width;
-  const col = (geoLast.layout || []).find((c) => X >= c.x && X <= c.x + c.w);
-  const g = S.geo, lay = col?.key === 'band' ? g.layers.find((l) => l.name === col.title) : null;
-  const ivs = intervalsOnAxis(g.intervals.filter((q) => q.core === geoLast.core.id && (!lay || q.layer === lay.id)), geoLast.axis, geoLast.core).filter((q) => q && v >= q.from && v <= q.to);
-  const hit = ivs.find((q) => q.layer === (lay?.id || g.activeLayer)) || ivs[0];
-  geoSelIv = hit?.id || null;
-  if (hit) { g.activeLayer = hit.layer; g.activeCat = hit.cat; renderGeoPanel(); renderGeoMarkHint(); }
-  renderIntervalList(geoLast.core);
-  const row = geoSelIv && document.querySelector(`#geoIntervals .ivrow[data-id="${geoSelIv}"]`);
-  if (row) { row.scrollIntoView({ block: 'nearest' }); row.querySelector('select')?.focus(); } else toast(t('gx.noIvHere'));
+/* ── V26: manual classification right on the columns: drag in a family column to draw, click to edit; automatic columns can be copied to their family ── */
+let geoSelIv = null, famDrag = null;
+function geoBoxGeom() {
+  const box = $('geoLogSvg'), svg = box.querySelector('svg'); if (!svg || !geoLast) return null;
+  const r = svg.getBoundingClientRect(), b = box.getBoundingClientRect(), sc = r.width / geoLast.width;
+  return { box, r, sc, ox: r.left - b.left + box.scrollLeft - box.clientLeft, oy: r.top - b.top + box.scrollTop - box.clientTop };
+}
+function geoColAt(e) {
+  const G = geoBoxGeom(); if (!G) return null;
+  const X = (e.clientX - G.r.left) / G.sc, col = (geoLast.layout || []).find((c) => X >= c.x && X <= c.x + c.w);
+  const a = geoValAt(e); return col && a != null ? { col, a, G } : null;
+}
+const geoIvAt = (layerId, a) => intervalsOnAxis(S.geo.intervals.filter((q) => q.core === geoLast.core.id && q.layer === layerId), geoLast.axis, geoLast.core).find((q) => q && a >= q.from && a <= q.to);
+function closeIvPop() { document.querySelectorAll('.ivpop').forEach((p) => p.remove()); }
+/** Small panel next to the cursor. html: content; onClick(btn): handles [data-pop] buttons. */
+function ivPop(cx, cy, html, onClick) {
+  closeIvPop();
+  const G = geoBoxGeom(); if (!G) return;
+  const p = document.createElement('div'); p.className = 'ivpop'; p.innerHTML = html; G.box.append(p);
+  const x = cx - G.box.getBoundingClientRect().left + G.box.scrollLeft, y = cy - G.box.getBoundingClientRect().top + G.box.scrollTop;
+  const w = p.offsetWidth, h = p.offsetHeight;
+  p.style.left = Math.max(G.box.scrollLeft + 4, Math.min(x + 12, G.box.scrollLeft + G.box.clientWidth - w - 6)) + 'px';
+  p.style.top = Math.max(G.box.scrollTop + 4, Math.min(y + 8, G.box.scrollTop + G.box.clientHeight - h - 6)) + 'px';
+  p.addEventListener('pointerdown', (e) => e.stopPropagation());
+  p.addEventListener('click', (e) => { const b = e.target.closest('[data-pop]'); if (b) onClick(b, p); });
+  p.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('input')) p.querySelector('[data-pop=newcat]')?.click(); });
+  (p.querySelector('.on') || p.querySelector('button, input'))?.focus();
+}
+const fmtA = (v) => +(+v).toPrecision(5);
+function axisUnit() { return geoLast.axis === 'age' ? S.age.units || 'ka' : geoLast.core.units || 'm'; }
+/** Edit panel of a family interval: choose class, confirm a pending one, delete; add a class if the family has none. */
+function famPop(cx, cy, q) {
+  const g = S.geo, L = geoLayer(q.layer); if (!L) return;
+  const qa = intervalsOnAxis([q], geoLast.axis, geoLast.core)[0] || q;
+  const cats = L.cats.map((c) => `<button class="popcat ${c.id === q.cat ? 'on' : ''}" data-pop="cat" data-v="${c.id}"><span class="sw" style="background:${c.color}"></span>${esc(c.name)}</button>`).join('');
+  ivPop(cx, cy, `<h4>${esc(L.name)} <span class="note">${fmtA(qa.from)}–${fmtA(qa.to)} ${esc(axisUnit())}</span></h4>
+    ${q.auto ? `<p class="note">${t('cl.pending')}</p>` : ''}
+    <div class="popcats">${cats || `<p class="note">${t('cl.noCats')}</p>`}</div>
+    <div class="row popnew"><input type="text" placeholder="${esc(t('geo.newLabel'))}" aria-label="${esc(t('geo.newLabel'))}"><button class="btn small" data-pop="newcat">${t('geo.addLabel')}</button></div>
+    <div class="row">${q.auto ? `<button class="btn small primary" data-pop="ok">${t('cl.confirm')}</button>` : ''}<button class="btn small" data-pop="del">${t('cl.delIv')}</button><button class="btn small ghost" data-pop="close">${t('help.close')}</button></div>`,
+  (b, p) => {
+    const act = b.dataset.pop;
+    if (act === 'close') { closeIvPop(); return; }
+    if (act === 'del') g.intervals = g.intervals.filter((x) => x !== q);
+    else if (act === 'ok') delete q.auto;
+    else if (act === 'cat') { q.cat = b.dataset.v; delete q.auto; g.lastCat[L.id] = q.cat; g.activeLayer = L.id; g.activeCat = q.cat; }
+    else if (act === 'newcat') { const name = p.querySelector('input').value.trim(); if (!name) return; const c = addCat(L, name); q.cat = c.id; delete q.auto; g.lastCat[L.id] = c.id; }
+    geoSelIv = act === 'del' ? null : q.id; geoMarkDirty(); renderGeoPanel(); renderGeo();
+    if (act === 'newcat') famPop(cx, cy, q);
+  });
+}
+/** Panel of an automatic column: copy the segment under the cursor, or the whole column of this core, to its family. */
+function autoPop(cx, cy, bkey, a) {
+  const [, cid, lid] = bkey.split(':'), c = S.geo.classifiers.find((x) => x.id === cid), L = geoLayer(lid), r = geoRT.runs.get(cid)?.byTarget.get(lid);
+  if (!c || !L || !r?.preds?.length) return;
+  const st = S.geo.settings, core = geoLast.core, segs = segmentsFor(core.id, (i) => r.preds[i]?.label, geoLast.axis, st.step);
+  const seg = segs.find((q) => a >= q.a0 && a < q.a1), cat = geoCat(seg?.label);
+  ivPop(cx, cy, `<h4>⚙ ${esc(c.name)} → ${esc(L.name)}</h4>
+    <p>${cat ? `<span class="sw" style="background:${cat.color}"></span>${esc(cat.name)} · ${fmtA(seg.a0)}–${fmtA(seg.a1)} ${esc(axisUnit())}` : t('gx.unsure')}</p>
+    <div class="popcol">${seg ? `<button class="btn small primary" data-pop="one">${t('cl.copyOne', { f: L.name })}</button>` : ''}
+    <button class="btn small" data-pop="all">${t('cl.copyAll', { f: L.name })}</button><button class="btn small ghost" data-pop="close">${t('help.close')}</button></div>
+    <p class="note">${t('cl.copyNote')}</p>`,
+  (b) => {
+    const act = b.dataset.pop, g = S.geo; if (act === 'close') { closeIvPop(); return; }
+    if (act === 'one' && seg) g.intervals.push({ id: uid(), core: core.id, layer: lid, axis: geoLast.axis, from: seg.a0, to: seg.a1, cat: seg.label });
+    if (act === 'all') {
+      g.intervals = g.intervals.filter((q) => !(q.auto && q.core === core.id && q.layer === lid));
+      g.intervals.push(...segs.filter((q) => geoLayerOf(q.label)?.id === lid).map((q) => ({ id: uid(), core: core.id, layer: lid, axis: geoLast.axis, from: q.a0, to: q.a1, cat: q.label, auto: true })));
+      toast(t('geo.accepted', { n: segs.length }));
+    }
+    closeIvPop(); geoMarkDirty(); renderGeo();
+  });
+}
+$('geoLogSvg').addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || e.target.closest('.lgrsz, .ivpop')) return;
+  closeIvPop();
+  const hit = geoColAt(e); if (!hit || !hit.col.bkey?.startsWith('fam:')) return;
+  const G = hit.G, prev = document.createElement('div'); prev.className = 'lgx ivprev'; G.box.append(prev);
+  famDrag = { layer: hit.col.bkey.slice(4), a: hit.a, y0: e.clientY, col: hit.col, prev, G };
+  e.preventDefault();
 });
-$('geoLogSvg').addEventListener('pointerdown', (e) => { if (!$('geoMark').checked) return; const v = geoValAt(e); if (v == null) return; geoDrag = { a: v }; e.preventDefault(); });
+window.addEventListener('pointermove', (e) => {
+  if (!famDrag) return;
+  const { G, col, prev, y0 } = famDrag, y1 = e.clientY, top = Math.min(y0, y1), h = Math.abs(y1 - y0);
+  prev.hidden = h < 3; prev.style.left = G.ox + col.x * G.sc + 'px'; prev.style.width = col.w * G.sc + 'px';
+  prev.style.top = top - G.r.top + G.oy + 'px'; prev.style.height = h + 'px';
+});
 window.addEventListener('pointerup', (e) => {
-  if (!geoDrag) return; const v = geoValAt(e) ?? geoDrag.a; let a = Math.min(geoDrag.a, v), b = Math.max(geoDrag.a, v); const start = geoDrag.a; geoDrag = null;
-  const g = S.geo, L = geoLayer(g.activeLayer); if (b - a <= 0 || !geoLast || !L || !geoCat(g.activeCat)) return;
-  // A subdivision stays inside the parent interval where the drag started.
-  if (L.parent) {
-    const par = intervalsOnAxis(g.intervals.filter((q) => q.core === geoLast.core.id && q.layer === L.parent), geoLast.axis, geoLast.core).find((q) => start >= q.from && start < q.to);
+  if (!famDrag) return;
+  const d = famDrag; famDrag = null; d.prev.remove();
+  const g = S.geo, L = geoLayer(d.layer); if (!L || !geoLast) return;
+  if (Math.abs(e.clientY - d.y0) < 4) {   // click: edit the interval at that level
+    const q = geoIvAt(L.id, d.a), orig = q && g.intervals.find((x) => x.id === q.id);
+    geoSelIv = orig?.id || null; renderIntervalList(geoLast.core);
+    if (orig) famPop(e.clientX, e.clientY, orig);
+    else ivPop(e.clientX, e.clientY, `<h4>${esc(L.name)}</h4><p class="note">${t('cl.dragHere', { f: L.name })}</p><div class="row"><button class="btn small ghost" data-pop="close">${t('help.close')}</button></div>`, () => closeIvPop());
+    return;
+  }
+  const v = geoValAt(e) ?? d.a; let a = Math.min(d.a, v), b = Math.max(d.a, v);
+  if (L.parent) {   // a subdivision stays inside the parent interval where the drag started
+    const par = intervalsOnAxis(g.intervals.filter((q) => q.core === geoLast.core.id && q.layer === L.parent), geoLast.axis, geoLast.core).find((q) => q && d.a >= q.from && d.a < q.to);
     if (par) { a = Math.max(a, par.from); b = Math.min(b, par.to); } else toast(t('geo.orphan', { p: geoLayer(L.parent)?.name || '' }));
   }
-  g.intervals.push({ id: uid(), core: geoLast.core.id, layer: L.id, axis: geoLast.axis, from: a, to: b, cat: g.activeCat });
-  geoMarkDirty(); renderGeo();
+  if (!(b > a)) return;
+  const cat = L.cats.some((c) => c.id === g.lastCat[L.id]) ? g.lastCat[L.id] : L.cats[0]?.id ?? null;
+  const q = { id: uid(), core: geoLast.core.id, layer: L.id, axis: geoLast.axis, from: a, to: b, cat };
+  g.intervals.push(q); geoSelIv = q.id; geoMarkDirty(); renderGeo();
+  famPop(e.clientX, e.clientY, q);
 });
+$('geoLogSvg').addEventListener('click', (e) => {
+  if (!geoLast || e.target.closest('.lgrsz, .ivpop')) return;
+  const hit = geoColAt(e); if (!hit?.col.bkey?.startsWith('auto:')) return;
+  autoPop(e.clientX, e.clientY, hit.col.bkey, hit.a);
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeIvPop(); });
+document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.ivpop, #geoLogSvg')) closeIvPop(); });
 
 /** Hover text of a map point (V25). */
 function mapTip(p, mode, feat) {
@@ -2984,7 +3218,16 @@ function renderGeoMap() {
   $('gmFeature').innerHTML = names.map((k) => `<option ${k === m.feature ? 'selected' : ''}>${esc(k)}</option>`).join('');
   for (const id of ['gmFeatRow', 'gmIdwRow', 'gmRefRow']) $(id).hidden = m.mode !== 'value';
   if (!geoRT.samples.some((s) => s.age != null)) { box.innerHTML = `<p class="note" style="padding:20px">${t('geo.mapNoAge')}</p>`; return; }
-  const preds = geoRT.preds.length ? geoRT.preds : geoRT.labels.map((l) => ({ label: l.label }));
+  // V26: what the class map shows — a family (described intervals) or an automatic column
+  const srcs = [];
+  for (const { layer } of layerTree()) {
+    if (S.geo.intervals.some((q) => q.layer === layer.id && !q.auto)) srcs.push({ v: 'fam:' + layer.id, name: layer.name, lid: layer.id });
+    for (const c of S.geo.classifiers) { const r = geoRT.runs.get(c.id)?.byTarget.get(layer.id); if (r?.preds?.length) srcs.push({ v: `auto:${c.id}:${layer.id}`, name: `⚙ ${c.name} → ${layer.name}`, lid: layer.id, r, c }); }
+  }
+  if (!srcs.some((x) => x.v === m.src)) m.src = srcs.find((x) => x.r)?.v || srcs[0]?.v || '';
+  $('gmSrc').innerHTML = srcs.map((x) => `<option value="${esc(x.v)}" ${x.v === m.src ? 'selected' : ''}>${esc(x.name)}</option>`).join(''); $('gmSrcRow').hidden = m.mode !== 'class';
+  const src = srcs.find((x) => x.v === m.src);
+  const preds = src?.r ? src.r.preds : src ? labelsFor(src.lid, false).map((l) => ({ label: l.label })) : geoRT.labels.map((l) => ({ label: l.label }));
   const off = new Set(m.off || []);
   const pts = mapSummary(geoRT.samples, preds, S.cores, { a0: m.a0, a1: m.a1, mode: m.mode, feature: names.indexOf(m.feature), ref: m.ref ? [m.r0, m.r1] : null }).filter((p) => !off.has(p.core));
   m.interp ||= {}; for (const [k, v] of Object.entries(INTERP_DEFAULT)) if (!(k in m.interp)) m.interp[k] = v; m.interp.on = m.idw;
@@ -2996,11 +3239,11 @@ function renderGeoMap() {
   const vl = m.mode === 'value' ? valueLayer(pts, bbox, m.interp, m.ref ? `Δ ${m.feature}` : `z ${m.feature}`) : null;
   const colors = {}, legend = [];
   if (m.mode === 'class') for (const p of pts) if (p.dominant && !colors[p.dominant]) { const c = geoCat(p.dominant); if (c) { colors[p.dominant] = c.color; legend.push([c.name, c.color]); } }
-  const target = geoLayer(st.target)?.name || '';
+  const target = src ? geoLayer(src.lid)?.name || '' : geoLayer(st.target)?.name || '';
   const svg = buildMapSVG({ tipFn: (p) => mapTip(p, m.mode, m.feature),
     land: geoLand, bbox, points: pts, mode: m.mode, colors, legend, style, bg, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}),
     title: m.mode === 'class' ? t('geo.mapTitleClass', { l: target, a0: m.a0, a1: m.a1 }) : t('geo.mapTitleValue', { f: m.feature, a0: m.a0, a1: m.a1 }),
-    subtitle: m.mode === 'class' ? (geoRT.preds.length ? t('geo.mapSubPred', { m: geoRT.model?.kind || '' }) : t('geo.mapSubLabels')) : (m.ref ? t('geo.mapSubRef', { r0: m.r0, r1: m.r1 }) : t('geo.mapSubZ')),
+    subtitle: m.mode === 'class' ? (src?.r ? t('cl.mapSub', { c: src.c.name, m: t('geo.m.name.' + src.c.method) }) : t('geo.mapSubLabels')) : (m.ref ? t('geo.mapSubRef', { r0: m.r0, r1: m.r1 }) : t('geo.mapSubZ')),
     note: t('geo.mapNote'),
   });
   box.innerHTML = svg; geoLastMap = { svg, pts };
@@ -3312,7 +3555,7 @@ function redrawAllMap() {
 attachMapZoom($('allMap'), allMapGet, (b) => { allView = b; saveAllStyle(); }, redrawAllMap);
 $('geoMapCtl').addEventListener('change', (e) => {
   const m = S.geo.map, el = e.target, num = (v) => (v === '' ? null : +v);
-  if (el.id === 'gmA0') m.a0 = num(el.value); else if (el.id === 'gmA1') m.a1 = num(el.value); else if (el.id === 'gmMode') m.mode = el.value;
+  if (el.id === 'gmA0') m.a0 = num(el.value); else if (el.id === 'gmA1') m.a1 = num(el.value); else if (el.id === 'gmMode') m.mode = el.value; else if (el.id === 'gmSrc') m.src = el.value;
   else if (el.id === 'gmFeature') m.feature = el.value; else if (el.id === 'gmIdw') m.idw = el.checked; else if (el.id === 'gmPower') m.power = +el.value;
   else if (el.id === 'gmRef') m.ref = el.checked; else if (el.id === 'gmR0') m.r0 = +el.value; else if (el.id === 'gmR1') m.r1 = +el.value;
   markDirty(); renderGeoMap();
@@ -3330,14 +3573,23 @@ $('gmCsv').addEventListener('click', () => {
 });
 
 function renderGeoModel() {
-  const box = $('geoModelOut'), st = S.geo.settings, target = geoLayer(st.target);
+  const box = $('geoModelOut'), st = S.geo.settings, target = geoLayer(st.target), g = S.geo, curC = curClf();
+  // V26: comparison of every classifier and family, then the details of the selected one
+  let cmp = '';
+  if (g.classifiers.length) {
+    const rows = g.classifiers.flatMap((c) => c.targets.map((lid) => { const r = geoRT.runs.get(c.id)?.byTarget.get(lid), cv = r?.cv;
+      return `<tr data-c="${c.id}" data-l="${lid}" class="${c === curC && lid === st.target ? 'sel' : ''}"><td>⚙ ${esc(c.name)}</td><td>${esc(geoLayer(lid)?.name || '')}</td><td>${t('geo.m.name.' + c.method)}</td>
+        <td>${cv ? fmt(cv.balancedAccuracy * 100, 1) + ' %' : r?.error ? `<span class="warn">${t(r.error)}</span>` : '—'}</td><td>${cv ? fmt(cv.accuracy * 100, 1) + ' %' : '—'}</td><td>${r?.model?.n ?? '—'}</td></tr>`; })).join('');
+    cmp = `<h3>${t('cl.compare')}</h3><div class="tablewrap"><table class="cmpt"><thead><tr><th>${t('cl.clf')}</th><th>${t('cl.family')}</th><th>${t('cl.model')}</th><th title="${esc(t('gx.baccTip'))}">${t('geo.bacc')}</th><th title="${esc(t('gx.accTip'))}">${t('geo.acc')}</th><th>n</th></tr></thead><tbody>${rows}</tbody></table></div><p class="note">${t('cl.compareNote')}</p>`;
+  } else { box.innerHTML = `<p class="note">${t('cl.empty')}</p><button class="btn primary" id="geoModelNew">${t('cl.add')}</button>`; $('geoModelNew').onclick = () => newClassifier(); return; }
   const counts = {}; geoRT.labels.forEach((l) => { if (l.label) counts[l.label] = (counts[l.label] || 0) + 1; });
   const nInt = geoRT.labels.filter((l) => l.source === 'interval').length, nRule = geoRT.labels.filter((l) => l.source === 'rule').length;
-  let html = `<p class="note">${t('geo.modelIntro', { l: esc(target?.name || ''), v: geoRT.nNum ?? 0, c: geoRT.featNames.length - (geoRT.nNum ?? 0) })}</p>`;
+  const mc = geoRT.model?.isNum || (curC ? clfCols(curC).map((j) => j < (geoRT.nNum ?? 0)) : []), nn = mc.filter(Boolean).length;
+  let html = cmp + `<h3>⚙ ${esc(curC?.name || '')} → ${esc(target?.name || '')}</h3><p class="note">${t('geo.modelIntro', { l: esc(target?.name || ''), v: nn, c: mc.length - nn })}</p>`;
   html += `<div class="stat"><div data-tip="${esc(t('gx.tip.samples'))}"><b>${geoRT.samples.length}</b><span>${t('geo.samples')}</span></div><div data-tip="${esc(t('gx.tip.byIv'))}"><b>${nInt}</b><span>${t('geo.byIntervals')}</span></div><div data-tip="${esc(t('gx.tip.byRule'))}"><b>${nRule}</b><span>${t('geo.byRules')}</span></div></div>`;
   html += `<div class="bars">${Object.entries(counts).map(([id, n]) => { const c = geoCat(id); return `<div><span><span class="swatch" style="background:${c?.color}"></span>${esc(c?.name || id)}</span><em>${n}</em></div>`; }).join('')}</div>`;
-  if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => $('geoTrainBtn').click(); return; }
-  html += `<h3>${t('geo.m.name.' + geoRT.model.kind)} · ${t('geo.trainedOn', { n: S.geo.trained?.n ?? '' })}</h3>`;
+  if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => curC && busy(() => geoTrain(false, curC.id)); return; }
+  html += `<h3>${t('geo.m.name.' + geoRT.model.kind)} · ${t('geo.trainedOn', { n: geoRT.model.n ?? '' })}${geoRT.model.kind === 'mlp' ? ` · ${t('cl.mlpInfo', { s: geoRT.model.sizes.join('–'), e: geoRT.model.epochs })}` : ''}</h3>`;
   if (geoRT.cv) {
     const cv = geoRT.cv, name = (id) => esc(geoCat(id)?.name || id);
     html += `<p>${t('geo.cvScheme.' + (cv.scheme === 'leave-one-core-out' ? 'loco' : 'blocks'), { k: cv.folds })}: <span data-tip="${esc(t('gx.accTip'))}">${t('geo.acc')} <b>${fmt(cv.accuracy * 100, 1)}%</b></span> · <span data-tip="${esc(t('gx.baccTip'))}">${t('geo.bacc')} <b>${fmt(cv.balancedAccuracy * 100, 1)}%</b></span> (n = ${cv.total})</p>`;
@@ -3353,6 +3605,7 @@ function renderGeoModel() {
   }
   box.innerHTML = html;
 }
+$('geoModelOut').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-c]'); if (!tr) return; S.geo.view.clf = tr.dataset.c; S.geo.view.clfTarget = tr.dataset.l; syncCurrent(); renderGeoPanel(); renderGeoModel(); });
 $('geoModelOut').addEventListener('change', (e) => { const g = e.target.dataset.group; if (!g) return; S.geo.groupNames[g] = e.target.value; markDirty(); scheduleLog(); });
 $('geoPredCsv').addEventListener('click', () => {
   if (!geoRT.samples.length) return;

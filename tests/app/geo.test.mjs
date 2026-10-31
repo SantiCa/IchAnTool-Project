@@ -151,3 +151,15 @@ test('fitBBoxAspect widens the extent to the requested plot-area ratio and never
   assert.ok(w.H / w.W <= w0.H / w0.W);   // Lambert: gets as close as the curvature allows, never worse
   assert.deepEqual(fitBBoxAspect(b, 0), b);
 });
+
+test('neural network (MLP) learns a non-linear boundary, is deterministic and validates like the other models (V26)', () => {
+  const r = seededRandom(3), X = [], y = [];
+  for (let i = 0; i < 240; i++) { const a = r() * 4 - 2, b = r() * 4 - 2; X.push([a, b]); y.push(a * a + b * b < 1.5 ? 'in' : 'out'); }
+  const m = fitModel('mlp', X, y, { epochs: 150 }, 5), m2 = fitModel('mlp', X, y, { epochs: 150 }, 5);
+  assert.deepEqual(m.W, m2.W);
+  const acc = X.filter((x, i) => predictLabel(m, x).label === y[i]).length / X.length;
+  assert.ok(acc > 0.9, `accuracy ${acc}`);
+  const S = X.map((x, i) => ({ core: i < 120 ? 'a' : 'b', x: i, f: x }));
+  const cv = crossValidate(S, y, 'mlp', { epochs: 80 }, 5);
+  assert.equal(cv.scheme, 'leave-one-core-out'); assert.ok(cv.balancedAccuracy > 0.8, `cv ${cv.balancedAccuracy}`);
+});

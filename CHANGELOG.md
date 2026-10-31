@@ -2,6 +2,13 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V26 — Web app 2.0 — 2026-11-01
+- Multiproxy rebuilt around interval families and classifiers: every family is a column in every core; drag in it
+  to classify by hand, click to edit; copy automatic columns to the family.
+- User-defined classifiers (targets, input variables/families, model, settings), one ⚙ column per family, comparison
+  table; new neural network model (multilayer perceptron, Adam, L2, class weights, early stopping).
+- Models look their inputs up by name, so new families, variables or cores no longer invalidate them.
+
 ## V25 — Web app 1.9 — 2026-10-31
 - Multiproxy usability pass: compact import grid and core table, per-step summaries, sticky train button,
   grouped curve toolbar with layer/class picker, click a band to edit its interval, safer class deletion.

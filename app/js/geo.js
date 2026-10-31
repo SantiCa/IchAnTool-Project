@@ -253,6 +253,7 @@ export const METHODS = {
   knn: { defaults: { k: 7, weights: 'distance' } },
   nb: { defaults: { smoothing: 1e-6, priors: 'uniform' } },
   kmeans: { defaults: { k: 4, restarts: 5, maxIter: 100 } },
+  mlp: { defaults: { hidden: '16', activation: 'relu', epochs: 200, lr: 0.01, l2: 0.0001, batch: 32, balanced: true, patience: 25 } },
 };
 
 function knnFit(X, y, p) { return { kind: 'knn', X, y, k: p.k, weights: p.weights, classes: [...new Set(y)] }; }
@@ -368,16 +369,85 @@ function kmeansProba(m, x) {
   return out;
 }
 
+/* ───────── multilayer perceptron (neural network, V26) ─────────
+   Inputs standardised inside the model; hidden layers ReLU or tanh; softmax output; cross-entropy with optional
+   class weights (balanced: n / (K · n_c)); L2 penalty; mini-batch Adam (β1 0.9, β2 0.999); He/Xavier initialisation;
+   early stopping on 15 % of the training samples (stratified, when n ≥ 40) keeping the weights with the lowest
+   validation loss. Deterministic for a given seed. */
+function mlpFit(X, y, p, seed) {
+  const rnd = seededRandom(seed), n = X.length, d = X[0]?.length || 0, classes = [...new Set(y)].sort(), K = classes.length;
+  const sizes = [d, ...String(p.hidden || '16').split(/[,; ]+/).map(Number).filter((v) => v > 0).map(Math.round), K];
+  const mu = Array(d).fill(0), sd = Array(d).fill(0);
+  for (const x of X) for (let j = 0; j < d; j++) mu[j] += x[j] / n;
+  for (const x of X) for (let j = 0; j < d; j++) sd[j] += (x[j] - mu[j]) ** 2 / n;
+  for (let j = 0; j < d; j++) sd[j] = Math.sqrt(sd[j]) || 1;
+  const Z = X.map((x) => x.map((v, j) => (v - mu[j]) / sd[j])), Y = y.map((c) => classes.indexOf(c));
+  const gauss = () => { const u = Math.max(1e-12, rnd()), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const W = [], B = [];
+  for (let l = 0; l < sizes.length - 1; l++) {
+    const a = sizes[l], b = sizes[l + 1], sc = p.activation === 'tanh' || l === sizes.length - 2 ? Math.sqrt(1 / a) : Math.sqrt(2 / a);
+    W.push(Array.from({ length: b }, () => Array.from({ length: a }, () => gauss() * sc))); B.push(Array(b).fill(0));
+  }
+  const cnt = classes.map((_, k) => Y.filter((v) => v === k).length), cw = cnt.map((c) => (p.balanced ? n / (K * Math.max(1, c)) : 1));
+  // validation split (stratified)
+  let tr = [...Array(n).keys()], va = [];
+  if (n >= 40) {
+    tr = []; for (let k = 0; k < K; k++) { const ids = Y.map((v, i) => (v === k ? i : -1)).filter((i) => i >= 0); for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; } const nv = ids.length >= 4 ? Math.round(ids.length * 0.15) : 0; va.push(...ids.slice(0, nv)); tr.push(...ids.slice(nv)); }
+  }
+  const act = p.activation === 'tanh' ? Math.tanh : (v) => (v > 0 ? v : 0), dact = p.activation === 'tanh' ? (a) => 1 - a * a : (a) => (a > 0 ? 1 : 0);
+  const forward = (x) => { const A = [x]; for (let l = 0; l < W.length; l++) { const prev = A[l], out = W[l].map((w, i) => { let s = B[l][i]; for (let j = 0; j < w.length; j++) s += w[j] * prev[j]; return s; }); if (l < W.length - 1) A.push(out.map(act)); else { const m = Math.max(...out), e = out.map((v) => Math.exp(v - m)), t = e.reduce((a, b) => a + b, 0); A.push(e.map((v) => v / t)); } } return A; };
+  const lossOf = (ids) => ids.reduce((s, i) => s - cw[Y[i]] * Math.log(Math.max(1e-12, forward(Z[i])[W.length][Y[i]])), 0) / Math.max(1, ids.length);
+  const mW = W.map((w) => w.map((r) => r.map(() => 0))), vW = W.map((w) => w.map((r) => r.map(() => 0))), mB = B.map((b) => b.map(() => 0)), vB = B.map((b) => b.map(() => 0));
+  const lr = p.lr, l2 = p.l2 || 0, bs = Math.max(1, Math.min(p.batch || 32, tr.length)), b1 = 0.9, b2 = 0.999;
+  let step = 0, best = Infinity, bestW = null, bestB = null, wait = 0, epochs = 0;
+  for (let ep = 0; ep < p.epochs; ep++) {
+    epochs = ep + 1;
+    for (let i = tr.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [tr[i], tr[j]] = [tr[j], tr[i]]; }
+    for (let s0 = 0; s0 < tr.length; s0 += bs) {
+      const batch = tr.slice(s0, s0 + bs), gW = W.map((w) => w.map((r) => r.map(() => 0))), gB = B.map((b) => b.map(() => 0));
+      for (const i of batch) {
+        const A = forward(Z[i]); let delta = A[W.length].map((pk, k) => (pk - (k === Y[i] ? 1 : 0)) * cw[Y[i]]);
+        for (let l = W.length - 1; l >= 0; l--) {
+          const prev = A[l];
+          for (let a = 0; a < delta.length; a++) { gB[l][a] += delta[a]; const g = gW[l][a]; for (let j = 0; j < prev.length; j++) g[j] += delta[a] * prev[j]; }
+          if (l) delta = prev.map((v, j) => { let s = 0; for (let a = 0; a < delta.length; a++) s += W[l][a][j] * delta[a]; return s * dact(v); });
+        }
+      }
+      step++; const c1 = 1 - b1 ** step, c2 = 1 - b2 ** step;
+      for (let l = 0; l < W.length; l++) for (let a = 0; a < W[l].length; a++) {
+        for (let j = 0; j < W[l][a].length; j++) { const g = gW[l][a][j] / batch.length + l2 * W[l][a][j]; mW[l][a][j] = b1 * mW[l][a][j] + (1 - b1) * g; vW[l][a][j] = b2 * vW[l][a][j] + (1 - b2) * g * g; W[l][a][j] -= (lr * mW[l][a][j] / c1) / (Math.sqrt(vW[l][a][j] / c2) + 1e-8); }
+        const g = gB[l][a] / batch.length; mB[l][a] = b1 * mB[l][a] + (1 - b1) * g; vB[l][a] = b2 * vB[l][a] + (1 - b2) * g * g; B[l][a] -= (lr * mB[l][a] / c1) / (Math.sqrt(vB[l][a] / c2) + 1e-8);
+      }
+    }
+    if (va.length) {
+      const L = lossOf(va);
+      if (L < best - 1e-6) { best = L; bestW = W.map((w) => w.map((r) => r.slice())); bestB = B.map((b) => b.slice()); wait = 0; } else if (++wait >= (p.patience || 25)) break;
+    }
+  }
+  if (bestW) { for (let l = 0; l < W.length; l++) { W[l] = bestW[l]; B[l] = bestB[l]; } }
+  return { kind: 'mlp', W, B, mu, sd, classes, activation: p.activation, sizes, epochs, valLoss: va.length ? best : null };
+}
+function mlpProba(m, x) {
+  const act = m.activation === 'tanh' ? Math.tanh : (v) => (v > 0 ? v : 0);
+  let a = x.map((v, j) => (v - m.mu[j]) / m.sd[j]);
+  for (let l = 0; l < m.W.length; l++) {
+    const out = m.W[l].map((w, i) => { let s = m.B[l][i]; for (let j = 0; j < w.length; j++) s += w[j] * a[j]; return s; });
+    if (l < m.W.length - 1) a = out.map(act); else { const mx = Math.max(...out), e = out.map((v) => Math.exp(v - mx)), t = e.reduce((q, r) => q + r, 0); a = e.map((v) => v / t); }
+  }
+  return Object.fromEntries(m.classes.map((c, k) => [c, a[k]]));
+}
+
 export function fitModel(method, X, y, params, seed = 42) {
   const p = { ...METHODS[method].defaults, ...params };
   if (method === 'rf') return rfFit(X, y, p, seed);
   if (method === 'knn') return knnFit(X, y, p);
   if (method === 'nb') return nbFit(X, y, p);
   if (method === 'kmeans') return kmeansFit(X, p, seed);
+  if (method === 'mlp') return mlpFit(X, y, p, seed);
   throw new Error('unknown method ' + method);
 }
 export function predictProba(model, x) {
-  return model.kind === 'rf' ? rfProba(model, x) : model.kind === 'knn' ? knnProba(model, x) : model.kind === 'nb' ? nbProba(model, x) : kmeansProba(model, x);
+  return model.kind === 'rf' ? rfProba(model, x) : model.kind === 'knn' ? knnProba(model, x) : model.kind === 'nb' ? nbProba(model, x) : model.kind === 'mlp' ? mlpProba(model, x) : kmeansProba(model, x);
 }
 export function predictLabel(model, x, minProb = 0) {
   const pr = predictProba(model, x); let best = null, bp = -1;

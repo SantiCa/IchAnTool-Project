@@ -132,6 +132,12 @@ existen y producen máscaras en un formato abierto.
   evaluación del modelo de todos los proyectos. La coincidencia es por nombre: conviene declararlo y
   revisar los sondeos marcados «en N proyectos» antes de publicar resultados.
 
+- Desde V26 se pueden definir varios clasificadores (bosque aleatorio, red neuronal MLP, k vecinos, Bayes ingenuo)
+  con entradas distintas y compararlos con la misma validación dejando un sondeo fuera. **Cuidado:** elegir el mejor
+  modelo con esa misma validación sesga el acierto al alza (selección de modelo); un artículo debe informar de todos
+  los modelos probados o reservar sondeos para una prueba final independiente. La red neuronal necesita más muestras
+  etiquetadas; con pocos sondeos no conviene atribuirle ventaja si no supera claramente al bosque aleatorio.
+
 ### Experimentos necesarios
 1. **Datos:** testigos con imágenes de licencia clara (IODP/ODP son públicas; las imágenes tratadas
    del grupo de la UGR, con permiso). Anotar la resolución y el equipo de cada imagen.

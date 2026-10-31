@@ -109,7 +109,7 @@ export function wrapTitle(text, w) {
  * o = { title, subtitle, axisLabel, from, to, height, rows, classes:[{name,color,index}],
  *       tracks:{image,total,species,BI,ii,manual}, image:{href}|null, imageWidth,
  *       records:[{name, color, reverse, pts:[[axisValue, y], ...]}], boundaries:[{a,label}], labels:{...},
- *       bands:[{title, w, segs:[{a0,a1,color,opacity}]}], bandLegend, shade:[{a0,a1,color}] (class colours behind the record curves) }
+ *       bands:[{title, full, key, w, segs:[{a0,a1,color,opacity}]}] (key: stable id for widths and clicks), bandLegend, shade:[{a0,a1,color}] (class colours behind the record curves) }
  */
 export function buildLogSVG(o) {
   const L = { total: 'Bioturbation (%)', species: 'Ichnotaxa (%)', image: 'Core', ...(o.labels || {}) };
@@ -126,7 +126,7 @@ export function buildLogSVG(o) {
   if (t.species) cols.push({ key: 'species', id: 'species', w: wOf('species', 150), title: L.species });
   if (t.BI) cols.push({ key: 'BI', w: 46, title: 'BI' });
   if (t.ii) cols.push({ key: 'ii', w: 46, title: 'ii' });
-  for (const b of o.bands || []) { const id = 'band:' + (b.full || b.title); cols.push({ key: 'band', id, w: wOf(id, b.w || 46), title: b.title, full: b.full, band: b }); }
+  for (const b of o.bands || []) { const id = 'band:' + (b.key || b.full || b.title); cols.push({ key: 'band', id, w: wOf(id, b.w || 46), title: b.title, full: b.full, band: b }); }
   for (const r of o.records) { const id = 'rec:' + r.name; cols.push({ key: 'rec', id, w: wOf(id, o.recWidth || 120), title: r.name, rec: r }); }
   let x = 8;
   for (const c of cols) { c.x = x; x += c.w + 14; }
@@ -235,7 +235,7 @@ export function buildLogSVG(o) {
   });
   out.push('</svg>');
   return { svg: out.join(''), width: W, height: Htot, plotTop: top, plotHeight: H,
-    layout: cols.filter((c) => c.key !== 'axis').map((c) => ({ id: c.id || null, key: c.key, x: c.x, w: c.w, title: c.full || c.title })) };
+    layout: cols.filter((c) => c.key !== 'axis').map((c) => ({ id: c.id || null, key: c.key, x: c.x, w: c.w, title: c.full || c.title, bkey: c.band?.key || null })) };
 }
 
 /** CSV of the intervals inside the window, plus external records interpolated at each interval centre. */

@@ -43,6 +43,7 @@ La descripción detallada de los algoritmos está en
 | V23 | 31-10-2026 | Aplicación web 1.8 | Pantalla inicial genérica (todos los proyectos como tarjetas, sin acceso propio de la tesis), sondeos presentes en varios proyectos, paneles laterales redimensionables u ocultables y mapa redimensionable arrastrando sus bordes |
 | V24 | 31-10-2026 | Aplicación web 1.8.1 | Los análisis entre proyectos dejan de aparecer como proyectos: se guardan y abren desde la pestaña «Entre proyectos» |
 | V25 | 31-10-2026 | Aplicación web 1.9 | Multiproxy más ordenado: panel compacto con resumen por paso, ayuda al pasar el ratón en todo el modo, cursor que lee todos los valores, columnas desplazables y redimensionables con nombres en dos líneas (también en Columna), clase elegida en la barra de curvas, clic para editar intervalos y borrado de clases con confirmación |
+| V26 | 01-11-2026 | Aplicación web 2.0 | Multiproxy rehecho en torno a familias de intervalos y clasificadores: clasificación manual arrastrando en la columna de cualquier familia y sondeo, varios clasificadores definidos por el usuario (qué clasifican, con qué datos, qué modelo), red neuronal (perceptrón multicapa) y comparación de modelos |
 
 ---
 
@@ -614,6 +615,48 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V26 — Familias, clasificación manual en columnas, clasificadores a medida y red neuronal (01-11-2026)
+
+**Qué se hizo.** Rediseño del modo Multiproxy según lo pedido por Santiago: abrir sondeos y ver su compuesto;
+crear familias de intervalos (periodo frío/cálido; baja oxigenación con sapropel, ORL…); añadir esas columnas a
+sondeos que no las tenían y clasificar a mano; y crear columnas de clasificación automática referidas a una o varias
+familias eligiendo el modelo (incluida una red neuronal) y con qué datos se alimenta.
+
+**Cambios.**
+- «Capas» pasa a llamarse **familias** (paso 3). Cada familia es una columna en todos los sondeos (opción «Mostrar
+  todas las familias», activa por defecto), aunque el sondeo no tenga intervalos.
+- **Clasificación manual en la propia columna:** arrastrar en vertical crea un intervalo con la última clase usada y
+  abre un panel para elegir la clase (o crear una nueva); clic en un intervalo para cambiar la clase, confirmarlo o
+  borrarlo. Desaparece «Marcar intervalos».
+- **Clasificadores (paso 4):** lista de clasificadores; cada uno con nombre, qué familias clasifica, con qué datos
+  aprende (variables del paso 2 y otras familias como 0/1), modelo (bosque aleatorio, red neuronal, k vecinos, Bayes
+  ingenuo, k-medias) con explicación, ajustes avanzados, probabilidad mínima, semilla y reglas. Botones Entrenar,
+  Ver resultados, Duplicar, Eliminar; «Entrenar todos» al pie.
+- Cada clasificador crea una **columna ⚙** por familia en todos los sondeos (intensidad según la probabilidad).
+  Clic en ella: copiar el tramo o la columna entera del sondeo a la familia (la columna entera queda pendiente de
+  revisar).
+- **Red neuronal** (perceptrón multicapa con Adam, L2, clases equilibradas y parada temprana) en `geo.js`.
+- Pestaña **Clasificadores** (antes Modelo): tabla comparativa de todos los clasificadores y familias (acierto
+  equilibrado, acierto, n) y detalle del elegido. El mapa de clases elige qué columna representar.
+- Los modelos se aplican buscando sus columnas por nombre: añadir familias, variables o sondeos ya no los invalida.
+- Proyectos anteriores: el primer clasificador se crea a partir de los ajustes del modelo único.
+
+**Por qué.** El flujo anterior (una sola capa objetivo, un solo modelo, marcar intervalos con un interruptor) era
+poco claro y no permitía clasificar a mano sondeos sin intervalos ni comparar modelos.
+
+**Comprobación.** `npm test`: 43 correctas (nueva: la red neuronal aprende una frontera no lineal, es determinista y
+se valida dejando un sondeo fuera); `pytest`: 9. En navegador (proyecto de entrenamiento): clasificador creado desde
+los ajustes antiguos (bosque aleatorio, 90,6 % de acierto equilibrado), duplicado como red neuronal (≈ 80 %), ambas
+columnas ⚙ en las curvas, tabla comparativa, intervalo dibujado en la familia «Eventos» de un sondeo y clase cambiada
+desde el panel, panel de copia en una columna ⚙, mapa con las columnas automáticas. Versión sin conexión con la tesis:
+clasificador creado desde los ajustes guardados (18 % de acierto equilibrado, como en §21.8 ter). Sin errores.
+
+**Pendiente o problemas conocidos.** Elegir el mejor modelo con la misma validación sesga el acierto al alza
+(ver METODOS_Y_DEFENSA). Al abrir un proyecto se reentrenan todos los clasificadores; con redes neuronales grandes
+puede tardar unos segundos. Los nombres de columna no quedan fijos al desplazar en vertical.
 
 ---
 

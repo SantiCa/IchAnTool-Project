@@ -512,6 +512,43 @@ details.mini[open] { display: grid; gap: 6px; }
 .hovertip { position: fixed; z-index: 200; max-width: 320px; background: var(--tip-bg); color: var(--tip-ink); border: 1px solid var(--tip-line); border-radius: 7px; padding: 6px 9px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 6px 18px rgba(0,0,0,.16); pointer-events: none; white-space: pre-line; }
 .hovertip[hidden] { display: none; }
 #geoModelOut td[data-tip], #geoModelOut th[data-tip], #geoModelOut .stat > div[data-tip] { cursor: help; }
+
+/* V26: classifiers and manual classification on the columns */
+.clflist { display: grid; gap: 8px; }
+.clf { border: 1px solid var(--line); border-radius: var(--r); background: var(--field); }
+.clf.sel { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.clf > header { display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer; }
+.clf > header b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.clf > header .clfstate { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.clf > header .clfstate.ok { color: var(--ok, #2e7d4f); }
+.clf > header .clfstate.warn { color: var(--warn, #9a5b00); }
+.clfbody { display: grid; gap: 8px; padding: 2px 10px 10px; border-top: 1px solid var(--line); }
+.clfbody .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.clfbody .chips label { display: inline-flex; gap: 4px; align-items: center; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; cursor: pointer; }
+.clfbody .chips label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.clfbody .chips input { margin: 0; }
+.clfbody details > summary { font-size: 12.5px; cursor: pointer; }
+.clfbody .chk2 { display: grid; gap: 2px; max-height: 180px; overflow: auto; padding: 4px 0 0 4px; font-size: 12px; }
+.clfbody .clfres { font-size: 12px; display: grid; gap: 2px; }
+.clfmodels { display: grid; gap: 4px; }
+.clfmodels label { display: grid; grid-template-columns: 16px 1fr; gap: 6px; align-items: start; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font-size: 12px; }
+.clfmodels label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.clfmodels label b { display: block; font-size: 12.5px; }
+.clfmodels label span.note { display: block; }
+.ivprev { background: var(--accent); opacity: .35; border: 1px solid var(--accent); z-index: 3; }
+.ivpop { position: absolute; z-index: 6; width: 250px; background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.18); display: grid; gap: 6px; font-size: 12.5px; }
+.ivpop h4 { margin: 0; font-size: 13px; }
+.ivpop p { margin: 0; }
+.ivpop .popcats { display: grid; gap: 3px; max-height: 200px; overflow: auto; }
+.ivpop .popcat { display: flex; gap: 6px; align-items: center; text-align: left; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--field); color: var(--ink); cursor: pointer; font: inherit; }
+.ivpop .popcat.on { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.ivpop .popnew input { flex: 1; min-width: 0; }
+.ivpop .popcol { display: grid; gap: 4px; }
+.ivpop .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+.cmpt { width: 100%; margin: 6px 0 12px; }
+#geoModelOut .cmpt td, #geoModelOut .cmpt th { text-align: left; font-family: var(--font-body); }
+#geoModelOut .cmpt td:nth-child(n+4), #geoModelOut .cmpt th:nth-child(n+4) { text-align: right; font-variant-numeric: tabular-nums; }
+.cmpt tr[data-c] { cursor: pointer; } .cmpt tr.sel td { background: var(--accent-soft); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -791,40 +828,33 @@ details.mini[open] { display: grid; gap: 6px; }
       <details class="step" open>
         <summary><span class="n">4</span><span data-i18n="geo.s4"></span><span class="ssum" id="geoSum4"></span></summary>
         <div class="body">
-          <p class="note" data-i18n="geo.notIchno"></p>
-          <label data-i18n-title="gx.tip.target" class="f"><span data-i18n="geo.target"></span><select id="geoTarget"></select></label>
-          <div data-i18n-title="gx.tip.useLayers" class="f"><span data-i18n="geo.useLayers"></span><div id="geoUseLayers" style="display:grid;gap:2px"></div></div>
-          <label data-i18n-title="gx.tip.method" class="f"><span data-i18n="geo.method"></span><select id="geoMethod"><option value="rf" data-i18n="geo.m.name.rf"></option><option value="knn" data-i18n="geo.m.name.knn"></option><option value="nb" data-i18n="geo.m.name.nb"></option><option value="kmeans" data-i18n="geo.m.name.kmeans"></option></select></label>
-          <p class="note" id="geoMethodHelp"></p>
-          <div class="gparams" id="geoParams"></div>
-          <div class="grid2"><label data-i18n-title="gx.tip.minProb" class="f" id="geoMinProbRow"><span data-i18n="geo.minProb"></span><input type="number" id="geoMinProb" min="0" max="1" step="0.05"></label>
-            <label data-i18n-title="gx.tip.seed" class="f"><span data-i18n="geo.seed"></span><input type="number" id="geoSeed" step="1"></label></div>
-          <p class="note" data-i18n="geo.minProbNote"></p>
-          <div class="row"><button class="btn small" id="geoSuggest" data-i18n="geo.suggest" data-i18n-title="gx.tip.suggest"></button></div>
+          <p class="note" data-i18n="cl.intro"></p>
+          <div id="clfList" class="clflist"></div>
+          <div class="row"><button class="btn small" id="clfAdd" data-i18n="cl.add" data-i18n-title="cl.tip.add"></button><button class="btn small" id="clfDup" data-i18n="cl.dup" data-i18n-title="cl.tip.dup"></button></div>
         </div>
       </details>
-      <div class="trainbar"><button class="btn primary" id="geoTrainBtn" data-i18n="geo.train" data-i18n-title="gx.tip.train"></button><span class="note" id="geoTrainState"></span></div>
+      <div class="trainbar"><button class="btn primary" id="geoTrainBtn" data-i18n="cl.trainAll" data-i18n-title="cl.tip.trainAll"></button><span class="note" id="geoTrainState"></span></div>
     </aside>
     <section id="geoStage">
       <div class="tabs" role="tablist" id="geoTabs">
         <button role="tab" data-tab="logs" aria-selected="true" data-i18n="geo.tab.logs"></button>
         <button role="tab" data-tab="map" aria-selected="false" data-i18n="geo.tab.map"></button>
-        <button role="tab" data-tab="model" aria-selected="false" data-i18n="geo.tab.model"></button>
+        <button role="tab" data-tab="model" aria-selected="false" data-i18n="cl.tab"></button>
       </div>
       <div class="gpane" data-pane="logs">
         <div class="gtool">
           <div class="grp" role="group" data-i18n-title="gx.tip.core"><button class="btn small" id="geoCorePrev" data-i18n-title="gx.prevCore">◀</button><select id="geoCoreSel" aria-label="core"></select><button class="btn small" id="geoCoreNext" data-i18n-title="gx.nextCore">▶</button></div>
-          <div class="grp"><label class="chk" data-i18n-title="gx.tip.mark"><input type="checkbox" id="geoMark"><span data-i18n="geo.mark"></span></label><span id="geoMarkHint" class="markpick"><select id="geoMarkLayer" data-i18n-title="gx.tip.markLayer"></select><span class="swatch" id="geoMarkSw"></span><select id="geoMarkCat" data-i18n-title="gx.tip.markCat"></select></span></div>
+          <div class="grp"><label class="chk" data-i18n-title="cl.tip.showEmpty"><input type="checkbox" id="geoShowEmpty"><span data-i18n="cl.showEmpty"></span></label></div>
           <div class="grp"><label class="chk" data-i18n-title="gx.tip.shade"><input type="checkbox" id="geoShade"><span data-i18n="geo.shade"></span></label>
             <label class="f inl" data-i18n-title="gx.tip.trackW"><span data-i18n="gx.trackW"></span><input type="range" id="geoTrackW" min="60" max="260" step="10"></label>
             <button class="btn small" id="geoTrackReset" data-i18n="gx.trackReset" data-i18n-title="gx.tip.trackReset"></button></div>
           <div class="grp"><button class="btn small primary" id="geoTestBtn" data-i18n="geo.test" data-i18n-title="gx.tip.test"></button><span id="geoTestOut" class="note"></span></div>
           <div class="grp end"><button class="btn small" data-win="geologs" data-i18n="win.new"></button></div>
         </div>
-        <p class="note gtip" data-i18n="gx.hoverHint"></p>
+        <p class="note gtip" data-i18n="cl.hoverHint"></p>
         <div class="glogwrap"><div id="geoLogSvg"></div>
-          <div class="glogside"><b data-i18n="geo.intervals"></b><p class="note" data-i18n="geo.markNote"></p>
-            <div class="row"><button class="btn small" id="geoAccept" data-i18n="geo.accept"></button><button class="btn small" id="geoClearAuto" data-i18n="geo.clearAuto"></button><button class="btn small" id="geoIvCsv" data-i18n="geo.ivCsv"></button></div>
+          <div class="glogside"><b data-i18n="geo.intervals"></b><p class="note" data-i18n="cl.listNote"></p>
+            <div class="row"><button class="btn small" id="geoClearAuto" data-i18n="geo.clearAuto"></button><button class="btn small" id="geoIvCsv" data-i18n="geo.ivCsv"></button></div>
             <div id="geoIntervals" style="display:grid;gap:4px"></div></div></div>
       </div>
       <div class="gpane" data-pane="map" hidden>
@@ -832,7 +862,7 @@ details.mini[open] { display: grid; gap: 6px; }
           <label data-i18n-title="gx.tip.window" class="f"><span data-i18n="geo.ageFrom"></span><input type="number" id="gmA0" step="any"></label>
           <label class="f"><span data-i18n="geo.ageTo"></span><input type="number" id="gmA1" step="any"></label>
           <div class="row"><button class="btn small" id="gmPrev" data-i18n-title="aria.prev">◀</button><button class="btn small" id="gmNext" data-i18n-title="aria.next">▶</button></div>
-          <label data-i18n-title="gx.tip.mapMode" class="f"><span data-i18n="geo.mapMode"></span><select id="gmMode"><option value="class" data-i18n="geo.mm.class"></option><option value="value" data-i18n="geo.mm.value"></option></select></label>
+          <label data-i18n-title="gx.tip.mapMode" class="f"><span data-i18n="geo.mapMode"></span><select id="gmMode"><option value="class" data-i18n="geo.mm.class"></option><option value="value" data-i18n="geo.mm.value"></option></select></label><label class="f" id="gmSrcRow" data-i18n-title="cl.tip.mapSrc"><span data-i18n="cl.mapSrc"></span><select id="gmSrc"></select></label>
           <label data-i18n-title="gx.tip.mapFeature" class="f" id="gmFeatRow"><span data-i18n="geo.feature"></span><select id="gmFeature"></select></label>
           <div class="row" id="gmIdwRow"><label data-i18n-title="gx.tip.idw" class="chk"><input type="checkbox" id="gmIdw"><span data-i18n="ip.on"></span></label><input type="hidden" id="gmPower"></div>
           <div class="row" id="gmRefRow"><label data-i18n-title="gx.tip.ref" class="chk"><input type="checkbox" id="gmRef"><span data-i18n="geo.ref"></span></label><input type="number" id="gmR0" step="any" style="width:60px"><input type="number" id="gmR1" step="any" style="width:60px"></div>

@@ -1021,6 +1021,7 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
 | Random Forest (`rf`, recomendado) | `trees` 100, `maxDepth` 12, `minLeaf` 3, `mtry` √d, `bins` 32, `bootstrap` sí, `balanced` sí | Árboles CART con impureza de Gini. Umbrales candidatos de cada variable: los cuantiles `b/bins` (b = 1…bins−1) de los datos de entrenamiento. En cada nodo se prueban `mtry` variables al azar. Con `balanced`, cada muestra pesa `n / (K · n_clase)`. Hoja: proporciones de clase ponderadas. Probabilidad = media de las hojas de todos los árboles. Importancia: reducción de Gini ponderada por el peso del nodo, sumada por variable y normalizada a 1 (MDI). |
 | k vecinos (`knn`) | `k` 7, `weights` distance | Distancia euclídea en las variables escaladas. Voto `1/(d + 0,05)` (distance; desde V22, antes `1/(d + 10⁻⁹)`, que daba votos casi seguros junto a puntos remuestreados casi idénticos) o 1 (uniform), normalizado. |
 | Bayes ingenuo gaussiano (`nb`) | `smoothing` 10⁻⁶, `priors` uniform | Media y varianza poblacional por clase y variable; a cada varianza se suma `max(smoothing, 10⁻⁹) · max_j var_j` (desde V22 sin el antiguo «o 1», que daba varianza 1 a una variable constante dentro de una clase). A priori uniforme o según la frecuencia. Log-verosimilitud normalizada con softmax. |
+| Red neuronal, perceptrón multicapa (`mlp`, desde V26) | `hidden` '16', `activation` relu, `epochs` 200, `lr` 0,01, `l2` 10⁻⁴, `batch` 32, `balanced` sí, `patience` 25 | Ver §21.4 bis. |
 | k-medias (`kmeans`, sin etiquetas) | `k` 4, `restarts` 5, `maxIter` 100 | Inicio k-means++, iteraciones de Lloyd hasta que no cambian las asignaciones o `maxIter`; se queda la repetición con menor inercia. Grupos `G1…Gk`, que el usuario puede nombrar. |
 
 - **Variables del modelo:** las numéricas elegidas más las columnas 0/1 de las capas usadas
@@ -1038,9 +1039,49 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
   convierten en intervalos de la capa objetivo con `auto: true` (se muestran claros y en cursiva).
   Sustituyen a los automáticos anteriores de ese sondeo y capa. El botón ✓ los confirma (dejan de
   ser automáticos y cuentan para entrenar).
-- El modelo no se guarda en el archivo de proyecto (solo el método, los parámetros y la fecha).
+- El modelo no se guarda en el archivo de proyecto (solo la definición de cada clasificador y la fecha).
   Al abrir el proyecto se reentrena con la misma semilla, por lo que el resultado es el mismo si
   los datos no han cambiado.
+
+### 21.4 bis Red neuronal (perceptrón multicapa, desde V26)
+`mlpFit` / `mlpProba` en `geo.js`:
+- **Entradas** estandarizadas dentro del modelo con la media y la desviación poblacional de cada columna del
+  conjunto de entrenamiento (desviación 0 → 1).
+- **Arquitectura:** d entradas → capas ocultas (`hidden`, p. ej. «32,16») → K salidas con softmax.
+  Activación ReLU (max(0, z)) o tanh en las capas ocultas.
+- **Inicialización:** pesos ~ N(0, σ²) con σ = √(2/a) (He, ReLU) o √(1/a) (Xavier, tanh y capa de salida), a = neuronas
+  de la capa anterior; sesgos 0. Normales por Box–Muller con el generador con semilla.
+- **Pérdida:** entropía cruzada −w_c · ln p_c por muestra, con w_c = n / (K · n_c) si `balanced` (si no, 1),
+  más penalización L2 (`l2` · W) en el gradiente de los pesos (no en los sesgos).
+- **Optimización:** Adam por minilotes (`batch`), β1 = 0,9, β2 = 0,999, ε = 10⁻⁸, tasa `lr`; el orden se baraja
+  cada época con el generador con semilla.
+- **Parada temprana:** si n ≥ 40 se reserva, por clase, el 15 % de las muestras (clases con ≥ 4) como validación;
+  tras cada época se calcula su pérdida media y se guardan los pesos con la menor; se para tras `patience`
+  épocas sin mejora o al llegar a `epochs`.
+- Determinista para una semilla y un orden de clases dados.
+
+### 21.4 ter Clasificadores definidos por el usuario (desde V26)
+- `S.geo.classifiers = [{id, name, targets: [familias], features: null | [variables], layers: null | [familias de
+  entrada], method, params: {método: {…}}, minProb, seed, useRules, trained}]`. `features` null = todas las variables del
+  paso 2; `layers` null = todas las demás familias con intervalos descritos (las objetivo nunca son entrada).
+- Las muestras se construyen una vez con todas las variables del paso 2 y una columna 0/1 por clase de **cada**
+  familia con intervalos descritos (`featLayers`); cada clasificador usa el subconjunto de columnas que le
+  corresponde (`clfCols`).
+- **Entrenamiento** (`trainClassifier`): un modelo por familia objetivo, con las etiquetas de esa familia
+  (intervalos descritos y, si `useRules`, reglas), y su validación cruzada (§21.5). Hacen falta al menos 2 clases
+  (salvo k-medias).
+- **Predicción** (`predictRun`): el modelo guarda los nombres de sus columnas (`colNames`) y, con escalado global,
+  la media y la desviación de sus variables numéricas al entrenar; al predecir se buscan esas columnas por nombre,
+  de modo que añadir variables, familias o sondeos no invalida el modelo. Si falta alguna columna o cambian el eje
+  o el escalado, la columna automática se oculta hasta reentrenar.
+- **Columnas automáticas:** una por clasificador y familia, a continuación de la columna de la familia, con la
+  clase predicha de cada muestra; opacidad = 0,3 + 0,7 · probabilidad.
+- **Archivos anteriores a V26:** el primer clasificador se crea a partir de los ajustes del modelo único
+  (`target`, `useLayers`, `method`, `params`, `minProb`, `seed`, `useRules`).
+- **Clasificación manual:** cada familia es una columna en todos los sondeos (también vacía); arrastrar en ella crea un
+  intervalo (una subdivisión se recorta al intervalo madre donde empieza) con la última clase usada en esa familia;
+  clic edita la clase o lo borra. Copiar desde una columna automática: un tramo → intervalo confirmado; la columna
+  entera → intervalos `auto: true` (pendientes de revisar, no entran en el entrenamiento hasta confirmarlos).
 
 ### 21.5 Validación cruzada
 `crossValidate`:
