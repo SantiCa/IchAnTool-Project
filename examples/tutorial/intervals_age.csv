@@ -1,0 +1,48 @@
+core,top_ka,bottom_ka,layer,value
+ENT-01,0.0,8.0,Capas orgánicas,Fuera de capa orgánica
+ENT-01,8.0,14.0,Capas orgánicas,ORL
+ENT-01,14.0,39.19,Capas orgánicas,Fuera de capa orgánica
+ENT-01,0,11.7,Periodo climático,Holoceno
+ENT-01,11.7,12.9,Periodo climático,Younger Dryas
+ENT-01,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-01,14.7,18.0,Periodo climático,HS1
+ENT-01,19,24,Periodo climático,Último Máximo Glacial
+ENT-02,0,11.7,Periodo climático,Holoceno
+ENT-02,11.7,12.9,Periodo climático,Younger Dryas
+ENT-02,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-02,14.7,18.0,Periodo climático,HS1
+ENT-02,19,24,Periodo climático,Último Máximo Glacial
+ENT-03,0.0,8.0,Capas orgánicas,Fuera de capa orgánica
+ENT-03,8.0,14.0,Capas orgánicas,ORL
+ENT-03,14.0,41.6,Capas orgánicas,Fuera de capa orgánica
+ENT-03,0,11.7,Periodo climático,Holoceno
+ENT-03,11.7,12.9,Periodo climático,Younger Dryas
+ENT-03,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-03,14.7,18.0,Periodo climático,HS1
+ENT-03,19,24,Periodo climático,Último Máximo Glacial
+ENT-04,0.0,6.0,Capas orgánicas,Fuera de capa orgánica
+ENT-04,6.0,10.0,Capas orgánicas,Sapropel
+ENT-04,10.0,41.5,Capas orgánicas,Fuera de capa orgánica
+ENT-04,0,11.7,Periodo climático,Holoceno
+ENT-04,11.7,12.9,Periodo climático,Younger Dryas
+ENT-04,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-04,14.7,18.0,Periodo climático,HS1
+ENT-04,19,24,Periodo climático,Último Máximo Glacial
+ENT-05,0,11.7,Periodo climático,Holoceno
+ENT-05,11.7,12.9,Periodo climático,Younger Dryas
+ENT-05,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-05,14.7,18.0,Periodo climático,HS1
+ENT-05,19,24,Periodo climático,Último Máximo Glacial
+ENT-06,0,11.7,Periodo climático,Holoceno
+ENT-06,11.7,12.9,Periodo climático,Younger Dryas
+ENT-06,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-06,14.7,18.0,Periodo climático,HS1
+ENT-06,19,24,Periodo climático,Último Máximo Glacial
+ENT-07,0.0,6.0,Capas orgánicas,Fuera de capa orgánica
+ENT-07,6.0,10.0,Capas orgánicas,Sapropel
+ENT-07,10.0,43.45,Capas orgánicas,Fuera de capa orgánica
+ENT-07,0,11.7,Periodo climático,Holoceno
+ENT-07,11.7,12.9,Periodo climático,Younger Dryas
+ENT-07,12.9,14.7,Periodo climático,Bølling-Allerød
+ENT-07,14.7,18.0,Periodo climático,HS1
+ENT-07,19,24,Periodo climático,Último Máximo Glacial

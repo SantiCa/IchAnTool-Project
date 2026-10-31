@@ -1,0 +1,8 @@
+core,lat,lon,water_depth_m,description
+ENT-01,35.486,-3.076,1974,Sondeo ficticio (Alborán); datos sintéticos
+ENT-02,39.149,4.362,2839,Sondeo ficticio (Baleares); datos sintéticos
+ENT-03,40.394,11.849,1620,Sondeo ficticio (Tirreno); datos sintéticos
+ENT-04,37.199,18.983,1397,Sondeo ficticio (Jónico); datos sintéticos
+ENT-05,42.937,16.432,1130,Sondeo ficticio (Adriático); datos sintéticos
+ENT-06,36.917,25.675,1953,Sondeo ficticio (Egeo); datos sintéticos
+ENT-07,33.222,30.02,1343,Sondeo ficticio (Levantino); datos sintéticos

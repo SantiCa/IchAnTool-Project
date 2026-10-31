@@ -800,6 +800,7 @@ function selectWhere(fn) {
 
 function showTab(name, soft = false) {
   if (soft && document.querySelector('.tabs [aria-selected="true"]')?.dataset.tab === 'results') return;
+  setTimeout(() => { if (typeof updateTip === 'function') updateTip(); }, 0);
   document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
   document.querySelectorAll('.pane').forEach((p) => (p.hidden = p.dataset.pane !== name));
 }
@@ -1504,7 +1505,7 @@ async function loadProject(p) {
   } finally { loading = false; }
   const cur = S.cores.find((c) => c.id === p.curCore) || S.cores[0];
   activateCore(cur.id, true);
-  syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples();
+  syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0);
   refreshAllCores();
   if (S.geo.trained) setTimeout(() => { try { geoTrain(true); } catch { /* retrained on demand */ } }, 0); else scheduleGeo(0);
   try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
@@ -1598,7 +1599,7 @@ $('projClose').addEventListener('click', () => hideHome());
 $('newProjBtn').addEventListener('click', async () => {
   await flushSave();
   resetState(); S.name = $('newProjName').value.trim() || t('proj.untitled'); $('newProjName').value = '';
-  syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples();
+  syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0);
   await saveToDB(); renderProjects(); hideHome();
 });
 $('openTest').addEventListener('click', async () => { hideHome(); await openTestProject(); });
@@ -1646,7 +1647,7 @@ async function openTestProject() {
       for (const s of S.sections) detectSection(s);
     } catch (e) { toast(t('err.image', { m: e.message || e })); }
     finally { loading = false; }
-    syncSettingsForm(); setAge(); selectSection(0, true); learnNow(); updateProjHeader(); refreshOtherExamples(); renderRecList(); renderLogPanel(); scheduleLog(0); refreshAllCores();
+    syncSettingsForm(); setAge(); selectSection(0, true); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0); renderRecList(); renderLogPanel(); scheduleLog(0); refreshAllCores();
     await saveToDB();
   });
 }
@@ -1797,7 +1798,7 @@ S.logView = defaultLogView();
 let mode = 'section', logTimer = 0, lastLog = null;
 
 function setMode(m) {
-  mode = m;
+  mode = m; setTimeout(updateTip, 0);
   $('work').classList.toggle('log', m === 'log');
   $('work').classList.toggle('geo', m === 'geo');
   $('work').classList.toggle('data', m === 'data');
@@ -2501,7 +2502,7 @@ function renderGeo() {
   document.querySelectorAll('.gpane').forEach((p) => (p.hidden = p.dataset.pane !== S.geo.view.tab));
   if (S.geo.view.tab === 'logs') renderGeoLogs(); else if (S.geo.view.tab === 'map') renderGeoMap(); else renderGeoModel();
 }
-document.querySelectorAll('#geoTabs button').forEach((b) => b.addEventListener('click', () => { S.geo.view.tab = b.dataset.tab; renderGeo(); }));
+document.querySelectorAll('#geoTabs button').forEach((b) => b.addEventListener('click', () => { S.geo.view.tab = b.dataset.tab; renderGeo(); updateTip(); }));
 
 /** Contiguous runs of samples of one core with the same class, as band segments. */
 function segmentsFor(coreId, getLabel, axis, step, opacity) {
@@ -2930,7 +2931,7 @@ async function showHome() {
   $('home').hidden = false;
   await renderProjects(); renderBackupState(); await loadLand(); await renderAllProjects();
 }
-function hideHome() { $('home').hidden = true; requestAnimationFrame(resizeCanvases); }
+function hideHome() { $('home').hidden = true; requestAnimationFrame(resizeCanvases); setTimeout(updateTip, 0); }
 
 let allLite = [], allMapSvg = '';
 async function renderAllProjects() {
@@ -3001,6 +3002,136 @@ $('allTable').addEventListener('click', async (e) => {
 });
 
 
+
+
+/* ───────────── training project, help cards and guided tour (V19) ───────────── */
+const TUTORIAL_ID = 'tutorial-corantool';
+/** Builds the synthetic training project (examples/tutorial, tools/make_tutorial.py): 7 fictitious cores, intervals and one core image with half of its traces labelled. */
+async function buildTutorialProject() {
+  const txt = async (f) => (await fetchAsset('tutorial/' + f)).text();
+  await flushSave(); resetState();
+  S.id = TUTORIAL_ID; S.name = t('tut.name'); S.kind = 'tutorial'; S.notes = t('tut.notes'); S.settings.tips = true;
+  const tab = parseTable(await txt('cores.csv')), H = tab.headers, ix = (n) => H.indexOf(n), P = H.slice(5);
+  const cores = coresFromLongTable(tab, { core: ix('core'), lat: ix('lat'), lon: ix('lon'), depth: ix('depth_cm'), age: ix('age_ka'), proxies: P.map(ix) });
+  const am = parseTable(await txt('age_models.csv'));
+  S.cores = [];
+  for (const c of cores) {
+    c.units = 'cm'; c.ageText = am.rows.filter((r) => r[0] === c.name).map((r) => `${r[1]},${r[2]}`).join('\n');
+    addImported(c, 'tutorial', 'tut-' + c.name);
+  }
+  applyCatalogue(S.cores, parseTable(await txt('catalogue.csv')), { core: 0, lat: 1, lon: 2, wd: 3 });
+  for (const c of S.cores) c.notes = t('tut.coreNote');
+  const g = S.geo;
+  addNamedIntervals(intervalsFromTable(parseTable(await txt('intervals_depth.csv')), { core: 0, from: 1, to: 2, layer: 3, values: [4] }), 'depth');
+  addNamedIntervals(intervalsFromTable(parseTable(await txt('intervals_age.csv')), { core: 0, from: 1, to: 2, layer: 3, values: [4] }), 'age');
+  const col = { Sapropel: '#4a2f63', ORL: '#2b6f8f', 'Fuera de capa orgánica': '#d9d2bf', Turbidita: '#c07a2c', Tefra: '#9a9a9a', Holoceno: '#f2c14e', 'Younger Dryas': '#5b8bd9', 'Bølling-Allerød': '#e07a3f', HS1: '#8fc1e3', 'Último Máximo Glacial': '#2c4f8c' };
+  for (const l of g.layers) for (const k of l.cats) if (col[k.name]) k.color = col[k.name];
+  const org = g.layers.find((l) => l.name === 'Capas orgánicas');
+  Object.assign(g.settings, { features: ['XRF Ti/Ca', 'XRF Ba/Ti', 'XRF Mn/Ti', 'XRF Fe/Ca', 'XRF Zr/Rb', 'XRF Br/Cl', 'TOC_pct', 'Bentonicos_bajo_O2_pct', 'Bioturbacion_pct'],
+    logs: ['XRF Ba/Ti', 'TOC_pct', 'XRF Ti/Ca'], axis: 'age', step: 0.5, scaling: 'core', missing: 'mean', target: org?.id || g.settings.target, useLayers: [] });
+  g.map = { ...g.map, a0: 6, a1: 10, mode: 'class', style: { ...MAP_STYLE, symbol: 'diamond' } };
+  // core image of ENT-03 with half of the true traces labelled
+  const core = S.cores.find((c) => c.name === 'ENT-03');
+  activateCore(core.id, true);
+  const bytes = new Uint8Array(await (await fetchAsset('tutorial/tutorial_core.jpg')).arrayBuffer());
+  const truth = JSON.parse(await txt('tutorial_truth.json'));
+  const { w, h, rgba } = await decodeBytes(bytes, 'tutorial_core.jpg', 'image/jpeg', { k: 1 });
+  const s = newSection({ name: 'ENT-03 · 0-150 cm', file: { name: 'tutorial_core.jpg', type: 'image/jpeg', bytes }, w, h, orig: rgba });
+  s.top = truth.top_cm; s.bottom = truth.bottom_cm; s.units = 'cm';
+  s.detect = { ...DEFAULT_DETECT, method: 'global', polarity: 'dark', threshold: 105, minArea: 12, smooth: 1 };
+  S.sections.push(s); syncSettingsForm(); selectSection(S.sections.length - 1, true);
+  detectSection(s);
+  truth.traces.forEach((q, i) => {
+    if (i % 2) return; // the other half stays for the suggestions
+    const cls = S.classes.find((c) => c.name === q.taxon); if (!cls) return;
+    const id = s.labels[Math.round(q.y) * s.w + Math.round(q.x)];
+    const o = id > 0 ? s.objects.get(id) : null; if (o && !o.cls) o.cls = cls.id;
+  });
+  renderCoreBar(); refreshAllCores(); updateProjHeader(); renderRecList(); setAge(); learnNow(); geoReset(); geoMarkDirty();
+  await saveToDB();
+}
+async function openTutorial(withTour = true) {
+  hideHome();
+  await busy(async () => {
+    const have = (await listProjects().catch(() => [])).some((m) => m.id === TUTORIAL_ID);
+    if (have) { const d = await getProject(TUTORIAL_ID); if (d) await loadProject(d); } else await buildTutorialProject();
+  });
+  setMode('section'); updateTip();
+  if (withTour) startTour(0);
+}
+$('openTutorial').addEventListener('click', () => openTutorial(true));
+$('tourBtn').addEventListener('click', () => { $('help').close(); startTour(0); });
+$('tipsToggle').addEventListener('change', (e) => { S.settings.tips = e.target.checked; markDirty(); updateTip(); });
+
+/* help card of the current tab */
+function tipContext() {
+  if (!$('home').hidden) return null;
+  if (mode === 'section') return 'section.' + (document.querySelector('.tabs [aria-selected="true"]')?.dataset.tab || 'classes');
+  if (mode === 'geo') return 'geo.' + (S.geo.view.tab || 'logs');
+  return mode;
+}
+function updateTip() {
+  const box = $('tipCard'), on = S.settings.tips ?? S.kind === 'tutorial', ctx = tipContext();
+  $('tipsToggle').checked = !!on;
+  if (!on || !ctx || tourStep >= 0) { box.hidden = true; return; }
+  box.innerHTML = `<b>💡 ${t('tip.title')}</b><div>${t('tip.' + ctx)}</div><div class="row"><button class="btn small primary" data-tip="tour">${t('tip.tour')}</button><button class="btn small ghost" data-tip="hide">${t('tip.hide')}</button></div>`;
+  box.hidden = false;
+}
+$('tipCard').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-tip]')?.dataset.tip; if (!a) return;
+  if (a === 'hide') { S.settings.tips = false; markDirty(); updateTip(); }
+  else { const ctx = tipContext(), k = TOUR.findIndex((st) => st.ctx === ctx || (ctx && st.ctx && ctx.startsWith(st.ctx))); startTour(Math.max(0, k)); }
+});
+
+/* guided tour: each step highlights one element (switching mode, side tab or start screen first) */
+const TOUR = [
+  { home: 'projects', sel: '#projList' }, { home: 'all', sel: '#allMap' }, { home: 'all', sel: '.mpbox' },
+  { sel: '#projBtn' }, { sel: '.corebar' }, { mode: 'section', ctx: 'section', sel: '#modeSection' },
+  { mode: 'section', sel: '#addImg' }, { mode: 'section', sel: '#fPreset' }, { mode: 'section', sel: '#detectBtn' }, { mode: 'section', sel: '#tools' },
+  { mode: 'section', pane: 'classes', ctx: 'section.classes', sel: '#classList' }, { mode: 'section', pane: 'object', ctx: 'section.object', sel: '#objInfo', pick: true },
+  { mode: 'section', pane: 'learn', ctx: 'section.learn', sel: '#mlOpen' }, { mode: 'section', pane: 'results', ctx: 'section.results', sel: '#resSummary' },
+  { mode: 'log', ctx: 'log', sel: '#logTracks' }, { mode: 'data', ctx: 'data', sel: '#dataView' },
+  { mode: 'geo', geoTab: 'logs', ctx: 'geo', sel: '#geoPanel' }, { mode: 'geo', geoTab: 'logs', sel: '#geoLayerSel' }, { mode: 'geo', geoTab: 'logs', sel: '#geoFeats' },
+  { mode: 'geo', geoTab: 'logs', sel: '#geoTrainBtn' }, { mode: 'geo', geoTab: 'logs', sel: '#geoLogSvg' }, { mode: 'geo', geoTab: 'map', ctx: 'geo.map', sel: '#geoMapSvg' },
+  { mode: 'geo', geoTab: 'model', ctx: 'geo.model', sel: '#geoModelOut' }, { mode: 'fig', ctx: 'fig', sel: '#figPanel' }, { sel: '#helpBtn' },
+];
+let tourStep = -1;
+function startTour(k = 0) { tourStep = k; $('tipCard').hidden = true; showTourStep(); }
+function endTour() { tourStep = -1; $('tour').hidden = true; updateTip(); }
+async function showTourStep() {
+  const st = TOUR[tourStep]; if (!st) { endTour(); return; }
+  if (st.home) { if ($('home').hidden) await showHome(); setHomeTab(st.home); } else if (!$('home').hidden) hideHome();
+  if (st.mode && mode !== st.mode) setMode(st.mode);
+  if (st.pane) showTab(st.pane);
+  if (st.geoTab && S.geo.view.tab !== st.geoTab) { S.geo.view.tab = st.geoTab; renderGeo(); }
+  if (st.pick && !S.selected) { const s = sec(), o = s && [...s.objects.values()].find((q) => !q.cls && q.bbox && q.feat); if (o) { centerOn(o); select(o.id); showTab('object'); } }
+  await new Promise((r) => setTimeout(r, 260));
+  const el = document.querySelector(st.sel); el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  const r = el?.getBoundingClientRect(), ov = $('tour'), hl = ov.querySelector('.tourhl'), box = ov.querySelector('.tourbox');
+  ov.hidden = false;
+  if (r && r.width && r.height) Object.assign(hl.style, { display: 'block', left: `${r.left - 6}px`, top: `${r.top - 6}px`, width: `${r.width + 12}px`, height: `${Math.min(r.height, innerHeight - 24) + 12}px` });
+  else hl.style.display = 'none';
+  box.innerHTML = `<div class="tourn">${tourStep + 1} / ${TOUR.length}</div><h3>${t(`tour.${tourStep}.t`)}</h3><div>${t(`tour.${tourStep}.b`)}</div>
+    <div class="row" style="justify-content:space-between"><button class="btn small ghost" data-tour="end">${t('tour.end')}</button><span class="row"><button class="btn small" data-tour="prev" ${tourStep ? '' : 'disabled'}>◀ ${t('tour.prev')}</button><button class="btn small primary" data-tour="next">${tourStep === TOUR.length - 1 ? t('tour.finish') : t('tour.next') + ' ▶'}</button></span></div>`;
+  // bubble beside the element (below if there is room, else above, else centred)
+  const bw = Math.min(380, innerWidth - 24); box.style.width = bw + 'px';
+  const bh = box.offsetHeight || 220;
+  let left = r && r.width ? Math.min(Math.max(12, r.left), innerWidth - bw - 12) : (innerWidth - bw) / 2, top;
+  if (r && r.width && r.bottom + bh + 18 < innerHeight) top = r.bottom + 14;
+  else if (r && r.width && r.top - bh - 18 > 0) top = r.top - bh - 14;
+  else if (r && r.width && r.right + bw + 24 < innerWidth) { left = r.right + 16; top = Math.max(12, Math.min(r.top, innerHeight - bh - 12)); }
+  else top = (innerHeight - bh) / 2;
+  Object.assign(box.style, { left: `${left}px`, top: `${top}px` });
+}
+$('tour').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-tour]')?.dataset.tour; if (!a) return;
+  if (a === 'end') endTour(); else { tourStep += a === 'next' ? 1 : -1; if (tourStep >= TOUR.length) endTour(); else showTourStep(); }
+});
+window.addEventListener('keydown', (e) => {
+  if (tourStep < 0) return;
+  if (e.key === 'Escape') endTour(); else if (e.key === 'ArrowRight') { tourStep++; if (tourStep >= TOUR.length) endTour(); else showTourStep(); } else if (e.key === 'ArrowLeft' && tourStep > 0) { tourStep--; showTourStep(); }
+});
+window.addEventListener('resize', () => { if (tourStep >= 0) showTourStep(); });
 
 /* ───────────── models and training dialog (V18): guide, method and parameters, evaluation, examples ───────────── */
 /** Small cached image of a labelled trace (JPEG data URL), for the example galleries. */

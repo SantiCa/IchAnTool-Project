@@ -22,7 +22,8 @@ EXAMPLES = ROOT / "examples"
 ASSETS = ["data/idealized_core_0-500cm.jpg"] + [f"U1385I-1H/web/397-U1385I-1H-{i}-A_50pxcm.jpg" for i in range(1, 7)] + [
     "U1385I-1H/records/397-U1385I-1H_RSC_color.csv", "U1385I-1H/records/397-U1385I-1H_MS.csv",
     "data/land-50m.json", "geochem_demo/demo_long.csv", "geochem_demo/intervals.csv"] + [f"tesis_casanova/{f}" for f in (
-    "ODP977A_pangaea.csv", "ODP976_pangaea.csv", "catalogue.csv", "intervals_age.csv", "intervals_depth.csv", "LC10_age_model.txt")]
+    "ODP977A_pangaea.csv", "ODP976_pangaea.csv", "catalogue.csv", "intervals_age.csv", "intervals_depth.csv", "LC10_age_model.txt")] + [f"tutorial/{f}" for f in (
+    "cores.csv", "catalogue.csv", "intervals_depth.csv", "intervals_age.csv", "age_models.csv", "tutorial_core.jpg", "tutorial_truth.json")]
 MIME = {".jpg": "image/jpeg", ".csv": "text/csv", ".json": "application/json", ".txt": "text/plain"}
 TOP_DECL = re.compile(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)", re.M)
 

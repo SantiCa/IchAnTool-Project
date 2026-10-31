@@ -36,6 +36,7 @@ La descripción detallada de los algoritmos está en
 | V16 | 31-10-2026 | Aplicación web 1.0 | Nombre CorAnTool (antes IchAnTool); todos los sondeos de la carpeta de la tesis (GP14, LC21, LC01, LC05, LC06, LC12, LC14, LC20) y más foraminíferos (GP03, LC21) |
 | V17 | 31-10-2026 | Aplicación web 1.1 | Pestaña «Todos los proyectos» con análisis multiproyecto (Multiproxy, Datos y Figuras con sondeos de varios proyectos); tres modelos de icnotaxones (sondeo, proyecto, todos) guardados y probabilidad de cada icnotaxón por modelo |
 | V18 | 31-10-2026 | Aplicación web 1.2 | Diálogo «Modelos y entrenamiento»: guía para no especialistas, k-NN / Random Forest / Bayes con parámetros, evaluación de 3 métodos × 3 modelos con recomendación, galería de ejemplos (excluir, quitar) y ejemplos de otros proyectos |
+| V19 | 31-10-2026 | Aplicación web 1.3 | Proyecto de entrenamiento con 7 sondeos sintéticos del Mediterráneo e imagen con trazas, carteles de ayuda por pestaña y recorrido guiado de 25 pasos |
 
 ---
 
@@ -607,6 +608,37 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V19 — Proyecto de entrenamiento y recorrido guiado (31-10-2026)
+
+**Qué se hizo.**
+- **Proyecto de entrenamiento** (botón en la pantalla inicial): 7 sondeos ficticios en posiciones aleatorias
+  del Mediterráneo (Alborán, Baleares, Tirreno, Jónico, Adriático, Egeo, Levantino) con 12 registros
+  sintéticos, modelos de edad, turbiditas, tefras, periodos climáticos y una capa orgánica descrita solo en 4
+  sondeos. ENT-03 tiene una imagen sintética con 122 trazas de 4 icnotaxones; la mitad ya está etiquetada.
+- **Carteles de ayuda** en cada pestaña con una tarea concreta para practicar.
+- **Recorrido guiado** de 25 pasos por todo el programa (pantalla inicial, sondeos, Bioturbación, modelos,
+  Registro, Datos, Multiproxy, mapa, Figuras, Ayuda).
+
+**Cambios.**
+- Nuevo `tools/make_tutorial.py` y `examples/tutorial/` (datos sintéticos, verdad de las trazas, README).
+- `app.js`: `buildTutorialProject`, `openTutorial`, `updateTip`, `TOUR`, `startTour`, `showTourStep`.
+- `index.html`, `i18n.js`: botón, tarjeta de ayuda, capa del recorrido, textos de 25 pasos y carteles.
+- `tools/build_standalone.py`: los archivos del tutorial van dentro del archivo único.
+
+**Por qué.** Santiago preguntó si era viable un proyecto de entrenamiento con sondeos artificiales, muchos
+carteles de ayuda y un recorrido que explique qué hace cada cosa, con 6–7 sondeos en el Mediterráneo.
+
+**Comprobación.** 34 pruebas de la aplicación y 9 de Python. En Chromium: el proyecto se crea con 7
+sondeos (12 registros; ENT-03 con 20 columnas al sumar la imagen), 4 capas y 72 intervalos; la detección
+encuentra 122 objetos (las 122 trazas dibujadas), 61 etiquetados y 60 con sugerencia; los 25 pasos del
+recorrido resaltan su elemento; los carteles cambian con la pestaña; ningún error.
+
+**Pendiente o problemas conocidos.** Las trazas sintéticas son esquemáticas (formas geométricas): sirven para
+aprender el flujo de trabajo, no para calibrar el clasificador con trazas reales. Las profundidades de agua son
+inventadas (p. ej. el Adriático central real es mucho más somero).
 
 ---
 

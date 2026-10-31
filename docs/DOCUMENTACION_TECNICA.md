@@ -1,7 +1,7 @@
 # Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V18 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 1.2.
+Versión del documento: V19 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.3.
 
 **Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
 IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
@@ -1308,6 +1308,32 @@ el modelo dependa de la descripción y no de los registros.
   nombre ya usado lo actualiza.
 - Los proyectos `multi` no aparecen en la tabla ni en el mapa de todos los proyectos ni aportan
   ejemplos al modelo de todos los proyectos.
+
+### 22.7 Proyecto de entrenamiento, carteles de ayuda y recorrido guiado (desde V19)
+- **Datos sintéticos** (`tools/make_tutorial.py`, semilla 2026; `examples/tutorial/`): 7 sondeos ficticios
+  colocados al azar (±0,8°) alrededor de 7 zonas marinas del Mediterráneo; se rechazan posiciones en tierra con
+  los polígonos de Natural Earth (prueba de punto en polígono). Tasa de sedimentación 12–30 cm/ka; modelo de
+  edad de 6 puntos con tasa ±25 %; longitud = min(900, 40 · tasa) cm; muestreo cada 2 cm (TOC, CaCO3, SST,
+  δ18O y bentónicos de bajo O2 cada 10 cm).
+- **Señal común:** índice frío `c` (0 cálido – 1 frío): Holoceno 0,05; YD 0,75; B-A 0,3; HS1 0,95; LGM 0,85;
+  HS2 1,0; HS3 0,95; resto 0,55. Capa orgánica `o` = 1 (este, lon > 15°, 6–10 ka) o 0,6 (oeste, 8–14 ka).
+  Turbiditas (2–4 capas de 4–20 cm, `u`) y tefras (3,6 y 39 ka en Tirreno, Jónico y Egeo, 3 cm, `f`). Ruido
+  normal ε. Ejemplos: Ti/Ca = 0,08 + 0,10c + 0,25u + 0,15f + ε(0,012); Ba/Ti = 0,6 + 2,2o − 0,2u + ε(0,08);
+  TOC = 0,4 + (3,0 este | 1,5 oeste)·o·U(0,8–1,1) + ε(0,08); SST = (21 | 18) − 7c + ε(0,5); bioturbación =
+  70 − 50o + ε(6). (Fórmulas completas en el script.)
+- **Intervalos:** capa orgánica descrita solo en ENT-01, -03, -04 y -07 (el clasificador debe encontrarla en los
+  otros tres); periodos climáticos; turbiditas y tefras en profundidad.
+- **Imagen sintética** de ENT-03 (0–150 cm, 25 px/cm, 200 × 3750 px): matriz con ruido suavizado, banda oscura
+  60–78 cm y 122 trazas oscuras dibujadas: *Thalassinoides* (tubos en Y), *Zoophycos* (lentes alargadas),
+  *Planolites* (elipses pequeñas) y *Chondrites* (puntos, sobre todo en 50–90 cm). Detección: umbral global
+  105, trazas oscuras, área mínima 12 px. Al crear el proyecto se etiqueta **una de cada dos** trazas
+  verdaderas (el objeto que contiene su centro); el resto queda para las sugerencias.
+- **Carteles de ayuda:** tarjeta fija abajo a la izquierda con el consejo de la pestaña actual (Bioturbación por
+  subpestaña, Registro, Datos, Multiproxy por subpestaña, Figuras). Activos por defecto en el proyecto de
+  entrenamiento (`settings.tips`); se activan o desactivan en Ayuda.
+- **Recorrido guiado:** 25 pasos; cada uno cambia de pestaña si hace falta, resalta un elemento (marco y fondo
+  oscurecido) y muestra una explicación con Anterior/Siguiente/Salir (también ← → Esc). Se inicia al abrir el
+  proyecto de entrenamiento, desde Ayuda o desde un cartel (empieza en la parte correspondiente).
 
 ---
 

@@ -2,6 +2,10 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V19 — Web app 1.3 — 2026-10-31
+- Training project with 7 synthetic Mediterranean cores and a synthetic core image with labelled traces
+  (`tools/make_tutorial.py`), contextual help cards and a 25-step guided tour.
+
 ## V18 — Web app 1.2 — 2026-10-31
 - “Models and training” dialog: beginner guide, choice of k-NN / Random Forest / naive Bayes with parameters,
   evaluation of 3 methods × 3 models on the same unseen traces with a recommendation and confusion matrix,
