@@ -10,13 +10,18 @@ example image is embedded as a data URI.
 from __future__ import annotations
 
 import base64
+import json
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
-ORDER = ["core.js", "imageproc.js", "learn.js", "i18n.js", "app.js"]
-EXAMPLE = ROOT / "examples" / "data" / "idealized_core_0-500cm.jpg"
+ORDER = ["core.js", "imageproc.js", "learn.js", "log.js", "storage.js", "i18n.js", "app.js"]
+EXAMPLES = ROOT / "examples"
+# Files the app loads with fetchAsset(path); embedded so the single file works offline.
+ASSETS = ["data/idealized_core_0-500cm.jpg"] + [f"U1385I-1H/web/397-U1385I-1H-{i}-A_50pxcm.jpg" for i in range(1, 7)] + [
+    "U1385I-1H/records/397-U1385I-1H_RSC_color.csv", "U1385I-1H/records/397-U1385I-1H_MS.csv"]
+MIME = {".jpg": "image/jpeg", ".csv": "text/csv"}
 TOP_DECL = re.compile(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)", re.M)
 
 
@@ -37,14 +42,14 @@ def build(out: Path = ROOT / "dist" / "IchAnTool.html") -> Path:
         parts.append(f"// ---- {name} ----\n{strip_module(code)}")
     bundle = "\n".join(parts)
 
-    example_uri = "data:image/jpeg;base64," + base64.b64encode(EXAMPLE.read_bytes()).decode()
-    bundle = bundle.replace("const EXAMPLE_URLS = [", f"const EXAMPLE_URLS = ['{example_uri}', ", 1)
+    assets = {a: f"data:{MIME[Path(a).suffix]};base64," + base64.b64encode((EXAMPLES / a).read_bytes()).decode() for a in ASSETS}
+    assets_js = "window.ICHANTOOL_ASSETS = " + json.dumps(assets) + ";"
 
     html = (APP / "index.html").read_text(encoding="utf-8")
     tag = '<script type="module" src="js/app.js"></script>'
     if tag not in html:
         raise SystemExit("script tag not found in app/index.html")
-    html = html.replace(tag, "<script type=\"module\">\n" + bundle.replace("</script", "<\\/script") + "\n</script>")
+    html = html.replace(tag, "<script>" + assets_js + "</script>\n<script type=\"module\">\n" + bundle.replace("</script", "<\\/script") + "\n</script>")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     return out

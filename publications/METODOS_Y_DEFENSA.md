@@ -29,8 +29,11 @@ bioturbación a partir de imágenes de testigos.
 | Realce, detección y edición (aplicación web) | §6–§8 |
 | Identificación asistida k-NN (aplicación web) | §10 |
 | Formatos de exportación | §12 |
+| Resolución de trabajo, proyectos | §16–§17 |
+| Registro compuesto y registros externos | §18–§19 |
 
 ### Qué se puede afirmar hoy
+- Integra en una sola herramienta las imágenes, la bioturbación y otros registros del mismo sondeo, en profundidad o en edad, con exportación vectorial (§18). Demostrado con datos públicos del IODP (sondeo de prueba U1385I-1H).
 - Reproduce exactamente los resultados publicados en 2020 (prueba de regresión, §13.1).
 - La aplicación web da los mismos BI e ii que la versión publicada en la imagen de ejemplo
   (100 %), con una diferencia de porcentaje ≤ 0,56 puntos explicada por los pesos de gris
@@ -140,8 +143,10 @@ datos abierto**, la herramienta de anotación libre y la comparación con concor
 | BI e ii manuales en la aplicación | §4.3 |
 | Porcentaje por icnotaxón e identificación asistida | §3, §10–§11 |
 | Modelo de edad | §5 |
+| Registro compuesto, registros externos y CSV interpolado | §18–§19 |
 
 ### Experimentos necesarios
+0. **Modelo de edad publicado:** el del sondeo de prueba es ilustrativo y no vale para interpretar.
 1. **Experimento a ciegas:** de 3 a 5 icnólogos asignan BI e ii visuales a los mismos intervalos,
    sin ver el resultado automático. La aplicación ya permite registrarlo (columnas `BI_manual` e
    `ii_manual`).

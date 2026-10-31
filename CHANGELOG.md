@@ -2,6 +2,14 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V7 — Web app 0.2 — 2026-10-31
+- Project library in the browser (IndexedDB) with autosave; import/export project files (format v2).
+- Core log view: all sections on a depth or age axis, interval window, image resampled to the axis,
+  total and per-ichnotaxon bioturbation, BI/ii, manual indices, external records (CSV/TXT/Excel);
+  SVG and CSV export.
+- Working resolution on import (box-average downsampling).
+- Test core: IODP 397-U1385I-1H images (50 px/cm), colour reflectance and magnetic susceptibility.
+
 ## V6 — Standalone app file — 2026-10-30
 - `tools/build_standalone.py` builds `dist/IchAnTool.html`: the whole web app plus example in one
   file that opens by double-click, offline, without a server. Analysis unchanged.

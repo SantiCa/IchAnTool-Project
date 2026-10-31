@@ -1,12 +1,23 @@
 // IchAnTool web — application (UI, state, tools, rendering, files).
 import { BI, II, UNIT_TO_CM, rowCounts, binRows, parseAgeModel, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
-import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90 } from './imageproc.js';
+import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA } from './imageproc.js';
+import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
+import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject } from './storage.js';
 import { Classifier, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const VERSION = '3.0.0-dev';
-const EXAMPLE_URLS = ['example.jpg', '../examples/data/idealized_core_0-500cm.jpg'];
+const ASSET_BASES = ['', '../examples/'];
+
+/** Bundled files (example images, test core). The standalone build injects them as data URIs. */
+async function fetchAsset(path) {
+  const inline = window.ICHANTOOL_ASSETS?.[path];
+  for (const u of inline ? [inline] : ASSET_BASES.map((b) => b + path)) {
+    try { const r = await fetch(u); if (r.ok) return r; } catch { /* next */ }
+  }
+  throw new Error('file not found: ' + path);
+}
 
 function defaultClasses() {
   return [
@@ -29,7 +40,8 @@ const S = {
   name: 'ichantool-project',
   classes: defaultClasses(), active: 'undet',
   sections: [], cur: -1,
-  settings: { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3 },
+  id: '', notes: '', records: [], logView: null,
+  settings: { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP: 8 },
   age: { text: '', units: 'ka', model: null },
   library: [],
   tool: 'select', prevTool: 'select', brushSize: 10, wandTol: 30,
@@ -46,9 +58,9 @@ const keyOf = (c) => { const k = S.classes.indexOf(c); return c.id === 'artifact
 
 /* ───────────── sections ───────────── */
 
-function newSection({ name, file, w, h, orig }) {
+function newSection({ name, file, w, h, orig, ds = 1 }) {
   const s = {
-    id: uid(), name, file, rot: 0, w, h, orig, enh: null,
+    id: uid(), name, file, rot: 0, ds, logVer: 0, w, h, orig, enh: null,
     labels: new Int32Array(w * h), exclude: new Uint8Array(w * h), objects: new Map(), nextId: 1,
     top: 0, bottom: 100, units: 'cm', roi: { x0: 0, y0: 0, x1: w, y1: h },
     filters: { ...DEFAULT_FILTERS }, preset: 'none', detect: { ...DEFAULT_DETECT }, manual: [], bins: [], view: null,
@@ -73,7 +85,8 @@ function loadScript(src) {
   });
 }
 
-async function decodeBytes(bytes, name, type) {
+async function decodeBytes(bytes, name, type, opt = {}) {
+  const factor = (w, h) => opt.k ?? Math.max(1, Math.ceil(Math.sqrt((w * h) / ((opt.maxMP || 1e9) * 1e6))));
   if (/\.tiff?$/i.test(name) || /tiff/.test(type || '')) {
     if (!window.UTIF) {
       await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js').catch(() => {});
@@ -82,22 +95,24 @@ async function decodeBytes(bytes, name, type) {
     const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     const ifds = window.UTIF.decode(buf);
     window.UTIF.decodeImage(buf, ifds[0], ifds);
-    const rgba = window.UTIF.toRGBA8(ifds[0]);
-    return { w: ifds[0].width, h: ifds[0].height, rgba: new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, rgba.length) };
+    const rgba = window.UTIF.toRGBA8(ifds[0]), w = ifds[0].width, h = ifds[0].height, k = factor(w, h);
+    const r = downsampleRGBA(new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, rgba.length), w, h, k);
+    return { ...r, k };
   }
   const url = URL.createObjectURL(new Blob([bytes], { type: type || 'image/jpeg' }));
   try {
     const img = new Image(); img.src = url; await img.decode();
-    const w = img.naturalWidth, h = img.naturalHeight, out = new Uint8ClampedArray(w * h * 4);
-    const stripH = Math.max(1, Math.min(h, Math.floor(4e6 / w)));
+    const w = img.naturalWidth, h = img.naturalHeight, k = factor(w, h);
+    const W = Math.floor(w / k), Hh = Math.floor(h / k), out = new Uint8ClampedArray(W * Hh * 4);
+    const stripH = Math.max(k, Math.floor(Math.min(h, 4e6 / w) / k) * k);
     const c = document.createElement('canvas'); c.width = w; c.height = stripH;
     const x = c.getContext('2d', { willReadFrequently: true });
-    for (let y = 0; y < h; y += stripH) {
-      const sh = Math.min(stripH, h - y);
+    for (let y = 0; y < Hh * k; y += stripH) {
+      const sh = Math.min(stripH, Hh * k - y);
       x.clearRect(0, 0, w, stripH); x.drawImage(img, 0, y, w, sh, 0, 0, w, sh);
-      out.set(x.getImageData(0, 0, w, sh).data, y * w * 4);
+      out.set(downsampleRGBA(x.getImageData(0, 0, w, sh).data, w, sh, k).rgba, (y / k) * W * 4);
     }
-    return { w, h, rgba: out };
+    return { w: W, h: Hh, rgba: out, k };
   } finally { URL.revokeObjectURL(url); }
 }
 
@@ -113,29 +128,29 @@ async function addFiles(files) {
     await busy(async () => {
       try {
         const bytes = new Uint8Array(await file.arrayBuffer());
-        const { w, h, rgba } = await decodeBytes(bytes, file.name, file.type);
-        const s = newSection({ name: file.name.replace(/\.[^.]+$/, ''), file: { name: file.name, type: file.type, bytes }, w, h, orig: rgba });
+        const { w, h, rgba, k } = await decodeBytes(bytes, file.name, file.type, { maxMP: S.settings.maxMP });
+        const s = newSection({ name: file.name.replace(/\.[^.]+$/, ''), file: { name: file.name, type: file.type, bytes }, w, h, orig: rgba, ds: k });
         const prev = sec();
         if (prev) { s.units = prev.units; s.top = prev.bottom; s.bottom = prev.bottom + (prev.bottom - prev.top); s.filters = { ...prev.filters }; s.preset = prev.preset; s.detect = { ...prev.detect }; s.enh = applyFilters(s.orig, w, h, s.filters); }
         S.sections.push(s);
-        selectSection(S.sections.length - 1, true);
+        selectSection(S.sections.length - 1, true); markDirty();
       } catch (e) { toast(t('err.image', { m: e.message || e })); }
     });
   }
 }
 
 async function loadExample() {
-  for (const url of EXAMPLE_URLS) {
+  for (const url of ['data/idealized_core_0-500cm.jpg']) {
     try {
-      const r = await fetch(url); if (!r.ok) continue;
-      const bytes = new Uint8Array(await r.arrayBuffer());
-      const { w, h, rgba } = await decodeBytes(bytes, url, 'image/jpeg');
+      const bytes = new Uint8Array(await (await fetchAsset(url)).arrayBuffer());
+      await flushSave(); resetState(); S.name = t('example.name');
+      const { w, h, rgba } = await decodeBytes(bytes, url, 'image/jpeg', { k: 1 });
       const s = newSection({ name: t('example.name'), file: { name: 'idealized_core_0-500cm.jpg', type: 'image/jpeg', bytes }, w, h, orig: rgba });
       s.top = 0; s.bottom = 500; s.units = 'cm';
       s.detect = { ...DEFAULT_DETECT, method: 'global', polarity: 'dark', threshold: 6, minArea: 1, smooth: 0 };
       S.settings.binPx = 150;
-      S.sections.push(s); selectSection(S.sections.length - 1, true);
-      runDetection();
+      S.sections.push(s); syncSettingsForm(); selectSection(S.sections.length - 1, true);
+      detectSection(s); updateProjHeader(); renderRecList(); setAge(); await saveToDB();
       return true;
     } catch { /* try next */ }
   }
@@ -212,7 +227,7 @@ function undo() {
   afterChange(s);
 }
 
-function afterChange(s) { rebuildLUT(s); scheduleLearn(); scheduleAnalysis(); renderClasses(); renderObject(); requestRender(); }
+function afterChange(s) { s.logVer = (s.logVer || 0) + 1; markDirty(); scheduleLog(); rebuildLUT(s); scheduleLearn(); scheduleAnalysis(); renderClasses(); renderObject(); requestRender(); }
 
 /* pixel-set edits from wand and lasso */
 function applyPixels(pixels, mode) {
@@ -250,9 +265,10 @@ function assignClass(id, clsId) {
 
 /* ───────────── detection ───────────── */
 
-function runDetection() {
-  const s = sec(); if (!s) return;
-  busy(() => {
+function runDetection() { const s = sec(); if (s) busy(() => detectSection(s)); }
+
+function detectSection(s) {
+  {
     const op = beginOp(s), p = s.detect, L = s.labels;
     const cand = new Set();
     for (const o of s.objects.values()) if (!o.cls && o.src === 'auto') cand.add(o.id);
@@ -280,7 +296,7 @@ function runDetection() {
     commitOp(op, true);
     $('detectStatus').textContent = t('d.result', { n: kept });
     afterChange(s);
-  });
+  }
 }
 
 function clearCandidates() {
@@ -614,7 +630,7 @@ function updateStatus(s, p) {
 }
 
 function setRoi(s, roi) {
-  s.roi = roi; recomputeFeatures(s); scheduleLearn(); scheduleAnalysis(); renderSectionForm(); requestRender();
+  s.roi = roi; s.logVer++; markDirty(); recomputeFeatures(s); scheduleLearn(); scheduleAnalysis(); renderSectionForm(); requestRender();
 }
 
 /* ───────────── keyboard ───────────── */
@@ -842,7 +858,7 @@ let filterTimer = 0;
 function refilter() {
   const s = sec(); if (!s) return;
   clearTimeout(filterTimer);
-  filterTimer = setTimeout(() => { s.enh = applyFilters(s.orig, s.w, s.h, s.filters); requestRender(); }, 90);
+  filterTimer = setTimeout(() => { s.enh = applyFilters(s.orig, s.w, s.h, s.filters); s.logVer++; markDirty(); scheduleLog(); requestRender(); }, 90);
 }
 $('filterCtl').addEventListener('input', (e) => {
   const s = sec(), k = e.target.dataset.k; if (!s || !k) return;
@@ -858,6 +874,7 @@ $('dPol').addEventListener('change', (e) => { const s = sec(); if (s) s.detect.p
 $('detectBtn').addEventListener('click', runDetection);
 $('clearCand').addEventListener('click', clearCandidates);
 
+$('maxMP').addEventListener('change', (e) => { S.settings.maxMP = +e.target.value; });
 $('binPx').addEventListener('input', (e) => { S.settings.binPx = +e.target.value; renderBinNote(); scheduleAnalysis(); });
 $('inclPred').addEventListener('change', (e) => { S.settings.includePred = e.target.checked; scheduleAnalysis(); renderClasses(); });
 $('countCand').addEventListener('change', (e) => { S.settings.countCandidates = e.target.checked; scheduleAnalysis(); renderClasses(); });
@@ -901,7 +918,8 @@ function setAge() {
   S.age.text = $('ageText').value; S.age.units = $('ageUnits').value; S.age.model = parseAgeModel(S.age.text);
   const m = S.age.model;
   $('ageStatus').textContent = m ? t('age.ok', { n: m.depth.length, a: fmt(Math.min(...m.age), 3), b: fmt(Math.max(...m.age), 3), u: S.age.units }) : t('age.none');
-  scheduleAnalysis();
+  scheduleAnalysis(); markDirty(); scheduleLog();
+  $('logAxis').querySelector('[value=age]').disabled = !m;
 }
 $('ageText').addEventListener('input', setAge);
 $('ageUnits').addEventListener('change', setAge);
@@ -1011,38 +1029,36 @@ $('importModel').addEventListener('change', async (e) => {
 });
 $('clearLib').addEventListener('click', () => { S.library = []; scheduleLearn(); });
 
-/* ───────────── project ───────────── */
+/* ───────────── projects: serialisation ───────────── */
 
-$('saveProj').addEventListener('click', () => busy(async () => {
-  const proj = {
-    app: 'IchAnTool', kind: 'project', version: 1, appVersion: VERSION, saved: new Date().toISOString(), name: S.name,
-    classes: S.classes, active: S.active, settings: S.settings, age: { text: S.age.text, units: S.age.units }, library: S.library,
+function serialize(binary) {
+  return {
+    app: 'IchAnTool', kind: 'project', version: 2, appVersion: VERSION, saved: new Date().toISOString(),
+    id: S.id, name: S.name, notes: S.notes, classes: S.classes, active: S.active, settings: S.settings,
+    age: { text: S.age.text, units: S.age.units }, library: S.library, records: S.records, logView: S.logView,
     sections: S.sections.map((s) => ({
-      id: s.id, name: s.name, file: { name: s.file.name, type: s.file.type, b64: b64encode(s.file.bytes) }, rot: s.rot, w: s.w, h: s.h,
+      id: s.id, name: s.name, ds: s.ds, rot: s.rot, w: s.w, h: s.h,
+      file: { name: s.file.name, type: s.file.type, ...(binary ? { bytes: s.file.bytes } : { b64: b64encode(s.file.bytes) }) },
       top: s.top, bottom: s.bottom, units: s.units, roi: s.roi, filters: s.filters, preset: s.preset, detect: s.detect, manual: s.manual,
       nextId: s.nextId, objects: [...s.objects.values()].map((o) => ({ id: o.id, cls: o.cls, src: o.src })),
       labels: rleEncode(s.labels), exclude: rleEncode(s.exclude),
     })),
   };
-  await saveFile(`${safe(S.name)}.ichantool.json`, JSON.stringify(proj), 'application/json');
-}));
+}
 
-$('openProj').addEventListener('change', async (e) => {
-  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-  await busy(async () => {
-    let p;
-    try { p = JSON.parse(await f.text()); if (p.app !== 'IchAnTool' || p.kind !== 'project') throw new Error(); }
-    catch { toast(t('err.project')); return; }
-    resetState();
-    S.name = p.name || f.name.replace(/\.ichantool\.json$|\.json$/i, '');
-    S.classes = p.classes; S.active = p.active || 'undet'; Object.assign(S.settings, p.settings); S.library = p.library || [];
+async function loadProject(p) {
+  resetState(); loading = true;
+  try {
+    S.id = p.id || uid(); S.name = p.name || 'IchAnTool'; S.notes = p.notes || '';
+    S.classes = p.classes || defaultClasses(); S.active = p.active || 'undet';
+    Object.assign(S.settings, p.settings || {}); S.library = p.library || []; S.records = p.records || [];
+    const lv = defaultLogView(); S.logView = { ...lv, ...(p.logView || {}), tracks: { ...lv.tracks, ...(p.logView?.tracks || {}) } };
     $('ageText').value = p.age?.text || ''; $('ageUnits').value = p.age?.units || 'ka';
-    for (const q of p.sections) {
-      const bytes = b64decode(q.file.b64);
-      let { w, h, rgba } = await decodeBytes(bytes, q.file.name, q.file.type);
-      const turns = ((q.rot % 4) + 4) % 4;
-      for (let k = 0; k < turns; k++) { rgba = rotate90(rgba, w, h, 4, 1); [w, h] = [h, w]; }
-      const s = newSection({ name: q.name, file: { name: q.file.name, type: q.file.type, bytes }, w, h, orig: rgba });
+    for (const q of p.sections || []) {
+      const bytes = q.file.bytes ? new Uint8Array(q.file.bytes) : b64decode(q.file.b64);
+      let { w, h, rgba } = await decodeBytes(bytes, q.file.name, q.file.type, { k: q.ds || 1 });
+      for (let k = 0; k < ((q.rot % 4) + 4) % 4; k++) { rgba = rotate90(rgba, w, h, 4, 1); [w, h] = [h, w]; }
+      const s = newSection({ name: q.name, file: { name: q.file.name, type: q.file.type, bytes }, w, h, orig: rgba, ds: q.ds || 1 });
       Object.assign(s, { id: q.id, rot: q.rot, top: q.top, bottom: q.bottom, units: q.units, roi: q.roi, filters: q.filters, preset: q.preset, detect: q.detect, manual: q.manual || [], nextId: q.nextId });
       s.enh = applyFilters(s.orig, w, h, s.filters);
       s.labels = rleDecode(q.labels, w * h, Int32Array); s.exclude = rleDecode(q.exclude, w * h, Uint8Array);
@@ -1050,20 +1066,362 @@ $('openProj').addEventListener('change', async (e) => {
       refreshObjects(s, new Set(s.objects.keys()), null);
       S.sections.push(s);
     }
-    syncSettingsForm(); setAge(); selectSection(0, true); learnNow(); toast(t('loaded'));
+  } finally { loading = false; }
+  syncSettingsForm(); setAge(); selectSection(S.sections.length ? 0 : -1, true); learnNow();
+  updateProjHeader(); renderRecList(); renderLogPanel(); scheduleLog(0);
+  try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
+  dirty = false; setSaveState(storageOK ? 'saved' : 'off');
+}
+
+function resetState() {
+  const maxMP = S.settings.maxMP || 8;
+  S.id = uid(); S.name = t('proj.untitled'); S.notes = '';
+  S.sections = []; S.cur = -1; S.undo = []; S.selected = 0; S.library = []; S.records = []; S.logView = defaultLogView();
+  S.classes = defaultClasses(); S.active = 'undet';
+  S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP };
+  $('undoBtn').disabled = true; $('detectStatus').textContent = '';
+  $('ageText').value = ''; S.age = { text: '', units: 'ka', model: null };
+}
+
+/* ───────────── projects: library and autosave ───────────── */
+
+let storageOK = false, loading = false, dirty = false, saveTimer = 0;
+
+function setSaveState(st) { $('saveState').textContent = t('save.' + st); $('saveState').dataset.state = st; }
+
+function markDirty() {
+  if (loading || (!S.sections.length && !S.records.length)) return;
+  dirty = true; setSaveState(storageOK ? 'dirty' : 'off');
+  clearTimeout(saveTimer); if (storageOK) saveTimer = setTimeout(saveToDB, 1500);
+}
+
+async function saveToDB() {
+  if (!storageOK) return;
+  clearTimeout(saveTimer);
+  try {
+    setSaveState('saving');
+    await putProject({ id: S.id, name: S.name, updated: Date.now(), sections: S.sections.length }, serialize(true));
+    try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
+    dirty = false; setSaveState('saved');
+  } catch (e) { setSaveState('error'); console.error(e); }
+}
+async function flushSave() { if (dirty) await saveToDB(); }
+
+function updateProjHeader() { $('projName').textContent = S.name; }
+
+async function renderProjects() {
+  const box = $('projList');
+  if (!storageOK) { box.innerHTML = `<p class="note">${t('save.off')}</p>`; return; }
+  const list = (await listProjects().catch(() => [])).sort((a, b) => b.updated - a.updated);
+  if (!list.length) { box.innerHTML = `<p class="note">${t('proj.none')}</p>`; return; }
+  const date = (ms) => new Date(ms).toLocaleString(lang(), { dateStyle: 'medium', timeStyle: 'short' });
+  box.innerHTML = list.map((p) => `
+    <div class="prow ${p.id === S.id ? 'current' : ''}" data-id="${p.id}">
+      <div class="pinfo"><b>${esc(p.name)}</b><span class="note">${t('proj.sections', { n: p.sections })} · ${date(p.updated)}${p.id === S.id ? ' · ' + t('proj.current') : ''}</span></div>
+      <div class="row"><button class="btn small" data-act="open">${t('proj.open')}</button><button class="btn small" data-act="rename">${t('proj.rename')}</button><button class="btn small ghost" data-act="del">${t('proj.del')}</button></div>
+    </div>`).join('');
+}
+
+$('projList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button'), row = e.target.closest('.prow'); if (!btn || !row) return;
+  const id = row.dataset.id, act = btn.dataset.act;
+  if (act === 'open') {
+    if (id === S.id) { $('projDlg').close(); return; }
+    await flushSave(); $('projDlg').close();
+    await busy(async () => { const data = await getProject(id); if (data) await loadProject(data); });
+  } else if (act === 'del') {
+    if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = t('proj.delConfirm'); btn.classList.add('danger'); return; }
+    await deleteProject(id);
+    if (id === S.id) { resetState(); dirty = false; syncSettingsForm(); selectSection(-1); renderRecList(); updateProjHeader(); scheduleLog(0); setSaveState('saved'); }
+    renderProjects();
+  } else if (act === 'rename') {
+    const b = row.querySelector('b'), inp = document.createElement('input');
+    inp.type = 'text'; inp.value = b.textContent; b.replaceWith(inp); inp.focus(); inp.select();
+    const commit = async () => {
+      const name = inp.value.trim() || b.textContent;
+      const metas = await listProjects(); const m = metas.find((x) => x.id === id);
+      if (m) await putMeta({ ...m, name });
+      if (id === S.id) { S.name = name; updateProjHeader(); markDirty(); }
+      renderProjects();
+    };
+    inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') inp.blur(); });
+    inp.addEventListener('blur', commit, { once: true });
+  }
+});
+
+$('projBtn').addEventListener('click', async () => { await flushSave(); await renderProjects(); $('projDlg').showModal(); });
+$('projClose').addEventListener('click', () => $('projDlg').close());
+$('newProjBtn').addEventListener('click', async () => {
+  await flushSave();
+  resetState(); S.name = $('newProjName').value.trim() || t('proj.untitled'); $('newProjName').value = '';
+  syncSettingsForm(); setAge(); selectSection(-1); learnNow(); renderRecList(); updateProjHeader(); scheduleLog(0);
+  await saveToDB(); renderProjects(); $('projDlg').close();
+});
+$('openTest').addEventListener('click', async () => { $('projDlg').close(); await openTestProject(); });
+$('openIdeal').addEventListener('click', async () => { $('projDlg').close(); await busy(loadExample); });
+$('expProj').addEventListener('click', () => busy(() => saveFile(`${safe(S.name)}.ichantool.json`, JSON.stringify(serialize(false)), 'application/json')));
+$('impProj').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  $('projDlg').close();
+  await busy(async () => {
+    let p;
+    try { p = JSON.parse(await f.text()); if (p.app !== 'IchAnTool' || p.kind !== 'project') throw new Error(); }
+    catch { toast(t('err.project')); return; }
+    await flushSave();
+    p.id = uid(); if (!p.name) p.name = f.name.replace(/\.ichantool\.json$|\.json$/i, '');
+    await loadProject(p); await saveToDB(); toast(t('loaded'));
   });
 });
 
-function resetState() {
-  S.sections = []; S.cur = -1; S.undo = []; S.selected = 0; S.library = []; S.classes = defaultClasses(); S.active = 'undet';
-  S.settings = { binPx: 50, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3 };
-  $('undoBtn').disabled = true; $('detectStatus').textContent = '';
+/* ───────────── test core (IODP 397-U1385I-1H) ───────────── */
+
+const TEST_CORE = {
+  name: 'Sondeo de prueba · IODP 397-U1385I-1H',
+  sections: [[1, 0, 1.5], [2, 1.5, 2.99], [3, 2.99, 4.49], [4, 4.49, 5.98], [5, 5.98, 7.48], [6, 7.48, 8.78]],
+  age: '# Modelo de edad ILUSTRATIVO, no publicado: tasa de sedimentación constante supuesta de 10 cm/ka,\n# solo para probar la conversión a edad. Sustitúyelo por el modelo publicado del sitio U1385.\n# profundidad CSF-A (m), edad (ka)\n0, 0\n8.78, 87.8',
+  records: [['U1385I-1H/records/397-U1385I-1H_RSC_color.csv', 'Color RSC'], ['U1385I-1H/records/397-U1385I-1H_MS.csv', 'Susceptibilidad magnética']],
+};
+
+async function openTestProject() {
+  await flushSave();
+  await busy(async () => {
+    resetState(); loading = true;
+    try {
+      S.name = TEST_CORE.name;
+      S.notes = 'IODP Expedition 397, Site U1385, Hole I, Core 1H. Section-half images, colour reflectance (RSC) and magnetic susceptibility from the IODP LIMS (web.iodp.tamu.edu/LORE). Images reduced to 50 px/cm.';
+      for (const [i, top, bottom] of TEST_CORE.sections) {
+        const path = `U1385I-1H/web/397-U1385I-1H-${i}-A_50pxcm.jpg`;
+        const bytes = new Uint8Array(await (await fetchAsset(path)).arrayBuffer());
+        const { w, h, rgba } = await decodeBytes(bytes, path, 'image/jpeg', { k: 1 });
+        const s = newSection({ name: `U1385I-1H-${i}`, file: { name: path.split('/').pop(), type: 'image/jpeg', bytes }, w, h, orig: rgba });
+        const m = Math.round(w * 0.1);
+        Object.assign(s, { top, bottom, units: 'm', roi: { x0: m, y0: 0, x1: w - m, y1: h }, preset: 'levels', filters: { ...FILTER_PRESETS.levels } });
+        s.detect = { ...DEFAULT_DETECT, offset: 14, radius: 50, minArea: 20, smooth: 2 };
+        s.enh = applyFilters(s.orig, w, h, s.filters);
+        S.sections.push(s);
+      }
+      S.settings.binPx = 100;
+      $('ageText').value = TEST_CORE.age; $('ageUnits').value = 'ka';
+      for (const [path, name] of TEST_CORE.records) {
+        const tab = parseTable(await (await fetchAsset(path)).text());
+        addRecordFromTable(name, tab, 0, 'depth', tab.headers.map((_, i) => i).slice(1));
+      }
+      for (const s of S.sections) detectSection(s);
+    } catch (e) { toast(t('err.image', { m: e.message || e })); }
+    finally { loading = false; }
+    syncSettingsForm(); setAge(); selectSection(0, true); learnNow(); updateProjHeader(); renderRecList(); renderLogPanel(); scheduleLog(0);
+    await saveToDB();
+  });
 }
-$('newProj').addEventListener('click', () => $('confirmNew').showModal());
-$('cnNo').addEventListener('click', () => $('confirmNew').close());
-$('cnYes').addEventListener('click', () => {
-  $('confirmNew').close(); resetState(); $('ageText').value = ''; setAge(); syncSettingsForm(); selectSection(-1); learnNow();
+
+async function startup() {
+  storageOK = await storageAvailable();
+  setSaveState(storageOK ? 'saved' : 'off');
+  if (storageOK) {
+    let last = null; try { last = localStorage.getItem('ichantool.last'); } catch { /* storage blocked */ }
+    const list = await listProjects().catch(() => []);
+    const target = list.find((p) => p.id === last) || list.sort((a, b) => b.updated - a.updated)[0];
+    if (target) {
+      const data = await getProject(target.id).catch(() => null);
+      if (data) { await busy(() => loadProject(data)); return; }
+    }
+  }
+  await openTestProject();
+}
+
+/* ───────────── composite log ───────────── */
+
+function defaultLogView() {
+  return { axis: 'depth', from: null, to: null, height: 900, imgMode: 'enh', overlay: true,
+    tracks: { image: true, total: true, species: true, BI: true, ii: true, manual: true } };
+}
+S.logView = defaultLogView();
+let mode = 'section', logTimer = 0, lastLog = null;
+
+function setMode(m) {
+  mode = m;
+  $('work').classList.toggle('log', m === 'log');
+  $('modeSection').setAttribute('aria-pressed', String(m === 'section'));
+  $('modeLog').setAttribute('aria-pressed', String(m === 'log'));
+  if (m === 'log') { renderLogPanel(); scheduleLog(0); } else requestAnimationFrame(resizeCanvases);
+}
+$('modeSection').addEventListener('click', () => setMode('section'));
+$('modeLog').addEventListener('click', () => setMode('log'));
+
+function scheduleLog(ms = 200) { if (mode !== 'log') return; clearTimeout(logTimer); logTimer = setTimeout(() => busy(renderLog), ms); }
+
+function compositeData() {
+  const secs = [...S.sections].sort((a, b) => a.top * UNIT_TO_CM[a.units] - b.top * UNIT_TO_CM[b.units]);
+  const base = secs[0]?.units || 'cm';
+  const f = (s) => UNIT_TO_CM[s.units] / UNIT_TO_CM[base];
+  for (const s of secs) analyze(s);
+  const model = S.age.model, axis = S.logView.axis === 'age' && model ? 'age' : 'depth';
+  const rows = compositeRows(secs.map((s) => ({ name: s.name, bins: s.bins.map((b) => ({ ...b, dTop: b.dTop * f(s), dBottom: b.dBottom * f(s), depth: b.depth * f(s) })) })), { axis, model });
+  return { secs, base, f, model, axis, rows };
+}
+
+function sectionCanvas(s) {
+  const lv = S.logView, key = `${s.logVer}|${lv.imgMode}|${lv.overlay}|${S.ovAlpha}|${S.settings.predThr}|${S.settings.includePred}|${S.settings.countCandidates}`;
+  if (s._lc?.key === key) return s._lc.canvas;
+  const c = document.createElement('canvas'); c.width = s.w; c.height = s.h;
+  const ctx = c.getContext('2d'), im = ctx.createImageData(s.w, s.h), d = im.data;
+  d.set(lv.imgMode === 'orig' ? s.orig : s.enh);
+  if (lv.overlay) {
+    const eff = effClassArray(s), cols = S.classes.map((k) => hex(k.color)), a = Math.max(0.35, S.ovAlpha);
+    for (let i = 0; i < s.labels.length; i++) {
+      const id = s.labels[i]; if (!id || s.exclude[i]) continue;
+      const k = eff[id]; if (k < 0) continue;
+      const j = i * 4, col = cols[k];
+      d[j] += (col[0] - d[j]) * a; d[j + 1] += (col[1] - d[j + 1]) * a; d[j + 2] += (col[2] - d[j + 2]) * a;
+    }
+  }
+  ctx.putImageData(im, 0, 0);
+  s._lc = { key, canvas: c };
+  return c;
+}
+
+/** Core image strip for the window, resampled row by row onto the depth or age axis. */
+function stripDataURL(D, from, to, H, W) {
+  const Hc = Math.min(4000, Math.round(H * 2)), c = document.createElement('canvas'); c.width = W; c.height = Hc;
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, Hc);
+  const inv = invertModel(D.model);
+  for (let r = 0; r < Hc; r++) {
+    const v = from + ((r + 0.5) / Hc) * (to - from);
+    const d = D.axis === 'age' ? interpAge(inv, v) : v; if (d == null) continue;
+    const s = D.secs.find((q) => d >= q.top * D.f(q) && d < q.bottom * D.f(q)); if (!s) continue;
+    const row = Math.floor(rowAtDepth(s, d / D.f(s))); if (row < s.roi.y0 || row >= s.roi.y1) continue;
+    ctx.drawImage(sectionCanvas(s), s.roi.x0, row, s.roi.x1 - s.roi.x0, 1, 0, r, W, 1);
+  }
+  return c.toDataURL('image/jpeg', 0.88);
+}
+
+function logRecords(D) {
+  const inv = invertModel(D.model), out = [];
+  for (const r of S.records) for (const s of r.series) if (s.show) out.push({ name: s.name, color: s.color, reverse: s.reverse, axis: r.axis, x: s.x, y: s.y, pts: s.x.map((x, i) => [toAxis(x, r.axis, D.axis, D.model, inv), s.y[i]]) });
+  return out;
+}
+
+function renderLog() {
+  const box = $('logSvg');
+  if (!S.sections.length) { box.innerHTML = `<p class="note" style="padding:24px">${t('log.empty')}</p>`; lastLog = null; return; }
+  const D = compositeData(), lv = S.logView;
+  const [r0, r1] = rowsRange(D.rows);
+  let from = lv.from ?? r0, to = lv.to ?? r1;
+  if (!(to > from)) { from = r0; to = r1; }
+  $('logFrom').value = +from.toPrecision(6); $('logTo').value = +to.toPrecision(6);
+  const classes = S.classes.map((c, i) => ({ name: c.name, color: c.color, index: i, counts: c.counts })).filter((c) => c.counts);
+  const records = logRecords(D), imgW = 64;
+  const image = lv.tracks.image ? { href: stripDataURL(D, from, to, lv.height, imgW * 2) } : null;
+  const boundaries = D.secs.map((s) => ({ a: D.axis === 'age' ? interpAge(D.model, s.top * D.f(s)) : s.top * D.f(s), label: s.name })).filter((b) => b.a != null);
+  const axisLabel = D.axis === 'age' ? `${t('r.age')} (${S.age.units})` : `${t('r.depth')} (${D.base})`;
+  const res = buildLogSVG({
+    title: S.name, subtitle: t('log.subtitle', { n: D.secs.length, b: S.settings.binPx, from: fmt(from, 4), to: fmt(to, 4), u: D.axis === 'age' ? S.age.units : D.base }),
+    axisLabel, from, to, height: lv.height, rows: D.rows, classes, tracks: lv.tracks, image, imageWidth: imgW, records, boundaries,
+    labels: { total: t('log.total'), species: t('log.species'), image: t('log.image') },
+  });
+  box.innerHTML = res.svg;
+  lastLog = { ...D, from, to, classes, records, svg: res.svg };
+}
+
+function renderLogPanel() {
+  const lv = S.logView;
+  $('logAxis').value = lv.axis === 'age' && S.age.model ? 'age' : 'depth';
+  $('logHeight').value = lv.height; $('logHeightOut').textContent = lv.height + ' px';
+  $('logImgMode').value = lv.imgMode; $('logOverlay').checked = lv.overlay;
+  document.querySelectorAll('#logTracks [data-track]').forEach((el) => (el.checked = !!lv.tracks[el.dataset.track]));
+}
+
+$('logPanel').addEventListener('change', (e) => {
+  const el = e.target, lv = S.logView;
+  if (el.dataset.track) lv.tracks[el.dataset.track] = el.checked;
+  else if (el.id === 'logAxis') { lv.axis = el.value; lv.from = lv.to = null; }
+  else if (el.id === 'logFrom' || el.id === 'logTo') { const a = parseFloat($('logFrom').value), b = parseFloat($('logTo').value); if (b > a) { lv.from = a; lv.to = b; } }
+  else if (el.id === 'logImgMode') lv.imgMode = el.value;
+  else if (el.id === 'logOverlay') lv.overlay = el.checked;
+  else if (el.id === 'logHeight') lv.height = +el.value;
+  else if (el.closest('#recList')) return;
+  else return;
+  markDirty(); scheduleLog(50);
 });
+$('logHeight').addEventListener('input', (e) => { $('logHeightOut').textContent = e.target.value + ' px'; });
+$('logAll').addEventListener('click', () => { S.logView.from = S.logView.to = null; markDirty(); scheduleLog(0); });
+$('logSVGBtn').addEventListener('click', () => { if (lastLog) saveFile(`${safe(S.name)}_registro.svg`, lastLog.svg, 'image/svg+xml'); });
+$('logCSVBtn').addEventListener('click', () => {
+  if (!lastLog) return;
+  saveFile(`${safe(S.name)}_registro.csv`, windowCSV({ rows: lastLog.rows, from: lastLog.from, to: lastLog.to, classes: lastLog.classes, records: lastLog.records, units: lastLog.base, ageUnits: S.age.units }), 'text/csv');
+});
+
+/* external records (CSV, TXT, Excel) */
+const REC_COLORS = ['#1f6fb2', '#2e7d4f', '#b3261e', '#7b4fb2', '#c77c02', '#0f7c8a', '#5b6763'];
+let pendingTable = null;
+
+function addRecordFromTable(name, tab, xCol, axis, yCols) {
+  const n0 = S.records.reduce((k, r) => k + r.series.length, 0);
+  const series = yCols.map((c, k) => {
+    const pts = tab.rows.map((r) => [r[xCol], r[c]]).filter((p) => p[0] != null && p[1] != null).sort((a, b) => a[0] - b[0]);
+    return { name: tab.headers[c], x: pts.map((p) => p[0]), y: pts.map((p) => p[1]), color: REC_COLORS[(n0 + k) % REC_COLORS.length], show: true, reverse: false };
+  }).filter((s) => s.x.length);
+  if (!series.length) return false;
+  S.records.push({ id: uid(), name, axis, series });
+  renderRecList(); markDirty(); scheduleLog();
+  return true;
+}
+
+function renderRecList() {
+  $('recList').innerHTML = S.records.map((r) => `
+    <div class="rec" data-id="${r.id}">
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(r.name)}</b><button class="btn small ghost" data-del="1" aria-label="delete">✕</button></div>
+      <span class="note">${t(r.axis === 'age' ? 'log.age' : 'log.depth')} · ${r.series[0]?.x.length || 0} ${t('log.points')}</span>
+      ${r.series.map((s, i) => `<div class="row srow"><label class="chk"><input type="checkbox" data-s="${i}" data-k="show" ${s.show ? 'checked' : ''}><span>${esc(s.name)}</span></label>
+        <input type="color" data-s="${i}" data-k="color" value="${s.color}" aria-label="color">
+        <label class="chk note"><input type="checkbox" data-s="${i}" data-k="reverse" ${s.reverse ? 'checked' : ''}>${t('log.reverse')}</label></div>`).join('')}
+    </div>`).join('') || `<p class="note">${t('log.noRecords')}</p>`;
+}
+$('recList').addEventListener('change', (e) => {
+  const box = e.target.closest('.rec'), r = S.records.find((x) => x.id === box?.dataset.id); if (!r) return;
+  const s = r.series[+e.target.dataset.s]; if (!s) return;
+  const k = e.target.dataset.k; s[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+  markDirty(); scheduleLog(50);
+});
+$('recList').addEventListener('click', (e) => {
+  if (!e.target.dataset.del) return;
+  const id = e.target.closest('.rec').dataset.id;
+  S.records = S.records.filter((r) => r.id !== id); renderRecList(); markDirty(); scheduleLog(0);
+});
+
+$('recFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    let text;
+    if (/\.xlsx?$|\.ods$/i.test(f.name)) {
+      if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+      const wb = window.XLSX.read(await f.arrayBuffer(), { type: 'array' });
+      text = window.XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '\t' });
+    } else text = await f.text();
+    const tab = parseTable(text);
+    if (tab.headers.length < 2 || !tab.rows.length) throw new Error(t('rec.short'));
+    pendingTable = tab;
+    const g = guessAxisColumn(tab.headers);
+    $('recName').value = f.name.replace(/\.[^.]+$/, '');
+    $('recX').innerHTML = tab.headers.map((h, i) => `<option value="${i}" ${i === g.col ? 'selected' : ''}>${esc(h)}</option>`).join('');
+    $('recAxis').value = g.axis;
+    const fillCols = () => {
+      const xc = +$('recX').value;
+      $('recCols').innerHTML = tab.headers.map((h, i) => i === xc ? '' : `<label class="chk"><input type="checkbox" value="${i}" ${tab.rows.some((r) => r[i] != null) ? 'checked' : 'disabled'}><span>${esc(h)}</span></label>`).join('');
+    };
+    $('recX').onchange = fillCols; fillCols();
+    $('recDlg').showModal();
+  } catch (err) { toast(t('rec.err', { m: err.message || err })); }
+});
+$('recCancel').addEventListener('click', () => $('recDlg').close());
+$('recAdd').addEventListener('click', () => {
+  if (!pendingTable) return;
+  const cols = [...$('recCols').querySelectorAll('input:checked')].map((i) => +i.value);
+  if (addRecordFromTable($('recName').value.trim() || 'Registro', pendingTable, +$('recX').value, $('recAxis').value, cols)) $('recDlg').close();
+  else toast(t('rec.err', { m: t('rec.short') }));
+});
+
+document.addEventListener('change', (e) => { if (e.target.closest('.side.left:not(#logPanel), .side.right')) markDirty(); });
 
 /* ───────────── misc ───────────── */
 
@@ -1081,12 +1439,14 @@ function syncSettingsForm() {
   $('inclPred').checked = st.includePred; $('countCand').checked = st.countCandidates;
   $('predThr').value = st.predThr; $('thrOut').textContent = Math.round(st.predThr * 100) + '%';
   $('novelty').value = st.novelty; $('novOut').textContent = '×' + st.novelty;
+  $('maxMP').value = st.maxMP;
   renderBinNote();
 }
 
 function applyLanguage() {
   applyI18n(); buildForms(); renderSectionForm(); renderClasses(); renderObject(); renderLearn(); renderResults(); setAge();
   $('langBtn').textContent = lang() === 'es' ? 'EN' : 'ES';
+  renderRecList(); updateProjHeader(); scheduleLog(0);
   requestRender();
 }
 $('langBtn').addEventListener('click', () => { setLang(lang() === 'es' ? 'en' : 'es'); applyLanguage(); });
@@ -1099,7 +1459,7 @@ new ResizeObserver(resizeCanvases).observe(vp);
 buildForms(); applyLanguage(); syncSettingsForm();
 setTool('select'); setBrush(10); $('wandTol').value = S.wandTol; $('tolOut').textContent = S.wandTol; $('ovAlpha').value = S.ovAlpha * 100;
 resizeCanvases();
-loadExample();
+startup();
 
 // Exposed for automated tests.
-window.ichantool = { S, runDetection, analyze, assignClass, learnNow, setTool, nextReview, BI, II };
+window.ichantool = { S, runDetection, analyze, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II };

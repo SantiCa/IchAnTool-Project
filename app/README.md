@@ -38,6 +38,8 @@ Single offline file (no server needed): `python tools/build_standalone.py` -> `d
 - `js/imageproc.js` — enhancement, detection, connected components, wand, lasso, shape descriptors
 - `js/learn.js` — incremental k-NN classifier with novelty detection
 - `js/app.js` — interface, tools, rendering, files
+- `js/log.js` — composite core log: table parsing, depth/age axis, SVG and CSV of a window
+- `js/storage.js` — project library in IndexedDB
 - `js/i18n.js` — Spanish / English strings
 
 Tests: `npm test` (Node 22).

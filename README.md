@@ -77,7 +77,7 @@ src/ichantool/      Python package
   plotting.py       quick-look plots
   cli.py            `ichantool` command
 tests/              automated tests (incl. regression against v2.1)
-examples/           example images
+examples/           example images; U1385I-1H = test core (IODP, public data)
 docs/               method and roadmap
 publications/       draft papers and candidate journals
 legacy/             original v2.1 code (2019), unchanged

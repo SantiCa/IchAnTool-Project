@@ -268,6 +268,24 @@ export function features(a, ppu) {
   };
 }
 
+/** Box-average downsampling of an RGBA raster by an integer factor k (remainder rows/columns dropped). */
+export function downsampleRGBA(src, w, h, k) {
+  if (k <= 1) return { rgba: src, w, h };
+  const W = Math.floor(w / k), H = Math.floor(h / k), out = new Uint8ClampedArray(W * H * 4), n = k * k;
+  for (let Y = 0; Y < H; Y++) {
+    for (let X = 0; X < W; X++) {
+      let r = 0, g = 0, b = 0;
+      for (let dy = 0; dy < k; dy++) {
+        let j = ((Y * k + dy) * w + X * k) * 4;
+        for (let dx = 0; dx < k; dx++, j += 4) { r += src[j]; g += src[j + 1]; b += src[j + 2]; }
+      }
+      const o = (Y * W + X) * 4;
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = 255;
+    }
+  }
+  return { rgba: out, w: W, h: H };
+}
+
 /** Rotate a w×h raster with `ch` channels by 90° (dir = 1 clockwise, -1 counter-clockwise). */
 export function rotate90(src, w, h, ch, dir) {
   const out = new src.constructor(src.length);

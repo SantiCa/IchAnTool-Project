@@ -163,6 +163,42 @@ dialog h2 { margin: 0 0 8px; font: 600 18px var(--font-head); }
 dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 8px 14px; border-radius: var(--r); z-index: 10; max-width: calc(100vw - 32px); }
 
+/* modes, projects, composite log */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg button { border: 0; background: var(--field); padding: 5px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.proj { display: inline-flex; gap: 6px; align-items: baseline; max-width: 340px; }
+.btn.proj b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.btn.proj .lbl { color: var(--muted); font-size: 11.5px; }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+.savestate { font-size: 11.5px; color: var(--muted); align-self: center; min-width: 7em; }
+.savestate[data-state="saved"] { color: var(--ok); }
+.savestate[data-state="error"], .savestate[data-state="off"] { color: var(--danger); }
+.plist { max-height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); }
+.prow { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.prow:last-child { border-bottom: 0; }
+.prow.current { background: var(--accent-soft); }
+.pinfo { display: grid; min-width: 0; }
+.reccols { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 4px; max-height: 30vh; overflow: auto; }
+.rec { border: 1px solid var(--line); border-radius: var(--r); padding: 8px; display: grid; gap: 4px; }
+.rec .srow { flex-wrap: nowrap; justify-content: space-between; }
+.rec .srow .chk { min-width: 0; }
+.rec .srow input[type=color] { width: 22px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 4px; }
+#logPanel, #logStage { display: none; }
+.work.log { grid-template-columns: 300px minmax(0, 1fr); }
+.work.log > .side, .work.log > .stage { display: none; }
+.work.log > #logPanel { display: block; border-right: 1px solid var(--line); }
+.work.log > #logStage { display: block; min-width: 0; min-height: 0; overflow: auto; padding: 16px; }
+#logPanel .body { grid-template-columns: minmax(0, 1fr); }
+#logPanel .body > *, .rec, .rec .srow > * { min-width: 0; }
+.rec .srow .chk { overflow: hidden; }
+.rec .srow .chk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rec .srow .chk.note { flex: none; }
+#logSvg { display: inline-block; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r); }
+#logSvg svg { display: block; }
+dialog input[type=text] { min-width: 0; }
+
 @media (max-width: 1100px) { .work { grid-template-columns: 250px minmax(0, 1fr) 280px; } .viewport { grid-template-columns: minmax(0, 1fr) 180px; } }
 @media (max-width: 860px) {
   .app { height: auto; }
@@ -171,6 +207,8 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
   .side.left { border-right: 0; }
   .side.right { border-left: 0; border-top: 1px solid var(--line); }
   .viewport { grid-template-columns: minmax(0, 1fr) 130px; }
+  .work.log { grid-template-columns: minmax(0, 1fr); }
+  .work.log > #logStage { order: -1; max-height: 80vh; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -179,22 +217,24 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 <div class="app">
   <header class="top">
     <div class="brand"><b>Ich<i>An</i>Tool</b><span data-i18n="app.tagline"></span></div>
+    <div class="seg" role="group"><button id="modeSection" aria-pressed="true" data-i18n="mode.section"></button><button id="modeLog" aria-pressed="false" data-i18n="mode.log"></button></div>
     <div class="grow"></div>
     <div class="acts">
-      <button class="btn" id="newProj" data-i18n="top.new"></button>
-      <label class="btn file"><span data-i18n="top.open"></span><input type="file" id="openProj" accept=".json,application/json"></label>
-      <button class="btn" id="saveProj" data-i18n="top.save"></button>
+      <button class="btn proj" id="projBtn"><span class="lbl" data-i18n="proj.label"></span><b id="projName"></b><span aria-hidden="true">▾</span></button>
+      <span class="savestate" id="saveState"></span>
       <button class="btn ghost" id="helpBtn" data-i18n="top.help"></button>
       <button class="btn ghost" id="langBtn">EN</button>
     </div>
   </header>
 
-  <div class="work">
+  <div class="work" id="work">
     <aside class="side left">
       <details class="step" open>
         <summary><span class="n">1</span><span data-i18n="s1"></span></summary>
         <div class="body">
           <label class="btn primary file" style="justify-content:center"><span data-i18n="sec.add"></span><input type="file" id="addImg" accept="image/*,.tif,.tiff" multiple></label>
+          <label class="f"><span data-i18n="sec.maxMP"></span><select id="maxMP"><option value="2">2 MP</option><option value="4">4 MP</option><option value="8">8 MP</option><option value="16">16 MP</option><option value="1000" data-i18n="mp.orig"></option></select></label>
+          <p class="note" data-i18n="sec.maxMPNote"></p>
           <div class="f"><span data-i18n="sec.section"></span>
             <div class="row" style="flex-wrap:nowrap"><select id="secSel"></select><button class="btn small" id="secDel" data-i18n-title="sec.delete">✕</button></div>
           </div>
@@ -326,6 +366,34 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
         </div>
       </div>
     </aside>
+
+    <aside class="side left" id="logPanel">
+      <div class="body" style="padding:14px;display:grid;gap:12px">
+        <label class="f"><span data-i18n="log.axis"></span><select id="logAxis"><option value="depth" data-i18n="log.depth"></option><option value="age" data-i18n="log.age"></option></select></label>
+        <div class="f"><span data-i18n="log.window"></span>
+          <div class="grid2"><label class="f"><span data-i18n="log.from"></span><input type="number" id="logFrom" step="any"></label><label class="f"><span data-i18n="log.to"></span><input type="number" id="logTo" step="any"></label></div>
+          <button class="btn small" id="logAll" data-i18n="log.all"></button>
+        </div>
+        <div class="slider"><span data-i18n="log.height"></span><output id="logHeightOut"></output><input type="range" id="logHeight" min="300" max="3000" step="50"></div>
+        <div class="f" id="logTracks"><span data-i18n="log.tracks"></span>
+          <label class="chk"><input type="checkbox" data-track="image"><span data-i18n="log.image"></span></label>
+          <label class="chk"><input type="checkbox" data-track="total"><span data-i18n="log.total"></span></label>
+          <label class="chk"><input type="checkbox" data-track="species"><span data-i18n="log.species"></span></label>
+          <label class="chk"><input type="checkbox" data-track="BI"><span>BI</span></label>
+          <label class="chk"><input type="checkbox" data-track="ii"><span>ii</span></label>
+          <label class="chk"><input type="checkbox" data-track="manual"><span data-i18n="log.manual"></span></label>
+        </div>
+        <div class="grid2"><label class="f"><span data-i18n="log.imgMode"></span><select id="logImgMode"><option value="enh" data-i18n="log.enh"></option><option value="orig" data-i18n="log.orig"></option></select></label>
+          <label class="chk" style="align-self:end"><input type="checkbox" id="logOverlay"><span data-i18n="log.overlay"></span></label></div>
+        <div class="f"><span data-i18n="log.records"></span>
+          <div id="recList" style="display:grid;gap:6px"></div>
+          <label class="btn small file"><span data-i18n="log.addRec"></span><input type="file" id="recFile" accept=".csv,.txt,.tsv,.dat,.xlsx,.xls,.ods,text/csv,text/plain"></label>
+          <p class="note" data-i18n="log.recNote"></p>
+        </div>
+        <div class="exp"><button class="btn small primary" id="logSVGBtn" data-i18n="log.svg"></button><button class="btn small" id="logCSVBtn" data-i18n="log.csv"></button></div>
+      </div>
+    </aside>
+    <section id="logStage"><div id="logSvg"></div></section>
   </div>
 </div>
 
@@ -334,9 +402,29 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
   <div data-i18n-html="help.body"></div>
   <div class="row" style="justify-content:flex-end"><button class="btn" id="helpClose" data-i18n="help.close"></button></div>
 </dialog>
-<dialog id="confirmNew">
-  <p data-i18n="confirm.new"></p>
-  <div class="row" style="justify-content:flex-end"><button class="btn" id="cnNo" data-i18n="confirm.no"></button><button class="btn primary" id="cnYes" data-i18n="confirm.yes"></button></div>
+<dialog id="projDlg">
+  <h2 data-i18n="proj.title"></h2>
+  <div id="projList" class="plist"></div>
+  <div class="row" style="flex-wrap:nowrap;margin-top:12px"><input type="text" id="newProjName" data-i18n-ph="proj.newPh"><button class="btn primary" id="newProjBtn" data-i18n="proj.create"></button></div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn small" id="openTest" data-i18n="proj.test"></button>
+    <button class="btn small" id="openIdeal" data-i18n="proj.ideal"></button>
+    <label class="btn small file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json"></label>
+    <button class="btn small" id="expProj" data-i18n="proj.export"></button>
+  </div>
+  <p class="note" data-i18n="proj.note"></p>
+  <div class="row" style="justify-content:flex-end"><button class="btn" id="projClose" data-i18n="help.close"></button></div>
+</dialog>
+<dialog id="recDlg">
+  <h2 data-i18n="rec.title"></h2>
+  <div style="display:grid;gap:10px">
+    <label class="f"><span data-i18n="rec.name"></span><input type="text" id="recName"></label>
+    <div class="grid2"><label class="f"><span data-i18n="rec.x"></span><select id="recX"></select></label>
+      <label class="f"><span data-i18n="rec.axis"></span><select id="recAxis"><option value="depth" data-i18n="log.depth"></option><option value="age" data-i18n="log.age"></option></select></label></div>
+    <div class="f"><span data-i18n="rec.cols"></span><div id="recCols" class="reccols"></div></div>
+    <p class="note" data-i18n="log.recNote"></p>
+  </div>
+  <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" id="recCancel" data-i18n="confirm.no"></button><button class="btn primary" id="recAdd" data-i18n="rec.add"></button></div>
 </dialog>
 <div class="toast" id="toast" hidden></div>
 

@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V5 (30-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.1.
+Versión del documento: V7 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.2.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -24,7 +24,11 @@ límites del método.
 13. Validación realizada
 14. Limitaciones conocidas
 15. Reproducibilidad
-16. Referencias
+16. Resolución de trabajo al importar
+17. Proyectos (carpetas) y guardado automático
+18. Registro compuesto del sondeo
+19. Registros externos
+20. Referencias
 
 ---
 
@@ -62,10 +66,12 @@ Módulos de la aplicación web:
 | `app/js/core.js` | Intervalos, índices, edad, CSV, codificación RLE | No |
 | `app/js/imageproc.js` | Realce, detección, componentes, varita, lazo, descriptores, giro | No |
 | `app/js/learn.js` | Clasificador k-NN con rechazo de novedades | No |
+| `app/js/log.js` | Registro compuesto: tablas, ejes, SVG y CSV de una ventana | No |
+| `app/js/storage.js` | Biblioteca de proyectos (IndexedDB) | Sí |
 | `app/js/app.js` | Interfaz, herramientas, dibujo, archivos | Sí |
 | `app/js/i18n.js` | Textos en español e inglés | Sí |
 
-Los tres primeros no usan el navegador. Por eso se prueban automáticamente con Node
+`core.js`, `imageproc.js`, `learn.js` y `log.js` no usan el navegador. Por eso se prueban automáticamente con Node
 (`tests/app/core.test.mjs`).
 
 ---
@@ -472,7 +478,8 @@ Los ajustes activos se guardan en el proyecto, así que cualquier resultado se p
 | `*_mask.png` | Máscara a tamaño completo: fondo negro y cada píxel contado con el color de su clase. Compatible con `ichantool analyze --palette` del paquete Python |
 | `*_palette.json` | `{nombre de clase: "#rrggbb"}` |
 | `ichantool_model.json` | Modelo de aprendizaje: lista de descriptores, clases y ejemplos `{name, x}` |
-| `*.ichantool.json` | Proyecto completo: clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE |
+| `*_registro.svg` / `*_registro.csv` | Registro compuesto de la ventana elegida (§18) |
+| `*.ichantool.json` | Proyecto completo (formato v2; también abre v1): clases, ajustes, modelo de edad, ejemplos importados y, por sección, la imagen original (base64), el giro, profundidades, zona, realce, detección, índices manuales, objetos y capas de etiquetas y exclusión comprimidas por RLE. La v2 añade `ds` (factor de reducción), `records` (registros externos), `logView` (vista del registro) y `notes` |
 
 **RLE (codificación por longitud de series):** `[valor, repeticiones, valor, repeticiones, …]`.
 Reduce mucho el tamaño de las máscaras, que tienen grandes zonas iguales.
@@ -486,7 +493,7 @@ Reduce mucho el tamaño de las máscaras, que tienen grandes zonas iguales.
   casos calculados a mano, último intervalo incompleto, multiclase por colores, gris y RGB,
   profundidad y edad, imagen de ejemplo, línea de comandos y **regresión frente al CSV publicado
   de la V2** (coincidencia exacta en profundidad, porcentaje, BI e ii).
-- **Web (8 pruebas, `tests/app/core.test.mjs`):** los mismos casos de índices e intervalos que en
+- **Web (13 pruebas, `tests/app/*.test.mjs`):** en `log.test.mjs`, lectura de tablas (coma, punto y coma con coma decimal, espacios, comentarios), elección de la columna de profundidad o edad, marcas de eje, cambio profundidad↔edad, filas compuestas, SVG y CSV con interpolación, y reducción por bloques. En `core.test.mjs`: los mismos casos de índices e intervalos que en
   Python, exclusiones, modelo de edad, RLE y CSV, detección de una madriguera vertical sintética
   (verticalidad > 0,9 y alargamiento > 3), varita, lazo, giro, realce, y un clasificador que
   aprende dos clases (acierto 100 %) y rechaza un objeto lejano.
@@ -529,6 +536,10 @@ Estos puntos son el objetivo de los artículos 2 y 3 (ver `publications/METODOS_
 6. **Memoria:** la aplicación carga la imagen completa (unos 13 bytes por píxel entre capas). Más
    de unos 50 millones de píxeles puede ser lento.
 7. **El paquete Python todavía no tiene capa de exclusión**; la aplicación web sí.
+8. **Proyectos locales:** viven en el navegador de cada ordenador (§17). Borrar los datos del
+   navegador los elimina; hay que exportar copias.
+9. **Registro en edad:** la imagen y las series dependen del modelo de edad, que se supone
+   monótono. No se propaga su incertidumbre.
 
 ---
 
@@ -552,7 +563,142 @@ npm test                               # Aplicación web (Node 22)
 
 ---
 
-## 16. Referencias
+## 16. Resolución de trabajo al importar (aplicación web)
+
+Implementación: `imageproc.js::downsampleRGBA` y `app.js::decodeBytes`.
+
+Las imágenes de escáner de testigos pueden tener más de 40 millones de píxeles por sección, que no
+caben bien en la memoria del navegador (unos 13 bytes por píxel, §14). Al importar, si
+`ancho × alto > M` megapíxeles (M = «Resolución de trabajo», 8 MP por defecto), la imagen se reduce
+por un factor entero:
+
+    k = ⌈ √(ancho · alto / (M · 10⁶)) ⌉
+
+Cada píxel nuevo es la **media aritmética** de un bloque `k × k` de píxeles originales (en R, G y
+B). Se descartan las últimas `ancho mod k` columnas y `alto mod k` filas, es decir, menos de `k`
+píxeles originales en el borde inferior y derecho. La lectura se hace por franjas de altura
+múltiplo de `k`, sin cargar la imagen completa en memoria.
+
+- El **archivo original** se guarda intacto en el proyecto, junto con `k` (`ds`). Al reabrir el
+  proyecto se aplica el mismo `k`, así que las máscaras coinciden píxel a píxel.
+- La escala de profundidad (§2.3) se calcula sobre la imagen de trabajo, así que el porcentaje no
+  depende de `k`. Lo que cambia es el tamaño mínimo de traza que se puede distinguir.
+
+**Para el revisor.** La reducción por promedio de bloques es un filtro paso bajo seguido de
+submuestreo. Evita el aliasing del submuestreo directo y es reproducible porque `k` queda
+registrado. Se recomienda indicar en los métodos la resolución de trabajo (px/cm), que la
+aplicación muestra junto a la zona de análisis.
+
+---
+
+## 17. Proyectos (carpetas) y guardado automático (aplicación web)
+
+Implementación: `storage.js` y `app.js` (bloque *projects*).
+
+- Cada proyecto es una «carpeta» con:
+  - nombre;
+  - secciones, cada una con su archivo de imagen original, factor `k`, giro, techo, muro, unidades,
+    zona de análisis, realce, detección, objetos, máscaras e índices manuales;
+  - modelo de edad;
+  - clases;
+  - ajustes;
+  - ejemplos importados;
+  - registros externos;
+  - vista del registro.
+- Se guarda en **IndexedDB** del navegador, en dos almacenes: `meta` (lista ligera: nombre, número
+  de secciones, fecha) y `data` (el proyecto completo, con las imágenes como bytes).
+- **Guardado automático** 1,5 s después de cualquier cambio. El estado se muestra junto al nombre
+  del proyecto. Al abrir la aplicación se abre el último proyecto usado.
+- Exportar e importar usa el mismo contenido en JSON, con las imágenes en base64 (§12). Al importar
+  se asigna un identificador nuevo para no sobrescribir otro proyecto.
+- Si el navegador no permite almacenamiento (ventana privada o datos bloqueados), la aplicación lo
+  indica y hay que exportar el proyecto a mano.
+
+---
+
+## 18. Registro compuesto del sondeo (aplicación web)
+
+Implementación: `log.js::compositeRows, buildLogSVG, windowCSV` y `app.js::renderLog, stripDataURL`.
+
+### 18.1 Unión de secciones
+- Las secciones se ordenan por profundidad de techo.
+- Todas las profundidades se pasan a las unidades de la primera sección (mm, cm o m).
+- Los intervalos de cada sección (§3) se unen en una sola serie. **No se recalculan:** cada
+  intervalo conserva su porcentaje, BI, ii, porcentajes por clase e índices manuales.
+
+### 18.2 Eje de profundidad o de edad
+- **Profundidad:** cada intervalo ocupa `[techo, muro)`.
+- **Edad:** techo y muro se convierten con el modelo de edad (§5). Si alguno cae fuera del modelo,
+  el intervalo no se dibuja.
+- Para pasar de edad a profundidad se usa el modelo invertido (pares edad→profundidad ordenados por
+  edad), lo que **supone que la edad crece con la profundidad**.
+
+### 18.3 Ventana de intervalo
+El usuario elige desde–hasta en el eje activo. Se dibujan los intervalos que se solapan con la
+ventana, y todo se recorta al rectángulo de la ventana.
+
+### 18.4 Imagen adaptada al eje
+La columna de imagen se genera fila a fila, con `2 × altura del gráfico` filas (máximo 4 000):
+1. A cada fila de salida `r` le corresponde un valor del eje `v = desde + (r + 0,5)/N · (hasta − desde)`.
+2. Si el eje es edad, `v` se pasa a profundidad con el modelo invertido.
+3. Se busca la sección que contiene esa profundidad y su fila de imagen (§2.3).
+4. Se copia esa fila, dentro de la zona de análisis y escalada al ancho de la columna.
+
+Así la imagen se estira o comprime según el modelo de edad: los tramos de sedimentación lenta
+ocupan más altura en edad. Se usa la imagen realzada u original y, si se elige, la bioturbación
+contada superpuesta con el color de su clase. Es un **muestreo por la fila más cercana**, sin
+interpolar entre filas.
+
+### 18.5 Columnas y escalas
+
+| Columna | Contenido | Escala horizontal |
+|---------|-----------|-------------------|
+| Bioturbación (%) | barra por intervalo y contorno escalonado | 0–100 % fija |
+| Por icnotaxón (%) | barras apiladas por clase contada | 0 al máximo de la ventana redondeado («nice range») |
+| BI / ii | barra por intervalo; índice manual como línea negra | 0–6 |
+| Registro externo | línea que une los puntos en orden de profundidad o edad | mínimo–máximo de los puntos de la ventana, redondeado; invertible |
+
+Las líneas discontinuas marcan el techo de cada sección.
+
+### 18.6 Exportación
+- **SVG:** el mismo SVG que se ve en pantalla (vectorial; la imagen va incrustada como JPEG).
+- **CSV:** una fila por intervalo de la ventana, con sección, profundidades, edad, porcentajes,
+  BI, ii, índices manuales y, por cada serie externa visible, su valor **interpolado linealmente**
+  en el centro del intervalo. La interpolación se hace en el eje propio del registro (profundidad
+  o edad), y queda vacía fuera de su rango.
+
+**Para el revisor.** El registro compuesto no cambia ningún cálculo: es una representación de los
+intervalos de §3 en un eje común. El CSV con los registros interpolados en los mismos intervalos
+permite calcular correlaciones fuera de la aplicación. La interpolación lineal supone que el
+registro externo varía suavemente entre dos medidas, así que conviene que su resolución sea igual
+o mayor que la de los intervalos.
+
+---
+
+## 19. Registros externos (aplicación web)
+
+Implementación: `log.js::parseTable, guessAxisColumn` y `app.js` (diálogo de registros).
+
+- **Formatos:** CSV, TXT, TSV o DAT, y Excel (`.xlsx`, `.xls`, `.ods`, primera hoja, leída con la
+  librería SheetJS 0.18.5).
+- **Lectura** (`parseTable`):
+  - separador detectado entre tabulador, punto y coma, coma o barra vertical (el primero presente en
+    las 6 primeras líneas) o espacios;
+  - coma decimal si el separador no es la coma y aparecen números del tipo `1,5`;
+  - cabecera si la primera fila tiene algún texto no numérico;
+  - se ignoran las líneas que empiezan por `#`;
+  - las celdas no numéricas se tratan como vacías.
+- **Columna de eje:** se propone la primera cabecera que parezca profundidad (depth, prof, mbsf,
+  CSF, CCSF, mcd, m, cm) o, si no hay, edad (age, edad, ka, Ma, yr, cal). El usuario puede cambiarla
+  e indicar si es profundidad o edad.
+- **Series:** cada columna elegida es una serie, con los pares (eje, valor) sin vacíos y ordenados
+  por el eje. Cada serie tiene color, visibilidad y opción de invertir el eje.
+- **Unidades:** una columna de profundidad debe estar en las mismas unidades que el sondeo y una de
+  edad en las del modelo de edad. La aplicación no convierte unidades de registros externos.
+
+---
+
+## 20. Referencias
 
 - Casanova-Arenillas, S., Rodríguez-Tovar, F.J., Martínez-Ruiz, F. (2020). Applied ichnology in
   sedimentary geology: Python scripts as a method to automatize ichnofabric analysis in marine core

@@ -111,6 +111,51 @@ const D = {
   },
 };
 
+Object.assign(D.es, {
+  'mode.section': 'Sección', 'mode.log': 'Registro del sondeo',
+  'proj.label': 'Proyecto', 'proj.title': 'Proyectos', 'proj.untitled': 'Proyecto sin título',
+  'proj.newPh': 'Nombre del nuevo proyecto (p. ej. ODP 977A)', 'proj.create': 'Crear proyecto',
+  'proj.test': 'Abrir sondeo de prueba (IODP U1385I)', 'proj.ideal': 'Abrir ejemplo idealizado (2020)',
+  'proj.import': 'Importar archivo…', 'proj.export': 'Exportar este proyecto',
+  'proj.note': 'Cada proyecto guarda sus imágenes, profundidades, modelo de edad, bioturbación y registros. Se guardan solos en este navegador y en este ordenador. Exporta un archivo para copiarlos a otro equipo o como copia de seguridad.',
+  'proj.open': 'Abrir', 'proj.rename': 'Renombrar', 'proj.del': 'Borrar', 'proj.delConfirm': '¿Borrar? Pulsa otra vez',
+  'proj.sections': '{n} secciones', 'proj.current': 'abierto', 'proj.none': 'Todavía no hay proyectos guardados.',
+  'save.saved': 'Guardado', 'save.saving': 'Guardando…', 'save.dirty': 'Cambios sin guardar', 'save.off': 'Sin guardado automático: exporta el proyecto', 'save.error': 'Error al guardar',
+  'sec.maxMP': 'Resolución de trabajo al importar', 'sec.maxMPNote': 'Las imágenes mayores se reducen promediando píxeles. El archivo original se guarda en el proyecto.', 'mp.orig': 'Original (sin reducir)',
+  'log.axis': 'Eje vertical', 'log.depth': 'Profundidad', 'log.age': 'Edad', 'log.window': 'Ventana de intervalo', 'log.from': 'Desde', 'log.to': 'Hasta',
+  'log.all': 'Todo el sondeo', 'log.height': 'Altura del gráfico', 'log.tracks': 'Columnas', 'log.image': 'Imagen', 'log.total': 'Bioturbación (%)',
+  'log.species': 'Por icnotaxón (%)', 'log.manual': 'Índices manuales (marca negra)', 'log.imgMode': 'Imagen', 'log.enh': 'Realzada', 'log.orig': 'Original',
+  'log.overlay': 'Superponer bioturbación', 'log.records': 'Registros externos', 'log.addRec': 'Añadir registro (CSV, TXT, Excel)…',
+  'log.recNote': 'La columna de profundidad debe estar en las mismas unidades que el sondeo; la de edad, en las del modelo de edad.',
+  'log.svg': 'Exportar SVG', 'log.csv': 'Exportar CSV', 'log.empty': 'Añade secciones para ver el registro del sondeo.', 'log.reverse': 'invertir',
+  'log.points': 'puntos', 'log.noRecords': 'Sin registros. Añade geoquímica, color, susceptibilidad…',
+  'log.subtitle': '{n} secciones · intervalos de {b} px · ventana {from}–{to} {u}',
+  'rec.title': 'Añadir registro', 'rec.name': 'Nombre del registro', 'rec.x': 'Columna de profundidad o edad', 'rec.axis': 'Esa columna es',
+  'rec.cols': 'Columnas a representar', 'rec.add': 'Añadir', 'rec.err': 'No se pudo leer la tabla: {m}', 'rec.short': 'hacen falta al menos dos columnas numéricas',
+});
+Object.assign(D.en, {
+  'mode.section': 'Section', 'mode.log': 'Core log',
+  'proj.label': 'Project', 'proj.title': 'Projects', 'proj.untitled': 'Untitled project',
+  'proj.newPh': 'New project name (e.g. ODP 977A)', 'proj.create': 'Create project',
+  'proj.test': 'Open test core (IODP U1385I)', 'proj.ideal': 'Open idealised example (2020)',
+  'proj.import': 'Import file…', 'proj.export': 'Export this project',
+  'proj.note': 'Each project keeps its images, depths, age model, bioturbation and records. Projects save automatically in this browser on this computer. Export a file to move them to another computer or as a backup.',
+  'proj.open': 'Open', 'proj.rename': 'Rename', 'proj.del': 'Delete', 'proj.delConfirm': 'Delete? Click again',
+  'proj.sections': '{n} sections', 'proj.current': 'open', 'proj.none': 'No saved projects yet.',
+  'save.saved': 'Saved', 'save.saving': 'Saving…', 'save.dirty': 'Unsaved changes', 'save.off': 'No autosave: export the project', 'save.error': 'Save failed',
+  'sec.maxMP': 'Working resolution on import', 'sec.maxMPNote': 'Larger images are reduced by pixel averaging. The original file is kept in the project.', 'mp.orig': 'Original (no reduction)',
+  'log.axis': 'Vertical axis', 'log.depth': 'Depth', 'log.age': 'Age', 'log.window': 'Interval window', 'log.from': 'From', 'log.to': 'To',
+  'log.all': 'Whole core', 'log.height': 'Plot height', 'log.tracks': 'Tracks', 'log.image': 'Image', 'log.total': 'Bioturbation (%)',
+  'log.species': 'By ichnotaxon (%)', 'log.manual': 'Manual indices (black mark)', 'log.imgMode': 'Image', 'log.enh': 'Enhanced', 'log.orig': 'Original',
+  'log.overlay': 'Overlay bioturbation', 'log.records': 'External records', 'log.addRec': 'Add record (CSV, TXT, Excel)…',
+  'log.recNote': 'A depth column must use the same units as the core; an age column, those of the age model.',
+  'log.svg': 'Export SVG', 'log.csv': 'Export CSV', 'log.empty': 'Add sections to see the core log.', 'log.reverse': 'reverse',
+  'log.points': 'points', 'log.noRecords': 'No records. Add geochemistry, colour, susceptibility…',
+  'log.subtitle': '{n} sections · {b} px intervals · window {from}–{to} {u}',
+  'rec.title': 'Add record', 'rec.name': 'Record name', 'rec.x': 'Depth or age column', 'rec.axis': 'That column is',
+  'rec.cols': 'Columns to plot', 'rec.add': 'Add', 'rec.err': 'Could not read the table: {m}', 'rec.short': 'at least two numeric columns are needed',
+});
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';

@@ -24,6 +24,7 @@ La descripción detallada de los algoritmos está en
 | V4 | 30-10-2026 | Aplicación web 0.1 (`app/`) | Aplicación en el navegador con detección, edición y aprendizaje |
 | V5 | 30-10-2026 | Documentación | Historial de versiones, documentación técnica y defensa de métodos |
 | V6 | 30-10-2026 | Aplicación web 0.1, archivo único | `IchAnTool.html` que se abre con doble clic, sin servidor ni conexión |
+| V7 | 31-10-2026 | Aplicación web 0.2 | Carpetas de proyecto, registro compuesto del sondeo (profundidad/edad), registros externos, sondeo de prueba IODP U1385I |
 
 ---
 
@@ -212,6 +213,76 @@ la consola no da ningún error.
 - Sin conexión se usan fuentes del sistema, porque las tipográficas vienen de Google Fonts.
 - Abrir TIFF necesita internet la primera vez (librería UTIF).
 - Un ejecutable de escritorio (.exe/.app con Electron o Tauri) queda como opción futura.
+
+---
+
+## V7 — Proyectos, registro compuesto y sondeo de prueba (31-10-2026)
+
+**Qué se hizo.** La aplicación guarda proyectos ("carpetas") en el navegador y tiene una segunda
+vista, **Registro del sondeo**: todas las secciones juntas en profundidad o en edad, con ventana de
+intervalo, imagen adaptada al eje, bioturbación total, por icnotaxón e índices, y registros externos
+(CSV, TXT, Excel) proyectados junto a ella. Exporta SVG y CSV. Incluye un sondeo de prueba real
+(IODP 397-U1385I-1H).
+
+**Cambios.**
+- `app/js/storage.js` (nuevo): biblioteca de proyectos en IndexedDB. Crear, abrir, renombrar, borrar,
+  importar y exportar. Guardado automático 1,5 s después de cada cambio. Cada proyecto guarda sus
+  imágenes, profundidades, modelo de edad, máscaras, clases, ajustes, registros y vista del registro.
+- `app/js/log.js` (nuevo, sin navegador):
+  - lectura de tablas (`parseTable`);
+  - cambio de eje profundidad↔edad;
+  - filas del registro compuesto;
+  - SVG del registro (`buildLogSVG`);
+  - CSV de la ventana con los registros interpolados (`windowCSV`).
+- `app/js/imageproc.js`: `downsampleRGBA` (reducción por promedio de bloques).
+- `app/js/app.js`:
+  - resolución de trabajo al importar (máx. 8 MP por defecto);
+  - vista de registro con la imagen remuestreada fila a fila al eje elegido;
+  - diálogo de registros externos (Excel con SheetJS, descargado al usarlo por primera vez);
+  - diálogo de proyectos;
+  - sondeo de prueba;
+  - la detección se separa en `detectSection`.
+- `examples/U1385I-1H/`: 6 imágenes de media sección (reducidas a 50 px/cm), color L\*a\*b\* y
+  susceptibilidad magnética del LIMS del IODP, con su procedencia. Modelo de edad **ilustrativo**.
+- Formato de proyecto versión 2: añade `ds` (factor de reducción), `records`, `logView` y `notes`.
+  Los archivos de la versión 1 se siguen abriendo.
+- `tools/build_standalone.py`: incluye los módulos nuevos y el sondeo de prueba en el archivo único
+  (3,9 MB).
+- Interfaz: selector de modo (Sección / Registro del sondeo) y botón de proyecto con estado de
+  guardado. Se quitan los botones Nuevo/Abrir/Guardar, que pasan al diálogo de proyectos.
+
+**Por qué.** Petición de Santiago:
+- probar con imágenes reales;
+- carpetas de proyecto que conserven las definiciones de profundidad y edad;
+- ver el sondeo completo o una ventana en profundidad o edad, con la bioturbación elegida;
+- exportar SVG o CSV;
+- proyectar registros externos (por ejemplo, geoquímica).
+
+**Comprobación.**
+- 13 pruebas automáticas de la aplicación (`npm test`; 5 nuevas para `log.js` y la reducción) y
+  9 de Python.
+- Prueba en Chromium con el servidor y con el archivo único desde disco:
+  - el sondeo de prueba se carga en unos 4 s;
+  - detección en las 6 secciones;
+  - registro en profundidad y en edad (ventana 10–40 ka);
+  - exportación SVG (295 kB) y CSV con L\*, a\*, b\* y susceptibilidad interpoladas;
+  - importación de una tabla con «;» y coma decimal;
+  - creación de un segundo proyecto y vuelta al primero;
+  - recarga de la página con el proyecto recuperado;
+  - ningún error en consola.
+- Los parámetros de detección del sondeo de prueba se compararon en la sección 3 (113 / 60 / 45
+  objetos con tres combinaciones) y se eligió un ajuste moderado.
+
+**Pendiente o problemas conocidos.**
+- El modelo de edad del sondeo de prueba es ilustrativo. Para trabajo real, usar el publicado.
+- La detección en este lodo detecta parte de las manchas y trazas oscuras, pero no la bioturbación
+  difusa (moteado), que hay que marcar con pincel. Además confunde algunas marcas de corte y de
+  muestreo, que hay que excluir o marcar como artefacto.
+- Los proyectos viven en el navegador de cada ordenador: borrar los datos del navegador los
+  elimina. Hay que exportar copias de seguridad.
+- Excel necesita internet la primera vez (librería SheetJS). CSV y TXT funcionan sin conexión.
+- En el registro compuesto, todas las secciones y registros deben usar unidades coherentes. La
+  aplicación convierte mm, cm y m entre secciones, pero no los registros externos.
 
 ---
 
