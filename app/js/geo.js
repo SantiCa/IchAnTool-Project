@@ -496,7 +496,7 @@ export function buildMapSVG(o) {
     const cx = px(p.lon).toFixed(1), cy = py(p.lat).toFixed(1);
     let fill = '#ffffff', r = 6, label = p.name;
     if (!p.n) { fill = '#ffffff'; r = 4; }
-    else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = 5 + 5 * (p.fraction || 0); label += p.dominant ? ` ${Math.round(p.fraction * 100)}%` : ''; }
+    else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = 5 + 5 * (p.fraction ?? 0.6); label += p.dominant && p.fraction != null ? ` ${Math.round(p.fraction * 100)}%` : ''; }
     else { fill = divColor(p.value); label += ` ${(+p.value).toFixed(2)}`; }
     s.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="${fill}" stroke="#1c2422" stroke-width="${p.n ? 1 : 0.6}" ${p.n ? '' : 'stroke-dasharray="2 2"'}/>`);
     s.push(`<text x="${(+cx + r + 3).toFixed(1)}" y="${(+cy + 4).toFixed(1)}" fill="#1c2422">${esc2(label)}</text>`);

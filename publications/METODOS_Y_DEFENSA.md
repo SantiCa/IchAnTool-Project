@@ -32,6 +32,7 @@ bioturbación a partir de imágenes de testigos.
 | Resolución de trabajo, proyectos | §16–§17 |
 | Registro compuesto y registros externos | §18–§19 |
 | Herramienta multiproxy (si se incluye) | §21 |
+| Organización por proyectos y sondeos, datos, figuras | §22 |
 
 ### Qué se puede afirmar hoy
 - Integra en una sola herramienta las imágenes, la bioturbación y otros registros del mismo sondeo, en profundidad o en edad, con exportación vectorial (§18). Demostrado con datos públicos del IODP (sondeo de prueba U1385I-1H).

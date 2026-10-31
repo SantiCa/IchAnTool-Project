@@ -31,6 +31,7 @@ La descripción detallada de los algoritmos está en
 | V11 | 31-10-2026 | Aplicación web 0.6 | Modo claro/oscuro, prueba de la autoclasificación con coloreado de registros, sondeos reales de la tesis (ODP 977A, ODP 976, GP03, LC10) precargados; la rama pasa a `master` |
 | V12 | 31-10-2026 | Aplicación web 0.7 | Selección de varias trazas y asignación conjunta; sin saltos ni zoom al asignar; elección automática del ajuste por separabilidad; datos propios de la tesis en Multiproxy (privados); valores que faltan; guía del modo |
 | V13 | 31-10-2026 | Aplicación web 0.7.1 | Selección por recuadro arrastrando y Mayús/Ctrl+clic; exclusión de zonas con rectángulo |
+| V14 | 31-10-2026 | Aplicación web 0.8 | Reestructuración: pantalla inicial con todos los proyectos y mapa multiproyecto; proyectos con varios sondeos; pestaña Datos (tabla, columnas calculadas y manuales, hoja libre); ventanas sincronizadas y panel flotante; Figuras |
 
 ---
 
@@ -602,6 +603,59 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V14 — Proyectos con sondeos, Datos, ventanas y Figuras (31-10-2026)
+
+**Qué se hizo.** Se reorganizó el programa como pidió Santiago:
+- **Pantalla inicial** con los proyectos y «Todos los proyectos»: tabla de los sondeos de todos los
+  proyectos (clic para abrir) y **mapa multiproyecto** (situación, valor de una variable o categoría
+  dominante de una capa en una ventana de edad).
+- **Proyecto → sondeos.** Cada proyecto tiene varios sondeos; cada sondeo guarda sus imágenes y su
+  bioturbación, datos importados, registros, modelo de edad e intervalos. La icnología (Bioturbación)
+  y el Multiproxy son pestañas separadas que trabajan sobre los mismos sondeos.
+- **Datos:** todos los datos del proyecto distinguiendo importados, creados y calculados; columnas
+  calculadas por fórmula, columnas manuales y una hoja libre tipo Excel.
+- **Ventanas:** mapa, registros multiproxy y registro del sondeo en otra ventana que se actualiza sola,
+  o en un panel flotante dentro de la misma.
+- **Figuras:** trazas representativas por icnotaxón (elección manual o automática), sondeo entero
+  interpretado, registro, registro multiproxy y mapa, con título y pie, en SVG y PNG.
+- La tesis pasa a ser un proyecto propio («Tesis Casanova-Arenillas (2023)») que se crea la primera
+  vez; ya no se mezcla con el sondeo de prueba.
+
+**Cambios.**
+- `app.js`: modelo de sondeos (`makeCore`, `activateCore`, `refreshCoreData`, `coreImageParts`),
+  formato de proyecto v3 con conversión de v1/v2 (`upgradeProject`), pantalla inicial
+  (`showHome`, `renderAllProjects`, `buildAllMap`), pestaña Datos, ventanas (`openWindow`,
+  `startWindow`) y panel flotante, Figuras (`traceCanvas`, `autoPick`, `tracesSVG`, `coreSVG`,
+  `wrapFigure`); el multiproxy usa los sondeos del proyecto; se quita «Añadir el sondeo de las imágenes».
+- Nuevo `sheet.js` (fórmulas, sin `eval`) y `tests/app/sheet.test.mjs`.
+- `storage.js`: base de datos v3 con almacén `lite`.
+- `index.html`, `i18n.js`: cabecera con proyecto, sondeo (+, ✎) y pestañas Bioturbación, Registro,
+  Datos, Multiproxy y Figuras; pantalla inicial; diálogo de sondeo; panel flotante.
+
+**Por qué.** Petición de Santiago: separar icnología y multiproxy, organizar por proyectos y sondeos,
+ver y calcular datos como en Excel, trabajar en un sondeo mientras se ve el mapa en otra ventana,
+navegar por todos los proyectos con mapas multiproyecto y sacar figuras.
+
+**Comprobación.**
+- 31 pruebas de la aplicación (2 nuevas de fórmulas) y 9 de Python.
+- En Chromium, perfil limpio: se crean el sondeo de prueba y el proyecto de la tesis; pantalla
+  inicial con 2 proyectos y 6 sondeos en la tabla; mapa multiproyecto por proyecto; figura de
+  trazas (2 icnotaxones × 4 trazas elegidas automáticamente) y figura del sondeo entero; pestaña
+  Datos (2174 filas), columna calculada `[Bioturbación %] * 2` y celda `=MEAN(COL("Bio_x2"))`;
+  multiproxy con los sondeos del proyecto; panel flotante del mapa; sondeo nuevo añadido; ventana
+  nueva del mapa en solo lectura; ventana del registro del sondeo; proyecto de la tesis con
+  validación dejando un sondeo fuera; selección por recuadro y exclusión rectangular siguen igual;
+  ningún error de JavaScript.
+
+**Pendiente o problemas conocidos.**
+- Con `file://`, la ventana nueva puede no recibir cambios en algunos navegadores (queda la
+  comprobación cada 4 s y el panel flotante).
+- Los proyectos restaurados desde archivo aparecen en «Todos los proyectos» cuando se abren una vez.
+- El registro del sondeo necesita imágenes; los sondeos solo con datos se ven en Multiproxy.
+- La bioturbación de GP03 y LC10 de la tesis sigue sin cargar.
 
 ---
 

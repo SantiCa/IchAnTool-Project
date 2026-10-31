@@ -57,6 +57,10 @@ def binned(depths, values, width):
     return out
 
 
+def icp_name(c):
+    return "ICP LOI_pct" if c.startswith("LOI") else f"ICP {c.split(' (')[0]}"
+
+
 def runs(xs, labels):
     """Contiguous runs of equal labels; boundaries at midpoints between samples."""
     out, start = [], 0
@@ -111,6 +115,11 @@ def main(src: Path):
                "Trazas_n_5cm", "Trazas_area_media_cm2", "Trazas_area_total_cm2_5cm", "CaCO3_pct", "TOC_pct", "TS_pct",
                "SST_alquenonas_C", "C37_4_pct", "L_star", "a_star", "b_star", "MS_kappa_1e-6SI"]
     rows977.sort(key=lambda r: r["depth_m"])
+    # One depth–age relation for every row: the ichnology table of the author (+ Martrat et al. 2004 below it).
+    pairs = sorted({(r["depth_m"], r["age_ka"]) for r in rows977 if "Bioturbacion_trazas_pct" in r or "SST_alquenonas_C" in r if r["age_ka"] is not None})
+    dz, az = np.array([p[0] for p in pairs]), np.array([p[1] for p in pairs])
+    for r in rows977:
+        r["age_ka"] = float(np.interp(r["depth_m"], dz, az)) if dz[0] <= r["depth_m"] <= dz[-1] else None
     write("ODP977A_tesis.csv", ["depth_m", "age_ka", *cols977], [[r["depth_m"], r["age_ka"], *[r.get(c) for c in cols977]] for r in rows977])
 
     # 977 events (H1–H6 and MIS boundaries, thesis graph file), new ORLs a–f (Marine Geology 2021 work)
@@ -168,7 +177,7 @@ def main(src: Path):
     for r in icp[1:]:
         d = num(r[Hi.index("Depth with corrections")])
         if d is not None:
-            rowsgp.append({"depth_cm": d, **{f"ICP {c.split(' (')[0]}": num(r[Hi.index(c)]) for c in wi}})
+            rowsgp.append({"depth_cm": d, **{icp_name(c): num(r[Hi.index(c)]) for c in wi}})
     for r in sheet(gp / "GP03-MagSus-Limpio.xlsx", "Hoja1")[1:]:
         if num(r[3]) is not None and num(r[4]) is not None:
             rowsgp.append({"depth_cm": num(r[3]), "Susceptibilidad_LF_1e-8_m3kg": num(r[4]) * 1e8})
@@ -178,7 +187,7 @@ def main(src: Path):
             continue
         rowsgp.append({"depth_cm": num(r[1]), "Bentonicos_alto_O2_pct": num(r[2]), "Bentonicos_bajo_O2_pct": num(r[3]), "Gyroidina_pct": num(r[4]),
                        "Bentonicos_flujo_organico_pct": num(r[5]), "Hyalinea_balthica_pct": num(r[6])})
-    colsgp = [f"XRF {c}" for c in want] + [f"ICP {c.split(' (')[0]}" for c in wi] + ["Susceptibilidad_LF_1e-8_m3kg", "Bentonicos_alto_O2_pct", "Bentonicos_bajo_O2_pct",
+    colsgp = [f"XRF {c}" for c in want] + [icp_name(c) for c in wi] + ["Susceptibilidad_LF_1e-8_m3kg", "Bentonicos_alto_O2_pct", "Bentonicos_bajo_O2_pct",
                                                                                  "Gyroidina_pct", "Bentonicos_flujo_organico_pct", "Hyalinea_balthica_pct"]
     rowsgp.sort(key=lambda r: r["depth_cm"])
     write("GP03_tesis.csv", ["depth_cm", "age_ka", *colsgp], [[r["depth_cm"], age_at(r["depth_cm"]), *[r.get(c) for c in colsgp]] for r in rowsgp])

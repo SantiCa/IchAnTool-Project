@@ -3,6 +3,9 @@
 Browser application for ichnological analysis of core images. Everything runs locally in the
 browser: images are never uploaded.
 
+## Structure
+Start screen (all projects, table of all cores, multiproject map) → project → cores. Tabs: Bioturbation (images of the active core), Core log, Data (all data, computed/manual columns, free sheet), Multiproxy (logs, map, interval classification of the project cores) and Figures. Map and logs open in a synchronized window or a floating panel.
+
 ## Workflow
 1. **Core and image** — one image per core section; top/bottom depth of the analysis area; optional
    age model (`depth, age` per line). Draw the analysis area to leave out scale bars and core edges.
@@ -47,6 +50,7 @@ Single offline file (no server needed): `python tools/build_standalone.py` -> `d
 - `js/learn.js` — incremental k-NN classifier with novelty detection
 - `js/app.js` — interface, tools, rendering, files
 - `js/log.js` — composite core log: table parsing, depth/age axis, SVG and CSV of a window
+- `js/sheet.js` — formulas of the Data tab (computed columns, A1 cells)
 - `js/geo.js` — multiproxy: multi-core samples, interval layers, interval/rule labels, random forest, k-NN, naive Bayes, k-means, cross-validation, IDW maps
 - `js/storage.js` — project library in IndexedDB
 - `js/i18n.js` — Spanish / English strings

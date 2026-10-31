@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V13 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.7.
+Versión del documento: V14 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.8.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -30,7 +30,8 @@ límites del método.
 19. Registros externos
 20. Ajustes del usuario y copias de seguridad
 21. Herramienta multiproxy: registros numéricos, capas de intervalos y clasificación automática de intervalos
-22. Referencias
+22. Organización del programa: proyectos, sondeos, datos, ventanas y figuras
+23. Referencias
 
 ---
 
@@ -69,6 +70,7 @@ Módulos de la aplicación web:
 | `app/js/imageproc.js` | Realce, detección, componentes, varita, lazo, descriptores, giro | No |
 | `app/js/learn.js` | Clasificador k-NN con rechazo de novedades | No |
 | `app/js/log.js` | Registro compuesto: tablas, ejes, SVG y CSV de una ventana | No |
+| `app/js/sheet.js` | Fórmulas de la pestaña Datos: columnas calculadas y celdas (analizador propio, sin `eval`) | No |
 | `app/js/geo.js` | Multiproxy: muestras, capas de intervalos, etiquetas, Random Forest, k-NN, Bayes, k-medias, validación cruzada, mapas | No |
 | `app/js/storage.js` | Biblioteca de proyectos (IndexedDB) | Sí |
 | `app/js/app.js` | Interfaz, herramientas, dibujo, archivos | Sí |
@@ -1103,7 +1105,82 @@ el modelo dependa de la descripción y no de los registros.
 
 ---
 
-## 22. Referencias
+## 22. Organización del programa: proyectos, sondeos, datos, ventanas y figuras (aplicación web, desde V14)
+
+### 22.1 Estructura
+- **Pantalla inicial (⌂ Proyectos):** lista de proyectos (abrir, renombrar, borrar, crear, importar,
+  copias de seguridad) y «Todos los proyectos»: tabla de los sondeos de todos los proyectos y mapa
+  multiproyecto.
+- **Proyecto → sondeos.** Cada sondeo (`makeCore`) tiene: nombre, lat, lon, profundidad de agua,
+  unidades de profundidad, notas, secciones de imagen con su bioturbación, registros externos,
+  datos importados (`imp`), columnas manuales (`user`), modelo de edad y vista del registro. Los
+  intervalos, capas, reglas, ajustes multiproxy, columnas calculadas, hoja libre y figuras son del
+  proyecto y se refieren a los sondeos por su identificador.
+- **Sondeo activo.** Las herramientas de imagen y el registro del sondeo trabajan sobre el sondeo
+  elegido en la cabecera: `S.sections`, `S.records`, `S.age` y `S.logView` apuntan a los del sondeo
+  (`activateCore`).
+- **Datos derivados de un sondeo** (`refreshCoreData`): se unen en una sola tabla, ordenada por
+  profundidad, (1) la bioturbación de las imágenes por intervalo (%, BI, ii, % por icnotaxón; en las
+  unidades del sondeo), (2) los registros externos (los que están en edad se pasan a profundidad con el
+  modelo de edad invertido), (3) los datos importados y (4) las columnas manuales; después se
+  aplican las columnas calculadas. Cada fila lleva la profundidad de su dato; la edad es la del dato
+  importado si la tiene y, si no, la del modelo de edad. Un sondeo sin ninguna profundidad (solo
+  edad) se guarda solo por edad. Cada columna recuerda su origen (`src`: importado, registro, creado
+  desde imágenes, manual, calculado), que la pestaña Datos muestra.
+
+### 22.2 Archivo de proyecto v3 y almacenamiento
+- Formato v3: `{version: 3, id, name, notes, classes, settings, library, geo (sin sondeos), sheet,
+  fig, curCore, cores: [{id, name, lat, lon, waterDepth, units, source, notes, imp, user, records,
+  logView, age: {text, units}, sections: [...]}]}`. Los archivos v1/v2 se convierten al abrirlos
+  (`upgradeProject`): las imágenes forman un sondeo (id `main`, para conservar sus intervalos) y cada
+  sondeo multiproxy pasa a ser otro sondeo con sus datos como importados.
+- IndexedDB versión 3: almacén nuevo `lite` con una copia ligera de cada proyecto (datos numéricos
+  derivados de cada sondeo, capas, intervalos y ajustes multiproxy), escrita en cada guardado. La usan
+  la pantalla inicial y las ventanas secundarias para no tener que decodificar imágenes. Los proyectos
+  restaurados desde archivo aparecen en la tabla multiproyecto cuando se abren y guardan una vez.
+
+### 22.3 Pestaña Datos
+- **Tabla:** sondeo activo o todos; profundidad, edad, columnas ordenadas por origen y, si se pide,
+  la categoría de cada capa de intervalos en esa fila; exportación CSV; las columnas manuales se
+  editan en la tabla.
+- **Columnas calculadas** (`sheet.js::evalColumn`): una fórmula por columna, evaluada fila a fila
+  sobre el sondeo. Operadores `+ − * / ^` y comparaciones (`< > <= >= == !=`, dan 1/0); nombres sin
+  espacios o entre corchetes (`[XRF Ba/Ti]`), `depth`, `age`. Funciones: `log10, ln, exp, sqrt, abs,
+  round, pow, min, max` (elemento a elemento con dos columnas), `mean, std` (desviación muestral,
+  n − 1), `median, sum, count, zscore` ((x − media) / desviación muestral), `norm01`, `movavg(x, n)`
+  (media centrada de n filas), `diff, cumsum, if(c, a, b)`, `corr`. Un valor que falta da un
+  resultado que falta; la división por 0 también. Se pueden aplicar a todos los sondeos o a uno; se
+  recalculan solas y son variables más en Multiproxy.
+- **Hoja libre** (`sheet.js::evalCells`): celdas A1… con número, texto o fórmula `=`; referencias,
+  rangos `A1:B5`, las mismas funciones y `COL("columna", "sondeo")`, que devuelve una columna de un
+  sondeo (por defecto el activo); una celda que recibe una columna muestra su media. Las referencias
+  circulares dan error.
+
+### 22.4 Ventanas y panel flotante
+- «Abrir en ventana nueva» abre la misma aplicación con `#win=map|geologs|corelog&project=…&core=…`.
+  Esa ventana es de **solo lectura** (no guarda) y se recarga cuando la principal guarda: mensaje
+  `BroadcastChannel('ichantool')` y, como respaldo, comprobación cada 4 s de la fecha de guardado
+  del proyecto. Mapa y registros multiproxy se construyen desde la copia ligera; el registro del
+  sondeo carga el proyecto completo.
+- Con el archivo local (`file://`) algunos navegadores aíslan las pestañas; por eso existe también
+  el **panel flotante**, dentro de la misma ventana, que se redibuja 0,5 s después de cada cambio.
+
+### 22.5 Figuras
+- **Trazas representativas:** para cada icnotaxón del sondeo activo, el usuario marca qué trazas
+  usar (miniaturas) o pide una elección automática de N por icnotaxón: las de mayor área; las «más
+  típicas» (menor distancia euclídea, en descriptores estandarizados por la desviación de la clase, a
+  la mediana de la clase, §9); o repartidas en profundidad (N trazas equiespaciadas en el orden de
+  profundidad). Cada ejemplo es un recorte del rectángulo envolvente con un margen del 15 %, escalado a
+  un tamaño fijo, con contorno opcional en el color de la clase, barra de escala (0,05–10 cm, la mayor
+  que cabe en el 45 % del recuadro) y sección y profundidad.
+- **Sondeo entero interpretado:** registro compuesto de techo a muro con imagen, trazas, pistas
+  elegidas, registros y bandas de intervalos y de clasificación del sondeo.
+- **Registro del sondeo, registro multiproxy y mapa:** las vistas actuales de esos modos.
+- Todas llevan título y pie opcionales y se exportan en SVG (imágenes incrustadas) y PNG (×2).
+
+---
+
+## 23. Referencias
 
 - Casanova-Arenillas, S., Rodríguez-Tovar, F.J., Martínez-Ruiz, F. (2020). Applied ichnology in
   sedimentary geology: Python scripts as a method to automatize ichnofabric analysis in marine core

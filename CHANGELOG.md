@@ -2,6 +2,17 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V14 — Web app 0.8 — 2026-10-31
+- Restructure: start screen with all projects, a table of all cores and a multiproject map; projects hold
+  several cores (images/bioturbation, imported data, records, age model, intervals); project file v3
+  (v1/v2 converted on open); IndexedDB v3 with a light index.
+- Data tab: all data by origin (imported/created/computed), computed columns (formula parser, no eval),
+  manual columns and a free spreadsheet (A1 cells, ranges, COL()).
+- Map, multiproxy logs and core log in a synchronized read-only window or a floating panel.
+- Figures: representative traces per ichnotaxon (manual or automatic choice), whole interpreted core,
+  logs and maps, with title/caption, SVG and PNG.
+- Thesis data become their own project.
+
 ## V13 — Web app 0.7.1 — 2026-10-31
 - Selection tool: dragging draws a selection box (Shift/Ctrl adds); Shift/Ctrl+click toggles.
 - Exclude/Include tools: rectangle shape (or Shift+drag).

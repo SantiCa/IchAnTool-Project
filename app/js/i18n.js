@@ -457,6 +457,83 @@ Object.assign(D.es, { 'tool.shape': 'Forma', 'tool.shapeBrush': 'Pincel', 'tool.
 Object.assign(D.en, { 'tool.shape': 'Shape', 'tool.shapeBrush': 'Brush', 'tool.shapeRect': 'Rectangle',
   'obj.multiHint': 'Several traces: drag a box with the selection tool; Shift or Ctrl + click adds or removes one; Shift or Ctrl + box adds to the selection. Keys 1–9 assign the class to all. To move: hand tool, space bar or middle button.' });
 
+// V14: projects → cores, home, data tab, windows
+Object.assign(D.es, {
+  'mode.section': 'Bioturbación', 'mode.log': 'Registro', 'mode.data': 'Datos', 'mode.geo': 'Multiproxy',
+  'core.label': 'Sondeo', 'core.add': 'Añadir sondeo', 'core.edit': 'Editar sondeo', 'core.del': 'Eliminar sondeo', 'core.first': 'Sondeo 1', 'core.new': 'Sondeo nuevo',
+  'core.name': 'Nombre', 'core.units': 'Unidades de profundidad', 'core.notes': 'Notas',
+  'core.note': 'Cada sondeo guarda sus imágenes (bioturbación), sus datos importados, sus registros, su modelo de edad y sus intervalos.',
+  'home.title': 'Proyectos', 'home.back': 'Volver al proyecto abierto', 'home.all': 'Todos los proyectos', 'home.cores': '{n} sondeos',
+  'home.allNote': 'Sondeos de todos los proyectos: tabla con sus datos (clic para abrir) y mapa multiproyecto por ventana de edad.',
+  'home.mmLayer': 'Categoría dominante de una capa', 'home.mmSites': 'Situación de los sondeos', 'home.project': 'Proyecto', 'home.nVars': 'Variables', 'home.images': 'Imágenes',
+  'home.noSites': 'Ningún sondeo tiene latitud y longitud.', 'home.mapSites': 'Sondeos por proyecto', 'home.mapValue': '{f} (z-score en cada sondeo), {a0}–{a1} ka',
+  'home.mapLayer': '{l}: categoría dominante, {a0}–{a1} ka', 'home.mapSub': '{n} proyectos. Valores calculados sobre los datos guardados de cada proyecto.',
+  'data.core': 'Sondeo', 'data.view': 'Vista', 'data.table': 'Tabla de datos', 'data.cols': 'Columnas calculadas y manuales', 'data.cells': 'Hoja libre (celdas)',
+  'data.showLayers': 'Mostrar intervalos', 'data.csv': 'Exportar CSV', 'data.allCores': 'Todos los sondeos', 'data.info': '{r} filas · {c} columnas',
+  'data.src.imp': 'importado', 'data.src.rec': 'registro', 'data.src.img': 'creado (imágenes)', 'data.src.man': 'creado (manual)', 'data.src.calc': 'calculado', 'data.src.lay': 'intervalo',
+  'data.more': 'Mostrar {n} filas más',
+  'data.note': 'Importado = archivos de datos y registros externos; creado = bioturbación de las imágenes y columnas escritas a mano (editables aquí); calculado = fórmulas. Cada fila es una profundidad (o edad) con dato en alguna columna.',
+  'data.calcTitle': 'Columnas calculadas', 'data.calcHelp': 'Fórmula sobre las columnas del sondeo: nombres con espacios o símbolos entre corchetes, p. ej. [XRF Ba/Ti] / TOC_pct, log10([Bioturbación %]), zscore(x), movavg(x, 5). Funciones: {f}. También depth y age. Se recalculan solas y aparecen como variables en Multiproxy.',
+  'data.newName': 'Nombre de la columna', 'data.addCalc': 'Añadir columna calculada', 'data.manTitle': 'Columnas manuales',
+  'data.manHelp': 'Columna vacía en las profundidades del sondeo para escribir valores a mano en la tabla.', 'data.addMan': 'Añadir columna manual',
+  'data.cellsInfo': 'Hoja libre del proyecto',
+  'data.cellsHelp': 'Como una hoja de cálculo: número, texto o fórmula que empieza por =. Referencias A1, rangos A1:B5, SUM, MEAN, MIN, MAX, COUNT, STD, MEDIAN, CORR. COL("columna") toma una columna del sondeo activo y COL("columna"; "sondeo") de otro, p. ej. =MEAN(COL("TOC_pct")) o =CORR(COL("Ba/Al"), COL("TOC_pct")).',
+  'win.new': 'Abrir en ventana nueva', 'win.panel': 'Abrir en panel flotante', 'win.title.map': 'Mapa', 'win.title.corelog': 'Registro del sondeo', 'win.title.geologs': 'Registros multiproxy',
+  'win.fileNote': 'Archivo local: si la ventana nueva no se actualiza, usa el panel flotante.',
+});
+Object.assign(D.en, {
+  'mode.section': 'Bioturbation', 'mode.log': 'Core log', 'mode.data': 'Data', 'mode.geo': 'Multiproxy',
+  'core.label': 'Core', 'core.add': 'Add core', 'core.edit': 'Edit core', 'core.del': 'Delete core', 'core.first': 'Core 1', 'core.new': 'New core',
+  'core.name': 'Name', 'core.units': 'Depth units', 'core.notes': 'Notes',
+  'core.note': 'Each core keeps its images (bioturbation), imported data, records, age model and intervals.',
+  'home.title': 'Projects', 'home.back': 'Back to the open project', 'home.all': 'All projects', 'home.cores': '{n} cores',
+  'home.allNote': 'Cores of every project: table of their data (click to open) and multiproject map by age window.',
+  'home.mmLayer': 'Dominant category of a layer', 'home.mmSites': 'Core locations', 'home.project': 'Project', 'home.nVars': 'Variables', 'home.images': 'Images',
+  'home.noSites': 'No core has latitude and longitude.', 'home.mapSites': 'Cores by project', 'home.mapValue': '{f} (z-score within each core), {a0}–{a1} ka',
+  'home.mapLayer': '{l}: dominant category, {a0}–{a1} ka', 'home.mapSub': '{n} projects. Values computed from the saved data of each project.',
+  'data.core': 'Core', 'data.view': 'View', 'data.table': 'Data table', 'data.cols': 'Computed and manual columns', 'data.cells': 'Free sheet (cells)',
+  'data.showLayers': 'Show intervals', 'data.csv': 'Export CSV', 'data.allCores': 'All cores', 'data.info': '{r} rows · {c} columns',
+  'data.src.imp': 'imported', 'data.src.rec': 'record', 'data.src.img': 'created (images)', 'data.src.man': 'created (manual)', 'data.src.calc': 'computed', 'data.src.lay': 'interval',
+  'data.more': 'Show {n} more rows',
+  'data.note': 'Imported = data files and external records; created = bioturbation from images and hand-written columns (editable here); computed = formulas. Each row is a depth (or age) with data in some column.',
+  'data.calcTitle': 'Computed columns', 'data.calcHelp': 'Formula over the core columns: names with spaces or symbols in brackets, e.g. [XRF Ba/Ti] / TOC_pct, log10(x), zscore(x), movavg(x, 5). Functions: {f}. Also depth and age. Recomputed automatically and available as variables in Multiproxy.',
+  'data.newName': 'Column name', 'data.addCalc': 'Add computed column', 'data.manTitle': 'Manual columns',
+  'data.manHelp': 'Empty column at the core depths to type values in the table.', 'data.addMan': 'Add manual column',
+  'data.cellsInfo': 'Free sheet of the project',
+  'data.cellsHelp': 'Like a spreadsheet: number, text or formula starting with =. References A1, ranges A1:B5, SUM, MEAN, MIN, MAX, COUNT, STD, MEDIAN, CORR. COL("column") takes a column of the active core and COL("column", "core") of another one.',
+  'win.new': 'Open in new window', 'win.panel': 'Open in floating panel', 'win.title.map': 'Map', 'win.title.corelog': 'Core log', 'win.title.geologs': 'Multiproxy logs',
+  'win.fileNote': 'Local file: if the new window does not update, use the floating panel.',
+});
+
+// V14: figures
+Object.assign(D.es, {
+  'mode.fig': 'Figuras', 'fig.type': 'Figura', 'fig.t.traces': 'Trazas representativas por icnotaxón', 'fig.t.core': 'Sondeo entero interpretado',
+  'fig.t.log': 'Registro del sondeo (ventana actual)', 'fig.t.geolog': 'Registro multiproxy de un sondeo', 'fig.t.map': 'Mapa multiproxy',
+  'fig.title': 'Título', 'fig.caption': 'Pie de figura', 'fig.note': 'SVG para editar en Inkscape o Illustrator; PNG a doble resolución.',
+  'fig.n': 'Ejemplos por icnotaxón', 'fig.pick': 'Elección automática', 'fig.pick.largest': 'Los más grandes', 'fig.pick.typical': 'Los más típicos', 'fig.pick.spread': 'Repartidos en profundidad',
+  'fig.tile': 'Tamaño de cada ejemplo (px)', 'fig.outline': 'Dibujar el contorno de la traza', 'fig.auto': 'Elegir automáticamente',
+  'fig.chosen': '{n} elegidos de {m}', 'fig.nOf': '{n} de {m} trazas', 'fig.noTraces': 'Este sondeo aún no tiene trazas asignadas a icnotaxones.',
+  'fig.pickFirst': 'Marca los ejemplos de cada icnotaxón (o pulsa «Elegir automáticamente»).', 'fig.empty': 'No hay datos para esta figura en el sondeo o proyecto actual.',
+  'fig.coreSub': 'Sondeo completo · {n} secciones', 'fig.coreNote': 'Imagen con las trazas, bioturbación, icnotaxones, índices, registros y bandas de intervalos y clasificación, de techo a muro. Las pistas visibles son las del Registro del sondeo.',
+  'fig.geoNote': 'Usa las variables, capas y clasificación del modo Multiproxy.', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
+  'fig.logNote': 'Usa la ventana, la altura y las pistas elegidas en Registro del sondeo.',
+});
+Object.assign(D.en, {
+  'mode.fig': 'Figures', 'fig.type': 'Figure', 'fig.t.traces': 'Representative traces per ichnotaxon', 'fig.t.core': 'Whole interpreted core',
+  'fig.t.log': 'Core log (current window)', 'fig.t.geolog': 'Multiproxy log of a core', 'fig.t.map': 'Multiproxy map',
+  'fig.title': 'Title', 'fig.caption': 'Caption', 'fig.note': 'SVG to edit in Inkscape or Illustrator; PNG at double resolution.',
+  'fig.n': 'Examples per ichnotaxon', 'fig.pick': 'Automatic choice', 'fig.pick.largest': 'Largest', 'fig.pick.typical': 'Most typical', 'fig.pick.spread': 'Spread in depth',
+  'fig.tile': 'Size of each example (px)', 'fig.outline': 'Draw the trace outline', 'fig.auto': 'Choose automatically',
+  'fig.chosen': '{n} chosen of {m}', 'fig.nOf': '{n} of {m} traces', 'fig.noTraces': 'This core has no traces assigned to ichnotaxa yet.',
+  'fig.pickFirst': 'Tick the examples of each ichnotaxon (or press “Choose automatically”).', 'fig.empty': 'No data for this figure in the current core or project.',
+  'fig.coreSub': 'Whole core · {n} sections', 'fig.coreNote': 'Image with traces, bioturbation, ichnotaxa, indices, records and interval/classification bands, top to bottom. Tracks as in Core log.',
+  'fig.geoNote': 'Uses the variables, layers and classification of Multiproxy.', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
+  'fig.logNote': 'Uses the window, height and tracks of Core log.',
+});
+
+Object.assign(D.es, { 'help.structure': '<p><b>Organización.</b> ⌂ Proyectos abre la pantalla inicial: todos los proyectos, sus sondeos y un mapa multiproyecto. Cada proyecto tiene varios <b>sondeos</b> (selector «Sondeo», + para añadir, ✎ para editar posición y unidades). Cada sondeo guarda sus imágenes y su bioturbación, sus datos importados, registros, modelo de edad e intervalos. Pestañas: <b>Bioturbación</b> (imágenes), <b>Registro</b> (sondeo en profundidad o edad), <b>Datos</b> (todos los datos, columnas calculadas y hoja libre), <b>Multiproxy</b> (registros, mapa y clasificación de los sondeos del proyecto) y <b>Figuras</b>. El mapa y los registros se pueden abrir en otra ventana o en un panel flotante.</p>' });
+Object.assign(D.en, { 'help.structure': '<p><b>Organisation.</b> ⌂ Projects opens the start screen: every project, its cores and a multiproject map. Each project has several <b>cores</b> (Core selector, + to add, ✎ to edit position and units). Each core keeps its images and bioturbation, imported data, records, age model and intervals. Tabs: <b>Bioturbation</b> (images), <b>Core log</b>, <b>Data</b> (all data, computed columns and free sheet), <b>Multiproxy</b> (logs, map and classification of the project cores) and <b>Figures</b>. Map and logs can open in another window or a floating panel.</p>' });
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';
