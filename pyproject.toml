@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ichantool"
+version = "3.0.0.dev0"
+description = "Quantitative ichnofabric analysis of sediment core images"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Santiago Casanova-Arenillas" }]
+requires-python = ">=3.10"
+keywords = ["ichnology", "bioturbation", "ichnofabric", "core", "image analysis", "sedimentology"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+]
+dependencies = ["numpy>=1.24", "pillow>=10", "pandas>=2.0"]
+
+[project.optional-dependencies]
+excel = ["openpyxl>=3.1"]
+plot = ["matplotlib>=3.7"]
+dev = ["pytest>=7", "openpyxl>=3.1", "matplotlib>=3.7"]
+
+[project.scripts]
+ichantool = "ichantool.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/SantiCa/IchAnTool-Project"
+Paper = "https://doi.org/10.1016/j.cageo.2020.104407"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
