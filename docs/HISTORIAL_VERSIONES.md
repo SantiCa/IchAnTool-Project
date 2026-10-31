@@ -30,6 +30,7 @@ La descripción detallada de los algoritmos está en
 | V10 | 31-10-2026 | Aplicación web 0.5 | «Geoquímica» pasa a «Multiproxy»: cualquier registro numérico, capas de intervalos descritos con subdivisiones (litología, turbiditas…), editables e importables, usadas por el clasificador automático de intervalos |
 | V11 | 31-10-2026 | Aplicación web 0.6 | Modo claro/oscuro, prueba de la autoclasificación con coloreado de registros, sondeos reales de la tesis (ODP 977A, ODP 976, GP03, LC10) precargados; la rama pasa a `master` |
 | V12 | 31-10-2026 | Aplicación web 0.7 | Selección de varias trazas y asignación conjunta; sin saltos ni zoom al asignar; elección automática del ajuste por separabilidad; datos propios de la tesis en Multiproxy (privados); valores que faltan; guía del modo |
+| V13 | 31-10-2026 | Aplicación web 0.7.1 | Selección por recuadro arrastrando y Mayús/Ctrl+clic; exclusión de zonas con rectángulo |
 
 ---
 
@@ -577,6 +578,30 @@ asignar, buscar publicaciones sobre preselección de parámetros y usar los dato
 - η favorece cualquier bimodalidad; es una propuesta inicial.
 - Falta la bioturbación de GP03 y LC10 (está en otros archivos del autor, p. ej. `TODOS GP03.xlsx`).
 - La transferencia de la clasificación entre sondeos con variables distintas es pobre.
+
+---
+
+## V13 — Selección arrastrando y exclusión con rectángulo (31-10-2026)
+
+**Qué se hizo.** Con la herramienta de selección, **arrastrar dibuja un recuadro** que selecciona las
+trazas (antes arrastrar desplazaba la imagen). Mayús o Ctrl + clic añade o quita una traza, y Mayús o
+Ctrl + recuadro añade a la selección. Las herramientas **Excluir** y **Recuperar** tienen la forma
+«Rectángulo» (o Mayús + arrastrar con el pincel) para marcar zonas que no cuentan.
+
+**Cambios.** `app.js`: el arrastre de selección pasa a recuadro; desplazar la vista queda en la
+herramienta mano, la barra espaciadora o el botón central; tipo de arrastre `exrect` que marca o
+desmarca la capa de exclusión en el rectángulo con una sola operación de deshacer; opción
+`S.exShape`. `index.html`, `i18n.js`: selector de forma y textos de ayuda.
+
+**Por qué.** Petición de Santiago: seleccionar varias trazas con Mayús, Ctrl o arrastrando, y poder
+excluir partes del sondeo con un recuadro.
+
+**Comprobación.** 29 pruebas de la aplicación y 9 de Python. En Chromium: recuadro simple (1 traza),
+Mayús + recuadro añade (2), recuadro nuevo sustituye (1); exclusión con rectángulo de 2688 px;
+ningún error.
+
+**Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
+la vez; se planifica aparte).
 
 ---
 

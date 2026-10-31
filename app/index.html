@@ -354,6 +354,7 @@ dialog input[type=text] { min-width: 0; }
         <button class="tool" data-tool="include" data-i18n-title="tool.include"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 3"/><path d="M9 12h6M12 9v6"/></svg></button>
         <button class="tool" data-tool="pan" data-i18n-title="tool.pan"><svg viewBox="0 0 24 24"><path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6.5a1.5 1.5 0 0 1 3 0v7c0 4-2.5 6.5-6 6.5-2.4 0-3.8-1-5-3l-2-3.5a1.5 1.5 0 0 1 2.5-1.6L8 13"/></svg></button>
         <span class="sep"></span>
+        <label class="opt" id="optShape" hidden><span data-i18n="tool.shape"></span><select id="exShape"><option value="brush" data-i18n="tool.shapeBrush"></option><option value="rect" data-i18n="tool.shapeRect"></option></select></label>
         <label class="opt" id="optSize"><span data-i18n="tool.size"></span><input type="range" id="brushSize" min="1" max="120"><output id="brushOut"></output></label>
         <label class="opt" id="optTol"><span data-i18n="tool.tol"></span><input type="range" id="wandTol" min="2" max="120"><output id="tolOut"></output></label>
         <span class="grow" style="flex:1"></span>

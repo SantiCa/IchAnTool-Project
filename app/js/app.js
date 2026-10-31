@@ -38,7 +38,7 @@ function defaultClasses() {
 }
 
 const S = {
-  multi: new Set(),
+  multi: new Set(), exShape: 'brush',
   name: 'ichantool-project',
   classes: defaultClasses(), active: 'undet',
   sections: [], cur: -1,
@@ -580,8 +580,9 @@ view.addEventListener('pointerdown', (e) => {
   if (e.button === 1 || S.tool === 'pan' || spaceDown) { drag = { type: 'pan', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y }; return; }
   if (e.button !== 0) return;
   const tool = S.tool;
-  if (tool === 'select' && e.shiftKey) { boxDrag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; drag = { type: 'box', add: true }; }
-  else if (tool === 'select') drag = { type: 'select', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, moved: false, p, toggle: e.ctrlKey || e.metaKey };
+  // Selection: click selects; Shift/Ctrl+click adds or removes; dragging draws a box (Shift/Ctrl adds to the selection).
+  if (tool === 'select') drag = { type: 'select', sx: e.clientX, sy: e.clientY, moved: false, p, add: e.shiftKey || e.ctrlKey || e.metaKey };
+  else if ((tool === 'exclude' || tool === 'include') && (e.shiftKey || S.exShape === 'rect')) { boxDrag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; drag = { type: 'exrect', mode: tool }; }
   else if (tool === 'roi') { roiDrag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; drag = { type: 'roi' }; }
   else if (tool === 'lasso') { lassoPts = [[p.x, p.y]]; drag = { type: 'lasso', mode: e.altKey ? 'sub' : e.shiftKey ? 'add' : 'new' }; }
   else if (tool === 'wand') {
@@ -606,26 +607,36 @@ view.addEventListener('pointermove', (e) => {
   const p = toImg(e); cursor = p;
   updateStatus(s, p);
   if (!drag) { if (['brush', 'erase', 'exclude', 'include'].includes(S.tool)) requestRender(); return; }
-  if (drag.type === 'pan' || drag.type === 'select') {
+  if (drag.type === 'select') {
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
+    boxDrag = { x0: drag.p.x, y0: drag.p.y, x1: p.x, y1: p.y }; drag = { type: 'box', add: drag.add }; requestRender();
+  } else if (drag.type === 'pan') {
     const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
-    if (drag.type === 'select' && !drag.moved && Math.hypot(dx, dy) < 4) return;
-    drag.moved = true;
     S.view.x = drag.vx - dx / S.view.zoom; S.view.y = drag.vy - dy / S.view.zoom; clampView(); requestRender();
   } else if (drag.type === 'paint') { paintSeg(drag.op, drag.last, p); drag.last = p; requestRender(); }
   else if (drag.type === 'lasso') { lassoPts.push([p.x, p.y]); requestRender(); }
   else if (drag.type === 'roi') { roiDrag.x1 = p.x; roiDrag.y1 = p.y; requestRender(); }
-  else if (drag.type === 'box') { boxDrag.x1 = p.x; boxDrag.y1 = p.y; requestRender(); }
+  else if (drag.type === 'box' || drag.type === 'exrect') { boxDrag.x1 = p.x; boxDrag.y1 = p.y; requestRender(); }
 });
 
 function endDrag() {
   const s = sec(); const d = drag; drag = null; if (!d || !s) return;
-  if (d.type === 'select' && !d.moved) {
+  if (d.type === 'select') {
     const p = d.p, id = inImg(s, p) ? s.labels[Math.floor(p.y) * s.w + Math.floor(p.x)] : 0;
-    if (d.toggle) toggleSelect(id); else select(id);
+    if (d.add) toggleSelect(id); else select(id);
+  } else if (d.type === 'exrect') {
+    const r = boxDrag; boxDrag = null;
+    const x0 = Math.max(0, Math.floor(Math.min(r.x0, r.x1))), x1 = Math.min(s.w - 1, Math.ceil(Math.max(r.x0, r.x1)));
+    const y0 = Math.max(0, Math.floor(Math.min(r.y0, r.y1))), y1 = Math.min(s.h - 1, Math.ceil(Math.max(r.y0, r.y1)));
+    if (x1 <= x0 || y1 <= y0) { requestRender(); return; }
+    const op = beginOp(s); op.mode = d.mode;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { setEx(op, y * s.w + x, d.mode === 'exclude' ? 1 : 0); }
+    grow(op, x0, y0); grow(op, x1, y1);
+    finishPixelOp(op, 0);
   } else if (d.type === 'box') {
     const r = boxDrag; boxDrag = null;
     const x0 = Math.min(r.x0, r.x1), x1 = Math.max(r.x0, r.x1), y0 = Math.min(r.y0, r.y1), y1 = Math.max(r.y0, r.y1);
-    if (S.selected) S.multi.add(S.selected);
+    if (!d.add) S.multi.clear(); else if (S.selected) S.multi.add(S.selected);
     for (const o of s.objects.values()) { if (!o.bbox) continue; const cx = (o.bbox[0] + o.bbox[2]) / 2, cy = (o.bbox[1] + o.bbox[3]) / 2; if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) S.multi.add(o.id); }
     S.selected = [...S.multi][0] || 0; renderObject(); requestRender(); if (S.multi.size) showTab('object', true);
   } else if (d.type === 'paint') finishPixelOp(d.op, d.op.mode === 'brush' ? d.op.target : 0);
@@ -717,9 +728,11 @@ function setTool(tool) {
   document.querySelectorAll('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
   $('optSize').hidden = !['brush', 'erase', 'exclude', 'include'].includes(tool);
   $('optTol').hidden = tool !== 'wand';
+  $('optShape').hidden = !['exclude', 'include'].includes(tool);
   view.classList.toggle('pan', tool === 'pan');
   requestRender();
 }
+$('exShape').addEventListener('change', (e) => { S.exShape = e.target.value; });
 function setBrush(v) { S.brushSize = Math.max(1, Math.min(120, v)); $('brushSize').value = S.brushSize; $('brushOut').textContent = S.brushSize; requestRender(); }
 function setActive(id) { S.active = id; renderClasses(); renderSelTools(sec()); }
 function select(id) { S.selected = id || 0; S.multi.clear(); renderObject(); requestRender(); if (id) showTab('object', true); }

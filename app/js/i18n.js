@@ -25,7 +25,7 @@ const D = {
     'a.bin': 'Píxeles por intervalo', 'a.binNote': '≈ {v} {u} por dato', 'a.inclPred': 'Contar identificaciones automáticas',
     'a.countCand': 'Contar candidatos sin revisar como bioturbación', 'a.note': 'Los artefactos y las zonas excluidas nunca cuentan.',
     'tool.select': 'Seleccionar y mover (V)', 'tool.wand': 'Varita: seleccionar por color (W)', 'tool.brush': 'Pincel (B)',
-    'tool.lasso': 'Lazo (L)', 'tool.erase': 'Borrador (E)', 'tool.exclude': 'Excluir zona: grietas, huecos, muestras (X)',
+    'tool.lasso': 'Lazo (L)', 'tool.erase': 'Borrador (E)', 'tool.exclude': 'Excluir zona: grietas, huecos, muestras (X). Mayús + arrastrar = rectángulo',
     'tool.include': 'Recuperar zona excluida', 'tool.pan': 'Mano (H o espacio)', 'tool.size': 'Tamaño', 'tool.tol': 'Tolerancia',
     'view.fit': 'Ajustar', 'view.orig': 'Original', 'view.overlay': 'Capa', 'undo': 'Deshacer (Ctrl+Z)',
     'empty.title': 'Añade una imagen de sondeo', 'empty.body': 'JPG, PNG o TIFF. Las imágenes se procesan en tu navegador y no se envían a ningún sitio.',
@@ -79,7 +79,7 @@ const D = {
     'a.bin': 'Pixels per interval', 'a.binNote': '≈ {v} {u} per data point', 'a.inclPred': 'Count automatic identifications',
     'a.countCand': 'Count unreviewed candidates as bioturbation', 'a.note': 'Artefacts and excluded areas never count.',
     'tool.select': 'Select and move (V)', 'tool.wand': 'Wand: select by colour (W)', 'tool.brush': 'Brush (B)',
-    'tool.lasso': 'Lasso (L)', 'tool.erase': 'Eraser (E)', 'tool.exclude': 'Exclude area: cracks, voids, samples (X)',
+    'tool.lasso': 'Lasso (L)', 'tool.erase': 'Eraser (E)', 'tool.exclude': 'Exclude area: cracks, voids, samples (X). Shift + drag = rectangle',
     'tool.include': 'Restore excluded area', 'tool.pan': 'Hand (H or space)', 'tool.size': 'Size', 'tool.tol': 'Tolerance',
     'view.fit': 'Fit', 'view.orig': 'Original', 'view.overlay': 'Overlay', 'undo': 'Undo (Ctrl+Z)',
     'empty.title': 'Add a core image', 'empty.body': 'JPG, PNG or TIFF. Images are processed in your browser and never uploaded.',
@@ -450,6 +450,12 @@ Object.assign(D.en, {
 // V12: preset ranking by separability
 Object.assign(D.es, { 'f.best': 'Elegir el ajuste que más separa trazas y matriz', 'f.rank': 'Separabilidad η (Otsu, 0–1): {list}. Es una ayuda para empezar: revisa el resultado a ojo.' });
 Object.assign(D.en, { 'f.best': 'Pick the setting that best separates traces and matrix', 'f.rank': 'Separability η (Otsu, 0–1): {list}. A starting point: check the result by eye.' });
+
+// V13: box selection by dragging, rectangular exclusion
+Object.assign(D.es, { 'tool.shape': 'Forma', 'tool.shapeBrush': 'Pincel', 'tool.shapeRect': 'Rectángulo',
+  'obj.multiHint': 'Varias trazas: arrastra un recuadro con la herramienta de selección; Mayús o Ctrl + clic añade o quita una; Mayús o Ctrl + recuadro añade a la selección. Las teclas 1–9 asignan la clase a todas. Para moverte: herramienta mano, barra espaciadora o botón central.' });
+Object.assign(D.en, { 'tool.shape': 'Shape', 'tool.shapeBrush': 'Brush', 'tool.shapeRect': 'Rectangle',
+  'obj.multiHint': 'Several traces: drag a box with the selection tool; Shift or Ctrl + click adds or removes one; Shift or Ctrl + box adds to the selection. Keys 1–9 assign the class to all. To move: hand tool, space bar or middle button.' });
 
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }

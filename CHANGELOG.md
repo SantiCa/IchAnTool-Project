@@ -2,6 +2,10 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V13 — Web app 0.7.1 — 2026-10-31
+- Selection tool: dragging draws a selection box (Shift/Ctrl adds); Shift/Ctrl+click toggles.
+- Exclude/Include tools: rectangle shape (or Shift+drag).
+
 ## V12 — Web app 0.7 — 2026-10-31
 - Multi-selection of traces (Ctrl+click, Shift+drag box, "select suggested as…", "select all unreviewed")
   and joint assignment/acceptance/deletion in one undo step.

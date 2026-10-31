@@ -1,6 +1,6 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V12 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+Versión del documento: V13 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
 aplicación web 0.7.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
@@ -400,9 +400,13 @@ Implementación: `imageproc.js::regionGrow, polygonPixels` y `app.js` (herramien
 
 Modificadores: Mayús añade al objeto seleccionado y Alt resta (varita y lazo).
 
-**Selección de varias trazas** (desde V12). Con la herramienta de selección, Ctrl+clic añade o quita
-una traza y Mayús+arrastrar selecciona las trazas cuyo centro del rectángulo envolvente cae dentro
-del rectángulo dibujado. También se pueden seleccionar todas las sugeridas como la clase activa o
+**Selección de varias trazas** (desde V12; arrastre desde V13). Con la herramienta de selección,
+arrastrar dibuja un recuadro y selecciona las trazas cuyo centro del rectángulo envolvente cae dentro
+(sustituye la selección; con Mayús o Ctrl, la amplía). Mayús o Ctrl + clic añade o quita una traza.
+La vista se desplaza con la herramienta mano, la barra espaciadora o el botón central.
+
+**Exclusión con rectángulo** (desde V13). Excluir y Recuperar admiten la forma «Rectángulo» (o Mayús +
+arrastrar): marcan o desmarcan todos los píxeles del rectángulo en la capa de exclusión. También se pueden seleccionar todas las sugeridas como la clase activa o
 todas las sin revisar. Las teclas 1–9 (y 0), «Asignar a todas», «Aceptar sus sugerencias» y
 «Eliminar todas» actúan sobre toda la selección en una sola operación de deshacer. Sirve igual para
 trazas detectadas automáticamente y para trazas dibujadas a mano. La vista no se mueve al asignar;
