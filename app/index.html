@@ -71,13 +71,19 @@ label.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .step > summary .n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font: 600 11px/1 var(--font-data); letter-spacing: 0; }
 .step > summary::after { content: ""; margin-left: auto; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
 .step[open] > summary::after { transform: rotate(-135deg); }
-.step .body { padding: 2px 14px 14px; display: grid; gap: 10px; }
+.step .body { padding: 2px 14px 14px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+/* V19.1: nothing in the side panels may be wider than the panel (long labels wrap instead of being cut) */
+.side { overflow-x: hidden; }
+.side .body > *, .side .f, .side .grid2 > *, .side .slider > * { min-width: 0; }
+.side .btn { white-space: normal; text-align: center; max-width: 100%; line-height: 1.25; }
+.side select { max-width: 100%; text-overflow: ellipsis; }
+.side .note, .side .chk span { overflow-wrap: anywhere; }
 
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row > * { min-width: 0; }
 .f { display: grid; gap: 3px; }
 .f > span, .lbl { color: var(--muted); font-size: 11.5px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 70px; gap: 8px; }
 input[type=text], input[type=number], select, textarea { width: 100%; border: 1px solid var(--line); background: var(--field); border-radius: var(--r); padding: 5px 7px; }
 textarea { font: 12px/1.4 var(--font-data); resize: vertical; min-height: 64px; }
@@ -116,8 +122,8 @@ input[type=number] { font-family: var(--font-data); font-variant-numeric: tabula
 .busy { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--accent-ink); padding: 5px 14px; border-radius: 99px; font-weight: 600; z-index: 3; }
 
 /* right panel */
-.tabs { display: flex; border-bottom: 1px solid var(--line); flex-shrink: 0; }
-.tabs button { flex: 1; border: 0; background: transparent; padding: 10px 4px; cursor: pointer; font: 600 11.5px var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.tabs button { flex: 1 1 auto; border: 0; background: transparent; padding: 10px 6px; cursor: pointer; font: 600 11px var(--font-head); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 2px solid transparent; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pane { padding: 12px 14px; display: grid; gap: 12px; align-content: start; overflow: auto; min-height: 0; flex: 1; }
 
@@ -239,12 +245,20 @@ dialog.wide { max-width: min(1100px, calc(100vw - 32px)); width: 100%; }
 .mapstyle input[type=color] { width: 38px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
 .mapstyle input[type=number] { width: 76px; }
 .mapstyle .zbtn { display: flex; gap: 4px; align-items: center; }
+.clist { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 160px; overflow: auto; }
+.mapstyle[hidden] { display: none; }
 .zmap { position: relative; touch-action: none; }
 .zmap svg { cursor: grab; display: block; max-width: 100%; height: auto; }
 .zmap.dragging svg { cursor: grabbing; }
 #geoLogSvg, #geoMapSvg { display: inline-block; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r); max-width: 100%; }
 #geoLogSvg svg { display: block; }
-#geoMapSvg svg { display: block; max-width: 100%; height: auto; }
+#geoMapSvg { display: block; width: 100%; }
+#geoMapSvg svg { display: block; width: 100%; max-width: 100%; height: auto; }
+.work.geo.mapwide { grid-template-columns: minmax(0, 1fr); }
+.work.geo.mapwide > #geoPanel { display: none; }
+#geoMapSvg:fullscreen { background: #fff; overflow: auto; display: grid; place-items: center; }
+#geoMapSvg:fullscreen svg { width: auto; height: 100vh; max-width: 100vw; }
+#gmBig[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .glogwrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
 .glogside { flex: 1; min-width: 220px; display: grid; gap: 6px; }
 .ivrow { flex-wrap: nowrap; gap: 6px; font-size: 12px; }
@@ -651,10 +665,12 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
           <div class="row"><button class="btn small" id="gmPrev">◀</button><button class="btn small" id="gmNext">▶</button></div>
           <label class="f"><span data-i18n="geo.mapMode"></span><select id="gmMode"><option value="class" data-i18n="geo.mm.class"></option><option value="value" data-i18n="geo.mm.value"></option></select></label>
           <label class="f" id="gmFeatRow"><span data-i18n="geo.feature"></span><select id="gmFeature"></select></label>
-          <div class="row" id="gmIdwRow"><label class="chk"><input type="checkbox" id="gmIdw"><span>IDW</span></label><label class="f"><span data-i18n="geo.power"></span><input type="number" id="gmPower" min="1" max="4" step="0.5" style="width:60px"></label></div>
+          <div class="row" id="gmIdwRow"><label class="chk"><input type="checkbox" id="gmIdw"><span data-i18n="ip.on"></span></label><input type="hidden" id="gmPower"></div>
           <div class="row" id="gmRefRow"><label class="chk"><input type="checkbox" id="gmRef"><span data-i18n="geo.ref"></span></label><input type="number" id="gmR0" step="any" style="width:60px"><input type="number" id="gmR1" step="any" style="width:60px"></div>
-          <div class="row"><button class="btn small primary" id="gmSvg">SVG</button><button class="btn small" id="gmCsv">CSV</button><button class="btn small" data-win="map" data-i18n="win.new"></button><button class="btn small" data-float="map" data-i18n="win.panel"></button></div>
+          <div class="row"><button class="btn small" id="gmBig" data-i18n-title="ms.big">⤢</button><button class="btn small" id="gmFull" data-i18n-title="ms.full">⛶</button><button class="btn small primary" id="gmSvg">SVG</button><select id="gmPngW" style="width:auto"><option value="1800">PNG 1800 px</option><option value="3600" selected>PNG 3600 px</option><option value="5400">PNG 5400 px</option><option value="7200">PNG 7200 px</option></select><button class="btn small" id="gmPng">PNG</button><button class="btn small" id="gmCsv">CSV</button><button class="btn small" data-win="map" data-i18n="win.new"></button><button class="btn small" data-float="map" data-i18n="win.panel"></button></div>
         </div>
+        <div class="mapstyle" id="gmCores"></div>
+        <div class="mapstyle" id="gmInterp"></div>
         <div class="mapstyle" id="gmStyle"></div>
         <div id="geoMapSvg" class="zmap"></div>
         <p class="note" data-i18n="geo.mapHelp"></p>
@@ -715,8 +731,10 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
         <label class="f" id="amLayRow"><span data-i18n="geo.layer"></span><select id="amLayer"></select></label>
         <label class="f"><span data-i18n="geo.ageFrom"></span><input type="number" id="amA0" step="any" value="9" style="width:70px"></label>
         <label class="f"><span data-i18n="geo.ageTo"></span><input type="number" id="amA1" step="any" value="14" style="width:70px"></label>
-        <div class="row"><button class="btn small" id="amPrev">◀</button><button class="btn small" id="amNext">▶</button><button class="btn small" id="amSvg">SVG</button></div>
+        <div class="row"><button class="btn small" id="amPrev">◀</button><button class="btn small" id="amNext">▶</button><button class="btn small" id="amSvg">SVG</button><select id="amPngW" style="width:auto"><option value="1800">PNG 1800 px</option><option value="3600" selected>PNG 3600 px</option><option value="7200">PNG 7200 px</option></select><button class="btn small" id="amPng">PNG</button></div>
       </div>
+      <div class="mapstyle" id="amCores"></div>
+      <div class="mapstyle" id="amInterp"></div>
       <div class="mapstyle" id="amStyle"></div>
       <div id="allMap" class="zmap"></div>
       <div class="mpbox"><h3 data-i18n="mp.title"></h3><p class="note" data-i18n="mp.note"></p>

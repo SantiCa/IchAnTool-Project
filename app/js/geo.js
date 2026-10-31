@@ -472,7 +472,7 @@ export function divColor(v) {
 export const MAP_STYLE = {
   bg: 'vector', bgOpacity: 1, coast: true, symbol: 'circle', size: 1, sizeByFraction: true,
   labels: true, labelSize: 11, labelColor: '#1c2422', halo: true, labelValue: true,
-  pointColor: '#ffffff', stroke: '#1c2422', land: '#e6e6dc', sea: '#f4f8f9', graticule: true, scaleBar: true, north: false,
+  pointColor: '#ffffff', stroke: '#1c2422', land: '#e6e6dc', sea: '#f4f8f9', graticule: true, scaleBar: true, north: false, proj: 'plate',
 };
 export const MAP_SYMBOLS = ['circle', 'square', 'triangle', 'diamond', 'star', 'hexagon', 'cross'];
 
@@ -491,11 +491,35 @@ export function symbolSVG(sym, cx, cy, r, attrs) {
   }
 }
 
-/** Size of the plot area of a map with this extent (900 px wide; height keeps the cos(lat) aspect). */
-export function mapGeometry(bbox) {
-  const [x0, y0, x1, y1] = bbox, cosl = Math.cos((((y0 + y1) / 2) * Math.PI) / 180);
-  return { W: 900, H: Math.max(60, Math.round((900 * (y1 - y0)) / ((x1 - x0) * cosl))), top: 44, bottom: 70 };
+/** Map projections (V20): plate carrée with cos(φ0) scaling (default), Mercator and Lambert azimuthal equal-area. */
+export const MAP_PROJECTIONS = ['plate', 'mercator', 'laea'];
+const RAD = Math.PI / 180;
+/** Projection centred on the extent: fwd(lon, lat) → [x, y] (y up), inv(x, y) → [lon, lat]. */
+export function makeProjection(kind, bbox) {
+  const [x0, y0, x1, y1] = bbox, l0 = ((x0 + x1) / 2) * RAD, p0 = ((y0 + y1) / 2) * RAD, cosl = Math.cos(p0);
+  if (kind === 'mercator') return { kind, fwd: (lon, lat) => [lon * RAD, Math.log(Math.tan(Math.PI / 4 + (Math.max(-85, Math.min(85, lat)) * RAD) / 2))], inv: (x, y) => [x / RAD, (2 * Math.atan(Math.exp(y)) - Math.PI / 2) / RAD] };
+  if (kind === 'laea') return {
+    kind,
+    fwd: (lon, lat) => { const l = lon * RAD - l0, p = lat * RAD, k = Math.sqrt(2 / (1 + Math.sin(p0) * Math.sin(p) + Math.cos(p0) * Math.cos(p) * Math.cos(l))); return [k * Math.cos(p) * Math.sin(l), k * (Math.cos(p0) * Math.sin(p) - Math.sin(p0) * Math.cos(p) * Math.cos(l))]; },
+    inv: (x, y) => { const r = Math.hypot(x, y); if (r < 1e-12) return [l0 / RAD, p0 / RAD]; const c = 2 * Math.asin(Math.min(1, r / 2)); const p = Math.asin(Math.cos(c) * Math.sin(p0) + (y * Math.sin(c) * Math.cos(p0)) / r); const l = l0 + Math.atan2(x * Math.sin(c), r * Math.cos(p0) * Math.cos(c) - y * Math.sin(p0) * Math.sin(c)); return [l / RAD, p / RAD]; },
+  };
+  return { kind: 'plate', fwd: (lon, lat) => [lon * cosl, lat], inv: (x, y) => [x / cosl, y] };
 }
+/**
+ * Plot frame of a map: 900 px wide, height from the projected extent (the bbox edges are sampled, so curved
+ * edges of conic/azimuthal projections fit). P(lon, lat) → [px, py]; Pinv(px, py) → [lon, lat].
+ */
+export function mapFrame(bbox, kind = 'plate') {
+  const pr = makeProjection(kind, bbox), [x0, y0, x1, y1] = bbox, xs = [], ys = [];
+  for (let k = 0; k <= 20; k++) for (const [lo, la] of [[x0 + ((x1 - x0) * k) / 20, y0], [x0 + ((x1 - x0) * k) / 20, y1], [x0, y0 + ((y1 - y0) * k) / 20], [x1, y0 + ((y1 - y0) * k) / 20]]) { const [x, y] = pr.fwd(lo, la); xs.push(x); ys.push(y); }
+  const X0 = Math.min(...xs), X1 = Math.max(...xs), Y0 = Math.min(...ys), Y1 = Math.max(...ys);
+  const W = 900, H = Math.max(60, Math.round((W * (Y1 - Y0)) / (X1 - X0 || 1))), top = 44, bottom = 70;
+  const P = (lon, lat) => { const [x, y] = pr.fwd(lon, lat); return [((x - X0) / (X1 - X0)) * W, top + ((Y1 - y) / (Y1 - Y0)) * H]; };
+  const Pinv = (px, py) => pr.inv(X0 + (px / W) * (X1 - X0), Y1 - ((py - top) / H) * (Y1 - Y0));
+  return { W, H, top, bottom, P, Pinv, kind: pr.kind };
+}
+/** Size of the plot area of a map with this extent and projection. */
+export function mapGeometry(bbox, kind = 'plate') { const f = mapFrame(bbox, kind); return { W: f.W, H: f.H, top: f.top, bottom: f.bottom }; }
 
 /** Zoom an extent by factor f (>1 zooms in) around (lon, lat); pan by (dlon, dlat). Latitudes stay in [-85, 85]. */
 export function zoomBBox(bbox, f, lon, lat, dlon = 0, dlat = 0) {
@@ -508,9 +532,10 @@ export function zoomBBox(bbox, f, lon, lat, dlon = 0, dlat = 0) {
   return [x0, y0, x1, y1].map((v) => +v.toFixed(4));
 }
 
-/** Kilometres in a "nice" scale bar of about maxPx pixels. */
-function scaleBarKm(bbox, W, maxPx = 160) {
-  const [x0, y0, x1, y1] = bbox, kmPerPx = ((x1 - x0) * 111.32 * Math.cos((((y0 + y1) / 2) * Math.PI) / 180)) / W, raw = kmPerPx * maxPx;
+/** Kilometres in a "nice" scale bar of about maxPx pixels, measured at the centre of the map. */
+function scaleBarKm(bbox, P, maxPx = 160) {
+  const lat = (bbox[1] + bbox[3]) / 2, lon = (bbox[0] + bbox[2]) / 2, a = P(lon - 0.5, lat), b = P(lon + 0.5, lat);
+  const kmPerPx = (111.32 * Math.cos(lat * RAD)) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1), raw = kmPerPx * maxPx;
   const p = 10 ** Math.floor(Math.log10(raw)), km = [5, 2, 1].map((k) => k * p).find((k) => k <= raw) || p;
   return { km, px: km / kmPerPx };
 }
@@ -523,9 +548,10 @@ function scaleBarKm(bbox, W, maxPx = 160) {
  */
 export function buildMapSVG(o) {
   const st = { ...MAP_STYLE, ...(o.style || {}) }, bg = o.bg || null;
-  const [x0, y0, x1, y1] = o.bbox, { W, H, top, bottom } = mapGeometry(o.bbox);
-  const px = (lon) => ((lon - x0) / (x1 - x0)) * W, py = (lat) => top + ((y1 - lat) / (y1 - y0)) * H;
-  const raster = !!(bg && bg.href);
+  const [x0, y0, x1, y1] = o.bbox, F = mapFrame(o.bbox, st.proj || 'plate'), { W, H, top, bottom, P } = F;
+  const xy = (lon, lat) => P(lon, lat).map((v) => v.toFixed(1)).join(' ');
+  const linear = F.kind === 'plate' || F.kind === 'mercator'; // grid cells stay rectangles
+  const raster = !!(bg && bg.href) && linear;
   const s = [`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H + top + bottom}" viewBox="0 0 ${W} ${H + top + bottom}" font-family="IBM Plex Sans, Arial, sans-serif" font-size="11">`,
     `<rect width="${W}" height="${H + top + bottom}" fill="#ffffff"/><rect x="0" y="${top}" width="${W}" height="${H}" fill="${esc2(st.sea)}"/>`,
     `<text x="8" y="18" font-size="14" font-weight="600" fill="#1c2422">${esc2(o.title || '')}</text>`,
@@ -534,44 +560,67 @@ export function buildMapSVG(o) {
   const landD = [];
   for (const r of o.land || []) {
     let d = '', inBox = false;
-    for (let k = 0; k < r.length; k += 2) { if (r[k] >= x0 - 5 && r[k] <= x1 + 5 && r[k + 1] >= y0 - 5 && r[k + 1] <= y1 + 5) inBox = true; d += `${k ? 'L' : 'M'}${px(r[k]).toFixed(1)} ${py(r[k + 1]).toFixed(1)}`; }
+    for (let k = 0; k < r.length; k += 2) { if (r[k] >= x0 - 5 && r[k] <= x1 + 5 && r[k + 1] >= y0 - 5 && r[k + 1] <= y1 + 5) inBox = true; d += `${k ? 'L' : 'M'}${xy(r[k], r[k + 1])}`; }
     if (inBox) landD.push(`${d}Z`);
   }
   s.push(`<defs><clipPath id="mapclip"><rect x="0" y="${top}" width="${W}" height="${H}"/></clipPath>${raster && bg.href2 ? `<clipPath id="landclip">${landD.map((d) => `<path d="${d}"/>`).join('')}</clipPath>` : ''}</defs><g clip-path="url(#mapclip)">`);
   const img = (href, extra = '') => `<image x="0" y="${top}" width="${W}" height="${H}" preserveAspectRatio="none" href="${href}" xlink:href="${href}" opacity="${st.bgOpacity}"${extra}/>`;
   if (raster) { s.push(img(bg.href)); if (bg.href2) s.push(`<g clip-path="url(#landclip)">${img(bg.href2)}</g>`); }
   if (o.grid) {
-    const cw = W / o.nx, ch = H / o.ny;
-    o.grid.forEach((v, i) => { if (v == null) return; const ix = i % o.nx, iy = Math.floor(i / o.nx); s.push(`<rect x="${(ix * cw).toFixed(1)}" y="${(top + iy * ch).toFixed(1)}" width="${(cw + 0.6).toFixed(1)}" height="${(ch + 0.6).toFixed(1)}" fill="${divColor(v)}" fill-opacity="${raster ? 0.55 : 0.75}"/>`); });
+    const cf = o.colorFn || divColor, op = o.gridOpacity ?? (raster ? 0.55 : 0.75), dl = (x1 - x0) / o.nx, dp = (y1 - y0) / o.ny;
+    // cell (ix, iy) covers lon x0+ix·dl … +dl and lat y1−iy·dp … −dp; drawn as a rectangle (plate, Mercator) or a projected quadrilateral
+    // the opacity goes on the group, so overlapping cell edges leave no seams
+    s.push(`<g opacity="${op}" class="grid">`);
+    o.grid.forEach((v, i) => {
+      if (v == null) return; const ix = i % o.nx, iy = Math.floor(i / o.nx), lo = x0 + ix * dl, la = y1 - iy * dp;
+      if (linear) { const [ax, ay] = P(lo, la), [bx, by] = P(lo + dl, la - dp); s.push(`<rect x="${ax.toFixed(2)}" y="${ay.toFixed(2)}" width="${(bx - ax + 0.5).toFixed(2)}" height="${(by - ay + 0.5).toFixed(2)}" fill="${cf(v)}"/>`); }
+      else s.push(`<path d="M${xy(lo, la)}L${xy(lo + dl, la)}L${xy(lo + dl, la - dp)}L${xy(lo, la - dp)}Z" fill="${cf(v)}" stroke="${cf(v)}" stroke-width="0.5"/>`);
+    });
+    s.push('</g>');
+    // contour lines (segments in cell units from interp.js contourSegments: u = column of cell centres, v = row)
+    const C = (u, w) => xy(x0 + (u + 0.5) * dl, y1 - (w + 0.5) * dp);
+    for (const c of o.contours || []) {
+      if (c.segs.length) s.push(`<path d="${c.segs.map((q) => `M${C(q[0], q[1])}L${C(q[2], q[3])}`).join('')}" fill="none" stroke="#1c2422" stroke-opacity="0.75" stroke-width="0.8"/>`);
+      if (o.contourLabels) for (let k = 0; k < c.segs.length; k += Math.max(25, Math.round(c.segs.length / 3))) { const q = c.segs[k], [tx, ty] = P(x0 + ((q[0] + q[2]) / 2 + 0.5) * dl, y1 - ((q[1] + q[3]) / 2 + 0.5) * dp); s.push(`<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" font-size="8.5" fill="#1c2422" stroke="#ffffff" stroke-width="2.5" paint-order="stroke" text-anchor="middle">${esc2(c.label ?? c.level)}</text>`); }
+    }
   }
   if (!raster) for (const d of landD) s.push(`<path d="${d}" fill="${esc2(st.land)}" stroke="#b9b9a8" stroke-width="0.6"/>`);
   else if (st.coast) for (const d of landD) s.push(`<path d="${d}" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="0.6"/>`);
   if (st.graticule) {
     const gc = raster ? '#ffffff' : '#c9d3d6', tc = raster ? '#ffffff' : '#7a8682';
-    for (const v of niceTicks(x0, x1, 6)) s.push(`<line x1="${px(v)}" y1="${top}" x2="${px(v)}" y2="${top + H}" stroke="${gc}" stroke-opacity="0.8" stroke-width="0.4" stroke-dasharray="2 3"/><text x="${px(v) + 2}" y="${top + H - 4}" fill="${tc}" font-size="9">${v}°</text>`);
-    for (const v of niceTicks(y0, y1, 4)) s.push(`<line x1="0" y1="${py(v)}" x2="${W}" y2="${py(v)}" stroke="${gc}" stroke-opacity="0.8" stroke-width="0.4" stroke-dasharray="2 3"/><text x="3" y="${py(v) - 2}" fill="${tc}" font-size="9">${v}°</text>`);
+    const line = (pts) => `<path d="${pts.map((q, k) => `${k ? 'L' : 'M'}${xy(q[0], q[1])}`).join('')}" fill="none" stroke="${gc}" stroke-opacity="0.8" stroke-width="0.4" stroke-dasharray="2 3"/>`;
+    const lat0 = y0 - (y1 - y0), lat1 = y1 + (y1 - y0), lon0 = x0 - (x1 - x0), lon1 = x1 + (x1 - x0); // drawn beyond the frame (clipped) so curved lines reach the edges
+    for (const v of niceTicks(x0, x1, 6)) { s.push(line(Array.from({ length: 41 }, (_, k) => [v, Math.max(-85, Math.min(85, lat0 + ((lat1 - lat0) * k) / 40))]))); const [tx] = P(v, y0); s.push(`<text x="${(tx + 2).toFixed(1)}" y="${top + H - 4}" fill="${tc}" font-size="9">${v}°</text>`); }
+    for (const v of niceTicks(y0, y1, 4)) { s.push(line(Array.from({ length: 41 }, (_, k) => [lon0 + ((lon1 - lon0) * k) / 40, v]))); const [, ty] = P(x0, v); s.push(`<text x="3" y="${(ty - 2).toFixed(1)}" fill="${tc}" font-size="9">${v}°</text>`); }
   }
   const halo = st.halo ? ` stroke="${raster ? '#000000' : '#ffffff'}" stroke-opacity="0.6" stroke-width="3" paint-order="stroke" stroke-linejoin="round"` : '';
   const lblColor = raster && st.labelColor === MAP_STYLE.labelColor && st.halo ? '#ffffff' : st.labelColor;
   for (const p of o.points) {
-    const cx = px(p.lon), cy = py(p.lat);
+    const [cx, cy] = P(p.lon, p.lat);
     if (cx < -20 || cx > W + 20 || cy < top - 20 || cy > top + H + 20) continue;
     let fill = st.pointColor, r = 6, label = p.name;
     if (!p.n) r = 4;
     else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = st.sizeByFraction ? 5 + 5 * (p.fraction ?? 0.6) : 7; if (st.labelValue && p.dominant && p.fraction != null) label += ` ${Math.round(p.fraction * 100)}%`; }
-    else { fill = divColor(p.value); if (st.labelValue) label += ` ${(+p.value).toFixed(2)}`; }
+    else { fill = (o.colorFn || divColor)(p.value); if (st.labelValue) label += ` ${(+p.value).toFixed(2)}`; }
     r *= st.size;
     s.push(symbolSVG(st.symbol, cx, cy, r, `fill="${esc2(fill)}" stroke="${esc2(st.stroke)}" stroke-width="${p.n ? 1 : 0.6}"${p.n ? '' : ' stroke-dasharray="2 2"'}`));
     if (st.labels) s.push(`<text x="${(cx + r + 3).toFixed(1)}" y="${(cy + st.labelSize * 0.36).toFixed(1)}" font-size="${st.labelSize}" fill="${esc2(lblColor)}"${halo}>${esc2(label)}</text>`);
   }
   if (st.scaleBar) {
-    const { km, px: L } = scaleBarKm(o.bbox, W), bx = W - L - 16, by = top + H - 14, c = raster ? '#ffffff' : '#1c2422';
+    const { km, px: L } = scaleBarKm(o.bbox, P), bx = W - L - 16, by = top + H - 14, c = raster ? '#ffffff' : '#1c2422';
     s.push(`<g><rect x="${bx.toFixed(1)}" y="${by}" width="${(L / 2).toFixed(1)}" height="5" fill="${c}" stroke="${c}"/><rect x="${(bx + L / 2).toFixed(1)}" y="${by}" width="${(L / 2).toFixed(1)}" height="5" fill="none" stroke="${c}"/><text x="${(bx + L).toFixed(1)}" y="${by - 4}" text-anchor="end" font-size="9" fill="${c}">${km} km</text></g>`);
   }
   if (st.north) { const nx = W - 24, ny = top + 14, c = raster ? '#ffffff' : '#1c2422'; s.push(`<polygon points="${nx},${ny} ${nx - 7},${ny + 20} ${nx},${ny + 15} ${nx + 7},${ny + 20}" fill="${c}"/><text x="${nx}" y="${ny + 32}" text-anchor="middle" font-size="10" font-weight="600" fill="${c}">N</text>`); }
   s.push('</g>');
   let lx = 8; const ly = top + H + 20;
   for (const [name, color] of o.legend || []) { s.push(`${symbolSVG(st.symbol, lx + 5.5, ly - 3.5, 5.5, `fill="${esc2(color)}" stroke="#1c2422" stroke-width="0.5"`)}<text x="${lx + 15}" y="${ly}" fill="#1c2422">${esc2(name)}</text>`); lx += 30 + name.length * 6.2; }
+  if (o.colorbar) { // horizontal colour bar under the map, right side
+    const cb = o.colorbar, bw = 240, bx = W - bw - 16, by = top + H + 12, nst = 60, ticks = cb.ticks || niceTicks(cb.min, cb.max, 5);
+    for (let k = 0; k < nst; k++) { const v = cb.min + ((k + 0.5) / nst) * (cb.max - cb.min); s.push(`<rect x="${(bx + (k * bw) / nst).toFixed(1)}" y="${by}" width="${(bw / nst + 0.4).toFixed(1)}" height="10" fill="${cb.fn(v)}"/>`); }
+    s.push(`<rect x="${bx}" y="${by}" width="${bw}" height="10" fill="none" stroke="#1c2422" stroke-width="0.5"/>`);
+    for (const v of ticks) { if (v < cb.min - 1e-9 || v > cb.max + 1e-9) continue; const x = bx + ((v - cb.min) / (cb.max - cb.min || 1)) * bw; s.push(`<line x1="${x.toFixed(1)}" y1="${by + 10}" x2="${x.toFixed(1)}" y2="${by + 13}" stroke="#1c2422" stroke-width="0.6"/><text x="${x.toFixed(1)}" y="${by + 22}" font-size="8.5" text-anchor="middle" fill="#1c2422">${+v.toFixed(3)}</text>`); }
+    if (cb.label) s.push(`<text x="${bx - 6}" y="${by + 9}" font-size="9" text-anchor="end" fill="#1c2422">${esc2(cb.label)}</text>`);
+  }
   if (o.note) s.push(`<text x="8" y="${top + H + 46}" fill="#5b6763" font-size="10">${esc2(o.note)}</text>`);
   if (bg && bg.attribution) s.push(`<text x="${W - 6}" y="${top + H + 62}" text-anchor="end" fill="#5b6763" font-size="8.5">${esc2(bg.attribution)}</text>`);
   s.push('</svg>');

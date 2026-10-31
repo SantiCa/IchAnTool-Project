@@ -3,10 +3,11 @@ import { BI, II, UNIT_TO_CM, rowCounts, binRows, parseAgeModel, interpAge, toCSV
 import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian, separability } from './imageproc.js';
 import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
 import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject, getPref, setPref, putLite, listLite, getMeta } from './storage.js';
+import { interpolate, maskLand, rampColor, colorRange, contourLevels, contourSegments, RAMPS, INTERP_METHODS, INTERP_DEFAULT } from './interp.js';
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
 import { Classifier, TaxonModel, evaluateModels, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, zoomBBox, mapGeometry } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, mapGeometry, mapFrame } from './geo.js';
 
 /** App name (V16: IchAnTool → CorAnTool). Files written by IchAnTool are still accepted; browser storage keys keep the old name. */
 const APP = 'CorAnTool', APP_NAMES = ['CorAnTool', 'IchAnTool'];
@@ -2705,32 +2706,109 @@ function renderGeoMap() {
   for (const id of ['gmFeatRow', 'gmIdwRow', 'gmRefRow']) $(id).hidden = m.mode !== 'value';
   if (!geoRT.samples.some((s) => s.age != null)) { box.innerHTML = `<p class="note" style="padding:20px">${t('geo.mapNoAge')}</p>`; return; }
   const preds = geoRT.preds.length ? geoRT.preds : geoRT.labels.map((l) => ({ label: l.label }));
-  const pts = mapSummary(geoRT.samples, preds, S.cores, { a0: m.a0, a1: m.a1, mode: m.mode, feature: names.indexOf(m.feature), ref: m.ref ? [m.r0, m.r1] : null });
+  const off = new Set(m.off || []);
+  const pts = mapSummary(geoRT.samples, preds, S.cores, { a0: m.a0, a1: m.a1, mode: m.mode, feature: names.indexOf(m.feature), ref: m.ref ? [m.r0, m.r1] : null }).filter((p) => !off.has(p.core));
+  m.interp ||= {}; for (const [k, v] of Object.entries(INTERP_DEFAULT)) if (!(k in m.interp)) m.interp[k] = v; m.interp.on = m.idw;
   const auto = mapBBox(pts); auto[2] += 3; geoAutoBBox = auto;
   const bbox = m.view || auto, style = geoMapStyle();
   const nx = 90, ny = Math.max(10, Math.round((90 * (bbox[3] - bbox[1])) / ((bbox[2] - bbox[0]) * Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180))));
-  const bg = mapBackground(style.bg, bbox, refreshProjectMaps);
-  const grid = m.mode === 'value' && m.idw && pts.filter((p) => p.value != null).length >= 3 ? idwGrid(pts, bbox, nx, ny, m.power) : null;
+  const bg = mapBackground(style.bg, bbox, refreshProjectMaps, style.proj);
+  const vl = m.mode === 'value' ? valueLayer(pts, bbox, m.interp, m.ref ? `Δ ${m.feature}` : `z ${m.feature}`) : null;
   const colors = {}, legend = [];
   if (m.mode === 'class') for (const p of pts) if (p.dominant && !colors[p.dominant]) { const c = geoCat(p.dominant); if (c) { colors[p.dominant] = c.color; legend.push([c.name, c.color]); } }
   const target = geoLayer(st.target)?.name || '';
   const svg = buildMapSVG({
-    land: geoLand, bbox, points: pts, mode: m.mode, colors, grid, nx, ny, legend, style, bg,
+    land: geoLand, bbox, points: pts, mode: m.mode, colors, legend, style, bg, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}),
     title: m.mode === 'class' ? t('geo.mapTitleClass', { l: target, a0: m.a0, a1: m.a1 }) : t('geo.mapTitleValue', { f: m.feature, a0: m.a0, a1: m.a1 }),
     subtitle: m.mode === 'class' ? (geoRT.preds.length ? t('geo.mapSubPred', { m: geoRT.model?.kind || '' }) : t('geo.mapSubLabels')) : (m.ref ? t('geo.mapSubRef', { r0: m.r0, r1: m.r1 }) : t('geo.mapSubZ')),
     note: t('geo.mapNote'),
   });
   box.innerHTML = svg; geoLastMap = { svg, pts };
   mapStyleUI('gmStyle', geoMapGet, (s2, v) => { S.geo.map.style = s2; S.geo.map.view = v; markDirty(); }, refreshProjectMaps);
+  $('gmInterp').hidden = m.mode !== 'value';
+  if (m.mode === 'value') interpUI('gmInterp', () => m.interp, () => { m.idw = m.interp.on; markDirty(); }, refreshProjectMaps, vl?.info);
+  const offSet = new Set(m.off || []);
+  coreListUI('gmCores', S.cores.map((c) => ({ id: c.id, name: c.name, lat: c.lat })), offSet, () => { m.off = [...offSet]; markDirty(); }, refreshProjectMaps);
   return svg;
 }
 let geoLand = [], geoLastMap = null;
 async function loadLand() { if (geoLand.length) return; try { geoLand = (await (await fetchAsset('data/land-50m.json')).json()).rings; } catch { geoLand = []; } }
 
+
+/* ───────────── map interpolation (Surfer-like), colour scale and list of cores (V20) ───────────── */
+/** Grid, colour function, contours and colour bar of a value map. pts = map points with .value; ip = interpolation options. */
+function valueLayer(pts, bbox, ip, label) {
+  const o = { ...INTERP_DEFAULT, ...ip }, g = mapGeometry(bbox), nx = Math.max(10, Math.min(400, Math.round(o.res)));
+  const ny = Math.max(6, Math.round((nx * g.H) / g.W));
+  let grid = null, info = {};
+  if (o.on !== false && pts.filter((p) => p.value != null).length >= 3) {
+    const r = interpolate(pts, bbox, nx, ny, o); info = r.info;
+    grid = o.mask && o.mask !== 'both' && geoLand.length ? maskLand(r.grid, nx, ny, bbox, geoLand, o.mask) : r.grid;
+  }
+  const [lo, hi] = colorRange((grid || []).concat(pts.map((p) => p.value)), o);
+  const colorFn = (v) => rampColor(o.ramp, v, lo, hi, o.steps, o.reverse);
+  const contours = grid && o.contours ? contourLevels(lo, hi, o.levels).map((level) => ({ level, label: +level.toFixed(3), segs: contourSegments(grid, nx, ny, level) })) : [];
+  return { grid, nx, ny, colorFn, contours, contourLabels: o.labels, gridOpacity: o.opacity, colorbar: { min: lo, max: hi, fn: colorFn, label }, info };
+}
+
+/** Panel of interpolation and colour options. get() → options object (mutated by the panel); redraw() renders the map. */
+function interpUI(boxId, get, save, redraw, info) {
+  const box = $(boxId), o = get();
+  box.dataset.key ||= '';
+  const key = `${lang()}|${o.method}|${o.scale}|${o.autoVario}|${o.contours}|${o.on}`;
+  const fill = () => {
+    for (const el of box.querySelectorAll('[data-ip]')) if (el !== document.activeElement) { const k = el.dataset.ip; if (el.type === 'checkbox') el.checked = !!o[k]; else el.value = o[k]; }
+    const inf = box.querySelector('.ipinfo');
+    if (inf) inf.textContent = info?.variogram ? t('ip.vario', { m: t('ip.v.' + info.variogram.model), n: +info.variogram.nugget.toFixed(3), s: +info.variogram.sill.toFixed(3), r: +info.variogram.range.toFixed(2) }) : info?.fallback ? t('ip.fallback') : '';
+  };
+  if (box.dataset.key === key) { fill(); return; }
+  const open = box.querySelector('details')?.open;
+  box.dataset.key = key;
+  const num = (k, l, a, b, st, dis = false) => `<label class="f"><span>${t(l)}</span><input type="number" data-ip="${k}" min="${a}" max="${b}" step="${st}" ${dis ? 'disabled' : ''}></label>`;
+  const chk = (k, l) => `<label class="chk"><input type="checkbox" data-ip="${k}"><span>${t(l)}</span></label>`;
+  const sel = (k, l, opts) => `<label class="f"><span>${t(l)}</span><select data-ip="${k}">${opts.map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select></label>`;
+  const m = o.method, P = {
+    idw: num('power', 'ip.power', 1, 6, 0.5) + num('radius', 'ip.radius', 0, 90, 0.5) + num('neighbours', 'ip.neigh', 0, 100, 1),
+    nearest: num('radius', 'ip.radius', 0, 90, 0.5), tin: '', mincurv: num('smooth', 'ip.smooth', 0, 10, 0.1),
+    rbf: sel('rbf', 'ip.rbf', [['multiquadric', t('ip.r.mq')], ['gaussian', t('ip.r.gauss')], ['tps', t('ip.r.tps')]]) + num('shape', 'ip.shape', 0.1, 50, 0.1) + num('smooth', 'ip.smooth', 0, 10, 0.1),
+    kriging: sel('variogram', 'ip.vmodel', ['spherical', 'exponential', 'gaussian', 'linear'].map((v) => [v, t('ip.v.' + v)])) + chk('autoVario', 'ip.auto') + num('nugget', 'ip.nugget', 0, 1e6, 'any', o.autoVario) + num('sill', 'ip.sill', 0, 1e6, 'any', o.autoVario) + num('range', 'ip.range', 0.01, 180, 'any', o.autoVario),
+    movavg: num('radius', 'ip.radius', 0, 90, 0.5),
+  };
+  box.innerHTML = `<details ${open ? 'open' : ''}><summary>${t('ip.title')}</summary><div class="msgrid">
+    ${chk('on', 'ip.on')}${sel('method', 'ip.method', INTERP_METHODS.map((k) => [k, t('ip.m.' + k)]))}${P[m] || ''}
+    <p class="note" style="flex-basis:100%;margin:0">${t('ip.d.' + m)}</p>
+    ${num('res', 'ip.res', 10, 400, 10)}${chk('hull', 'ip.hull')}${sel('mask', 'ip.mask', [['both', t('ip.mask.both')], ['sea', t('ip.mask.sea')], ['land', t('ip.mask.land')]])}
+    ${num('opacity', 'ip.opacity', 0.1, 1, 0.05)}${chk('contours', 'ip.contours')}${o.contours ? num('levels', 'ip.levels', 1, 30, 1) + chk('labels', 'ip.labels') : ''}
+    ${sel('ramp', 'ip.ramp', Object.keys(RAMPS).map((k) => [k, t('ip.ramp.' + k)]))}${chk('reverse', 'ip.reverse')}
+    ${sel('scale', 'ip.scale', ['sym2', 'auto', 'symauto', 'manual'].map((k) => [k, t('ip.sc.' + k)]))}${o.scale === 'manual' ? num('vmin', 'ip.vmin', -1e9, 1e9, 'any') + num('vmax', 'ip.vmax', -1e9, 1e9, 'any') : ''}${num('steps', 'ip.steps', 0, 20, 1)}
+    <p class="note ipinfo" style="flex-basis:100%;margin:0"></p></div></details>`;
+  fill();
+  box.onchange = (e) => {
+    const el = e.target, k = el.dataset.ip; if (!k) return;
+    const cur = get(); cur[k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? +el.value : el.value;
+    save(); setTimeout(redraw, 0);
+  };
+}
+
+/** List of the cores of a map with a checkbox each (unticked cores are left out of the map and of the interpolation). */
+function coreListUI(boxId, cores, off, save, redraw) {
+  const box = $(boxId), open = box.querySelector('details')?.open;
+  box.innerHTML = `<details ${open ? 'open' : ''}><summary>${t('ip.cores', { n: cores.filter((c) => !off.has(c.id)).length, t: cores.length })}</summary>
+    <div class="row" style="margin:6px 0"><button class="btn small" data-cl="all">${t('mp.all')}</button><button class="btn small" data-cl="none">${t('mp.none')}</button></div>
+    <div class="clist">${cores.map((c) => `<label class="chk" title="${esc(c.where || '')}"><input type="checkbox" data-id="${esc(c.id)}" ${off.has(c.id) ? '' : 'checked'} ${c.lat == null ? 'disabled' : ''}><span>${esc(c.name)}${c.lat == null ? ` <i class="note">(${t('ip.noPos')})</i>` : ''}</span></label>`).join('')}</div></details>`;
+  box.onchange = (e) => { const id = e.target.dataset.id; if (id == null) return; if (e.target.checked) off.delete(id); else off.add(id); save(); setTimeout(redraw, 0); };
+  box.onclick = (e) => { const a = e.target.dataset.cl; if (!a) return; if (a === 'all') off.clear(); else cores.forEach((c) => off.add(c.id)); save(); setTimeout(redraw, 0); };
+}
+
 /* ───────────── map customisation, backgrounds and zoom (V15) ───────────── */
 // Backgrounds come as single images in EPSG:4326 (lon/lat) for the exact extent, so they lie on the plate carrée map unchanged.
-const ESRI = (svc) => (b, w, h) => `https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/export?bbox=${b.join(',')}&bboxSR=4326&imageSR=4326&size=${w},${h}&format=jpg&f=image`;
-const GEBCO = (b, w, h) => `https://wms.gebco.net/mapserv?service=WMS&version=1.1.1&request=GetMap&layers=GEBCO_LATEST&styles=&srs=EPSG:4326&bbox=${b.join(',')}&width=${w}&height=${h}&format=image/jpeg`;
+// Mercator maps ask for EPSG:3857 images (linear in Mercator y), so they also lie on the map unchanged.
+const R_EARTH = 6378137, merc = (lon, lat) => [R_EARTH * lon * Math.PI / 180, R_EARTH * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360))];
+const ESRI = (svc) => (b, w, h, pr) => `https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/export?bbox=${b.join(',')}&bboxSR=4326&imageSR=${pr === 'mercator' ? 3857 : 4326}&size=${w},${h}&format=jpg&f=image`;
+const GEBCO = (b, w, h, pr) => pr === 'mercator'
+  ? `https://wms.gebco.net/mapserv?service=WMS&version=1.1.1&request=GetMap&layers=GEBCO_LATEST&styles=&srs=EPSG:3857&bbox=${[...merc(b[0], b[1]), ...merc(b[2], b[3])].map((v) => v.toFixed(0)).join(',')}&width=${w}&height=${h}&format=image/jpeg`
+  : `https://wms.gebco.net/mapserv?service=WMS&version=1.1.1&request=GetMap&layers=GEBCO_LATEST&styles=&srs=EPSG:4326&bbox=${b.join(',')}&width=${w}&height=${h}&format=image/jpeg`;
+let bgWidth = 1600; // pixels across of the background image (raised temporarily for high-resolution exports)
 const MAP_BG = {
   vector: null,
   physical: { url: ESRI('World_Physical_Map'), attr: 'Fondo: Esri, U.S. National Park Service (World Physical Map)' },
@@ -2741,26 +2819,27 @@ const MAP_BG = {
   photo: { url: ESRI('World_Imagery'), attr: 'Imagen: Esri, Maxar, Earthstar Geographics y GIS User Community (World Imagery)' },
   photobathy: { url: GEBCO, url2: ESRI('World_Imagery'), attr: 'Batimetría: GEBCO Compilation Group (GEBCO_LATEST); tierra: Esri, Maxar, Earthstar Geographics (World Imagery)' },
 };
-const bgCache = new Map(); let bgFailShown = false;
+const bgCache = new Map(), bgPromises = new Map(); let bgFailShown = false;
 const blobToDataURL = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 async function fetchImage(url) { const r = await fetch(url); if (!r.ok || !/^image\//.test(r.headers.get('content-type') || '')) throw new Error(`HTTP ${r.status}`); return blobToDataURL(await r.blob()); }
 /** Background for a map: returns {href, href2, attribution} when cached; otherwise starts the download and calls onReady. */
-function mapBackground(kind, bbox, onReady) {
-  const def = MAP_BG[kind]; if (!def) return null;
-  const key = `${kind}|${bbox.join(',')}`, hit = bgCache.get(key);
+function mapBackground(kind, bbox, onReady, proj = 'plate') {
+  const def = MAP_BG[kind]; if (!def || (proj !== 'plate' && proj !== 'mercator')) return null;
+  const key = `${kind}|${proj}|${bgWidth}|${bbox.join(',')}`, hit = bgCache.get(key);
   if (hit && hit !== 'pending') return hit === 'fail' ? null : hit;
   if (!hit) {
     bgCache.set(key, 'pending');
     // square pixels in degrees (ArcGIS would otherwise widen the extent); the image is then stretched onto the cos(lat) map
-    let w = 1600, h = Math.round((w * (bbox[3] - bbox[1])) / (bbox[2] - bbox[0]));
-    if (h > 3000) { w = Math.round((w * 3000) / h); h = 3000; } h = Math.max(h, 50);
-    Promise.all([fetchImage(def.url(bbox, w, h)), def.url2 ? fetchImage(def.url2(bbox, w, h)) : null])
+    const [mx0, my0] = merc(bbox[0], bbox[1]), [mx1, my1] = merc(bbox[2], bbox[3]);
+    let w = Math.min(4096, bgWidth), h = Math.round(proj === 'mercator' ? (w * (my1 - my0)) / (mx1 - mx0) : (w * (bbox[3] - bbox[1])) / (bbox[2] - bbox[0]));
+    if (h > 4096) { w = Math.round((w * 4096) / h); h = 4096; } h = Math.max(h, 50);
+    bgPromises.set(key, Promise.all([fetchImage(def.url(bbox, w, h, proj)), def.url2 ? fetchImage(def.url2(bbox, w, h, proj)) : null])
       .then(([href, href2]) => { bgCache.set(key, { href, href2, attribution: def.attr }); onReady(); })
-      .catch(() => { bgCache.set(key, 'fail'); if (!bgFailShown) { bgFailShown = true; toast(t('ms.bgFail')); } onReady(); });
+      .catch(() => { bgCache.set(key, 'fail'); if (!bgFailShown) { bgFailShown = true; toast(t('ms.bgFail')); } onReady(); }));
   }
   return null;
 }
-const bgPending = (kind, bbox) => bgCache.get(`${kind}|${bbox.join(',')}`) === 'pending';
+const bgPending = (kind, bbox, proj = 'plate') => bgCache.get(`${kind}|${proj}|${bgWidth}|${bbox.join(',')}`) === 'pending';
 
 /** Style panel for a map. get() → {style, view}; set(style, view) stores; redraw() renders; fit() resets the extent. */
 function mapStyleUI(boxId, get, set, redraw) {
@@ -2768,7 +2847,7 @@ function mapStyleUI(boxId, get, set, redraw) {
   if (box.dataset.built === lang()) { // already built: only refresh the values (rebuilding would steal the focus)
     for (const el of box.querySelectorAll('[data-k]')) if (el !== document.activeElement) { if (el.type === 'checkbox') el.checked = !!st[el.dataset.k]; else el.value = st[el.dataset.k]; }
     for (const el of box.querySelectorAll('[data-e]')) if (el !== document.activeElement) el.value = view ? view[+el.dataset.e] : '';
-    box.querySelector('.msload').textContent = bgPending(st.bg, view || get().auto || [0, 0, 0, 0]) ? ' · ' + t('ms.loading') : '';
+    box.querySelector('.msload').textContent = bgPending(st.bg, view || get().auto || [0, 0, 0, 0], st.proj) ? ' · ' + t('ms.loading') : '';
     return;
   }
   box.dataset.built = lang();
@@ -2779,6 +2858,7 @@ function mapStyleUI(boxId, get, set, redraw) {
   box.innerHTML = `<details><summary>${t('ms.title')}</summary><div class="msgrid">
     <label class="f"><span>${t('ms.bg')}</span><select data-k="bg">${Object.keys(MAP_BG).map((k) => `<option value="${k}" ${k === st.bg ? 'selected' : ''}>${t('ms.bg.' + k)}</option>`).join('')}</select></label>
     ${num('bgOpacity', 'ms.opacity', 0.1, 1, 0.1)}${chk('coast', 'ms.coast')}
+    <label class="f"><span>${t('ms.proj')}</span><select data-k="proj">${MAP_PROJECTIONS.map((k) => `<option value="${k}" ${k === (st.proj || 'plate') ? 'selected' : ''}>${t('ms.proj.' + k)}</option>`).join('')}</select></label>
     <label class="f"><span>${t('ms.symbol')}</span><select data-k="symbol">${MAP_SYMBOLS.map((k) => `<option value="${k}" ${k === st.symbol ? 'selected' : ''}>${t('ms.sym.' + k)}</option>`).join('')}</select></label>
     ${num('size', 'ms.size', 0.3, 4, 0.1)}${chk('sizeByFraction', 'ms.sizeFrac')}${col('pointColor', 'ms.pointColor')}${col('stroke', 'ms.stroke')}
     ${chk('labels', 'ms.labels')}${num('labelSize', 'ms.labelSize', 6, 30, 1)}${col('labelColor', 'ms.labelColor')}${chk('halo', 'ms.halo')}${chk('labelValue', 'ms.labelValue')}
@@ -2807,21 +2887,22 @@ function mapStyleUI(boxId, get, set, redraw) {
 
 /** Wheel zoom, drag pan and double-click zoom on a map container. get() → {view, auto}; set(bbox); redraw(). */
 function attachMapZoom(el, get, set, redraw) {
+  const frameOf = (b) => mapFrame(b, get().style?.proj || 'plate');
   const lonlat = (e, b) => {
     const svg = el.querySelector('svg'); if (!svg) return null;
-    const r = svg.getBoundingClientRect(), g = mapGeometry(b), k = r.width / g.W;
-    return [b[0] + ((e.clientX - r.left) / k / g.W) * (b[2] - b[0]), b[3] - (((e.clientY - r.top) / k - g.top) / g.H) * (b[3] - b[1])];
+    const r = svg.getBoundingClientRect(), f = frameOf(b), k = r.width / f.W;
+    return f.Pinv((e.clientX - r.left) / k, (e.clientY - r.top) / k);
   };
   let raf = 0;
-  const zoomAt = (e, f) => { const c = get(), b = c.view || c.auto; if (!b) return; const p = lonlat(e, b); if (!p) return; set(zoomBBox(b, f, p[0], p[1])); cancelAnimationFrame(raf); raf = requestAnimationFrame(redraw); };
+  const zoomAt = (e, f) => { const c = get(), b = c.view || c.auto; if (!b) return; const p = lonlat(e, b); if (!p || !p.every(Number.isFinite)) return; set(zoomBBox(b, f, p[0], p[1])); cancelAnimationFrame(raf); raf = requestAnimationFrame(redraw); };
   el.addEventListener('wheel', (e) => { if (!el.querySelector('svg')) return; e.preventDefault(); zoomAt(e, e.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
   el.addEventListener('dblclick', (e) => zoomAt(e, e.shiftKey ? 1 / 2 : 2));
   let drag = null;
   el.addEventListener('pointerdown', (e) => {
     const svg = el.querySelector('svg'); if (!svg || e.button !== 0) return;
     const c = get(), b = c.view || c.auto; if (!b) return;
-    const g = mapGeometry(b), k = svg.getBoundingClientRect().width / g.W; if (!(k > 0)) return;
-    drag = { x: e.clientX, y: e.clientY, b, g, k, moved: false }; el.setPointerCapture(e.pointerId);
+    const p0 = lonlat(e, b); if (!p0) return;
+    drag = { x: e.clientX, y: e.clientY, b, p0, moved: false }; el.setPointerCapture(e.pointerId);
   });
   el.addEventListener('pointermove', (e) => {
     if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -2831,11 +2912,24 @@ function attachMapZoom(el, get, set, redraw) {
   const end = (e) => {
     if (!drag) return; const d = drag; drag = null; el.classList.remove('dragging'); const svg = el.querySelector('svg'); if (svg) svg.style.transform = '';
     if (!d.moved) return;
-    const { g, k } = d;
-    const dlon = (-(e.clientX - d.x) / k / g.W) * (d.b[2] - d.b[0]), dlat = ((e.clientY - d.y) / k / g.H) * (d.b[3] - d.b[1]);
-    set(zoomBBox(d.b, 1, null, null, dlon, dlat)); redraw();
+    const p1 = lonlat(e, d.b); if (!p1 || !p1.every(Number.isFinite)) return;
+    set(zoomBBox(d.b, 1, null, null, d.p0[0] - p1[0], d.p0[1] - p1[1])); redraw();
   };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+
+/** PNG of a map at a chosen width (px); the raster background is downloaded again at that resolution (max. 4096 px). */
+async function exportMapPNG(build, name, width) {
+  const prev = bgWidth;
+  try {
+    bgWidth = Math.min(4096, width);
+    let svg = build(); await Promise.all([...bgPromises.values()].map((p) => p.catch(() => {})));
+    svg = build(); // second pass uses the high-resolution images now in the cache
+    const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
+    const k = width / img.width, c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/png')); if (blob) await saveFile(name, blob, 'image/png');
+  } finally { bgWidth = prev; }
 }
 
 // project map: style and extent are saved with the project (S.geo.map.style, S.geo.map.view)
@@ -2850,7 +2944,16 @@ let allStyle = { ...MAP_STYLE }, allView = null, allAutoBBox = null;
 try { allStyle = { ...MAP_STYLE, ...JSON.parse(localStorage.getItem('ichantool.allMapStyle') || '{}') }; allView = JSON.parse(localStorage.getItem('ichantool.allMapView') || 'null'); } catch { /* storage blocked */ }
 function saveAllStyle() { try { localStorage.setItem('ichantool.allMapStyle', JSON.stringify(allStyle)); localStorage.setItem('ichantool.allMapView', JSON.stringify(allView)); } catch { /* storage blocked */ } }
 const allMapGet = () => ({ style: allStyle, view: allView, auto: allAutoBBox });
-function redrawAllMap() { allMapSvg = buildAllMap($('amMode').value); $('allMap').innerHTML = allMapSvg; mapStyleUI('amStyle', allMapGet, (s2, v) => { allStyle = s2; allView = v; saveAllStyle(); }, redrawAllMap); }
+let allInterp = { ...INTERP_DEFAULT }, allOff = new Set(), allCoreItems = [], allVl = null;
+try { allInterp = { ...INTERP_DEFAULT, ...JSON.parse(localStorage.getItem('ichantool.allInterp') || '{}') }; allOff = new Set(JSON.parse(localStorage.getItem('ichantool.allOff') || '[]')); } catch { /* storage blocked */ }
+function saveAllInterp() { try { localStorage.setItem('ichantool.allInterp', JSON.stringify(allInterp)); localStorage.setItem('ichantool.allOff', JSON.stringify([...allOff])); } catch { /* storage blocked */ } }
+function redrawAllMap() {
+  allMapSvg = buildAllMap($('amMode').value); $('allMap').innerHTML = allMapSvg;
+  mapStyleUI('amStyle', allMapGet, (s2, v) => { allStyle = s2; allView = v; saveAllStyle(); }, redrawAllMap);
+  $('amInterp').hidden = $('amMode').value !== 'value';
+  if ($('amMode').value === 'value') interpUI('amInterp', () => allInterp, saveAllInterp, redrawAllMap, allVl?.info);
+  coreListUI('amCores', allCoreItems, allOff, saveAllInterp, redrawAllMap);
+}
 attachMapZoom($('allMap'), allMapGet, (b) => { allView = b; saveAllStyle(); }, redrawAllMap);
 $('geoMapCtl').addEventListener('change', (e) => {
   const m = S.geo.map, el = e.target, num = (v) => (v === '' ? null : +v);
@@ -2860,6 +2963,9 @@ $('geoMapCtl').addEventListener('change', (e) => {
   markDirty(); renderGeoMap();
 });
 for (const [id, dir] of [['gmPrev', -1], ['gmNext', 1]]) $(id).addEventListener('click', () => { const m = S.geo.map, w = m.a1 - m.a0; m.a0 += dir * w; m.a1 += dir * w; markDirty(); renderGeoMap(); });
+$('gmPng').addEventListener('click', () => busy(() => exportMapPNG(() => renderGeoMap() || '', `${safe(S.name)}_mapa_${S.geo.map.a0}-${S.geo.map.a1}.png`, +$('gmPngW').value)));
+$('gmBig').addEventListener('click', () => { $('work').classList.toggle('mapwide'); $('gmBig').setAttribute('aria-pressed', String($('work').classList.contains('mapwide'))); });
+$('gmFull').addEventListener('click', () => { const el = $('geoMapSvg'); if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen?.().catch(() => toast(t('ms.noFull'))); });
 $('gmSvg').addEventListener('click', () => { if (geoLastMap) saveFile(`${safe(S.name)}_mapa_${S.geo.map.a0}-${S.geo.map.a1}.svg`, geoLastMap.svg, 'image/svg+xml'); });
 $('gmCsv').addEventListener('click', () => {
   if (!geoLastMap) return;
@@ -2955,7 +3061,7 @@ function buildAllMap(mode) {
   allLite.forEach((l, pi) => {
     for (const c of l.cores) {
       if (c.lat == null || c.lon == null) continue;
-      const p = { name: c.name, lat: c.lat, lon: c.lon, n: 0 };
+      const p = { name: c.name, lat: c.lat, lon: c.lon, n: 0, key: `${l.id}|${c.id}`, project: l.name };
       const ages = coreAges(c);
       if (mode === 'sites') { p.n = 1; p.dominant = l.id; p.fraction = null; if (!colors[l.id]) { colors[l.id] = GROUP_COLORS[pi % GROUP_COLORS.length]; legend.push([l.name, colors[l.id]]); } }
       else if (mode === 'value') {
@@ -2981,17 +3087,21 @@ function buildAllMap(mode) {
       pts.push(p);
     }
   });
+  const shown = pts.filter((p) => !allOff.has(p.key));
+  allCoreItems = pts.map((p) => ({ id: p.key, name: p.name, lat: p.lat, where: p.project }));
+  pts.length = 0; pts.push(...shown);
   if (!pts.length) return `<p class="note" style="padding:16px">${t('home.noSites')}</p>`;
   const auto = mapBBox(pts); auto[2] += 3; allAutoBBox = auto;
   const bbox = allView || auto;
   const nx = 90, ny = Math.max(10, Math.round((90 * (bbox[3] - bbox[1])) / ((bbox[2] - bbox[0]) * Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180))));
-  const bg = mapBackground(allStyle.bg, bbox, redrawAllMap);
-  const grid = mode === 'value' && pts.filter((p) => p.value != null).length >= 3 ? idwGrid(pts, bbox, nx, ny, 2) : null;
+  const bg = mapBackground(allStyle.bg, bbox, redrawAllMap, allStyle.proj);
+  const vl = mode === 'value' ? valueLayer(pts, bbox, allInterp, `z ${$('amVar').value}`) : null; allVl = vl;
   const title = mode === 'sites' ? t('home.mapSites') : mode === 'value' ? t('home.mapValue', { f: $('amVar').value, a0, a1 }) : t('home.mapLayer', { l: $('amLayer').value, a0, a1 });
-  return buildMapSVG({ land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, grid, nx, ny, legend, title, subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote'), style: allStyle, bg });
+  return buildMapSVG({ land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, legend, title, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}), subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote'), style: allStyle, bg });
 }
 $('allCtl').addEventListener('change', () => renderAllProjects());
 for (const [id, dir] of [['amPrev', -1], ['amNext', 1]]) $(id).addEventListener('click', () => { const a = +$('amA0').value, b = +$('amA1').value, w = b - a; $('amA0').value = a + dir * w; $('amA1').value = b + dir * w; renderAllProjects(); });
+$('amPng').addEventListener('click', () => busy(() => exportMapPNG(() => buildAllMap($('amMode').value), 'corantool_mapa_proyectos.png', +$('amPngW').value)));
 $('amSvg').addEventListener('click', () => { if (allMapSvg.startsWith('<svg')) saveFile('corantool_mapa_proyectos.svg', allMapSvg, 'image/svg+xml'); });
 $('allTable').addEventListener('click', async (e) => {
   const tr = e.target.closest('tr[data-p]'); if (!tr) return;

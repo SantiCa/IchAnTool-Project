@@ -1,7 +1,7 @@
 # Documentación técnica de CorAnTool (antes IchAnTool)
 
-Versión del documento: V19 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 1.3.
+Versión del documento: V20 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 1.4.
 
 **Nombre (desde V16).** El programa pasa a llamarse **CorAnTool** (*Core Analysis Tool*): nació como
 IchAnTool (icnología, Casanova-Arenillas et al., 2020) y ahora analiza también registros multiproxy.
@@ -1101,6 +1101,44 @@ entrenado. «Colorear registros por clase» rellena el fondo de cada columna de 
   `k` la escala de pantalla del SVG.
 - La extensión elegida se guarda en `geo.map.view` (`null` = ajustada a los sondeos con margen de 3°
   y 3° más al este para las etiquetas); el estilo en `geo.map.style`.
+
+### 21.6 ter Interpolación, escala de color, proyecciones y exportación (desde V20)
+Módulo `interp.js` (sin DOM). Distancias en grados con la longitud multiplicada por cos(latitud central).
+La malla tiene `res` celdas a lo ancho (90 por defecto, 10–400) y `ny = res · H / W` filas; cada celda vale lo
+interpolado en su centro.
+- **Inverso de la distancia:** `v = Σ wᵢvᵢ / Σ wᵢ`, `wᵢ = 1/dᵢ^p` (p = 2); radio de búsqueda opcional y número
+  máximo de sondeos (los más cercanos).
+- **Vecino más cercano:** valor del sondeo más próximo (dentro del radio, si se da).
+- **Triangulación lineal:** Delaunay (Bowyer–Watson) e interpolación baricéntrica; fuera de los triángulos, vacío.
+- **Curvatura mínima:** spline de placa delgada `φ(r) = r² ln r` con término lineal `a + b·x + c·y` (es la
+  superficie de mínima energía de flexión que pasa por los datos, el mismo criterio que la curvatura mínima de
+  Surfer, resuelto de forma exacta en lugar de iterativa); «suavizado» λ se suma a la diagonal.
+- **Funciones de base radial:** multicuádrica `√(r² + c²)`, gaussiana `exp(−(r/c)²)` o placa delgada; `c` = forma
+  (1 por defecto); mismo sistema `[Φ + λI, P; Pᵀ, 0]`.
+- **Kriging ordinario:** sistema `[Γ, 1; 1ᵀ, 0]` con `Γᵢⱼ = γ(dᵢⱼ)`; su inversa se calcula una vez y los pesos
+  de cada celda son `A⁻¹·[γ(dᵢ), 1]`. Variogramas esférico, exponencial (`1 − e^(−3h/a)`), gaussiano
+  (`1 − e^(−3(h/a)²)`) y lineal con pepita y meseta. Ajuste automático: semivariograma empírico en 8 clases de
+  distancia hasta la mitad de la distancia máxima; meseta = varianza de los valores; alcance (30 valores hasta la
+  distancia máxima) y pepita (0–50 % de la meseta) por mínimos cuadrados ponderados por el número de pares.
+- **Media móvil:** media de los sondeos a menos del radio (5° si no se indica).
+- Si un sistema no se puede resolver se usa el inverso de la distancia (se avisa).
+- **Opciones:** solo dentro del contorno convexo de los sondeos; rellenar mar y tierra, solo mar o solo tierra
+  (centro de la celda dentro o fuera de los polígonos de Natural Earth); opacidad; isolíneas por cuadrados
+  marchantes en `n` niveles «redondos» entre el mínimo y el máximo del color, con etiquetas.
+- **Color:** 8 escalas (divergente suave, azul–rojo, viridis, magma, terreno, océano, grises, arcoíris), invertible;
+  rango −2…2 (z), mínimo–máximo, simétrico ±máx o manual; continuo o en `n` clases. Barra de color bajo el mapa.
+  Los puntos del modo «valor» usan la misma escala.
+- **Sondeos del mapa:** lista con casilla por sondeo; los desmarcados no se dibujan ni entran en la interpolación
+  (`geo.map.off`).
+- **Proyecciones:** equirrectangular con escala cos φ₀ (por defecto), Mercator (`y = ln tan(π/4 + φ/2)`) y Lambert
+  azimutal de áreas iguales centrada en el mapa. El marco se calcula muestreando los bordes de la extensión; la
+  retícula se dibuja como curvas; las celdas son rectángulos (equirrectangular, Mercator) o cuadriláteros
+  proyectados. Los fondos raster solo se usan en equirrectangular (EPSG:4326) y Mercator (EPSG:3857; en GEBCO la
+  extensión se pasa en metros, R = 6 378 137 m); en Lambert se dibuja el mapa vectorial. La barra de escala se mide
+  en el centro del mapa.
+- **Tamaño y exportación:** el mapa ocupa todo el ancho; «⤢» oculta el panel y «⛶» lo pone a pantalla completa.
+  PNG de 1800 a 7200 px de ancho; el fondo raster se vuelve a descargar a ese ancho (máximo 4096 px por los
+  servicios) antes de rasterizar.
 
 ### 21.7 Superposición con el registro del sondeo
 - En el modo «Multiproxy», el registro de cada sondeo muestra sus variables numéricas y una banda

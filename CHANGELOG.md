@@ -2,6 +2,13 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V20 — Web app 1.4 — 2026-10-31
+- Side panels no longer clip long labels; side tabs wrap.
+- Maps: 7 gridding methods (inverse distance, nearest, linear triangulation, minimum curvature, RBF, ordinary
+  kriging with fitted variogram, moving average), cell size, sea/land/both mask, convex-hull clip, contours,
+  8 colour ramps with range and classes, colour bar, list of cores to include, projections (equirectangular,
+  Mercator, Lambert azimuthal equal-area), larger/full-screen map, PNG export at 1800–7200 px.
+
 ## V19 — Web app 1.3 — 2026-10-31
 - Training project with 7 synthetic Mediterranean cores and a synthetic core image with labelled traces
   (`tools/make_tutorial.py`), contextual help cards and a 25-step guided tour.

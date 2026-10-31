@@ -274,8 +274,9 @@ necesitan normalizar la forma de cada proxy y dan una medida de importancia. Se 
 métodos más simples (k-NN, Bayes) en el mismo esquema de validación.
 
 **¿La interpolación del mapa es fiable?**
-La IDW es solo visual y exploratoria (§21.6): no estima incertidumbre ni tiene en cuenta la
-geografía. Las conclusiones se basan en los valores de cada sondeo, que también se exportan.
+La interpolación es visual y exploratoria (§21.6, §21.6 ter): ningún método estima la incertidumbre
+de forma útil con pocos sondeos (el kriging da una varianza, pero su variograma con ~10 sondeos es muy incierto) y
+ninguno tiene en cuenta barreras geográficas. Las conclusiones se basan en los valores de cada sondeo, que también se exportan.
 Los fondos de los mapas (Esri, GEBCO; §21.6 bis) son solo contexto visual: no entran en ningún
 cálculo, y su fuente debe citarse en el pie de la figura (el programa la escribe en el mapa).
 

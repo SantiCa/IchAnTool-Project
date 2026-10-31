@@ -37,6 +37,7 @@ La descripción detallada de los algoritmos está en
 | V17 | 31-10-2026 | Aplicación web 1.1 | Pestaña «Todos los proyectos» con análisis multiproyecto (Multiproxy, Datos y Figuras con sondeos de varios proyectos); tres modelos de icnotaxones (sondeo, proyecto, todos) guardados y probabilidad de cada icnotaxón por modelo |
 | V18 | 31-10-2026 | Aplicación web 1.2 | Diálogo «Modelos y entrenamiento»: guía para no especialistas, k-NN / Random Forest / Bayes con parámetros, evaluación de 3 métodos × 3 modelos con recomendación, galería de ejemplos (excluir, quitar) y ejemplos de otros proyectos |
 | V19 | 31-10-2026 | Aplicación web 1.3 | Proyecto de entrenamiento con 7 sondeos sintéticos del Mediterráneo e imagen con trazas, carteles de ayuda por pestaña y recorrido guiado de 25 pasos |
+| V20 | 31-10-2026 | Aplicación web 1.4 | Paneles laterales sin cortes; mapa con 7 métodos de interpolación (IDW, vecino, triangulación, curvatura mínima, RBF, kriging, media móvil), isolíneas, celdas ajustables, solo mar/tierra, escalas y barra de color, lista de sondeos, proyecciones, mapa ampliable y PNG a la resolución elegida |
 
 ---
 
@@ -608,6 +609,40 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V20 — Interfaz sin cortes y mapas tipo Surfer (31-10-2026)
+
+**Qué se hizo.**
+- **Paneles laterales:** los textos y botones largos ya no se cortan; las pestañas de la derecha pasan a dos
+  líneas si no caben.
+- **Mapa (Multiproxy y pantalla inicial):** panel «Interpolación y escala de color» con 7 métodos (inverso de la
+  distancia, vecino más cercano, triangulación lineal, curvatura mínima, funciones de base radial, kriging con
+  variograma automático o manual, media móvil) y sus parámetros explicados; tamaño de celda; rellenar mar y
+  tierra, solo mar o solo tierra; solo dentro del contorno de los sondeos; isolíneas con valores; 8 escalas de
+  color, rango y clases; **barra de color**.
+- **Lista de sondeos** del mapa con casillas para quitar los que no se quieran.
+- **Proyección:** equirrectangular, Mercator (con fondos raster) o Lambert azimutal de áreas iguales.
+- **Mapa más grande:** ocupa todo el ancho, botón para ocultar el panel y pantalla completa.
+- **PNG** a 1800–7200 px, con el fondo raster descargado a esa resolución.
+
+**Cambios.** Nuevo `interp.js` (interpolación, Delaunay, variograma, isolíneas, escalas) en `ORDER`;
+`geo.js`: `makeProjection`, `mapFrame`, `MAP_PROJECTIONS`, celdas, isolíneas y barra de color en `buildMapSVG`;
+`app.js`: `valueLayer`, `interpUI`, `coreListUI`, `exportMapPNG`, fondos en EPSG:3857, zoom con proyección
+inversa; `index.html`: CSS de paneles y mapa, botones; `i18n.js`; `tests/app/interp.test.mjs`.
+
+**Por qué.** Petición de Santiago: arreglar la interfaz cortada; modos de interpolación como Surfer, lista de
+sondeos, celdas más pequeñas, barra y escala de color, solo mar/tierra, mapa más grande, resolución del PNG y
+proyección.
+
+**Comprobación.** 36 pruebas de la aplicación y 9 de Python. Sin desbordamiento horizontal en los paneles a 412,
+1280 y 1500 px. En el proyecto de entrenamiento (Ba/Ti, 6–10 ka): los 7 métodos dibujan la malla; kriging ajusta
+el variograma (esférico, pepita 0,18, meseta 0,91, alcance 22,7°); isolíneas, solo mar, 200 celdas; quitar ENT-01
+deja 6 sondeos; Lambert y Mercator con zoom; PNG de 3600 px descargado; ningún error.
+
+**Pendiente o problemas conocidos.** Con pocos sondeos (7) cualquier interpolación es especulativa: el variograma
+automático es poco fiable. Lambert no admite fondos raster.
 
 ---
 
