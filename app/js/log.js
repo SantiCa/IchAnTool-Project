@@ -92,6 +92,18 @@ const escXml = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': 
 const f2 = (v) => +(+v).toFixed(2);
 const lbl = (v) => String(+(+v).toPrecision(6));
 
+/** Split a track name into at most two lines of about w px (10 px font); the second line ends in … if cut. */
+export function wrapTitle(text, w) {
+  const max = Math.max(4, Math.floor((w - 4) / 5.6)), words = String(text ?? '').split(/\s+/).filter(Boolean), lines = [''];
+  for (const wd of words) {
+    const cur = lines[lines.length - 1], next = cur ? cur + ' ' + wd : wd;
+    if (next.length <= max || !cur) lines[lines.length - 1] = next; else lines.push(wd);
+  }
+  const out = lines.slice(0, 2).map((l) => (l.length > max ? l.slice(0, max - 1) + '…' : l));
+  if (lines.length > 2) out[1] = (out[1].length >= max ? out[1].slice(0, max - 1) : out[1]) + '…';
+  return out;
+}
+
 /**
  * Build the composite log as an SVG string.
  * o = { title, subtitle, axisLabel, from, to, height, rows, classes:[{name,color,index}],
@@ -106,16 +118,16 @@ export function buildLogSVG(o) {
   const y = (v) => f2(top + ((v - from) / span) * H);
   const rows = o.rows.filter((r) => r.a1 > from && r.a0 < to);
   const cols = [];
-  const t = o.tracks;
+  const t = o.tracks, cw = o.colWidths || {}, wOf = (id, d) => Math.max(30, Math.min(600, +cw[id] || d));
   cols.push({ key: 'axis', w: 64 });
   if (t.image && o.image) cols.push({ key: 'image', w: o.imageWidth || 60, title: L.image });
-  if (t.total) cols.push({ key: 'total', w: 150, title: L.total });
+  if (t.total) cols.push({ key: 'total', id: 'total', w: wOf('total', 150), title: L.total });
   const presentClasses = o.classes.filter((c) => rows.some((r) => (r.classPct[c.index] || 0) > 0));
-  if (t.species) cols.push({ key: 'species', w: 150, title: L.species });
+  if (t.species) cols.push({ key: 'species', id: 'species', w: wOf('species', 150), title: L.species });
   if (t.BI) cols.push({ key: 'BI', w: 46, title: 'BI' });
   if (t.ii) cols.push({ key: 'ii', w: 46, title: 'ii' });
-  for (const b of o.bands || []) cols.push({ key: 'band', w: b.w || 46, title: b.title, band: b });
-  for (const r of o.records) cols.push({ key: 'rec', w: 120, title: r.name, rec: r });
+  for (const b of o.bands || []) { const id = 'band:' + (b.full || b.title); cols.push({ key: 'band', id, w: wOf(id, b.w || 46), title: b.title, full: b.full, band: b }); }
+  for (const r of o.records) { const id = 'rec:' + r.name; cols.push({ key: 'rec', id, w: wOf(id, o.recWidth || 120), title: r.name, rec: r }); }
   let x = 8;
   for (const c of cols) { c.x = x; x += c.w + 14; }
   const W = x;
@@ -132,7 +144,11 @@ export function buildLogSVG(o) {
 
   const yTicks = niceTicks(from, to, Math.max(3, Math.round(H / 70)));
   const frame = (c) => out.push(`<rect x="${c.x}" y="${top}" width="${c.w}" height="${H}" fill="none" stroke="#9aa5a1" stroke-width="0.8"/>`);
-  const title = (c) => out.push(`<text x="${c.x + c.w / 2}" y="50" text-anchor="middle" font-weight="600" fill="#1c2422">${escXml(c.title.length > 26 ? c.title.slice(0, 25) + '…' : c.title)}</text>`);
+  // track names: up to two lines that fit the column width (V25); the full name is in the returned layout
+  const title = (c) => {
+    const ls = wrapTitle(c.title, c.w);
+    out.push(`<text x="${c.x + c.w / 2}" y="${ls.length > 1 ? 46 : 54}" text-anchor="middle" font-weight="600" fill="#1c2422">${ls.map((l, i) => `<tspan x="${c.x + c.w / 2}" dy="${i ? 12 : 0}">${escXml(l)}</tspan>`).join('')}</text>`);
+  };
   const xScale = (c, lo, hi, reverse = false, ticks = null) => {
     const sx = (v) => f2(c.x + ((reverse ? hi - v : v - lo) / (hi - lo || 1)) * c.w);
     for (const tv of ticks || niceTicks(lo, hi, 3)) {
@@ -218,7 +234,8 @@ export function buildLogSVG(o) {
     out.push(`<rect x="${lx}" y="${ly}" width="10" height="10" fill="${k.color}"/><text x="${lx + 14}" y="${ly + 9}" fill="#1c2422">${escXml(k.name)}</text>`);
   });
   out.push('</svg>');
-  return { svg: out.join(''), width: W, height: Htot, plotTop: top, plotHeight: H };
+  return { svg: out.join(''), width: W, height: Htot, plotTop: top, plotHeight: H,
+    layout: cols.filter((c) => c.key !== 'axis').map((c) => ({ id: c.id || null, key: c.key, x: c.x, w: c.w, title: c.full || c.title })) };
 }
 
 /** CSV of the intervals inside the window, plus external records interpolated at each interval centre. */

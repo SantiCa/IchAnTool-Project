@@ -2,6 +2,12 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V25 — Web app 1.9 — 2026-10-31
+- Multiproxy usability pass: compact import grid and core table, per-step summaries, sticky train button,
+  grouped curve toolbar with layer/class picker, click a band to edit its interval, safer class deletion.
+- Hover help everywhere in the mode (styled tooltips), map point tooltips, confusion-matrix explanations.
+- Log cursor readout (Columna and Curves); scrollable logs, per-track resizable widths, two-line track names.
+
 ## V24 — Web app 1.8.1 — 2026-10-31
 - Cross-project analyses are no longer listed as projects: they are created, saved and opened in the
   «Across projects» tab; the header reads «Analysis» while one is open.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTable, guessAxisColumn, niceTicks, invertModel, toAxis, compositeRows, buildLogSVG, windowCSV } from '../../app/js/log.js';
+import { parseTable, guessAxisColumn, niceTicks, invertModel, toAxis, compositeRows, buildLogSVG, windowCSV, wrapTitle } from '../../app/js/log.js';
 import { downsampleRGBA } from '../../app/js/imageproc.js';
 
 test('parseTable: comma, semicolon with decimal comma, whitespace, comments', () => {
@@ -40,4 +40,16 @@ test('downsample averages blocks', () => {
   const src = new Uint8ClampedArray([0, 0, 0, 255, 100, 100, 100, 255, 200, 200, 200, 255, 100, 100, 100, 255]);
   const r = downsampleRGBA(src, 2, 2, 2);
   assert.equal(r.w, 1); assert.equal(r.rgba[0], 100);
+});
+
+test('track names wrap to two lines and column widths can be set per track (V25)', () => {
+  assert.deepEqual(wrapTitle('XRF Ti/Ca', 120), ['XRF Ti/Ca']);
+  assert.deepEqual(wrapTitle('Capas orgánicas de la cuenca', 56), ['Capas', 'orgánica…']);
+  const recs = [{ name: 'A', color: '#000', pts: [[0, 1], [1, 2]] }, { name: 'B b b', color: '#000', pts: [[0, 1], [1, 3]] }];
+  const base = { from: 0, to: 1, height: 100, rows: [], classes: [], tracks: {}, records: recs };
+  const r1 = buildLogSVG(base), r2 = buildLogSVG({ ...base, colWidths: { 'rec:A': 200 }, recWidth: 90 });
+  assert.equal(r1.layout.find((c) => c.id === 'rec:A').w, 120);
+  assert.equal(r2.layout.find((c) => c.id === 'rec:A').w, 200);
+  assert.equal(r2.layout.find((c) => c.id === 'rec:B b b').w, 90);
+  assert.ok(r2.width > r1.width);
 });

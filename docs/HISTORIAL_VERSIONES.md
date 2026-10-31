@@ -42,6 +42,7 @@ La descripción detallada de los algoritmos está en
 | V22 | 31-10-2026 | Aplicación web 1.7 | Revisión de un concilio de 3 agentes (métodos, usabilidad, interfaz y código): evaluación sin inflar, validación por sección e intervalos descritos, mapas solo con datos reales y distancias en km, nombres coherentes, confirmaciones, atajos seguros, pantalla inicial y contraste |
 | V23 | 31-10-2026 | Aplicación web 1.8 | Pantalla inicial genérica (todos los proyectos como tarjetas, sin acceso propio de la tesis), sondeos presentes en varios proyectos, paneles laterales redimensionables u ocultables y mapa redimensionable arrastrando sus bordes |
 | V24 | 31-10-2026 | Aplicación web 1.8.1 | Los análisis entre proyectos dejan de aparecer como proyectos: se guardan y abren desde la pestaña «Entre proyectos» |
+| V25 | 31-10-2026 | Aplicación web 1.9 | Multiproxy más ordenado: panel compacto con resumen por paso, ayuda al pasar el ratón en todo el modo, cursor que lee todos los valores, columnas desplazables y redimensionables con nombres en dos líneas (también en Columna), clase elegida en la barra de curvas, clic para editar intervalos y borrado de clases con confirmación |
 
 ---
 
@@ -613,6 +614,48 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V25 — Multiproxy más claro, ayuda al pasar el ratón y columnas redimensionables (31-10-2026)
+
+**Qué se hizo.** Revisión de usabilidad del modo Multiproxy, que resultaba caótico, y de la Columna.
+
+**Cambios.**
+- Panel izquierdo: importación en una cuadrícula de 4 botones cortos con explicación al pasar el ratón
+  (los formatos y los datos de demostración, en un desplegable); los sondeos pasan de tarjetas grandes a
+  una tabla compacta (nombre · lat · lon · variables · intervalos, detalle al pasar el ratón, ✎ para
+  editar o eliminar); cada paso muestra un resumen en su cabecera (p. ej. «9 variables · Edad 0,5»);
+  «Entrenar y clasificar» queda fijo al pie del panel con el estado del modelo.
+- Ayuda emergente propia en todos los controles del modo (eje, paso, escalado, huecos, variables,
+  capas, reglas, método, probabilidad mínima, mapa, modelo…), en los sondeos del mapa y en la matriz
+  de confusión («N muestras de A clasificadas como B», qué es el acierto equilibrado).
+- Curvas: barra agrupada (sondeo con ◀ ▶; marcar intervalos con capa y clase elegidas allí mismo;
+  colorear por clase y ancho de columnas; probar la autoclasificación). Cursor de lectura con el valor
+  de cada variable a esa altura y una ficha con bandas, profundidad o edad, etiqueta y clase predicha.
+  Clic en una banda: selecciona y enfoca ese intervalo en la lista para cambiar su clase o borrarlo.
+- Columnas (Curvas y Columna): el gráfico se desplaza dentro de su marco cuando hay muchas variables;
+  cada columna se ensancha arrastrando su borde junto al nombre (doble clic restaura); los nombres
+  ocupan hasta dos líneas; deslizador de ancho general y «Anchos por defecto».
+- Lista de intervalos a la derecha de las curvas (fija al desplazarse), con selectores más anchos y
+  unidades abreviadas.
+- Clases de una capa: botón ✕ visible con ayuda; si la clase tiene intervalos pide confirmación
+  («¿Borrar y sus N intervalos?»). Icnotaxones: ayuda en ✕ y aviso en las clases del programa.
+- Texto corregido: «Hueco máximo (vacío = automático)» (desde V22 el vacío es 3 × espaciado típico).
+
+**Por qué.** Petición de Santiago: el modo era difícil de usar, faltaba información al pasar el ratón,
+las columnas se cortaban con muchos proxies y no encontraba cómo borrar clases ni cómo seleccionar en el
+sondeo un tramo de una clase. En la prueba automática el borrado de clases y el marcado funcionaban, pero
+eran poco visibles: la clase había que elegirla en el panel izquierdo, lejos de las curvas.
+
+**Comprobación.** `npm test`: 42 correctas (nueva: nombres en dos líneas y anchos por columna);
+`pytest`: 9. En navegador (proyecto de entrenamiento): ficha del cursor con 20 filas, cabecera con
+nombre completo, columna ensanchada a 141 px y guardada, ayudas en botones, sondeos y mapa, clase
+borrada, intervalo dibujado con la clase de la barra, clic en una banda que selecciona el intervalo ORL;
+Columna con cursor; sin errores de la aplicación.
+
+**Pendiente o problemas conocidos.** Los nombres de columna no se quedan fijos al desplazar en vertical
+un gráfico muy alto. Siguen los pendientes de V23.
 
 ---
 

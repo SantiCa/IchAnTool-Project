@@ -578,7 +578,7 @@ function scaleBarKm(bbox, P, maxPx = 160) {
 }
 
 /**
- * SVG map. o = {land, bbox, points, mode: 'class'|'value', colors, grid, nx, ny, title, subtitle, note, legend,
+ * SVG map. o = {land, bbox, points, mode: 'class'|'value', colors, grid, nx, ny, title, subtitle, note, legend, tipFn (point → hover text),
  *               style (see MAP_STYLE), bg: {href, href2, attribution}}.
  * bg.href is an image already projected in EPSG:4326 over the bbox (it is stretched onto the plot area);
  * bg.href2 (optional) is drawn on top clipped to the land polygons (e.g. aerial photo over a bathymetry).
@@ -640,7 +640,8 @@ export function buildMapSVG(o) {
     else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = st.sizeByFraction ? 5 + 5 * (p.fraction ?? 0.6) : 7; if (st.labelValue && p.dominant && p.fraction != null) label += ` ${Math.round(p.fraction * 100)}%`; }
     else { fill = (o.colorFn || divColor)(p.value); if (st.labelValue) label += ` ${(+p.value).toFixed(2)}`; }
     r *= st.size;
-    s.push(symbolSVG(st.symbol, cx, cy, r, `fill="${esc2(fill)}" stroke="${esc2(st.stroke)}" stroke-width="${p.n ? 1 : 0.6}"${p.n ? '' : ' stroke-dasharray="2 2"'}`));
+    const sym = symbolSVG(st.symbol, cx, cy, r, `fill="${esc2(fill)}" stroke="${esc2(st.stroke)}" stroke-width="${p.n ? 1 : 0.6}"${p.n ? '' : ' stroke-dasharray="2 2"'}`);
+    s.push(o.tipFn ? `<g data-tip="${esc2(o.tipFn(p))}" style="cursor:help">${sym}</g>` : sym);   // V25: hover information
     if (st.labels) s.push(`<text x="${(cx + r + 3).toFixed(1)}" y="${(cy + st.labelSize * 0.36).toFixed(1)}" font-size="${st.labelSize}" fill="${esc2(lblColor)}"${halo}>${esc2(label)}</text>`);
   }
   if (st.scaleBar) {

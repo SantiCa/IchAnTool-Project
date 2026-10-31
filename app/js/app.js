@@ -827,7 +827,7 @@ function renderClasses() {
       <input type="color" value="${c.color}" aria-label="color">
       <input class="name" type="text" value="${esc(c.name)}" aria-label="name">
       <span class="cnt">${t('cls.counts', { n: nObj[c.id] || 0, e: nEx[c.id] || 0 })}</span>
-      ${c.fixed ? '<span></span>' : '<button class="del" aria-label="delete">×</button>'}
+      ${c.fixed ? `<span title="${esc(t('gx.fixedCls'))}"></span>` : `<button class="del" title="${esc(t('gx.delCls'))}" aria-label="${esc(t('gx.delCls'))}">✕</button>`}
     </li>`).join('');
 }
 /** Two-step confirmation for actions that cannot be undone: the first click arms the button (text and colour change) for 4 s. */
@@ -1981,9 +1981,19 @@ function renderLog() {
     axisLabel, from, to, height: lv.height, rows: D.rows, classes, tracks: lv.tracks, image, imageWidth: imgW, records, boundaries,
     ...geoOverlay(D.axis),
     labels: { total: t('log.total'), species: t('log.species'), image: t('log.image') },
+    colWidths: (lv.colW ||= {}),
   });
   box.innerHTML = res.svg;
   lastLog = { ...D, from, to, classes, records, svg: res.svg };
+  const ov = geoOverlay(D.axis);
+  logInteract(box, res, { from, to, axisLabel, records, bands: ov.bands || [], widths: lv.colW, onResize: () => { markDirty(); renderLog(); },
+    extra: (a) => {
+      const r = D.rows.find((q) => q.a0 <= a && a < q.a1); if (!r) return [];
+      const out = [[t('log.total'), `${fmt(r.pct ?? 0, 3)} %`]];
+      if (r.BI != null) out.push(['BI', r.BI]); if (r.ii != null) out.push(['ii', r.ii]);
+      classes.map((c) => [c.name, r.classPct?.[c.index] || 0]).filter((q) => q[1] > 0).sort((x, y) => y[1] - x[1]).slice(0, 4).forEach(([n, v]) => out.push([n, `${fmt(v, 3)} %`]));
+      return out;
+    } });
 }
 
 function renderLogPanel() {
@@ -2225,15 +2235,31 @@ function geoCoreNote(c) {
   return esc(s);
 }
 
+/** One-line state of each step, shown in its header so a closed step still tells what it holds (V25). */
+function renderGeoSummaries() {
+  const g = S.geo, st = g.settings, L = geoLayer(st.target);
+  const set = (id, txt) => { const el = $(id); if (el) { el.textContent = txt; el.title = txt; } };
+  set('geoSum1', t('home.cores', { n: S.cores.length }));
+  set('geoSum2', `${t('gx.nVars', { n: st.features.length })} · ${t(st.axis === 'age' ? 'log.age' : 'log.depth')} ${fmt(st.step, 3)}`);
+  set('geoSum3', `${t('gx.nLayers', { n: g.layers.length })} · ${t('gx.nIvs', { n: g.intervals.filter((q) => !q.auto).length })}`);
+  const cv = geoRT.cv, trained = geoRT.model && geoRT.preds.length;
+  const state = !L ? t('gx.noTarget') : trained ? (cv ? t('gx.trainedAcc', { m: t('geo.m.name.' + geoRT.model.kind), a: fmt(cv.balancedAccuracy * 100, 0) }) : t('gx.trained', { m: t('geo.m.name.' + geoRT.model.kind) })) : t('gx.untrained');
+  set('geoSum4', `${L ? L.name + ' · ' : ''}${t('geo.m.name.' + st.method)}`);
+  const ts = $('geoTrainState'); if (ts) ts.textContent = state;
+}
 function renderGeoPanel() {
   const g = S.geo, st = g.settings, vars = allNumericVars();
   if (!geoLayer(g.activeLayer)) g.activeLayer = g.layers[0]?.id;
   const L = geoLayer(g.activeLayer);
   if (L && !L.cats.some((c) => c.id === g.activeCat)) g.activeCat = L.cats[0]?.id;
-  $('geoCores').innerHTML = S.cores.map((c) => `<div class="gcore ${c.id === g.view.core ? 'current' : ''}" data-id="${c.id}">
-      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(c.name)}</b><button class="btn small ghost" data-act="del" aria-label="delete">✕</button></div>
-      <div class="grid2"><label class="f"><span>Lat</span><input type="number" step="any" data-k="lat" value="${c.lat ?? ''}"></label><label class="f"><span>Lon</span><input type="number" step="any" data-k="lon" value="${c.lon ?? ''}"></label></div>
-      <span class="note">${geoCoreNote(c)}</span></div>`).join('') || `<p class="note">${t('geo.noCores')}</p>`;
+  // V25: compact table of cores (name · lat · lon · variables/intervals), full details on hover
+  $('geoCores').innerHTML = S.cores.length ? `<table class="gctab"><thead><tr><th>${t('geo.core')}</th><th>Lat</th><th>Lon</th><th title="${esc(t('gx.tip.vi'))}">${t('gx.vi')}</th><th></th></tr></thead><tbody>${S.cores.map((c) => {
+    const ni = g.intervals.filter((q) => q.core === c.id).length, nv = Object.keys(c.proxies || {}).length, note = geoCoreNote(c), bad = (!c.age && !c.ageText) || st.features.some((k) => !(featureSeries(c, k, g.ratios) || []).some((v) => v != null));
+    return `<tr class="gcore ${c.id === g.view.core ? 'current' : ''}" data-id="${c.id}"><td><button class="gcname" data-tip="${note}">${esc(c.name)}</button></td>
+      <td><input type="number" step="any" data-k="lat" value="${c.lat ?? ''}" aria-label="lat ${esc(c.name)}"></td><td><input type="number" step="any" data-k="lon" value="${c.lon ?? ''}" aria-label="lon ${esc(c.name)}"></td>
+      <td><span class="gcn ${bad ? 'warn' : ''}" data-tip="${note}">${nv} · ${ni}</span></td><td><button class="btn small ghost" data-act="del" data-tip="${esc(t('gx.tip.coreDlg'))}" aria-label="${esc(t('gx.tip.coreDlg'))}">✎</button></td></tr>`;
+  }).join('')}</tbody></table>` : `<p class="note">${t('geo.noCores')}</p>`;
+  renderGeoSummaries();
   $('geoMissing').value = st.missing || 'drop';
   $('geoAxis').value = st.axis; $('geoStep').value = st.step; $('geoScaling').value = st.scaling; $('geoMaxGap').value = st.maxGap ?? '';
   $('geoFeats').innerHTML = vars.map((k) => `<div class="row srow"><label class="chk"><input type="checkbox" data-feat="${esc(k)}" ${st.features.includes(k) ? 'checked' : ''}><span>${esc(k)}</span></label><label class="chk note"><input type="checkbox" data-log="${esc(k)}" ${st.logs.includes(k) ? 'checked' : ''}>log</label></div>`).join('') || `<p class="note">—</p>`;
@@ -2244,7 +2270,7 @@ function renderGeoPanel() {
   $('geoLayerSel').innerHTML = tree.map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(layer.name)}</option>`).join('');
   $('geoLayerName').value = L?.name || '';
   $('geoLayerParent').innerHTML = `<option value="">${t('geo.noParent')}</option>` + g.layers.filter((l) => L && l.id !== L.id && !isDescendant(l.id, L.id)).map((l) => `<option value="${l.id}" ${l.id === L?.parent ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
-  $('geoLabels').innerHTML = (L?.cats || []).map((c) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}"><span></span><input type="color" value="${c.color}"><input class="name" type="text" value="${esc(c.name)}"><span class="cnt">${g.intervals.filter((q) => q.cat === c.id).length}</span><button class="del" aria-label="delete">×</button></li>`).join('');
+  $('geoLabels').innerHTML = (L?.cats || []).map((c) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}"><span></span><input type="color" value="${c.color}"><input class="name" type="text" value="${esc(c.name)}"><span class="cnt" title="${esc(t('gx.tip.catCount'))}">${g.intervals.filter((q) => q.cat === c.id).length}</span><button class="del" title="${esc(t('gx.delCat'))}" aria-label="${esc(t('gx.delCat'))}">✕</button></li>`).join('');
   const lopts = (sel) => (L?.cats || []).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const names = geoRT.featNames.length ? geoRT.featNames : st.features;
   const fopts = (sel) => names.map((k) => `<option ${k === sel ? 'selected' : ''}>${esc(k)}</option>`).join('');
@@ -2304,7 +2330,9 @@ $('geoPanel').addEventListener('click', (e) => {
   const b = e.target.closest('button'), g = S.geo; if (!b) return;
   if (b.dataset.act === 'del') { const c = geoCore(b.closest('.gcore').dataset.id); if (c) openCoreDlg(c); return; }
   else if (b.classList.contains('del') && b.closest('#geoLabels')) {
-    const id = b.closest('li').dataset.id, L = geoLayer(g.activeLayer);
+    const id = b.closest('li').dataset.id, L = geoLayer(g.activeLayer), n = g.intervals.filter((q) => q.cat === id).length;
+    if (n && !armed(b, t('gx.delCatN', { n }))) return;
+    if (g.activeCat === id) g.activeCat = L.cats.find((c) => c.id !== id)?.id;
     L.cats = L.cats.filter((c) => c.id !== id); g.intervals = g.intervals.filter((q) => q.cat !== id); g.rules = g.rules.filter((r) => r.cat !== id);
   } else if (b.dataset.act === 'delrule') g.rules.splice(+b.closest('.rule').dataset.r, 1);
   else if (b.dataset.act === 'addcond') g.rules[+b.closest('.rule').dataset.r].conds.push({ feature: (geoRT.featNames[0] || g.settings.features[0]), op: 'z>', value: 1 });
@@ -2312,7 +2340,7 @@ $('geoPanel').addEventListener('click', (e) => {
   else return;
   geoMarkDirty(); renderGeoPanel(); scheduleGeo();
 });
-$('geoCores').addEventListener('click', (e) => { const el = e.target.closest('.gcore'); if (el && !e.target.closest('input,button')) { S.geo.view.core = el.dataset.id; S.geo.view.tab = 'logs'; renderGeo(); } });
+$('geoCores').addEventListener('click', (e) => { const el = e.target.closest('.gcore'); if (el && !e.target.closest('input, button:not(.gcname)')) { S.geo.view.core = el.dataset.id; S.geo.view.tab = 'logs'; renderGeo(); } });
 $('geoLabels').addEventListener('click', (e) => { const li = e.target.closest('li'); if (li && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { S.geo.activeCat = li.dataset.id; renderGeoPanel(); renderGeoMarkHint(); } });
 function addCat(layer, name) {
   const c = { id: 'k' + uid(), name, color: GROUP_COLORS[(S.geo.layers.reduce((n, l) => n + l.cats.length, 0)) % GROUP_COLORS.length] };
@@ -2624,7 +2652,7 @@ function coreBands(core, axis, withPred = true) {
   for (const { layer, depth } of layerTree()) {
     let segs = intervalSegs(core, layer.id, axis);
     if (layer.id === st.target && st.useRules) segs = segs.concat(segmentsFor(core.id, (i) => (geoRT.labels[i]?.source === 'rule' ? geoRT.labels[i].label : null), axis, st.step, () => 0.45));
-    if (segs.length) bands.push({ title: (depth ? '↳' : '') + shortTitle(layer.name, depth ? 8 : 9), segs, w: 56 });
+    if (segs.length) bands.push({ title: (depth ? '↳ ' : '') + layer.name, full: layer.name, segs, w: 56 });
   }
   if (withPred && geoRT.preds.length) {
     const segs = segmentsFor(core.id, (i) => geoRT.preds[i]?.label, axis, st.step);
@@ -2640,10 +2668,15 @@ function coreBands(core, axis, withPred = true) {
 }
 const bandLegendOf = (bands) => [...new Set(bands.flatMap((b) => b.segs.map((s) => s.label)))].map(geoCat).filter(Boolean).map((c) => ({ name: c.name, color: c.color, index: -1 }));
 
+/** Layer and class used to draw intervals, chosen right in the curves toolbar (V25). */
 function renderGeoMarkHint() {
-  const L = geoLayer(S.geo.activeLayer), c = geoCat(S.geo.activeCat);
-  $('geoMarkHint').innerHTML = L && c ? `<span class="swatch" style="background:${c.color}"></span>${esc(L.name)}: <b>${esc(c.name)}</b>` : t('geo.noCat');
+  const g = S.geo, L = geoLayer(g.activeLayer), c = geoCat(g.activeCat);
+  $('geoMarkLayer').innerHTML = layerTree().map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${esc(layer.name)}</option>`).join('');
+  $('geoMarkCat').innerHTML = (L?.cats || []).map((k) => `<option value="${k.id}" ${k.id === g.activeCat ? 'selected' : ''}>${esc(k.name)}</option>`).join('') || `<option value="">${esc(t('geo.noCat'))}</option>`;
+  $('geoMarkSw').style.background = c?.color || 'transparent';
 }
+$('geoMarkLayer').addEventListener('change', (e) => { const g = S.geo; g.activeLayer = e.target.value; g.activeCat = geoLayer(g.activeLayer)?.cats[0]?.id; renderGeoPanel(); renderGeoMarkHint(); });
+$('geoMarkCat').addEventListener('change', (e) => { S.geo.activeCat = e.target.value; renderGeoPanel(); renderGeoMarkHint(); });
 
 function renderGeoLogs() {
   const g = S.geo, st = g.settings, box = $('geoLogSvg');
@@ -2682,10 +2715,136 @@ function renderGeoLogs() {
     axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`,
     from, to, height: 700, rows, classes: [], tracks, image, imageWidth: 64, records, boundaries: [], bands, bandLegend: bandLegendOf(bands), shade,
     labels: { total: t('log.total'), species: t('log.species'), image: t('log.image') },
+    colWidths: (g.view.colW ||= {}), recWidth: g.view.trackW || 120,
   });
   box.innerHTML = res.svg;
-  geoLast = { core, from, to, top: res.plotTop, height: res.plotHeight, axis };
+  geoLast = { core, from, to, top: res.plotTop, height: res.plotHeight, axis, layout: res.layout, width: res.width };
+  $('geoTrackW').value = g.view.trackW || 120;
+  const sIdx = geoRT.samples.map((sm, i) => [sm, i]).filter(([sm]) => sm.core === core.id);
+  logInteract(box, res, { clickHint: t('gx.clickHint'), from, to, axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`, records, bands, widths: g.view.colW,
+    onResize: () => { markDirty(); renderGeoLogs(); },
+    extra: (a) => {   // nearest resampled sample: its label and, after training, the class with its probability
+      let best = null; for (const [sm, i] of sIdx) if (!best || Math.abs(sm.x - a) < Math.abs(best[0].x - a)) best = [sm, i];
+      if (!best || Math.abs(best[0].x - a) > st.step) return [];
+      const [sm, i] = best, out = [], lab = geoRT.labels[i], pr = geoRT.preds[i];
+      if (axis === 'age' && sm.depth != null) out.push([t('r.depth'), +sm.depth.toPrecision(5)]);
+      if (axis === 'depth' && sm.age != null) out.push([t('r.age'), +sm.age.toPrecision(5)]);
+      if (lab?.label) out.push([t(lab.source === 'rule' ? 'gx.byRule' : 'gx.byInterval'), geoCat(lab.label)?.name || lab.label]);
+      if (pr?.label || pr?.prob) out.push([t('gx.predicted'), `${geoCat(pr.label)?.name || t('gx.unsure')} (${Math.round((pr.prob || 0) * 100)} %)`]);
+      return out;
+    } });
   renderIntervalList(core);
+}
+
+/* ───────────── V25: styled tooltips for every [title] / [data-tip] (appear after 350 ms, also on keyboard focus) ───────────── */
+const hoverTip = document.createElement('div'); hoverTip.className = 'hovertip'; hoverTip.setAttribute('role', 'tooltip'); hoverTip.hidden = true; document.body.append(hoverTip);
+let tipTarget = null, tipTimer = 0;
+function tipText(el) {
+  const v = el.getAttribute('title');
+  if (v) { el.dataset.tip = v; el.removeAttribute('title'); if (!el.getAttribute('aria-label') && !el.textContent.trim()) el.setAttribute('aria-label', v); }
+  return el.dataset.tip || '';
+}
+function tipShowFor(el) {
+  const txt = tipText(el); if (!txt) return;
+  hoverTip.textContent = txt; hoverTip.hidden = false;
+  const r = el.getBoundingClientRect(), w = hoverTip.offsetWidth, h = hoverTip.offsetHeight;
+  let x = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)), y = r.bottom + 8;
+  if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 8);
+  hoverTip.style.left = x + 'px'; hoverTip.style.top = y + 'px';
+}
+function tipHide() { clearTimeout(tipTimer); tipTarget = null; hoverTip.hidden = true; }
+document.addEventListener('pointerover', (e) => {
+  const el = e.target.closest?.('[data-tip], [title]');
+  if (el === tipTarget) return;
+  tipHide(); if (!el || el.closest('.lgrsz.drag')) return;
+  if (el.hasAttribute('title')) tipText(el);   // suppress the native tooltip at once
+  tipTarget = el; tipTimer = setTimeout(() => tipTarget === el && tipShowFor(el), 350);
+});
+document.addEventListener('pointerdown', tipHide, true);
+document.addEventListener('scroll', tipHide, true);
+document.addEventListener('focusin', (e) => { const el = e.target.closest?.('[data-tip], [title]'); tipHide(); if (el && el.matches(':focus-visible')) { tipTarget = el; tipShowFor(el); } });
+document.addEventListener('focusout', tipHide);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') tipHide(); });
+
+/* ───────────── V25: hover readout and resizable tracks of composite logs (Columna, Multiproxy › Curvas) ───────────── */
+/** Value of a record at axis value a: linear between the nearest non-empty points; null in gaps wider than gap. */
+function recordAt(pts, a, gap) {
+  let lo = null, hi = null;
+  for (const p of pts) { if (p[0] == null || p[1] == null) continue; if (p[0] <= a && (!lo || p[0] > lo[0])) lo = p; if (p[0] >= a && (!hi || p[0] < hi[0])) hi = p; }
+  if (!lo || !hi) return null;
+  if (hi[0] === lo[0]) return lo[1];
+  if (gap && hi[0] - lo[0] > gap) return null;
+  return lo[1] + ((hi[1] - lo[1]) * (a - lo[0])) / (hi[0] - lo[0]);
+}
+const medianGap = (pts) => { const x = pts.filter((p) => p[0] != null && p[1] != null).map((p) => p[0]).sort((a, b) => a - b), d = []; for (let i = 1; i < x.length; i++) if (x[i] > x[i - 1]) d.push(x[i] - x[i - 1]); d.sort((a, b) => a - b); return d.length ? d[d.length >> 1] : 0; };
+/**
+ * Adds to a rendered log: a cursor that follows the mouse with the value of every record at that level
+ * and a card with the bands (class) and extra lines; tooltips on track names; drag handles to change track widths.
+ * ctx = {from, to, axisLabel, records, bands, widths (object), onResize(), extra(a) → [[label, value], …]}
+ */
+function logInteract(box, res, ctx) {
+  const svg = box.querySelector('svg'); if (!svg || !res.layout) return;
+  box.classList.add('loghover'); box.querySelectorAll('.lgx, .lgrsz').forEach((e) => e.remove());
+  const mk = (cls) => { const d = document.createElement('div'); d.className = 'lgx ' + cls; d.hidden = true; box.append(d); return d; };
+  const line = mk('lgline'), card = mk('lgcard'), guide = mk('lgguide');
+  const recs = new Map((ctx.records || []).map((r) => [r.name, { r, gap: 3 * medianGap(r.pts) }]));
+  const chips = res.layout.filter((c) => c.key === 'rec').map((c) => ({ c, el: mk('lgval') }));
+  const bandOf = new Map((ctx.bands || []).map((b) => ['band:' + (b.full || b.title), b]));
+  const span = ctx.to - ctx.from, digits = (v) => (v == null || !Number.isFinite(v) ? '—' : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString(lang()) : +v.toPrecision(4) + '');
+  const geom = () => { const r = svg.getBoundingClientRect(), b = box.getBoundingClientRect(), s = r.width / res.width; return { r, s, ox: r.left - b.left + box.scrollLeft - box.clientLeft, oy: r.top - b.top + box.scrollTop - box.clientTop }; };
+  const hide = () => { line.hidden = card.hidden = true; chips.forEach((k) => (k.el.hidden = true)); };
+  const place = (G, X, Y) => {   // card next to the cursor, flipped near the right/bottom edge of the visible area
+    card.hidden = false;
+    const cw = card.offsetWidth, ch = card.offsetHeight, vx = box.scrollLeft + box.clientWidth, vy = box.scrollTop + box.clientHeight;
+    let x = G.ox + X * G.s + 16, y = G.oy + Y * G.s + 12;
+    if (x + cw > vx - 4) x = G.ox + X * G.s - cw - 16;
+    if (y + ch > vy - 4) y = Math.max(box.scrollTop + 4, vy - ch - 4);
+    card.style.left = x + 'px'; card.style.top = y + 'px';
+  };
+  svg.addEventListener('pointermove', (e) => {
+    if (box.classList.contains('marking') && e.buttons) { hide(); return; }
+    const G = geom(), X = (e.clientX - G.r.left) / G.s, Y = (e.clientY - G.r.top) / G.s;
+    const col = res.layout.find((c) => X >= c.x && X <= c.x + c.w);
+    if (Y < res.plotTop) {   // header: full track name
+      line.hidden = true; chips.forEach((k) => (k.el.hidden = true));
+      if (!col) { card.hidden = true; return; }
+      card.innerHTML = `<h4>${esc(col.title)}</h4>${col.id ? `<p>${esc(t('gx.resizeHint'))}</p>` : ''}`; place(G, X, Y); return;
+    }
+    if (Y > res.plotTop + res.plotHeight) { hide(); return; }
+    const a = ctx.from + ((Y - res.plotTop) / res.plotHeight) * span, yPx = G.oy + Y * G.s;
+    line.hidden = false; line.style.left = G.ox + 'px'; line.style.width = res.width * G.s + 'px'; line.style.top = yPx + 'px';
+    const rows = [];
+    for (const c of res.layout) {
+      if (c.key === 'band') {
+        const b = bandOf.get(c.id), sg = b?.segs.find((q) => q.a0 <= a && a < q.a1);
+        const lab = !sg ? '—' : sg.label === '__ok' ? t('gx.hitOk') : sg.label === '__bad' ? t('gx.hitBad') : geoCat(sg.label)?.name ?? sg.name ?? '—';
+        rows.push(`<tr class="${col === c ? 'on' : ''}"><td>${sg?.color ? `<span class="sw" style="background:${sg.color}"></span>` : ''}${esc(c.title)}</td><td>${esc(lab)}</td></tr>`);
+      } else if (c.key === 'rec') {
+        const R = recs.get(c.title), v = R ? recordAt(R.r.pts, a, R.gap) : null;
+        rows.push(`<tr class="${col === c ? 'on' : ''}"><td>${esc(c.title)}</td><td>${digits(v)}</td></tr>`);
+        const k = chips.find((q) => q.c === c); if (k) { k.el.hidden = v == null; k.el.textContent = digits(v); k.el.style.left = G.ox + (c.x + c.w - 2) * G.s + 'px'; k.el.style.top = yPx + 'px'; }
+      }
+    }
+    const extra = (ctx.extra?.(a) || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(String(v))}</td></tr>`);
+    card.innerHTML = `<h4>${esc(ctx.axisLabel)}: ${digits(a)}</h4><table>${extra.join('')}${rows.join('')}</table>${ctx.clickHint ? `<p>${esc(ctx.clickHint)}</p>` : ''}`;
+    place(G, X, Y);
+  });
+  svg.addEventListener('pointerleave', hide);
+  // drag handles on the right edge of every resizable track (header zone)
+  for (const c of res.layout.filter((q) => q.id)) {
+    const h = document.createElement('div'); h.className = 'lgrsz'; h.dataset.tip = t('gx.resizeTip', { n: c.title }); box.append(h);
+    const pos = () => { const G = geom(); h.style.left = G.ox + (c.x + c.w) * G.s + 2 + 'px'; h.style.top = G.oy + 36 * G.s + 'px'; h.style.height = (res.plotTop - 40) * G.s + 'px'; };
+    pos();
+    h.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); h.setPointerCapture(e.pointerId); h.classList.add('drag'); hide();
+      const G = geom(), x0 = e.clientX; let w = c.w;
+      guide.hidden = false; guide.style.top = G.oy + 'px'; guide.style.height = res.height * G.s + 'px'; guide.style.left = G.ox + (c.x + c.w) * G.s + 'px';
+      const move = (ev) => { w = Math.max(30, Math.min(600, Math.round(c.w + (ev.clientX - x0) / G.s))); guide.style.left = G.ox + (c.x + w) * G.s + 'px'; };
+      h.addEventListener('pointermove', move);
+      h.addEventListener('pointerup', () => { h.removeEventListener('pointermove', move); guide.hidden = true; h.classList.remove('drag'); if (w !== c.w) { ctx.widths[c.id] = w; ctx.onResize(); } }, { once: true });
+    });
+    h.addEventListener('dblclick', () => { delete ctx.widths[c.id]; ctx.onResize(); });
+  }
 }
 
 /** Editable list of the intervals of a core, grouped by layer (hierarchy order). */
@@ -2697,10 +2856,10 @@ function renderIntervalList(core) {
     rows.push(`<div class="ivhead" style="padding-left:${depth * 14}px">${depth ? '↳ ' : ''}<b>${esc(layer.name)}</b> <span class="note">(${ivs.length})</span></div>`);
     for (const q of ivs) {
       const c = geoCat(q.cat);
-      rows.push(`<div class="row ivrow ${q.auto ? 'auto' : ''}" data-id="${q.id}" style="padding-left:${depth * 14}px"><span class="swatch" style="background:${c?.color}"></span>
+      rows.push(`<div class="row ivrow ${q.auto ? 'auto' : ''} ${q.id === geoSelIv ? 'sel' : ''}" data-id="${q.id}" style="padding-left:${depth * 14}px"><span class="swatch" style="background:${c?.color}"></span>
         <select data-k="cat">${layer.cats.map((k) => `<option value="${k.id}" ${k.id === q.cat ? 'selected' : ''}>${esc(k.name)}</option>`).join('')}</select>
         <input type="number" step="any" data-k="from" value="${+q.from.toPrecision(6)}"><input type="number" step="any" data-k="to" value="${+q.to.toPrecision(6)}">
-        <span class="note">${t(q.axis === 'age' ? 'log.age' : 'log.depth')}</span>
+        <span class="note" title="${esc(t(q.axis === 'age' ? 'log.age' : 'log.depth'))}">${q.axis === 'age' ? esc(S.age.units || 'ka') : esc(core.units || 'm')}</span>
         ${geoRT.orphans.has(q.id) ? `<span class="warn" title="${esc(t('geo.orphan', { p: geoLayer(layer.parent)?.name || '' }))}">⚠</span>` : ''}
         ${q.auto ? `<button class="btn small ghost" data-ok="${q.id}" title="${esc(t('geo.confirmAuto'))}">✓</button>` : ''}
         <button class="btn small ghost" data-del="${q.id}">✕</button></div>`);
@@ -2710,6 +2869,10 @@ function renderIntervalList(core) {
   $('geoAccept').disabled = !geoRT.preds.length;
 }
 $('geoCoreSel').addEventListener('change', (e) => { S.geo.view.core = e.target.value; renderGeo(); });
+for (const [id, d] of [['geoCorePrev', -1], ['geoCoreNext', 1]]) $(id).addEventListener('click', () => { const i = S.cores.findIndex((c) => c.id === S.geo.view.core); if (!S.cores.length) return; S.geo.view.core = S.cores[(i + d + S.cores.length) % S.cores.length].id; renderGeo(); });
+$('geoTrackW').addEventListener('input', (e) => { S.geo.view.trackW = +e.target.value; clearTimeout(geoTrackT); geoTrackT = setTimeout(() => { markDirty(); renderGeoLogs(); }, 120); });
+$('geoTrackReset').addEventListener('click', () => { S.geo.view.colW = {}; S.geo.view.trackW = 120; markDirty(); renderGeoLogs(); });
+let geoTrackT = 0;
 $('geoShade').addEventListener('change', (e) => { S.geo.view.shade = e.target.checked; markDirty(); renderGeo(); });
 $('geoTestBtn').addEventListener('click', () => busy(geoTestCore));
 
@@ -2777,6 +2940,22 @@ const geoValAt = (ev) => {
   return geoLast.from + f * (geoLast.to - geoLast.from);
 };
 $('geoMark').addEventListener('change', (e) => $('geoLogSvg').classList.toggle('marking', e.target.checked));
+/** Click (not marking) on the curves: select the interval at that level — of the layer of the clicked band, else of the active layer — in the list on the right (V25). */
+let geoSelIv = null;
+$('geoLogSvg').addEventListener('click', (e) => {
+  if ($('geoMark').checked || !geoLast || e.target.closest('.lgrsz')) return;
+  const v = geoValAt(e); if (v == null) return;
+  const svg = $('geoLogSvg').querySelector('svg'), r = svg.getBoundingClientRect(), X = ((e.clientX - r.left) / r.width) * geoLast.width;
+  const col = (geoLast.layout || []).find((c) => X >= c.x && X <= c.x + c.w);
+  const g = S.geo, lay = col?.key === 'band' ? g.layers.find((l) => l.name === col.title) : null;
+  const ivs = intervalsOnAxis(g.intervals.filter((q) => q.core === geoLast.core.id && (!lay || q.layer === lay.id)), geoLast.axis, geoLast.core).filter((q) => q && v >= q.from && v <= q.to);
+  const hit = ivs.find((q) => q.layer === (lay?.id || g.activeLayer)) || ivs[0];
+  geoSelIv = hit?.id || null;
+  if (hit) { g.activeLayer = hit.layer; g.activeCat = hit.cat; renderGeoPanel(); renderGeoMarkHint(); }
+  renderIntervalList(geoLast.core);
+  const row = geoSelIv && document.querySelector(`#geoIntervals .ivrow[data-id="${geoSelIv}"]`);
+  if (row) { row.scrollIntoView({ block: 'nearest' }); row.querySelector('select')?.focus(); } else toast(t('gx.noIvHere'));
+});
 $('geoLogSvg').addEventListener('pointerdown', (e) => { if (!$('geoMark').checked) return; const v = geoValAt(e); if (v == null) return; geoDrag = { a: v }; e.preventDefault(); });
 window.addEventListener('pointerup', (e) => {
   if (!geoDrag) return; const v = geoValAt(e) ?? geoDrag.a; let a = Math.min(geoDrag.a, v), b = Math.max(geoDrag.a, v); const start = geoDrag.a; geoDrag = null;
@@ -2790,6 +2969,12 @@ window.addEventListener('pointerup', (e) => {
   geoMarkDirty(); renderGeo();
 });
 
+/** Hover text of a map point (V25). */
+function mapTip(p, mode, feat) {
+  const where = p.project ? ` — ${p.project}` : '';
+  const val = mode === 'sites' ? '' : !p.n ? t('gx.mapNoData') : mode === 'class' ? `${geoCat(p.dominant)?.name ?? p.dominant ?? '—'}${p.fraction != null ? ` (${Math.round(p.fraction * 100)} %)` : ''}` : `${feat}: ${(+p.value).toFixed(2)}`;
+  return [p.name + where, val, p.n ? t('gx.mapN', { n: p.n }) : '', `${fmt(p.lat, 4)}°, ${fmt(p.lon, 4)}°`].filter(Boolean).join('\n');
+}
 function renderGeoMap() {
   const g = S.geo, m = g.map, st = g.settings, box = $('geoMapSvg');
   $('gmA0').value = m.a0; $('gmA1').value = m.a1; $('gmMode').value = m.mode; $('gmIdw').checked = m.idw; $('gmPower').value = m.power;
@@ -2812,7 +2997,7 @@ function renderGeoMap() {
   const colors = {}, legend = [];
   if (m.mode === 'class') for (const p of pts) if (p.dominant && !colors[p.dominant]) { const c = geoCat(p.dominant); if (c) { colors[p.dominant] = c.color; legend.push([c.name, c.color]); } }
   const target = geoLayer(st.target)?.name || '';
-  const svg = buildMapSVG({
+  const svg = buildMapSVG({ tipFn: (p) => mapTip(p, m.mode, m.feature),
     land: geoLand, bbox, points: pts, mode: m.mode, colors, legend, style, bg, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}),
     title: m.mode === 'class' ? t('geo.mapTitleClass', { l: target, a0: m.a0, a1: m.a1 }) : t('geo.mapTitleValue', { f: m.feature, a0: m.a0, a1: m.a1 }),
     subtitle: m.mode === 'class' ? (geoRT.preds.length ? t('geo.mapSubPred', { m: geoRT.model?.kind || '' }) : t('geo.mapSubLabels')) : (m.ref ? t('geo.mapSubRef', { r0: m.r0, r1: m.r1 }) : t('geo.mapSubZ')),
@@ -3149,17 +3334,17 @@ function renderGeoModel() {
   const counts = {}; geoRT.labels.forEach((l) => { if (l.label) counts[l.label] = (counts[l.label] || 0) + 1; });
   const nInt = geoRT.labels.filter((l) => l.source === 'interval').length, nRule = geoRT.labels.filter((l) => l.source === 'rule').length;
   let html = `<p class="note">${t('geo.modelIntro', { l: esc(target?.name || ''), v: geoRT.nNum ?? 0, c: geoRT.featNames.length - (geoRT.nNum ?? 0) })}</p>`;
-  html += `<div class="stat"><div><b>${geoRT.samples.length}</b><span>${t('geo.samples')}</span></div><div><b>${nInt}</b><span>${t('geo.byIntervals')}</span></div><div><b>${nRule}</b><span>${t('geo.byRules')}</span></div></div>`;
+  html += `<div class="stat"><div data-tip="${esc(t('gx.tip.samples'))}"><b>${geoRT.samples.length}</b><span>${t('geo.samples')}</span></div><div data-tip="${esc(t('gx.tip.byIv'))}"><b>${nInt}</b><span>${t('geo.byIntervals')}</span></div><div data-tip="${esc(t('gx.tip.byRule'))}"><b>${nRule}</b><span>${t('geo.byRules')}</span></div></div>`;
   html += `<div class="bars">${Object.entries(counts).map(([id, n]) => { const c = geoCat(id); return `<div><span><span class="swatch" style="background:${c?.color}"></span>${esc(c?.name || id)}</span><em>${n}</em></div>`; }).join('')}</div>`;
   if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => $('geoTrainBtn').click(); return; }
   html += `<h3>${t('geo.m.name.' + geoRT.model.kind)} · ${t('geo.trainedOn', { n: S.geo.trained?.n ?? '' })}</h3>`;
   if (geoRT.cv) {
     const cv = geoRT.cv, name = (id) => esc(geoCat(id)?.name || id);
-    html += `<p>${t('geo.cvScheme.' + (cv.scheme === 'leave-one-core-out' ? 'loco' : 'blocks'), { k: cv.folds })}: ${t('geo.acc')} <b>${fmt(cv.accuracy * 100, 1)}%</b> · ${t('geo.bacc')} <b>${fmt(cv.balancedAccuracy * 100, 1)}%</b> (n = ${cv.total})</p>`;
+    html += `<p>${t('geo.cvScheme.' + (cv.scheme === 'leave-one-core-out' ? 'loco' : 'blocks'), { k: cv.folds })}: <span data-tip="${esc(t('gx.accTip'))}">${t('geo.acc')} <b>${fmt(cv.accuracy * 100, 1)}%</b></span> · <span data-tip="${esc(t('gx.baccTip'))}">${t('geo.bacc')} <b>${fmt(cv.balancedAccuracy * 100, 1)}%</b></span> (n = ${cv.total})</p>`;
     if (cv.foldBalanced?.n > 1 && cv.foldBalanced.sd != null) html += `<p class="note">${t('cv.fold', { m: fmt(cv.foldBalanced.mean * 100, 1), sd: fmt(cv.foldBalanced.sd * 100, 1), n: cv.foldBalanced.n })}</p>`;
     if (cv.coverage) html += `<p class="note">${t('cv.cover', { p: cv.coverage.minProb, s: fmt(cv.coverage.share * 100, 1), a: cv.coverage.accuracy == null ? '—' : fmt(cv.coverage.accuracy * 100, 1) })}</p>`;
     if (nRule) html += `<p class="note">${t('cv.rules')}</p>`;
-    html += `<div class="tablewrap"><table><thead><tr><th>${t('geo.trueVsPred')}</th>${cv.classes.map((c) => `<th>${name(c)}</th>`).join('')}<th>${t('geo.recall')}</th></tr></thead><tbody>${cv.classes.map((c, i) => `<tr><th>${name(c)}</th>${cv.cm[i].map((v, j) => `<td style="${i === j ? 'font-weight:600' : ''}">${v}</td>`).join('')}<td>${fmt((cv.perClass[i].recall ?? 0) * 100, 0)}%</td></tr>`).join('')}</tbody></table></div>`;
+    html += `<div class="tablewrap"><table><thead><tr><th data-tip="${esc(t('gx.cmTip'))}">${t('geo.trueVsPred')}</th>${cv.classes.map((c) => `<th>${name(c)}</th>`).join('')}<th>${t('geo.recall')}</th></tr></thead><tbody>${cv.classes.map((c, i) => `<tr><th>${name(c)}</th>${cv.cm[i].map((v, j) => `<td style="${i === j ? 'font-weight:600' : ''}" data-tip="${esc(t(i === j ? 'gx.cmOk' : 'gx.cmBad', { n: v, a: geoCat(c)?.name || c, b: geoCat(cv.classes[j])?.name || cv.classes[j] }))}">${v}</td>`).join('')}<td data-tip="${esc(t('gx.recallTip', { a: geoCat(c)?.name || c, p: fmt((cv.perClass[i].recall ?? 0) * 100, 0) }))}">${fmt((cv.perClass[i].recall ?? 0) * 100, 0)}%</td></tr>`).join('')}</tbody></table></div>`;
     html += `<p class="note">${t('geo.cvNote')}</p>`;
   } else html += `<p class="note">${t('geo.kmeansNote')}</p>${geoRT.model.classes.map((c) => `<label class="f"><span><span class="swatch" style="background:${geoCat(c)?.color}"></span>${c}</span><input type="text" data-group="${c}" value="${esc(S.geo.groupNames[c] || '')}" placeholder="${t('geo.groupName')}"></label>`).join('')}`;
   if (geoRT.model.importance) {
@@ -3282,7 +3467,7 @@ function buildAllMap(mode) {
   const bg = mapBackground(allStyle.bg, bbox, redrawAllMap, allStyle.proj);
   const vl = mode === 'value' ? valueLayer(pts, bbox, allInterp, `z ${$('amVar').value}`) : null; allVl = vl;
   const title = mode === 'sites' ? t('home.mapSites') : mode === 'value' ? t('home.mapValue', { f: $('amVar').value, a0, a1 }) : t('home.mapLayer', { l: $('amLayer').value, a0, a1 });
-  return buildMapSVG({ land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, legend, title, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}), subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote'), style: allStyle, bg });
+  return buildMapSVG({ tipFn: (p) => mapTip(p, mode, $('amVar').value), land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, legend, title, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}), subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote'), style: allStyle, bg });
 }
 $('allCtl').addEventListener('change', () => renderAllProjects());
 for (const [id, dir] of [['amPrev', -1], ['amNext', 1]]) $(id).addEventListener('click', () => { const a = +$('amA0').value, b = +$('amA1').value, w = b - a; $('amA0').value = a + dir * w; $('amA1').value = b + dir * w; renderAllProjects(); });

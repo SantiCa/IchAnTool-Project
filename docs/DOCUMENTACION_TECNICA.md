@@ -1176,6 +1176,30 @@ interpolado en su centro.
 - Exportación de intervalos (`*_intervalos.csv`): sondeo, capa, capa madre, categoría, eje, techo,
   base, automático y fuera de la capa madre. Se puede volver a importar.
 
+### 21.7 bis Lectura con el cursor, columnas redimensionables y ayuda emergente (desde V25)
+- **Cursor de lectura** (Columna y Multiproxy › Curvas): al pasar el ratón por el gráfico se dibuja una
+  línea a esa altura; a = desde + (y − arriba) / alto × (hasta − desde). El valor de cada registro en a
+  (`recordAt`) es la interpolación lineal entre los dos puntos no vacíos más cercanos por encima y por
+  debajo; se muestra «—» si no hay punto a ambos lados o si están separados más de 3 × la mediana del
+  espaciado del registro (`medianGap`). Las bandas muestran la clase del tramo que contiene a. En
+  Multiproxy se añade la muestra remuestreada más próxima (si |x − a| ≤ paso): etiqueta descrita o por
+  regla y clase predicha con su probabilidad; en Columna, % de bioturbación, BI, ii y los 4 icnotaxones
+  con más porcentaje del tramo.
+- **Nombres de columna:** `wrapTitle(texto, ancho)` reparte el nombre en hasta 2 líneas de
+  ⌊(ancho − 4) / 5,6⌋ caracteres (letra de 10 px); si no cabe, la segunda termina en «…». El nombre completo
+  aparece al pasar el ratón por la cabecera.
+- **Anchos:** `buildLogSVG` acepta `colWidths` (`{'rec:<nombre>' | 'band:<capa>' | 'total' | 'species': px}`,
+  límites 30–600 px) y `recWidth` (ancho por defecto de las variables, 120 px). Se cambian arrastrando el
+  borde derecho de la cabecera; doble clic restaura. Se guardan en el proyecto (`S.logView.colW`,
+  `S.geo.view.colW`, `S.geo.view.trackW`). El gráfico se desplaza dentro de su marco
+  (máx. alto de la ventana − 170 px) en horizontal y vertical.
+- **Clic en las curvas** (sin «Marcar intervalos»): selecciona en la lista el intervalo de esa altura (de la
+  capa de la banda pulsada o, si no, de la capa activa).
+- **Mapas:** cada sondeo lleva `data-tip` (nombre, proyecto, clase dominante con % o valor, número de
+  muestras y coordenadas) mediante la opción `tipFn` de `buildMapSVG`.
+- **Ayuda emergente:** todo elemento con `title` o `data-tip` muestra una ayuda propia a los 350 ms (también
+  con el teclado); el `title` se pasa a `data-tip` para no duplicar la ayuda del navegador.
+
 ### 21.8 ter Datos propios de la tesis (desde V12)
 `tools/make_thesis_dataset.py` lee los archivos originales del autor (carpeta «Proyectos
 Investigación») y escribe `examples/tesis_casanova/privado/`, que **no se sube a GitHub** (datos no
