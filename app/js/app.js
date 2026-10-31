@@ -1583,7 +1583,12 @@ async function saveToDB() {
 }
 async function flushSave() { if (dirty) await saveToDB(); if (backupPending) await backupNow(); }
 
-function updateProjHeader() { $('projName').textContent = S.name; }
+function updateProjHeader() {
+  $('projName').textContent = S.name;
+  const multi = S.kind === 'multi';
+  document.querySelector('#projBtn .lbl').textContent = t(multi ? 'mp.label' : 'proj.label');
+  $('projClose').textContent = t(multi ? 'mp.back' : 'home.back');
+}
 
 /** Identity of a core across projects: the same name (ignoring case, spaces and punctuation). */
 const coreKey = (name) => String(name ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
@@ -1593,12 +1598,25 @@ function sharedCores(lites) {
   for (const l of lites) if (l.kind !== 'multi') for (const c of l.cores || []) { const k = coreKey(c.name); if (!k) continue; if (!m.has(k)) m.set(k, new Map()); m.get(k).set(l.id, l.name); }
   return m;
 }
+/** Saved cross-project analyses (kind 'multi'), listed in the «Entre proyectos» tab, never among the projects (V24). */
+function renderAnalyses(list, q = '') {
+  const box = $('mpList'); if (!box) return;
+  const shown = list.filter((p) => !q || coreKey(p.name).includes(q) || (p.coreNames || []).some((n) => coreKey(n).includes(q)));
+  $('mpSaved').hidden = !list.length;
+  box.innerHTML = shown.map((p) => `<article class="pcard ${p.id === S.id ? 'current' : ''}" data-id="${p.id}" tabindex="0" aria-label="${esc(p.name)}">
+    <h3>${esc(p.name)}</h3>
+    <p class="facts"><span>${t('home.cores', { n: p.cores ?? (p.coreNames || []).length })}</span><span class="note">${esc((p.coreNames || []).slice(0, 8).join(', '))}${(p.coreNames || []).length > 8 ? '…' : ''}</span>${p.id === S.id ? `<span>${t('proj.current')}</span>` : ''}</p>
+    <div class="pacts"><button class="btn small primary" data-act="open">${t('proj.open')}</button><button class="btn small" data-act="mpupdate">${t('mp.update')}</button><button class="btn small" data-act="rename">${t('proj.rename')}</button><button class="btn small" data-act="del">${t('proj.del')}</button></div>
+  </article>`).join('') || `<p class="note">${t('home.noMatch')}</p>`;
+}
 async function renderProjects() {
   const box = $('projList');
   if (!storageOK) { box.innerHTML = `<p class="note">${t('save.off')}</p>`; return; }
-  const [list, lites] = await Promise.all([listProjects().catch(() => []), listLite().catch(() => [])]);
+  let [list, lites] = await Promise.all([listProjects().catch(() => []), listLite().catch(() => [])]);
   list.sort((a, b) => b.updated - a.updated);
   const L = new Map(lites.map((l) => [l.id, l])), shared = sharedCores(lites), q = coreKey($('homeSearch').value);
+  renderAnalyses(list.filter((p) => p.kind === 'multi'), q);   // V24: cross-project analyses are not projects
+  list = list.filter((p) => p.kind !== 'multi');
   $('nProjects').textContent = list.length;
   $('nCores').textContent = shared.size;
   $('projClose').hidden = !S.cores.length && !S.sections.length;
@@ -1630,8 +1648,8 @@ async function renderProjects() {
   }).join('') || `<p class="note">${t('home.noMatch')}</p>`;
 }
 $('homeSearch').addEventListener('input', () => { renderProjects(); renderAllProjects(); });
-$('projList').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('pcard')) e.target.querySelector('[data-act=open]').click(); });
-$('projList').addEventListener('click', async (e) => {
+for (const id of ['projList', 'mpList']) $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('pcard')) e.target.querySelector('[data-act=open]').click(); });
+async function onProjectListClick(e) {
   const em = e.target.closest('[data-empty]')?.dataset.empty;
   if (em === 'new') { $('newProjOpen').click(); return; }
   if (em === 'tutorial') { openTutorial(true); return; }
@@ -1661,7 +1679,9 @@ $('projList').addEventListener('click', async (e) => {
     inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') inp.blur(); });
     inp.addEventListener('blur', commit, { once: true });
   }
-});
+}
+$('projList').addEventListener('click', onProjectListClick);
+$('mpList').addEventListener('click', onProjectListClick);
 
 $('projBtn').addEventListener('click', () => showHome());
 $('projClose').addEventListener('click', () => hideHome());

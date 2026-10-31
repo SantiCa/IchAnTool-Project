@@ -41,6 +41,7 @@ La descripción detallada de los algoritmos está en
 | V21 | 31-10-2026 | Aplicación web 1.6 | Gráficos tipo Grapher en Datos: registros estratigráficos multipanel y XY con eje Y2, ejes log/invertidos, 6 tipos de serie, ajustes de curva con ecuación y R², estadística y exportación |
 | V22 | 31-10-2026 | Aplicación web 1.7 | Revisión de un concilio de 3 agentes (métodos, usabilidad, interfaz y código): evaluación sin inflar, validación por sección e intervalos descritos, mapas solo con datos reales y distancias en km, nombres coherentes, confirmaciones, atajos seguros, pantalla inicial y contraste |
 | V23 | 31-10-2026 | Aplicación web 1.8 | Pantalla inicial genérica (todos los proyectos como tarjetas, sin acceso propio de la tesis), sondeos presentes en varios proyectos, paneles laterales redimensionables u ocultables y mapa redimensionable arrastrando sus bordes |
+| V24 | 31-10-2026 | Aplicación web 1.8.1 | Los análisis entre proyectos dejan de aparecer como proyectos: se guardan y abren desde la pestaña «Entre proyectos» |
 
 ---
 
@@ -612,6 +613,35 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V24 — Los análisis entre proyectos no son proyectos (31-10-2026)
+
+**Qué se hizo.** Un análisis que combina sondeos de varios proyectos ya no aparece como una tarjeta más
+en la lista de proyectos. Se crea, se guarda y se abre desde la pestaña «Entre proyectos» (antes
+«Todos los proyectos»), que reúne todo lo que trasciende a un proyecto: mapa común, tabla de sondeos y
+análisis guardados.
+
+**Cambios.**
+- Pantalla inicial: la pestaña «Proyectos» y su número excluyen los proyectos de tipo `multi`.
+- Pestaña «Entre proyectos»: nuevo bloque «Análisis entre proyectos guardados» (oculto si no hay
+  ninguno) con nombre, número y nombres de sondeos, y las acciones Abrir, Actualizar desde los
+  proyectos, Renombrar y Eliminar (confirmación en dos pasos). El buscador también filtra esta lista.
+- Con un análisis abierto, la cabecera dice «Análisis» en lugar de «Proyecto» y el botón de la pantalla
+  inicial «Volver al análisis abierto».
+- Textos: «Nuevo análisis entre proyectos», nota que explica que no es un proyecto.
+- Sin cambios en el formato de archivo ni en los métodos (sigue siendo `projectKind: 'multi'`).
+
+**Por qué.** Petición de Santiago: el análisis multiproyecto debe estar por encima de los proyectos,
+no mezclado con ellos.
+
+**Comprobación.** `npm test`: 41 correctas. En navegador: se crea «Alborán» con GP03 (tesis) y ENT-01
+(entrenamiento); la lista de proyectos sigue mostrando 3 tarjetas; «Alborán» aparece solo en
+«Entre proyectos»; abrir un proyecto y luego el análisis cambia la cabecera (Proyecto ↔ Análisis); sin
+errores de consola.
+
+**Pendiente o problemas conocidos.** Los mismos de V23.
 
 ---
 

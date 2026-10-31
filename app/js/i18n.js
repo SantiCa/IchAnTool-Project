@@ -871,3 +871,17 @@ export function applyI18n(root = document) {
   root.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
   document.documentElement.lang = current;
 }
+
+// V24: cross-project analyses live outside the project list
+Object.assign(D.es, {
+  'home.tab.all': 'Entre proyectos', 'home.all': 'Entre proyectos',
+  'home.allNote': 'Todos los sondeos de todos tus proyectos: mapa común, tabla y análisis que combinan sondeos de proyectos distintos. Un sondeo que está en varios proyectos cuenta una sola vez.',
+  'mp.title': 'Nuevo análisis entre proyectos', 'mp.saved': 'Análisis entre proyectos guardados', 'mp.label': 'Análisis', 'mp.back': 'Volver al análisis abierto',
+  'mp.note': 'Marca en la tabla sondeos de proyectos distintos y crea un análisis. No es un proyecto: guarda una copia de sus datos (sin imágenes), con capas e intervalos unidos por nombre, para usar Multiproxy, Datos y Figuras. Se guarda aquí, no en la lista de proyectos. «Actualizar» vuelve a copiar los datos de los proyectos de origen.',
+});
+Object.assign(D.en, {
+  'home.tab.all': 'Across projects', 'home.all': 'Across projects',
+  'home.allNote': 'Every core of every project: common map, table and analyses that combine cores from different projects. A core found in several projects counts once.',
+  'mp.title': 'New cross-project analysis', 'mp.saved': 'Saved cross-project analyses', 'mp.label': 'Analysis', 'mp.back': 'Back to the open analysis',
+  'mp.note': 'Tick cores of different projects in the table and create an analysis. It is not a project: it keeps a copy of their data (no images), layers and intervals merged by name, for Multiproxy, Data and Figures. It is saved here, not in the project list. “Update” copies the data from the source projects again.',
+});

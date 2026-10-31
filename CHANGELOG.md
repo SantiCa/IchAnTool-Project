@@ -2,6 +2,10 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V24 — Web app 1.8.1 — 2026-10-31
+- Cross-project analyses are no longer listed as projects: they are created, saved and opened in the
+  «Across projects» tab; the header reads «Analysis» while one is open.
+
 ## V23 — Web app 1.8 — 2026-10-31
 - Generic start screen: every saved project as a card (core thumbnails, counts, open/rename/delete), search,
   empty state; examples in a collapsible section; no dedicated thesis entry.

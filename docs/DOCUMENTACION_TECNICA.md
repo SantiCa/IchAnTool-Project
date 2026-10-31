@@ -1384,6 +1384,9 @@ lista de gráficos (`plots`, `plotCur`).
 - Ahí funcionan Multiproxy, Datos y Figuras. «Actualizar desde los proyectos» (lista de proyectos)
   vuelve a copiar los datos conservando ajustes, figuras y hoja de cálculo. Crear un análisis con un
   nombre ya usado lo actualiza.
+- Desde V24 los proyectos `multi` («análisis entre proyectos») no aparecen en la lista de proyectos:
+  se listan, abren, actualizan, renombran y eliminan en la pestaña «Entre proyectos»; con uno abierto
+  la cabecera dice «Análisis».
 - Los proyectos `multi` no aparecen en la tabla ni en el mapa de todos los proyectos ni aportan
   ejemplos al modelo de todos los proyectos. Desde V23 un mismo sondeo de varios proyectos se une
   (§22.6 bis).
