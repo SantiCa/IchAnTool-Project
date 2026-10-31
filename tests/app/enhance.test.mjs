@@ -53,3 +53,12 @@ test('automatic gamma maps the median to mid-grey within the published range', a
   assert.ok(g >= 0.19 && g < 0.5);
   assert.equal(gammaForMedian(250, 0, 255), 0.19);
 });
+
+test('separability (Otsu η) ranks a bimodal image above a uniform ramp', async () => {
+  const { separability } = await import('../../app/js/imageproc.js');
+  const w = 64, h = 64, two = new Uint8ClampedArray(w * h * 4), ramp = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < w * h; i++) { const v = i % w < 32 ? 40 : 200, r = (i % w) * 4; two.set([v, v, v, 255], i * 4); ramp.set([r, r, r, 255], i * 4); }
+  const a = separability(two, w, h), b = separability(ramp, w, h);
+  assert.ok(a.eta > 0.99 && a.threshold >= 40 && a.threshold < 200);
+  assert.ok(b.eta > 0.7 && b.eta < 0.8);   // uniform distribution: η = 0.75
+});

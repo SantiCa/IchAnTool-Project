@@ -406,3 +406,27 @@ export function rotate90(src, w, h, ch, dir) {
   }
   return out;
 }
+
+/**
+ * Separability of the luminance histogram inside the ROI: Otsu's between-class variance divided by the
+ * total variance (η, 0–1; Otsu, 1979). High η = two well separated groups of grey levels (e.g. trace
+ * infill vs host sediment). Used to rank enhancement settings on one image.
+ */
+export function separability(rgba, w, h, roi = { x0: 0, y0: 0, x1: w, y1: h }) {
+  const hist = new Float64Array(256); let n = 0;
+  for (let y = roi.y0; y < roi.y1; y++) for (let x = roi.x0; x < roi.x1; x++) {
+    const j = (y * w + x) * 4; hist[Math.min(255, Math.round(0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2]))]++; n++;
+  }
+  if (!n) return { eta: 0, threshold: 0 };
+  let mu = 0; for (let v = 0; v < 256; v++) mu += v * hist[v] / n;
+  let varT = 0; for (let v = 0; v < 256; v++) varT += (v - mu) ** 2 * hist[v] / n;
+  if (!varT) return { eta: 0, threshold: 0 };
+  let w0 = 0, m0 = 0, best = 0, thr = 0;
+  for (let v = 0; v < 255; v++) {
+    w0 += hist[v] / n; m0 += v * hist[v] / n;
+    if (w0 <= 0 || w0 >= 1) continue;
+    const sb = (mu * w0 - m0) ** 2 / (w0 * (1 - w0));
+    if (sb > best) { best = sb; thr = v; }
+  }
+  return { eta: best / varT, threshold: thr };
+}

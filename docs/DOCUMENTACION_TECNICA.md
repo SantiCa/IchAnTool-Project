@@ -1,7 +1,7 @@
 # Documentación técnica de IchAnTool
 
-Versión del documento: V11 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
-aplicación web 0.6.
+Versión del documento: V12 (31-10-2026). Componentes descritos: paquete Python 3.0.0.dev0 y
+aplicación web 0.7.
 
 Este documento explica **cómo funciona cada parte**, con las fórmulas y los valores por defecto
 tal como están en el código. Cada apartado indica el archivo donde está implementado, para poder
@@ -304,6 +304,24 @@ Ajustes predefinidos (`FILTER_PRESETS`):
   alrededor de cada píxel; aquí se usa la versión por mosaicos con interpolación (Zuiderveld, 1994).
   El efecto es equivalente, pero no idéntico píxel a píxel.
 
+**Elegir el ajuste automáticamente** (`imageproc.js::separability`, `app.js::rankPresets`, desde V12).
+Procedimiento propio, no publicado. Para cada ajuste (de fábrica y del usuario) se realza una copia
+reducida de la imagen (lado ÷ k, con k tal que quedan ~0,4 MP; promedio de bloques) y se mide, en la
+zona de análisis, la separabilidad de Otsu (1979) del histograma de luminancia BT.601:
+`η = σ²_B(t*) / σ²_T`, con `σ²_B(t) = (μ·ω₀(t) − μ₀(t))² / (ω₀(t)·(1 − ω₀(t)))` maximizada en `t*`
+(η ∈ [0, 1]). Se aplica el ajuste de mayor η y se muestran los cuatro primeros. Una η alta indica dos
+grupos de grises bien separados (relleno y matriz), en la línea de la comparación de valores de
+píxel de Rodríguez-Tovar y Dorador (2015). Limitación: η premia cualquier bimodalidad (también
+grietas o cambios de color de fondo), y un histograma uniforme da 0,75; por eso es una propuesta
+inicial que el usuario revisa.
+
+**Revisión bibliográfica (V12).** No se ha encontrado ningún trabajo posterior a Miguez-Salas et
+al. (2019) que proponga cómo preseleccionar los parámetros de realce en imágenes de testigos. Los
+trabajos recientes usan tomografía (*Scientific Reports*, 2020, doi:10.1038/s41598-019-57028-z) o
+laminografía (*Marine Geology*, 2024, https://www.sciencedirect.com/science/article/pii/S0025322724000513) o redes neuronales
+entrenadas directamente sobre la imagen sin realce previo (Di Martino et al., 2023; Kikuchi y Naruse,
+2024).
+
 **Para el revisor.** Son operaciones estándar de procesado de imagen (Gonzalez y Woods, 2018). Los dos
 ajustes con fuente publicada se describen arriba, con sus diferencias respecto al original; los demás
 son puntos de partida propios y así se indican en la interfaz. Los parámetros efectivos de realce de
@@ -381,6 +399,15 @@ Implementación: `imageproc.js::regionGrow, polygonPixels` y `app.js` (herramien
 | **Excluir / Recuperar** | Pincel que marca o desmarca una capa aparte de **exclusión**. |
 
 Modificadores: Mayús añade al objeto seleccionado y Alt resta (varita y lazo).
+
+**Selección de varias trazas** (desde V12). Con la herramienta de selección, Ctrl+clic añade o quita
+una traza y Mayús+arrastrar selecciona las trazas cuyo centro del rectángulo envolvente cae dentro
+del rectángulo dibujado. También se pueden seleccionar todas las sugeridas como la clase activa o
+todas las sin revisar. Las teclas 1–9 (y 0), «Asignar a todas», «Aceptar sus sugerencias» y
+«Eliminar todas» actúan sobre toda la selección en una sola operación de deshacer. Sirve igual para
+trazas detectadas automáticamente y para trazas dibujadas a mano. La vista no se mueve al asignar;
+«Saltar a la siguiente al asignar» está desactivado por defecto (se recuerda por navegador) y, si se
+activa, centra la traza siguiente sin cambiar el zoom.
 
 **Capa de exclusión.** Los píxeles excluidos salen del numerador **y** del denominador del
 porcentaje (§3). Sirve para grietas, huecos, zonas muestreadas, etiquetas o perturbación de
@@ -857,8 +884,13 @@ idéntico a uno existente (mismo sondeo, capa, eje, categoría, techo y base) no
 4. **Razones** A/B creadas por el usuario: se calculan fila a fila sobre los datos originales
    (nulo si el divisor es 0 o falta) antes de remuestrear.
 5. **Logaritmo** opcional por variable: `t = log10(v)` si `v > 0`; si no, nulo.
-6. Una muestra entra solo si **todas** las variables elegidas tienen valor. Un sondeo sin alguna
-   variable no aporta muestras (la interfaz avisa con «le falta: …»).
+6. **Valores que faltan** (`cfg.missing`): con `drop` (por defecto) una muestra entra solo si
+   **todas** las variables elegidas tienen valor; un sondeo sin alguna variable no aporta muestras.
+   Con `mean` (desde V12) basta con una variable; las que faltan valen la media, es decir 0 en `zc`
+   y en `f` con escalado global o por sondeo (la media global de `t` sin escalar). Media y desviación
+   se calculan sin los valores que faltan (`colStats`). Las reglas no se cumplen sobre un valor que
+   falta. Permite combinar sondeos con variables distintas, a costa de que el modelo vea un valor
+   neutro donde no hay dato.
 7. **z-score dentro del sondeo** (siempre calculado, usado por las reglas y los mapas):
    `zc_j = (t_j − μ_j,sondeo) / σ_j,sondeo`, con σ de población (divisor n; si σ = 0 se usa 1).
 8. **Variables del modelo** (`scaling`):
@@ -992,6 +1024,33 @@ entrenado. «Colorear registros por clase» rellena el fondo de cada columna de 
 - Exportación de intervalos (`*_intervalos.csv`): sondeo, capa, capa madre, categoría, eje, techo,
   base, automático y fuera de la capa madre. Se puede volver a importar.
 
+### 21.8 ter Datos propios de la tesis (desde V12)
+`tools/make_thesis_dataset.py` lee los archivos originales del autor (carpeta «Proyectos
+Investigación») y escribe `examples/tesis_casanova/privado/`, que **no se sube a GitHub** (datos no
+publicados, coautores). Solo entra en el archivo único construido en el ordenador del autor y en la
+página de prueba privada. Contenido:
+- ODP 977A: bioturbación de trazas discretas y total con BI e ii, gris de la imagen (medias cada
+  5 cm), número y área de trazas cada 5 cm, CaCO3, TOC y TS, más los registros de PANGAEA (SST,
+  C37:4, color, susceptibilidad).
+- GP03 (cap. VIII): XRF (19 razones), ICP (óxidos y traza), susceptibilidad magnética y grupos de
+  foraminíferos bentónicos, en cm; modelo de edad de la tabla XRF del autor; intervalos de las
+  etiquetas del autor en esa tabla (periodo climático, clima cálido/frío/templado, ORL/no ORL);
+  marcas de una sola muestra (H2–H5) descartadas.
+- LC10 (cap. IX): razones ITRAX (medias cada 1 cm) y factores de enriquecimiento ICP; edad del
+  modelo de la tabla IX.1.
+- ODP 977A: estadiales H1–H6 y límites MIS del archivo de eventos de la tesis; ORL nuevas a–f.
+- ODP 976: ORL A1–A6 con profundidad y edad del autor y tipo de la tabla VII.3.
+- «Fuera de capa orgánica» se recalcula al cargar como complemento de las capas orgánicas de cada
+  sondeo (977A 0–147 ka, 976 0–135 ka, LC10 0–653 cm; GP03 lo trae en sus etiquetas).
+
+Configuración al cargar con estos datos: 12 variables (8 razones XRF comunes a GP03 y LC10,
+bioturbación total, gris, TOC y SST), escalado por sondeo (las cuentas de dos escáneres distintos,
+Avaatech e ITRAX, no son comparables en valor absoluto), valores que faltan con la media, capa
+objetivo «Capas orgánicas» sin capas como variables. Resultado V12 (Random Forest, semilla 42):
+validación dejando un sondeo fuera, acierto 61,1 %, acierto equilibrado 17,7 % (7 clases); prueba en
+LC10 entrenando con los otros tres: 85,6 % de coincidencia, sobre todo por «fuera de capa orgánica»;
+en GP03, 29,8 %. Con variables tan distintas entre sondeos, la transferencia entre sondeos es pobre.
+
 ### 21.8 bis Sondeos de la tesis (datos reales, primera versión)
 `examples/tesis_casanova/` y `loadThesisCores` (app.js). Registros de PANGAEA de ODP 977A (0–30 mbsf;
 color y susceptibilidad promediados cada 5 cm; edad interpolada con el modelo de Martrat et al.,
@@ -1070,6 +1129,12 @@ el modelo dependa de la descripción y no de los registros.
 - Rodríguez-Tovar, F.J., Miguez-Salas, O., Dorador, J. (2020). Image processing techniques to improve
   characterization of composite ichnofabrics. *Ichnos*. https://doi.org/10.1080/10420940.2020.1744579
 - Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
+- Di Martino, A., Carlini, G., Castellani, G., Remondini, D., Amorosi, A. (2023). Sediment core
+  analysis using artificial intelligence. *Scientific Reports* 13, 20409.
+- Otsu, N. (1979). A threshold selection method from gray-level histograms. *IEEE Transactions on
+  Systems, Man, and Cybernetics* 9, 62–66.
+- Rodríguez-Tovar, F.J., Dorador, J. (2015). Ichnofabric characterization in cores: a method of
+  digital image treatment. *Annales Societatis Geologorum Poloniae* 85. https://doi.org/10.14241/asgp.2015.010
 - Zuiderveld, K. (1994). Contrast limited adaptive histogram equalization. En: Heckbert, P. (ed.),
   *Graphics Gems IV*, Academic Press, 474–485.
 - Taylor, A.M., Goldring, R. (1993). Description and analysis of bioturbation and ichnofabric.

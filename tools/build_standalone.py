@@ -44,7 +44,9 @@ def build(out: Path = ROOT / "dist" / "IchAnTool.html") -> Path:
         parts.append(f"// ---- {name} ----\n{strip_module(code)}")
     bundle = "\n".join(parts)
 
-    assets = {a: f"data:{MIME[Path(a).suffix]};base64," + base64.b64encode((EXAMPLES / a).read_bytes()).decode() for a in ASSETS}
+    # Private thesis data (git-ignored) is bundled only when present on this machine.
+    private = sorted(str(p.relative_to(EXAMPLES)).replace("\\", "/") for p in (EXAMPLES / "tesis_casanova" / "privado").glob("*") if p.suffix in MIME)
+    assets = {a: f"data:{MIME[Path(a).suffix]};base64," + base64.b64encode((EXAMPLES / a).read_bytes()).decode() for a in ASSETS + private}
     assets_js = "window.ICHANTOOL_ASSETS = " + json.dumps(assets) + ";"
 
     html = (APP / "index.html").read_text(encoding="utf-8")

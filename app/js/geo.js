@@ -131,14 +131,15 @@ export function buildSamples(cores, cfg) {
     const rows = [];
     grid.forEach((g, i) => {
       const raw = cols.map((c) => c[i]), tv = tr.map((c) => c[i]);
-      if (tv.some((v) => v == null)) return;
+      // 'drop' (default): every variable must have a value. 'mean': at least one; the missing ones take the mean (0 after z-scoring).
+      if (cfg.missing === 'mean' ? F.length && tv.every((v) => v == null) : tv.some((v) => v == null)) return;
       rows.push({ core: core.id ?? core.name, x: g, raw, t: tv,
         depth: cfg.axis === 'depth' ? g : coreConvert(core, g, 'age', 'depth'),
         age: cfg.axis === 'age' ? g : coreConvert(core, g, 'depth', 'age') });
     });
     if (rows.length) {
-      const mu = F.map((_, j) => mean(rows.map((r) => r.t[j]))), sd = F.map((_, j) => std(rows.map((r) => r.t[j]), mu[j]));
-      for (const r of rows) r.zc = r.t.map((v, j) => (v - mu[j]) / sd[j]);
+      const { mu, sd } = colStats(rows, F.length);
+      for (const r of rows) r.zc = r.t.map((v, j) => (v == null ? 0 : (v - mu[j]) / sd[j]));
     }
     if (LF.length) {
       const ivs = intervalsOnAxis((cfg.intervals || []).filter((q) => q.core === (core.id ?? core.name) && !q.auto), cfg.axis, core);
@@ -147,10 +148,9 @@ export function buildSamples(cores, cfg) {
     out.push(...rows);
   }
   if (cfg.scaling === 'core') for (const r of out) r.f = r.zc.slice();
-  else if (cfg.scaling === 'none') for (const r of out) r.f = r.t.slice();
   else if (out.length) {
-    const mu = F.map((_, j) => mean(out.map((r) => r.t[j]))), sd = F.map((_, j) => std(out.map((r) => r.t[j]), mu[j]));
-    for (const r of out) r.f = r.t.map((v, j) => (v - mu[j]) / sd[j]);
+    const { mu, sd } = colStats(out, F.length);
+    for (const r of out) r.f = r.t.map((v, j) => (cfg.scaling === 'none' ? (v == null ? mu[j] : v) : v == null ? 0 : (v - mu[j]) / sd[j]));
   }
   // Interval layers: one 0/1 column per category, appended unscaled after the numeric variables.
   for (const r of out) if (r.cat) { r.raw.push(...r.cat); r.t.push(...r.cat); r.zc.push(...r.cat); r.f.push(...r.cat); delete r.cat; }
@@ -199,13 +199,24 @@ export function intervalsFromTable(tab, roles, defaultCore = '') {
   return out;
 }
 
+/** Mean and population SD of the first n columns of r.t, ignoring missing values (SD 0 or no data → 1). */
+export function colStats(rows, n) {
+  const mu = [], sd = [];
+  for (let j = 0; j < n; j++) {
+    const v = rows.map((r) => r.t[j]).filter((x) => x != null);
+    const m = v.length ? mean(v) : 0; mu.push(m); sd.push(v.length ? std(v, m) : 1);
+  }
+  return { mu, sd };
+}
+
 /* ───────── labels ───────── */
 
 /** Rule condition: {feature, op: 'z>'|'z<'|'>'|'<', value}. 'z' uses the per-core z-score. */
 export function ruleMatches(rule, sample, features) {
   return rule.conds.length > 0 && rule.conds.every((c) => {
     const j = features.indexOf(c.feature); if (j < 0) return false;
-    const v = c.op.startsWith('z') ? sample.zc[j] : sample.raw[j];
+    const v = c.op.startsWith('z') ? (sample.raw[j] == null ? null : sample.zc[j]) : sample.raw[j];
+    if (v == null) return false;
     return c.op.endsWith('>') ? v > c.value : v < c.value;
   });
 }

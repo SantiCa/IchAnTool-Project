@@ -1,11 +1,11 @@
 // IchAnTool web — application (UI, state, tools, rendering, files).
 import { BI, II, UNIT_TO_CM, rowCounts, binRows, parseAgeModel, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
-import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian } from './imageproc.js';
+import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian, separability } from './imageproc.js';
 import { parseTable, guessAxisColumn, invertModel, toAxis, compositeRows, rowsRange, buildLogSVG, windowCSV } from './log.js';
 import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject, getPref, setPref } from './storage.js';
 import { Classifier, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox } from './geo.js';
 
 const $ = (id) => document.getElementById(id);
 const VERSION = '3.0.0-dev';
@@ -38,6 +38,7 @@ function defaultClasses() {
 }
 
 const S = {
+  multi: new Set(),
   name: 'ichantool-project',
   classes: defaultClasses(), active: 'undet',
   sections: [], cur: -1,
@@ -257,21 +258,32 @@ function applyPixels(pixels, mode) {
   if (target && s.objects.has(target)) select(target);
 }
 
-function deleteObject(id) {
-  const s = sec(), o = s?.objects.get(id); if (!o) return;
-  const op = beginOp(s), [x0, y0, x1, y1] = o.bbox;
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * s.w + x; if (s.labels[i] === id) setLabel(op, i, 0); }
-  s.objects.delete(id); S.selected = 0;
+function deleteObject(id) { deleteObjects([id]); }
+function deleteObjects(ids) {
+  const s = sec(); if (!s) return;
+  const objs = ids.map((id) => s.objects.get(id)).filter((o) => o?.bbox); if (!objs.length) return;
+  const op = beginOp(s);
+  for (const o of objs) {
+    const [x0, y0, x1, y1] = o.bbox;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * s.w + x; if (s.labels[i] === o.id) setLabel(op, i, 0); }
+    s.objects.delete(o.id);
+  }
+  S.selected = 0; S.multi.clear();
   commitOp(op, true); afterChange(s);
 }
 
-function assignClass(id, clsId) {
-  const s = sec(), o = s?.objects.get(id); if (!o) return;
+function assignClass(id, clsId) { assignClassMany([id], clsId); }
+/** Assign one class to one or several objects (one undo step). The view does not move unless "jump to next" is on. */
+function assignClassMany(ids, clsId) {
+  const s = sec(); if (!s) return;
+  const objs = ids.map((id) => s.objects.get(id)).filter(Boolean); if (!objs.length) return;
   const op = beginOp(s);
-  o.cls = clsId; o.pred = null; o.conf = 0;
+  for (const o of objs) { o.cls = clsId; o.pred = null; o.conf = 0; }
   commitOp(op, true); afterChange(s);
-  if ($('autoNext').checked) nextReview();
+  if (objs.length === 1 && $('autoNext').checked) nextReview();
 }
+/** Objects selected now: the multi-selection if any, else the single selected object. */
+function selectedIds() { const s = sec(); if (!s) return []; const ids = S.multi.size ? [...S.multi] : S.selected ? [S.selected] : []; return ids.filter((id) => s.objects.has(id)); }
 
 /* ───────────── detection ───────────── */
 
@@ -374,7 +386,7 @@ function setManual(s, b, key, val) {
 
 const view = $('view'), vctx = view.getContext('2d');
 const prof = $('profile'), pctx = prof.getContext('2d');
-let imgData = null, rq = false, cursor = null, lassoPts = null, roiDrag = null;
+let imgData = null, rq = false, cursor = null, lassoPts = null, roiDrag = null, boxDrag = null;
 
 function rebuildLUT(s) {
   const n = s.nextId, fill = new Uint8ClampedArray(n * 4), line = new Uint8ClampedArray(n * 4), sty = new Uint8Array(n);
@@ -409,6 +421,7 @@ function render() {
   const d = imgData.data, src = S.showOrig ? s.orig : s.enh, lab = s.labels, ex = s.exclude;
   const W = s.w, H = s.h, { x: vx, y: vy, zoom: z } = S.view, roi = s.roi;
   const fill = s.lutFill, line = s.lutLine, sty = s.lutStyle, sel = S.selected, step = Math.max(1, Math.round(1 / z));
+  const inSel = new Uint8Array(s.nextId + 1); for (const id of S.multi) if (id <= s.nextId) inSel[id] = 1;
   const ixs = new Int32Array(cw);
   for (let sx = 0; sx < cw; sx++) ixs[sx] = Math.floor(vx + (sx + 0.5) / z);
   let o = 0;
@@ -426,7 +439,7 @@ function render() {
         const edge = (ix < step || lab[i - step] !== id) || (ix + step >= W || lab[i + step] !== id) ||
           (iy < step || lab[i - step * W] !== id) || (iy + step >= H || lab[i + step * W] !== id);
         if (edge) {
-          if (id === sel) { r = 255; g = 255; b = 255; }
+          if (id === sel || inSel[id]) { r = 255; g = 255; b = 255; }
           else if (sty[id] !== 1 || ((sx + sy) & 4)) { r = line[k]; g = line[k + 1]; b = line[k + 2]; }
         }
       }
@@ -443,7 +456,7 @@ function render() {
   const [rx0, ry0] = toS(roi.x0, roi.y0), [rx1, ry1] = toS(roi.x1, roi.y1);
   vctx.strokeRect(rx0 + 0.5, ry0 + 0.5, rx1 - rx0 - 1, ry1 - ry0 - 1);
   vctx.setLineDash([]);
-  if (roiDrag) { const [a, b2] = toS(roiDrag.x0, roiDrag.y0), [c, e] = toS(roiDrag.x1, roiDrag.y1); vctx.strokeStyle = '#fff'; vctx.strokeRect(a, b2, c - a, e - b2); }
+  for (const r of [roiDrag, boxDrag]) if (r) { const [a, b2] = toS(r.x0, r.y0), [c, e] = toS(r.x1, r.y1); vctx.strokeStyle = '#fff'; vctx.setLineDash(r === boxDrag ? [4, 3] : []); vctx.strokeRect(a, b2, c - a, e - b2); vctx.setLineDash([]); }
   if (lassoPts && lassoPts.length > 1) {
     vctx.strokeStyle = '#fff'; vctx.lineWidth = 1.5; vctx.beginPath();
     lassoPts.forEach(([x, y], k) => { const [a, b2] = toS(x, y); k ? vctx.lineTo(a, b2) : vctx.moveTo(a, b2); });
@@ -532,8 +545,7 @@ function zoomAt(sx, sy, f) {
   clampView(); requestRender();
 }
 function centerOn(o) {
-  const [x0, y0, x1, y1] = o.bbox, size = Math.max(x1 - x0, y1 - y0) + 1;
-  if (size * S.view.zoom < 40) S.view.zoom = Math.min(8, 160 / size);
+  const [x0, y0, x1, y1] = o.bbox;   // pans only: the zoom chosen by the user is kept
   const z = S.view.zoom;
   S.view.x = (x0 + x1) / 2 - view.width / (2 * z); S.view.y = (y0 + y1) / 2 - view.height / (2 * z);
   clampView(); requestRender();
@@ -568,7 +580,8 @@ view.addEventListener('pointerdown', (e) => {
   if (e.button === 1 || S.tool === 'pan' || spaceDown) { drag = { type: 'pan', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y }; return; }
   if (e.button !== 0) return;
   const tool = S.tool;
-  if (tool === 'select') drag = { type: 'select', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, moved: false, p };
+  if (tool === 'select' && e.shiftKey) { boxDrag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; drag = { type: 'box', add: true }; }
+  else if (tool === 'select') drag = { type: 'select', sx: e.clientX, sy: e.clientY, vx: S.view.x, vy: S.view.y, moved: false, p, toggle: e.ctrlKey || e.metaKey };
   else if (tool === 'roi') { roiDrag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; drag = { type: 'roi' }; }
   else if (tool === 'lasso') { lassoPts = [[p.x, p.y]]; drag = { type: 'lasso', mode: e.altKey ? 'sub' : e.shiftKey ? 'add' : 'new' }; }
   else if (tool === 'wand') {
@@ -601,13 +614,20 @@ view.addEventListener('pointermove', (e) => {
   } else if (drag.type === 'paint') { paintSeg(drag.op, drag.last, p); drag.last = p; requestRender(); }
   else if (drag.type === 'lasso') { lassoPts.push([p.x, p.y]); requestRender(); }
   else if (drag.type === 'roi') { roiDrag.x1 = p.x; roiDrag.y1 = p.y; requestRender(); }
+  else if (drag.type === 'box') { boxDrag.x1 = p.x; boxDrag.y1 = p.y; requestRender(); }
 });
 
 function endDrag() {
   const s = sec(); const d = drag; drag = null; if (!d || !s) return;
   if (d.type === 'select' && !d.moved) {
     const p = d.p, id = inImg(s, p) ? s.labels[Math.floor(p.y) * s.w + Math.floor(p.x)] : 0;
-    select(id);
+    if (d.toggle) toggleSelect(id); else select(id);
+  } else if (d.type === 'box') {
+    const r = boxDrag; boxDrag = null;
+    const x0 = Math.min(r.x0, r.x1), x1 = Math.max(r.x0, r.x1), y0 = Math.min(r.y0, r.y1), y1 = Math.max(r.y0, r.y1);
+    if (S.selected) S.multi.add(S.selected);
+    for (const o of s.objects.values()) { if (!o.bbox) continue; const cx = (o.bbox[0] + o.bbox[2]) / 2, cy = (o.bbox[1] + o.bbox[3]) / 2; if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) S.multi.add(o.id); }
+    S.selected = [...S.multi][0] || 0; renderObject(); requestRender(); if (S.multi.size) showTab('object', true);
   } else if (d.type === 'paint') finishPixelOp(d.op, d.op.mode === 'brush' ? d.op.target : 0);
   else if (d.type === 'lasso') {
     const pts = lassoPts; lassoPts = null;
@@ -656,13 +676,14 @@ document.addEventListener('keydown', (e) => {
   if (/^[0-9]$/.test(k)) {
     const c = k === '0' ? clsById('artifact') : S.classes[+k - 1];
     if (!c) return;
-    if (S.selected && s.objects.has(S.selected)) assignClass(S.selected, c.id); else setActive(c.id);
+    const ids = selectedIds();
+    if (ids.length) assignClassMany(ids, c.id); else setActive(c.id);
     return;
   }
   switch (k) {
     case 'Escape': select(0); break;
-    case 'Delete': case 'Backspace': if (S.selected) { e.preventDefault(); deleteObject(S.selected); } break;
-    case 'Enter': { const o = s.objects.get(S.selected); if (o?.pred) assignClass(o.id, o.pred); break; }
+    case 'Delete': case 'Backspace': { const ids = selectedIds(); if (ids.length) { e.preventDefault(); deleteObjects(ids); } break; }
+    case 'Enter': acceptSuggestions(selectedIds()); break;
     case 'n': case 'N': e.preventDefault(); nextReview(e.shiftKey); break;
     case 'o': case 'O': $('showOrig').checked = S.showOrig = !S.showOrig; requestRender(); break;
     case 'f': case 'F': fitView(); break;
@@ -700,8 +721,23 @@ function setTool(tool) {
   requestRender();
 }
 function setBrush(v) { S.brushSize = Math.max(1, Math.min(120, v)); $('brushSize').value = S.brushSize; $('brushOut').textContent = S.brushSize; requestRender(); }
-function setActive(id) { S.active = id; renderClasses(); }
-function select(id) { S.selected = id || 0; renderObject(); requestRender(); if (id) showTab('object', true); }
+function setActive(id) { S.active = id; renderClasses(); renderSelTools(sec()); }
+function select(id) { S.selected = id || 0; S.multi.clear(); renderObject(); requestRender(); if (id) showTab('object', true); }
+function toggleSelect(id) {
+  if (!id) return;
+  if (S.selected && !S.multi.size) S.multi.add(S.selected);
+  if (S.multi.has(id)) S.multi.delete(id); else S.multi.add(id);
+  S.selected = S.multi.has(id) ? id : [...S.multi][0] || 0;
+  if (S.multi.size === 1) S.multi.clear();
+  renderObject(); requestRender(); showTab('object', true);
+}
+/** Select every object of the section that matches a filter (e.g. all suggested as a class). */
+function selectWhere(fn) {
+  const s = sec(); if (!s) return;
+  S.multi = new Set([...s.objects.values()].filter((o) => o.bbox && fn(o)).map((o) => o.id));
+  S.selected = [...S.multi][0] || 0; if (S.multi.size === 1) S.multi.clear();
+  renderObject(); requestRender();
+}
 
 function showTab(name, soft = false) {
   if (soft && document.querySelector('.tabs [aria-selected="true"]')?.dataset.tab === 'results') return;
@@ -749,8 +785,43 @@ $('addClass').addEventListener('click', () => {
   const inp = document.querySelector(`#classList li[data-id="${c.id}"] input.name`); inp?.focus(); inp?.select();
 });
 
+/** Accept the automatic suggestion of each object that has one (one undo step). */
+function acceptSuggestions(ids) {
+  const s = sec(); if (!s) return;
+  const objs = ids.map((id) => s.objects.get(id)).filter((o) => o?.pred && !o.cls); if (!objs.length) return;
+  const op = beginOp(s);
+  for (const o of objs) { o.cls = o.pred; o.pred = null; o.conf = 0; }
+  commitOp(op, true); afterChange(s);
+}
+
+function renderSelTools(s) {
+  const el = $('selTools'); if (!el) return;
+  const c = clsById(S.active);
+  el.innerHTML = s ? `<button class="btn small" id="selPred">${t('obj.selPred', { c: esc(c?.name || '') })}</button><button class="btn small" id="selCand">${t('obj.selCand')}</button>` : '';
+  if (!s) return;
+  $('selPred').onclick = () => selectWhere((o) => !o.cls && o.pred === S.active);
+  $('selCand').onclick = () => selectWhere((o) => !o.cls);
+}
+
+function renderMulti(s, box) {
+  const objs = [...S.multi].map((id) => s.objects.get(id)).filter(Boolean);
+  const n = (f) => objs.filter(f).length;
+  const opts = S.classes.map((c) => `<option value="${c.id}" ${c.id === S.active ? 'selected' : ''}>${keyOf(c) ? keyOf(c) + ' · ' : ''}${esc(c.name)}</option>`).join('');
+  box.innerHTML = `<p><b>${t('obj.multiN', { n: objs.length })}</b></p>
+    <p class="note">${t('obj.multiDetail', { m: n((o) => o.cls), p: n((o) => !o.cls && o.pred), c: n((o) => !o.cls && !o.pred) })}</p>
+    <select id="multiCls" style="width:100%">${opts}</select><div class="row"><button class="btn small primary" id="multiAssign">${t('obj.multiAssign')}</button>
+    ${n((o) => !o.cls && o.pred) ? `<button class="btn small" id="multiAccept">${t('obj.multiAccept')}</button>` : ''}<button class="btn small" id="multiClear">${t('obj.multiClear')}</button><button class="btn small" id="multiDel">${t('obj.multiDel')}</button></div>
+    <p class="note">${t('obj.multiHint')}</p>`;
+  $('multiAssign').onclick = () => assignClassMany(objs.map((o) => o.id), $('multiCls').value);
+  if ($('multiAccept')) $('multiAccept').onclick = () => acceptSuggestions(objs.map((o) => o.id));
+  $('multiClear').onclick = () => select(0);
+  $('multiDel').onclick = () => deleteObjects(objs.map((o) => o.id));
+}
+
 function renderObject() {
   const s = sec(), o = s?.objects.get(S.selected), box = $('objInfo');
+  renderSelTools(s);
+  if (s && S.multi.size > 1) { renderMulti(s, box); return; }
   if (!o) { box.innerHTML = `<p class="note">${t('obj.none')}</p>`; return; }
   const st = status(o), ppu = pxPerCm(s), f = o.feat || {}, [, y0, , y1] = o.bbox;
   const opts = [`<option value="">${t('obj.unassigned')}</option>`].concat(S.classes.map((c) => `<option value="${c.id}" ${c.id === o.cls ? 'selected' : ''}>${keyOf(c) ? keyOf(c) + ' · ' : ''}${esc(c.name)}</option>`)).join('');
@@ -766,7 +837,8 @@ function renderObject() {
       <dt>${t('obj.area')}</dt><dd>${fmt(o.area / (ppu * ppu) / UNIT_TO_CM[u] ** 2, 4)} ${u}² · ${o.area} px</dd>
       <dt>${t('obj.shape')}</dt><dd>${t('obj.elong')} ${fmt(f.elong, 1)} · ${t('obj.vert')} ${fmt(f.vert, 2)}</dd>
     </dl>
-    <div class="row">${o.pred && !o.cls ? `<button class="btn small primary" id="objAccept">${t('obj.accept')}</button>` : ''}<button class="btn small" id="objDel">${t('obj.delete')}</button></div>`;
+    <div class="row">${o.pred && !o.cls ? `<button class="btn small primary" id="objAccept">${t('obj.accept')}</button>` : ''}<button class="btn small" id="objDel">${t('obj.delete')}</button></div>
+    <p class="note">${t('obj.multiHint')}</p>`;
   $('objCls').onchange = (e) => { const v = e.target.value || null; if (v) assignClass(o.id, v); else { const op = beginOp(s); o.cls = null; commitOp(op, true); afterChange(s); } };
   $('objDel').onclick = () => deleteObject(o.id);
   if ($('objAccept')) $('objAccept').onclick = () => assignClass(o.id, o.pred);
@@ -891,6 +963,29 @@ $('fPreset').addEventListener('change', (e) => {
   } else s.filters = { ...FILTER_PRESETS[v] };
   renderFilterForm(); renderDetectForm(); refilter();
 });
+/**
+ * Choose the setting (built-in or user) that best separates two grey-level groups in the analysis area
+ * (Otsu separability η on a reduced copy of the image). Own procedure; see DOCUMENTACION_TECNICA §6.
+ */
+function rankPresets(s) {
+  const k = Math.max(1, Math.round(Math.sqrt((s.w * s.h) / 4e5)));
+  const sm = downsampleRGBA(s.orig, s.w, s.h, k);
+  const roi = { x0: Math.floor(s.roi.x0 / k), y0: Math.floor(s.roi.y0 / k), x1: Math.max(1, Math.floor(s.roi.x1 / k)), y1: Math.max(1, Math.floor(s.roi.y1 / k)) };
+  const cands = [...BUILTIN_PRESETS.map((v) => ({ id: v, name: t('f.p.' + v), filters: { ...FILTER_PRESETS[v] } })),
+    ...userPresets.map((u) => ({ id: 'u:' + u.id, name: u.name, filters: { ...DEFAULT_FILTERS, ...u.filters }, detect: u.detect }))];
+  return cands.map((c) => {
+    const tmp = { filters: c.filters, orig: sm.rgba, w: sm.w, h: sm.h, roi };
+    const enh = applyFilters(sm.rgba, sm.w, sm.h, effectiveFilters(tmp));
+    return { ...c, eta: separability(enh, sm.w, sm.h, roi).eta };
+  }).sort((a, b) => b.eta - a.eta);
+}
+$('presetBest').addEventListener('click', () => busy(() => {
+  const s = sec(); if (!s) return;
+  const r = rankPresets(s), best = r[0];
+  s.preset = best.id; s.filters = { ...best.filters }; if (best.detect) s.detect = { ...DEFAULT_DETECT, ...best.detect };
+  renderFilterForm(); renderDetectForm(); refilter();
+  $('presetRank').textContent = t('f.rank', { list: r.slice(0, 4).map((c) => `${c.name} ${c.eta.toFixed(3)}`).join(' · ') });
+}));
 $('fAuto').addEventListener('change', (e) => { const s = sec(); if (!s) return; s.filters.autoLevels = e.target.checked; s.preset = 'custom'; renderFilterForm(); refilter(); });
 $('fAutoG').addEventListener('change', (e) => { const s = sec(); if (!s) return; s.filters.autoGamma = e.target.checked; s.preset = 'custom'; renderFilterForm(); refilter(); });
 $('dFill').addEventListener('change', (e) => { const s = sec(); if (s) s.detect.fillHoles = e.target.checked; });
@@ -1012,6 +1107,8 @@ $('zoomOut').addEventListener('click', () => zoomAt(view.width / 2, view.height 
 $('zoomFit').addEventListener('click', fitView);
 $('undoBtn').addEventListener('click', undo);
 $('nextReview').addEventListener('click', () => nextReview());
+try { $('autoNext').checked = localStorage.getItem('ichantool.autoNext') === '1'; } catch { $('autoNext').checked = false; }
+$('autoNext').addEventListener('change', (e) => { try { localStorage.setItem('ichantool.autoNext', e.target.checked ? '1' : '0'); } catch { /* storage blocked */ } });
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
 for (const id of ['addImg', 'addImg2']) $(id).addEventListener('change', (e) => { addFiles([...e.target.files]); e.target.value = ''; });
@@ -1629,7 +1726,7 @@ function defaultGeo() {
       { id: 'background', name: t('geo.l.background'), color: '#cfc8b6' },
     ] }],
     activeLayer: 'events', activeCat: 'lowox',
-    settings: { axis: 'age', step: 1, features: [], logs: [], scaling: 'global', maxGap: null, method: 'rf', params: { rf: {}, knn: {}, nb: {}, kmeans: {} }, minProb: 0.5, useRules: true, seed: 42, target: 'events', useLayers: null },
+    settings: { axis: 'age', step: 1, features: [], logs: [], scaling: 'global', maxGap: null, method: 'rf', params: { rf: {}, knn: {}, nb: {}, kmeans: {} }, minProb: 0.5, useRules: true, seed: 42, target: 'events', useLayers: null, missing: 'drop' },
     map: { a0: 6, a1: 10, mode: 'class', feature: '', ref: false, r0: 0, r1: 4, idw: true, power: 2 },
     view: { core: null, tab: 'logs' },
   };
@@ -1718,7 +1815,7 @@ function geoComputeSamples() {
   if (!geoLayer(st.target)) st.target = g.layers[0]?.id;
   if (!st.features.length && !featLayers().length) st.features = allNumericVars().filter((k) => g.cores.some((c) => (c.proxies[k] || []).some((v) => v != null))).slice(0, 12);
   const layers = featLayers();
-  geoRT.samples = buildSamples(g.cores, { axis: st.axis, step: st.step, features: st.features, ratios: g.ratios, logs: st.logs, scaling: st.scaling, maxGap: st.maxGap || Infinity, layers, intervals: g.intervals });
+  geoRT.samples = buildSamples(g.cores, { axis: st.axis, step: st.step, features: st.features, ratios: g.ratios, logs: st.logs, scaling: st.scaling, maxGap: st.maxGap || Infinity, layers, intervals: g.intervals, missing: st.missing });
   geoRT.featNames = [...st.features, ...layerFeatureNames(layers)];
   geoRT.nNum = st.features.length;
   geoRT.labels = labelSamples(geoRT.samples, { intervals: g.intervals, rules: g.rules, useRules: st.useRules, features: geoRT.featNames, axis: st.axis, cores: g.cores, layer: st.target });
@@ -1732,15 +1829,10 @@ function geoPredictAll() {
   const m = geoRT.model, st = S.geo.settings;
   if (!m || m.features.join('\u0001') !== geoRT.featNames.join('\u0001') || m.scaling !== st.scaling || m.axis !== st.axis || m.target !== st.target) { geoRT.preds = []; return; }
   const minProb = m.kind === 'kmeans' ? 0 : st.minProb;
-  geoRT.preds = geoRT.samples.map((s) => predictLabel(m, m.scale ? s.t.map((v, j) => (j < m.nNum ? (v - m.scale.mu[j]) / m.scale.sd[j] : v)) : s.f, minProb));
+  geoRT.preds = geoRT.samples.map((s) => predictLabel(m, m.scale ? s.t.map((v, j) => (j < m.nNum ? (v == null ? 0 : (v - m.scale.mu[j]) / m.scale.sd[j]) : v)) : s.f, minProb));
 }
 
-function scaleOf(samples, nNum) {
-  const mu = new Array(nNum).fill(0), sd = new Array(nNum).fill(0);
-  for (const r of samples) for (let j = 0; j < nNum; j++) mu[j] += r.t[j] / samples.length;
-  for (const r of samples) for (let j = 0; j < nNum; j++) sd[j] += (r.t[j] - mu[j]) ** 2 / samples.length; // population SD, as in buildSamples
-  return { mu, sd: sd.map((v) => Math.sqrt(v) || 1) };
-}
+const scaleOf = (samples, nNum) => colStats(samples, nNum); // same statistics as buildSamples (missing values ignored)
 
 function geoReset() { Object.assign(geoRT, { samples: [], labels: [], preds: [], model: null, cv: null, dirty: true, featNames: [], orphans: new Set() }); }
 
@@ -1768,7 +1860,7 @@ function geoCoreNote(c) {
   let s = `${(c.depth || c.age || []).length} ${t('log.points')} · ${Object.keys(c.proxies).length} ${t('geo.vars')} · ${ni} ${t('geo.ivs')} · ${t('geo.nSamples', { n })}`;
   if (!c.age && !c.ageText) s += ' · ' + t('geo.noAge');
   if (!c.depth && !c.age) s += ' · ' + t('geo.noAxisData');
-  if (miss.length) s += ' · ' + t('geo.missing', { f: miss.join(', ') });
+  if (miss.length) s += ' · ' + t(st.missing === 'mean' ? 'geo.missingMean' : 'geo.missing', { f: miss.join(', ') });
   return esc(s);
 }
 
@@ -1781,6 +1873,7 @@ function renderGeoPanel() {
       <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(c.name)}</b><button class="btn small ghost" data-act="del" aria-label="delete">✕</button></div>
       <div class="grid2"><label class="f"><span>Lat</span><input type="number" step="any" data-k="lat" value="${c.lat ?? ''}"></label><label class="f"><span>Lon</span><input type="number" step="any" data-k="lon" value="${c.lon ?? ''}"></label></div>
       <span class="note">${geoCoreNote(c)}</span></div>`).join('') || `<p class="note">${t('geo.noCores')}</p>`;
+  $('geoMissing').value = st.missing || 'drop';
   $('geoAxis').value = st.axis; $('geoStep').value = st.step; $('geoScaling').value = st.scaling; $('geoMaxGap').value = st.maxGap ?? '';
   $('geoFeats').innerHTML = vars.map((k) => `<div class="row srow"><label class="chk"><input type="checkbox" data-feat="${esc(k)}" ${st.features.includes(k) ? 'checked' : ''}><span>${esc(k)}</span></label><label class="chk note"><input type="checkbox" data-log="${esc(k)}" ${st.logs.includes(k) ? 'checked' : ''}>log</label></div>`).join('') || `<p class="note">—</p>`;
   const opts = vars.map((k) => `<option>${esc(k)}</option>`).join('');
@@ -1824,6 +1917,7 @@ $('geoPanel').addEventListener('change', (e) => {
   else if (el.id === 'geoAxis') st.axis = el.value;
   else if (el.id === 'geoStep') st.step = Math.max(1e-6, +el.value || 1);
   else if (el.id === 'geoScaling') st.scaling = el.value;
+  else if (el.id === 'geoMissing') st.missing = el.value;
   else if (el.id === 'geoMaxGap') st.maxGap = el.value === '' ? null : +el.value;
   else if (el.id === 'geoUseRules') st.useRules = el.checked;
   else if (el.id === 'geoTarget') st.target = el.value;
@@ -2023,28 +2117,67 @@ const PRELOAD_THESIS = true;
 /** Real data of the cores of Casanova-Arenillas (2023): PANGAEA records + intervals from the thesis (examples/tesis_casanova/README.md). */
 async function loadThesisCores(train = true) {
   const g = S.geo, txt = async (f) => (await fetchAsset('tesis_casanova/' + f)).text();
-  const t977 = parseTable(await txt('ODP977A_pangaea.csv')), t976 = parseTable(await txt('ODP976_pangaea.csv'));
+  let priv = null; // the author's own data (git-ignored folder, only in local/private builds)
+  try { priv = parseTable(await txt('privado/ODP977A_tesis.csv')); } catch { priv = null; }
   const ix = (tab, n) => tab.headers.indexOf(n);
-  const c977 = coreFromRows('ODP 977A', t977.rows, t977.headers, { depth: 0, age: 1, proxies: t977.headers.slice(2).map((n) => ix(t977, n)) });
+  const t976 = parseTable(await txt('ODP976_pangaea.csv'));
+  t976.headers = t976.headers.map((h) => (h === 'SST_alkenonas_C' ? 'SST_alquenonas_C' : h));
   const c976 = coreFromRows('ODP 976', t976.rows, t976.headers, { depth: -1, age: 0, proxies: t976.headers.slice(1).map((n) => ix(t976, n)) });
-  const model = (await txt('LC10_age_model.txt')).split('\n').filter((l) => l.trim() && !l.startsWith('#'));
-  const lc10 = { name: 'LC10', depth: model.map((l) => +l.split(',')[0]), age: null, ageText: model.join('\n'), proxies: {}, units: 'cm' };
-  const gp03 = { name: 'GP03', depth: null, age: null, proxies: {} };
-  c977.units = 'm';
+  const lcModel = (await txt('LC10_age_model.txt')).split('\n').filter((l) => l.trim() && !l.startsWith('#'));
+  let c977, gp03, lc10;
+  if (priv) {
+    c977 = coreFromRows('ODP 977A', priv.rows, priv.headers, { depth: 0, age: 1, proxies: priv.headers.slice(2).map((n) => ix(priv, n)) });
+    const tg = parseTable(await txt('privado/GP03_tesis.csv'));
+    gp03 = coreFromRows('GP03', tg.rows, tg.headers, { depth: 0, age: -1, proxies: tg.headers.slice(2).map((n) => ix(tg, n)) });
+    gp03.ageText = (await txt('privado/GP03_age_model.txt')).split('\n').filter((l) => l.trim() && !l.startsWith('#')).join('\n');
+    const tl = parseTable(await txt('privado/LC10_tesis.csv'));
+    lc10 = coreFromRows('LC10', tl.rows, tl.headers, { depth: 0, age: -1, proxies: tl.headers.slice(1).map((n) => ix(tl, n)) });
+  } else {
+    const t977 = parseTable(await txt('ODP977A_pangaea.csv'));
+    t977.headers = t977.headers.map((h) => (h === 'SST_alkenonas_C' ? 'SST_alquenonas_C' : h));
+    c977 = coreFromRows('ODP 977A', t977.rows, t977.headers, { depth: 0, age: 1, proxies: t977.headers.slice(2).map((n) => ix(t977, n)) });
+    gp03 = { name: 'GP03', depth: null, age: null, proxies: {} };
+    lc10 = { name: 'LC10', depth: lcModel.map((l) => +l.split(',')[0]), age: null, proxies: {} };
+  }
+  lc10.ageText = lcModel.join('\n');
+  Object.assign(c977, { units: 'm' }); Object.assign(gp03, { units: 'cm' }); Object.assign(lc10, { units: 'cm' });
   const list = [c977, c976, gp03, lc10];
   for (const c of list) { c.id = 'tesis-' + c.name.replace(/\W+/g, ''); c.source = 'tesis'; c.lat = null; c.lon = null; }
   g.cores = [...g.cores.filter((c) => c.source !== 'tesis'), ...list];
   applyCatalogue(g.cores, parseTable(await txt('catalogue.csv')), { core: 0, lat: 1, lon: 2, wd: 3 });
   g.intervals = g.intervals.filter((q) => !String(q.core).startsWith('tesis-'));
-  addNamedIntervals(intervalsFromTable(parseTable(await txt('intervals_age.csv')), { core: 0, from: 1, to: 2, layer: 3, values: [4] }), 'age');
-  addNamedIntervals(intervalsFromTable(parseTable(await txt('intervals_depth.csv')), { core: 0, from: 1, to: 2, layer: 4, values: [5] }), 'depth');
-  const L = (n) => g.layers.find((l) => l.name === n);
-  if (L('Fases internas') && L('Capas orgánicas')) L('Fases internas').parent = L('Capas orgánicas').id;
-  const col = { 'ORL tipo 1 (bioturbada)': '#4f8f5f', 'ORL tipo 2 (larga y cíclica)': '#2b6f8f', 'ORL tipo 3 (laminada)': '#1c2f5a', 'ORL (sin tipo)': '#5a6f8f', Sapropel: '#4a2f63', 'Fuera de capa orgánica': '#d9d2bf', 'Fase euxínica': '#14213d', 'Fase subóxica': '#7f9fcf', 'Interrupción': '#e0b04a', 'Heinrich Stadial 1': '#8fc1e3' };
+  const ia = intervalsFromTable(parseTable(await txt('intervals_age.csv')), { core: 0, from: 1, to: 2, layer: 3, values: [4] });
+  const id = intervalsFromTable(parseTable(await txt('intervals_depth.csv')), { core: 0, from: 1, to: 2, layer: 4, values: [5] });
+  if (priv) {
+    // GP03 intervals come from the author's labels in the data; the thesis-text ones are only the fallback.
+    addNamedIntervals(ia.filter((r) => r.core !== 'GP03'), 'age'); addNamedIntervals(id, 'depth');
+    addNamedIntervals(intervalsFromTable(parseTable(await txt('privado/intervals_age.csv')), { core: 0, from: 1, to: 2, layer: 3, values: [4] }), 'age');
+    addNamedIntervals(intervalsFromTable(parseTable(await txt('privado/intervals_depth.csv')), { core: 0, from: 1, to: 2, layer: 4, values: [5] }), 'depth');
+  } else { addNamedIntervals(ia, 'age'); addNamedIntervals(id, 'depth'); }
+  const L = (n) => g.layers.find((l) => l.name === n), org = L('Capas orgánicas');
+  if (L('Fases internas') && org) L('Fases internas').parent = org.id;
+  // "Outside organic layer" = complement of the described organic layers within the studied interval of each core
+  const out = org.cats.find((c) => c.name === 'Fuera de capa orgánica') || addCat(org, 'Fuera de capa orgánica');
+  const complement = (coreId, axis, a0, a1) => {
+    const core = geoCore(coreId);
+    g.intervals = g.intervals.filter((q) => !(q.core === coreId && q.layer === org.id && q.cat === out.id));
+    const occ = intervalsOnAxis(g.intervals.filter((q) => q.core === coreId && q.layer === org.id), axis, core).sort((p, q) => p.from - q.from);
+    let x = a0;
+    for (const q of occ) { if (q.from > x) g.intervals.push({ id: uid(), core: coreId, layer: org.id, axis, from: x, to: q.from, cat: out.id }); x = Math.max(x, q.to); }
+    if (x < a1) g.intervals.push({ id: uid(), core: coreId, layer: org.id, axis, from: x, to: a1, cat: out.id });
+  };
+  complement(c977.id, 'age', 0, 147);
+  complement(lc10.id, 'depth', 0, 653);
+  const col = { 'ORL tipo 1 (bioturbada)': '#4f8f5f', 'ORL tipo 2 (larga y cíclica)': '#2b6f8f', 'ORL tipo 3 (laminada)': '#1c2f5a', 'ORL (sin tipo)': '#5a6f8f', 'ORL nueva (sin tipo)': '#8aa1c1', Sapropel: '#4a2f63', 'Fuera de capa orgánica': '#d9d2bf', 'Fase euxínica': '#14213d', 'Fase subóxica': '#7f9fcf', 'Interrupción': '#e0b04a', 'Heinrich Stadial 1': '#8fc1e3', 'Cálido': '#d9822b', 'Frío': '#3b7dd8', 'Templado': '#9bbf85', Holoceno: '#f2c14e', 'Younger Dryas': '#5b8bd9', 'Bølling-Allerød': '#e07a3f', 'Último Máximo Glacial': '#2c4f8c' };
   for (const l of g.layers) for (const c of l.cats) if (col[c.name]) c.color = col[c.name];
   const st = g.settings;
-  Object.assign(st, { features: ['SST_alkenonas_C', 'CaCO3_pct', 'TOC_pct', 'L_star', 'a_star', 'b_star', 'MS_kappa_1e-6SI'], logs: [], axis: 'age', step: 0.5, scaling: 'global', target: L('Capas orgánicas').id, useLayers: null });
-  g.activeLayer = L('Capas orgánicas').id; g.view.core = c977.id; g.map = { ...g.map, a0: 9, a1: 14, mode: 'class' };
+  Object.assign(st, priv ? {
+    features: ['XRF Ti/Ca', 'XRF Zr/Ti', 'XRF Mn/Ti', 'XRF Br/Ti', 'XRF Ba/Ti', 'XRF K/Ti', 'XRF Fe/Ca', 'XRF Sr/Ca', 'Bioturbacion_total_pct', 'Gris_imagen', 'TOC_pct', 'SST_alquenonas_C'],
+    logs: [], axis: 'age', step: 0.5, scaling: 'core', missing: 'mean', target: org.id, useLayers: [],
+  } : {
+    features: ['SST_alquenonas_C', 'CaCO3_pct', 'TOC_pct', 'L_star', 'a_star', 'b_star', 'MS_kappa_1e-6SI'], logs: [], axis: 'age', step: 0.5, scaling: 'global', missing: 'drop', target: org.id, useLayers: null,
+  });
+  g.activeLayer = org.id; g.view.core = (priv ? gp03 : c977).id; g.map = { ...g.map, a0: 9, a1: 14, mode: 'class' };
   geoMarkDirty(); if (train) geoTrain();
 }
 $('geoThesis').addEventListener('click', () => busy(loadThesisCores));

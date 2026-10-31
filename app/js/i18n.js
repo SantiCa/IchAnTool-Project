@@ -417,6 +417,40 @@ Object.assign(D.en, {
   'geo.testNoSamples': 'This core has no samples with the chosen variables.',
 });
 
+// V12: multi-selection of traces
+Object.assign(D.es, {
+  'obj.multiN': '{n} trazas seleccionadas', 'obj.multiDetail': '{m} ya asignadas · {p} con sugerencia automática · {c} sin revisar',
+  'obj.multiAssign': 'Asignar a todas', 'obj.multiAccept': 'Aceptar sus sugerencias', 'obj.multiClear': 'Quitar selección', 'obj.multiDel': 'Eliminar todas',
+  'obj.multiHint': 'Varias trazas: Ctrl+clic añade o quita una; Mayús+arrastrar selecciona las que caen en el rectángulo. Las teclas 1–9 asignan la clase a todas las seleccionadas.',
+  'obj.selPred': 'Seleccionar las sugeridas como «{c}»', 'obj.selCand': 'Seleccionar todas sin revisar',
+  'obj.autoNext': 'Saltar a la siguiente al asignar (sin cambiar el zoom)',
+});
+Object.assign(D.en, {
+  'obj.multiN': '{n} traces selected', 'obj.multiDetail': '{m} already assigned · {p} with automatic suggestion · {c} unreviewed',
+  'obj.multiAssign': 'Assign to all', 'obj.multiAccept': 'Accept their suggestions', 'obj.multiClear': 'Clear selection', 'obj.multiDel': 'Delete all',
+  'obj.multiHint': 'Several traces: Ctrl+click adds or removes one; Shift+drag selects those inside the rectangle. Keys 1–9 assign the class to all selected.',
+  'obj.selPred': 'Select those suggested as “{c}”', 'obj.selCand': 'Select all unreviewed',
+  'obj.autoNext': 'Jump to the next after assigning (zoom unchanged)',
+});
+
+// V12: missing values, how-to of the multiproxy mode
+Object.assign(D.es, {
+  'geo.missingSel': 'Variables que faltan en un sondeo', 'geo.miss.drop': 'La muestra no entra (más estricto)', 'geo.miss.mean': 'Rellenar con la media (permite sondeos con variables distintas)',
+  'geo.missingMean': 'sin {f} (se rellena con la media)',
+  'geo.howtoTitle': '¿Cómo funciona este modo?',
+  'geo.howto': '<ol style="margin:0;padding-left:18px;display:grid;gap:4px"><li><b>Sondeos y datos.</b> Cada sondeo tiene registros numéricos (geoquímica, foraminíferos, TOC, bioturbación…) en profundidad o en edad, y su posición.</li><li><b>Variables.</b> Eliges qué registros se usan. Todos se pasan a una malla común (por ejemplo cada 0,5 ka) para poder compararlos.</li><li><b>Intervalos.</b> Son tus interpretaciones: litología, ORL, sapropeles, estadiales, turbiditas… Se organizan en capas, y una capa puede subdividir a otra. Puedes importarlos, dibujarlos sobre el registro y editarlos.</li><li><b>Clasificación automática.</b> Eliges qué capa quieres que aprenda (por ejemplo «Capas orgánicas»). El programa aprende qué combinación de variables y de otras capas corresponde a cada categoría en los sondeos que ya has interpretado, y propone esa interpretación en los demás o en las partes sin interpretar.</li><li><b>Comprobar.</b> «Probar la autoclasificación» predice un sondeo sin usar sus propias etiquetas y colorea aciertos y fallos. La pestaña Modelo da la validación dejando un sondeo fuera y qué variables pesan más; Mapa muestra el resultado por ventana de edad.</li></ol><p class="note">Es independiente del reconocimiento de icnotaxones del modo Sección.</p>',
+});
+Object.assign(D.en, {
+  'geo.missingSel': 'Variables missing in a core', 'geo.miss.drop': 'The sample is left out (stricter)', 'geo.miss.mean': 'Fill with the mean (allows cores with different variables)',
+  'geo.missingMean': 'no {f} (filled with the mean)',
+  'geo.howtoTitle': 'How does this mode work?',
+  'geo.howto': '<ol style="margin:0;padding-left:18px;display:grid;gap:4px"><li><b>Cores and data.</b> Each core has numeric records (geochemistry, foraminifera, TOC, bioturbation…) in depth or age, and its position.</li><li><b>Variables.</b> Choose which records are used. All are resampled to a common grid (e.g. every 0.5 ka) so they can be compared.</li><li><b>Intervals.</b> Your interpretations: lithology, ORLs, sapropels, stadials, turbidites… organised in layers; a layer can subdivide another. Import, draw and edit them.</li><li><b>Automatic classification.</b> Choose the layer to learn (e.g. “Organic layers”). The program learns which combination of variables and other layers matches each category in the cores you have interpreted, and proposes it for the others or for uninterpreted parts.</li><li><b>Check.</b> “Test automatic classification” predicts a core without its own labels and colours matches and errors. The Model tab gives leave-one-core-out validation and which variables matter; Map shows results by age window.</li></ol><p class="note">Independent of the ichnotaxon recognition of Section mode.</p>',
+});
+
+// V12: preset ranking by separability
+Object.assign(D.es, { 'f.best': 'Elegir el ajuste que más separa trazas y matriz', 'f.rank': 'Separabilidad η (Otsu, 0–1): {list}. Es una ayuda para empezar: revisa el resultado a ojo.' });
+Object.assign(D.en, { 'f.best': 'Pick the setting that best separates traces and matrix', 'f.rank': 'Separability η (Otsu, 0–1): {list}. A starting point: check the result by eye.' });
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';

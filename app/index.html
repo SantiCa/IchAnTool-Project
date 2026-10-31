@@ -309,6 +309,8 @@ dialog input[type=text] { min-width: 0; }
           <p class="note" id="presetNote"></p>
           <div class="row" style="flex-wrap:nowrap"><input type="text" id="presetName" data-i18n-ph="f.saveName"><button class="btn small" id="presetSave" data-i18n="f.save"></button><button class="btn small ghost" id="presetDel" data-i18n-title="f.del">✕</button></div>
           <button class="btn small" id="presetAll" data-i18n="f.applyAll"></button>
+          <button class="btn small" id="presetBest" data-i18n="f.best"></button>
+          <p class="note" id="presetRank"></p>
           <label class="chk"><input type="checkbox" id="fAuto"><span data-i18n="f.auto"></span></label>
           <label class="chk"><input type="checkbox" id="fAutoG"><span data-i18n="f.autoG"></span></label>
           <label class="f"><span data-i18n="f.channel"></span><select id="fChannel"></select></label>
@@ -391,8 +393,9 @@ dialog input[type=text] { min-width: 0; }
       </div>
       <div class="pane" data-pane="object" hidden>
         <div id="objInfo"></div>
+        <div class="row" id="selTools"></div>
         <div class="row"><button class="btn small" id="nextReview" data-i18n="obj.next"></button></div>
-        <label class="chk"><input type="checkbox" id="autoNext" checked><span data-i18n="obj.autoNext"></span></label>
+        <label class="chk"><input type="checkbox" id="autoNext"><span data-i18n="obj.autoNext"></span></label>
       </div>
       <div class="pane" data-pane="learn" hidden>
         <p class="note" data-i18n="l.intro"></p>
@@ -446,6 +449,7 @@ dialog input[type=text] { min-width: 0; }
     <section id="logStage"><div id="logSvg"></div></section>
 
     <aside class="side left" id="geoPanel">
+      <details class="step howto"><summary><span class="n">?</span><span data-i18n="geo.howtoTitle"></span></summary><div class="body" data-i18n-html="geo.howto"></div></details>
       <details class="step" open>
         <summary><span class="n">1</span><span data-i18n="geo.s1"></span></summary>
         <div class="body">
@@ -468,6 +472,7 @@ dialog input[type=text] { min-width: 0; }
             <label class="f"><span data-i18n="geo.scaling"></span><select id="geoScaling"><option value="global" data-i18n="geo.sc.global"></option><option value="core" data-i18n="geo.sc.core"></option><option value="none" data-i18n="geo.sc.none"></option></select></label>
             <label class="f"><span data-i18n="geo.maxGap"></span><input type="number" id="geoMaxGap" step="any" min="0"></label>
           </div>
+          <label class="f"><span data-i18n="geo.missingSel"></span><select id="geoMissing"><option value="drop" data-i18n="geo.miss.drop"></option><option value="mean" data-i18n="geo.miss.mean"></option></select></label>
           <p class="note" data-i18n="geo.prepNote"></p>
           <div class="f"><span data-i18n="geo.features"></span><div id="geoFeats" class="rec"></div></div>
           <div class="f"><span data-i18n="geo.ratio"></span>

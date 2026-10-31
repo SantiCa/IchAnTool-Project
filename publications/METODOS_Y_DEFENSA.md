@@ -63,6 +63,11 @@ zonas excluidas y modelo de edad en un solo flujo. Ese flujo en ImageJ requiere 
 Pruebas con casos calculados a mano y prueba de regresión frente a los resultados publicados
 (§13.1). Ambas se ejecutan automáticamente en cada cambio.
 
+**¿Cómo se eligen los parámetros de realce?**
+Con los ajustes publicados (Dorador et al., 2014; Miguez-Salas et al., 2019) o con la propuesta
+automática por separabilidad de Otsu (§6), que es propia y se presenta como punto de partida. No hay
+en la bibliografía un método publicado de preselección automática (revisión V12).
+
 **¿Los ajustes «de artículo» reproducen fielmente los protocolos publicados?**
 Reproducen la secuencia y los parámetros publicados donde existen (§6). Las diferencias están
 documentadas: los niveles se calculan por percentiles porque el artículo los elige en cada imagen; la
@@ -218,6 +223,9 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 - Primera prueba con datos reales (§21.8 bis): con registros públicos de ODP 977A, los tipos de ORL
   de la tesis se reconocen mal (acierto equilibrado 36 % por bloques). No se puede afirmar
   capacidad predictiva; faltan los datos geoquímicos propios (XRF) y más sondeos etiquetados.
+- Con los datos propios (V12, §21.8 ter): acierto equilibrado 17,7 % dejando un sondeo fuera con 7
+  clases. La transferencia entre sondeos con variables y escáneres distintos es el problema principal
+  que un artículo tendría que resolver (armonizar variables, más sondeos por tipo de variable).
 
 ### Experimentos necesarios
 1. **Datos reales con interpretación independiente:** sondeos con eventos publicados (p. ej.

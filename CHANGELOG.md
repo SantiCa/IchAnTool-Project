@@ -2,6 +2,14 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V12 — Web app 0.7 — 2026-10-31
+- Multi-selection of traces (Ctrl+click, Shift+drag box, "select suggested as…", "select all unreviewed")
+  and joint assignment/acceptance/deletion in one undo step.
+- Assigning no longer jumps or zooms; "jump to next" is off by default and keeps the zoom.
+- "Pick the setting that best separates traces and matrix" (Otsu separability η).
+- Multiproxy: missing-value option (fill with the mean); how-to panel; the author's own thesis data
+  (private, git-ignored, built by tools/make_thesis_dataset.py) used when present.
+
 ## V11 — Web app 0.6 — 2026-10-31
 - Light/dark mode toggle.
 - "Test automatic classification on this core" (trained on other cores, or out-of-block within the

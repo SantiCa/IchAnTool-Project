@@ -25,6 +25,12 @@ Conjuntos de PANGAEA (licencia CC BY 3.0/4.0; citar si se publican):
 - Martrat, B. et al. (2014) SST, alkenones and sedimentation rates at the Alboran basin from ODP Site 161-976. https://doi.org/10.1594/PANGAEA.787969
 - Jiménez-Amat, P., Zahn, R. (2015) Planktic stable isotope and trace element record of ODP Site 161-976 (MIS2–T1–Holocene y MIS6–T2–MIS5e). https://doi.org/10.1594/PANGAEA.847256 y https://doi.org/10.1594/PANGAEA.847255
 
+Datos propios (desde V12): `tools/make_thesis_dataset.py "<carpeta Proyectos Investigación>"` crea
+`privado/` con los datos del autor (bioturbación, gris y trazas de 977A; XRF, ICP, susceptibilidad,
+foraminíferos y etiquetas de GP03; ITRAX e ICP de LC10; ORL de 976). Esa carpeta **no se sube a
+GitHub** (`.gitignore`): son datos no publicados con coautores. Si existe, la aplicación la usa en
+lugar de la versión pública.
+
 Notas:
 - Los datos propios de la tesis (XRF y WDXRF de GP03 y LC10, bioturbación de 976/977, color de las
   imágenes) no son públicos y no se incluyen: GP03 y LC10 aparecen solo con sus intervalos. Para

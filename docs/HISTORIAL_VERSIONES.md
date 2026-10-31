@@ -29,6 +29,7 @@ La descripción detallada de los algoritmos está en
 | V9 | 31-10-2026 | Aplicación web 0.4 | Herramienta de geoquímica: muchos sondeos y proxies, etiquetas por intervalos y reglas, aprendizaje automático configurable, mapas por edad, superposición con el registro icnológico |
 | V10 | 31-10-2026 | Aplicación web 0.5 | «Geoquímica» pasa a «Multiproxy»: cualquier registro numérico, capas de intervalos descritos con subdivisiones (litología, turbiditas…), editables e importables, usadas por el clasificador automático de intervalos |
 | V11 | 31-10-2026 | Aplicación web 0.6 | Modo claro/oscuro, prueba de la autoclasificación con coloreado de registros, sondeos reales de la tesis (ODP 977A, ODP 976, GP03, LC10) precargados; la rama pasa a `master` |
+| V12 | 31-10-2026 | Aplicación web 0.7 | Selección de varias trazas y asignación conjunta; sin saltos ni zoom al asignar; elección automática del ajuste por separabilidad; datos propios de la tesis en Multiproxy (privados); valores que faltan; guía del modo |
 
 ---
 
@@ -534,6 +535,48 @@ tener sus sondeos en esta primera versión y empezar a trabajar sobre la rama pr
   y LC10 solo tienen intervalos y no aportan muestras hasta importar sus registros.
 - ODP 976 solo tiene en común con 977A la SST de alquenonas.
 - Quitar la precarga (`PRELOAD_THESIS = false`) en la versión final.
+
+---
+
+## V12 — Selección múltiple, elección del ajuste y datos propios de la tesis (31-10-2026)
+
+**Qué se hizo.**
+- **Selección de varias trazas** (automáticas o dibujadas) y asignación a un icnotaxón de una vez.
+- Al asignar, la vista **ya no salta ni hace zoom**: «Saltar a la siguiente» está desactivado por
+  defecto, se recuerda y, si se activa, ya no cambia el zoom.
+- Revisión bibliográfica sobre preselección de parámetros de realce y botón para **elegir el ajuste**
+  que más separa trazas y matriz.
+- Modo Multiproxy con los **datos propios de la tesis** (carpeta del autor), una guía «¿Cómo funciona
+  este modo?» y la opción de rellenar variables que faltan.
+
+**Cambios.**
+- `app.js`: `S.multi`, Ctrl+clic, Mayús+arrastrar (rectángulo), «Seleccionar las sugeridas como…» y
+  «Seleccionar todas sin revisar»; `assignClassMany`, `acceptSuggestions`, `deleteObjects` en una
+  sola operación de deshacer; panel de selección múltiple; `centerOn` solo desplaza.
+- `imageproc.js::separability` (η de Otsu) y `app.js::rankPresets` + botón «Elegir el ajuste que más
+  separa trazas y matriz».
+- `geo.js`: `missing: 'mean'` y `colStats`; las reglas no se cumplen sobre valores que faltan.
+- `tools/make_thesis_dataset.py` → `examples/tesis_casanova/privado/` (en `.gitignore`); el archivo
+  único lo incluye si existe; `loadThesisCores` usa esos datos si están y, si no, la versión pública.
+- Interfaz: guía del modo Multiproxy y selector de valores que faltan.
+
+**Por qué.** Petición de Santiago: asignar varias trazas a la vez, que no salte ni haga zoom al
+asignar, buscar publicaciones sobre preselección de parámetros y usar los datos reales de su tesis
+(no los de los artículos publicados) en el modo Multiproxy, que además no se entendía bien.
+
+**Comprobación.**
+- 29 pruebas de la aplicación (nueva: separabilidad) y 9 de Python.
+- En Chromium: selección por rectángulo de 28 trazas y asignación con la tecla 2 a las 28, sin cambio
+  de vista ni de zoom; el botón de ajuste ordena los ajustes (η 0,81 «ecualizado + contraste local»,
+  0,68 Dorador 2014…) y aplica el primero.
+- Multiproxy con datos propios: 4 sondeos, 7 capas, ninguna fuera de su madre; validación dejando un
+  sondeo fuera, acierto 61,1 % y equilibrado 17,7 %; prueba en LC10 85,6 %, en GP03 29,8 %. Ningún error.
+
+**Pendiente o problemas conocidos.**
+- Los datos propios no están en GitHub; para publicarlos hace falta el acuerdo de los coautores.
+- η favorece cualquier bimodalidad; es una propuesta inicial.
+- Falta la bioturbación de GP03 y LC10 (está en otros archivos del autor, p. ej. `TODOS GP03.xlsx`).
+- La transferencia de la clasificación entre sondeos con variables distintas es pobre.
 
 ---
 
