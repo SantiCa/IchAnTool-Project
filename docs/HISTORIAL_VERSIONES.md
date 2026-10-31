@@ -32,6 +32,7 @@ La descripción detallada de los algoritmos está en
 | V12 | 31-10-2026 | Aplicación web 0.7 | Selección de varias trazas y asignación conjunta; sin saltos ni zoom al asignar; elección automática del ajuste por separabilidad; datos propios de la tesis en Multiproxy (privados); valores que faltan; guía del modo |
 | V13 | 31-10-2026 | Aplicación web 0.7.1 | Selección por recuadro arrastrando y Mayús/Ctrl+clic; exclusión de zonas con rectángulo |
 | V14 | 31-10-2026 | Aplicación web 0.8 | Reestructuración: pantalla inicial con todos los proyectos y mapa multiproyecto; proyectos con varios sondeos; pestaña Datos (tabla, columnas calculadas y manuales, hoja libre); ventanas sincronizadas y panel flotante; Figuras |
+| V15 | 31-10-2026 | Aplicación web 0.9 | Mapas personalizables: fondo (simple, físico, relieve, topográfico, batimétrico, GEBCO, foto aérea, foto aérea + batimetría), símbolo, tamaño, etiquetas, colores, retícula, escala y norte; zoom con rueda, arrastre y extensión editable |
 
 ---
 
@@ -603,6 +604,47 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V15 — Personalización y zoom de los mapas (31-10-2026)
+
+**Qué se hizo.** Los mapas (Multiproxy → Mapa, mapa multiproyecto de la pantalla inicial, y por tanto
+Figuras, panel flotante y ventana del mapa) tienen un panel «Personalizar mapa y zoom»:
+- **Fondo:** simple (vectorial, funciona sin conexión), mapa físico, relieve sombreado, topográfico,
+  batimétrico, batimétrico y topográfico (GEBCO), foto aérea/satélite y foto aérea + batimetría
+  (GEBCO en el mar y foto recortada a la tierra). Opacidad del fondo y línea de costa opcional.
+- **Sondeos:** símbolo (círculo, cuadrado, triángulo, rombo, estrella, hexágono, cruz), tamaño,
+  tamaño según la fracción de la clase o fijo, color de relleno (sin dato o modo situación) y de borde.
+- **Etiquetas:** sí/no, tamaño, color, halo y valor en la etiqueta.
+- **Otros:** colores de tierra y mar del mapa simple, retícula, barra de escala y flecha de norte.
+- **Zoom:** rueda del ratón (centrado en el cursor), arrastrar para mover, doble clic para acercar
+  (Mayús + doble clic aleja), botones ＋ − «Ajustar a los sondeos» y extensión editable (O S E N).
+- El estilo y la extensión del mapa del proyecto se guardan con el proyecto; los del mapa multiproyecto,
+  en el navegador. La atribución de cada fondo se escribe en el mapa y en el SVG exportado.
+
+**Cambios.**
+- `geo.js`: `MAP_STYLE`, `MAP_SYMBOLS`, `symbolSVG`, `mapGeometry`, `zoomBBox`; `buildMapSVG` acepta
+  `style` y `bg` (imagen en EPSG:4326 estirada sobre el área del mapa, segunda imagen recortada a la
+  tierra, atribución), barra de escala y norte; la leyenda usa el símbolo elegido.
+- `app.js`: fondos `MAP_BG` (servicios Esri `export` y WMS de GEBCO) con caché y vuelta al mapa simple
+  si no hay conexión; `mapStyleUI`, `attachMapZoom`; `S.geo.map.style` y `S.geo.map.view`.
+- `index.html`, `i18n.js`: paneles `#gmStyle` y `#amStyle`, textos `ms.*`.
+- `tests/app/geo.test.mjs`: prueba de símbolos, estilo, fondo, recorte y zoom.
+
+**Por qué.** Petición de Santiago: elegir tamaño y símbolo de los sondeos, etiqueta, color y fondo
+(físico, batimétrico, batimétrico y topográfico, foto aérea, foto aérea + batimetría…) y hacer zoom.
+
+**Comprobación.** 32 pruebas de la aplicación y 9 de Python. Desde el navegador de Santiago, los seis
+servicios de fondo devuelven imagen JPEG (HTTP 200) con CORS. En Chromium (servicios simulados):
+fondo «foto aérea + batimetría» con dos imágenes y recorte a la tierra, estrellas, zoom con rueda y
+arrastre que cambian la extensión guardada, la figura de mapa incluye el fondo, mapa multiproyecto
+con fondo GEBCO y zoom; ningún error.
+
+**Pendiente o problemas conocidos.** Los fondos necesitan conexión a internet (sin ella se usa el mapa
+simple). La costa vectorial (1:50 m) no coincide exactamente con la foto a mucho zoom. Antes de
+publicar un mapa con fondo Esri o GEBCO hay que revisar sus condiciones de uso y citar la fuente
+(ya escrita en el mapa).
 
 ---
 

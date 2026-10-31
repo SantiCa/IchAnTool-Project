@@ -468,43 +468,112 @@ export function divColor(v) {
   return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * f)).join(',')})`;
 }
 
+/** Default look of the maps (V15). Every key can be changed by the user. */
+export const MAP_STYLE = {
+  bg: 'vector', bgOpacity: 1, coast: true, symbol: 'circle', size: 1, sizeByFraction: true,
+  labels: true, labelSize: 11, labelColor: '#1c2422', halo: true, labelValue: true,
+  pointColor: '#ffffff', stroke: '#1c2422', land: '#e6e6dc', sea: '#f4f8f9', graticule: true, scaleBar: true, north: false,
+};
+export const MAP_SYMBOLS = ['circle', 'square', 'triangle', 'diamond', 'star', 'hexagon', 'cross'];
+
+/** SVG markup of a symbol of radius r centred at (cx, cy). */
+export function symbolSVG(sym, cx, cy, r, attrs) {
+  const poly = (pts) => `<polygon points="${pts.map(([x, y]) => `${(cx + x).toFixed(1)},${(cy + y).toFixed(1)}`).join(' ')}" ${attrs}/>`;
+  const ring = (n, rad, rot = -Math.PI / 2) => Array.from({ length: n }, (_, k) => [rad * Math.cos(rot + (2 * Math.PI * k) / n), rad * Math.sin(rot + (2 * Math.PI * k) / n)]);
+  switch (sym) {
+    case 'square': { const a = r * 0.89; return `<rect x="${(cx - a).toFixed(1)}" y="${(cy - a).toFixed(1)}" width="${(2 * a).toFixed(1)}" height="${(2 * a).toFixed(1)}" ${attrs}/>`; }
+    case 'triangle': return poly(ring(3, r * 1.25).map(([x, y]) => [x, y + r * 0.2]));
+    case 'diamond': return poly(ring(4, r * 1.2));
+    case 'hexagon': return poly(ring(6, r * 1.05));
+    case 'star': return poly(ring(10, r * 1.35).map(([x, y], k) => (k % 2 ? [x * 0.45, y * 0.45] : [x, y])));
+    case 'cross': { const a = r * 1.1, b = r * 0.38; return poly([[-b, -a], [b, -a], [b, -b], [a, -b], [a, b], [b, b], [b, a], [-b, a], [-b, b], [-a, b], [-a, -b], [-b, -b]]); }
+    default: return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" ${attrs}/>`;
+  }
+}
+
+/** Size of the plot area of a map with this extent (900 px wide; height keeps the cos(lat) aspect). */
+export function mapGeometry(bbox) {
+  const [x0, y0, x1, y1] = bbox, cosl = Math.cos((((y0 + y1) / 2) * Math.PI) / 180);
+  return { W: 900, H: Math.max(60, Math.round((900 * (y1 - y0)) / ((x1 - x0) * cosl))), top: 44, bottom: 70 };
+}
+
+/** Zoom an extent by factor f (>1 zooms in) around (lon, lat); pan by (dlon, dlat). Latitudes stay in [-85, 85]. */
+export function zoomBBox(bbox, f, lon, lat, dlon = 0, dlat = 0) {
+  let [x0, y0, x1, y1] = bbox;
+  if (lon == null) lon = (x0 + x1) / 2; if (lat == null) lat = (y0 + y1) / 2;
+  x0 = lon - (lon - x0) / f + dlon; x1 = lon + (x1 - lon) / f + dlon; y0 = lat - (lat - y0) / f + dlat; y1 = lat + (y1 - lat) / f + dlat;
+  if (x1 - x0 > 360) { x0 = -180; x1 = 180; }
+  if (y1 - y0 > 170) { y0 = -85; y1 = 85; }
+  if (y0 < -85) { y1 += -85 - y0; y0 = -85; } if (y1 > 85) { y0 -= y1 - 85; y1 = 85; }
+  return [x0, y0, x1, y1].map((v) => +v.toFixed(4));
+}
+
+/** Kilometres in a "nice" scale bar of about maxPx pixels. */
+function scaleBarKm(bbox, W, maxPx = 160) {
+  const [x0, y0, x1, y1] = bbox, kmPerPx = ((x1 - x0) * 111.32 * Math.cos((((y0 + y1) / 2) * Math.PI) / 180)) / W, raw = kmPerPx * maxPx;
+  const p = 10 ** Math.floor(Math.log10(raw)), km = [5, 2, 1].map((k) => k * p).find((k) => k <= raw) || p;
+  return { km, px: km / kmPerPx };
+}
+
 /**
- * Map SVG: equirectangular projection (longitude scaled by cos of the central latitude), land rings,
- * optional IDW grid, cores as circles. o = {land, bbox, points, mode, colors, grid, nx, ny, title, subtitle, note, legend}
+ * SVG map. o = {land, bbox, points, mode: 'class'|'value', colors, grid, nx, ny, title, subtitle, note, legend,
+ *               style (see MAP_STYLE), bg: {href, href2, attribution}}.
+ * bg.href is an image already projected in EPSG:4326 over the bbox (it is stretched onto the plot area);
+ * bg.href2 (optional) is drawn on top clipped to the land polygons (e.g. aerial photo over a bathymetry).
  */
 export function buildMapSVG(o) {
-  const [x0, y0, x1, y1] = o.bbox, cosl = Math.cos((((y0 + y1) / 2) * Math.PI) / 180);
-  const W = 900, H = Math.round((W * (y1 - y0)) / ((x1 - x0) * cosl)), top = 44, bottom = 70;
+  const st = { ...MAP_STYLE, ...(o.style || {}) }, bg = o.bg || null;
+  const [x0, y0, x1, y1] = o.bbox, { W, H, top, bottom } = mapGeometry(o.bbox);
   const px = (lon) => ((lon - x0) / (x1 - x0)) * W, py = (lat) => top + ((y1 - lat) / (y1 - y0)) * H;
-  const s = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H + top + bottom}" viewBox="0 0 ${W} ${H + top + bottom}" font-family="IBM Plex Sans, Arial, sans-serif" font-size="11">`,
-    `<rect width="${W}" height="${H + top + bottom}" fill="#ffffff"/><rect x="0" y="${top}" width="${W}" height="${H}" fill="#f4f8f9"/>`,
+  const raster = !!(bg && bg.href);
+  const s = [`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H + top + bottom}" viewBox="0 0 ${W} ${H + top + bottom}" font-family="IBM Plex Sans, Arial, sans-serif" font-size="11">`,
+    `<rect width="${W}" height="${H + top + bottom}" fill="#ffffff"/><rect x="0" y="${top}" width="${W}" height="${H}" fill="${esc2(st.sea)}"/>`,
     `<text x="8" y="18" font-size="14" font-weight="600" fill="#1c2422">${esc2(o.title || '')}</text>`,
-    `<text x="8" y="34" fill="#5b6763">${esc2(o.subtitle || '')}</text>`,
-    `<defs><clipPath id="mapclip"><rect x="0" y="${top}" width="${W}" height="${H}"/></clipPath></defs><g clip-path="url(#mapclip)">`];
-  if (o.grid) {
-    const cw = W / o.nx, ch = H / o.ny;
-    o.grid.forEach((v, i) => { if (v == null) return; const ix = i % o.nx, iy = Math.floor(i / o.nx); s.push(`<rect x="${(ix * cw).toFixed(1)}" y="${(top + iy * ch).toFixed(1)}" width="${(cw + 0.6).toFixed(1)}" height="${(ch + 0.6).toFixed(1)}" fill="${divColor(v)}" fill-opacity="0.75"/>`); });
-  }
+    `<text x="8" y="34" fill="#5b6763">${esc2(o.subtitle || '')}</text>`];
+  // land paths (used for drawing and, with a second image, as clip path)
+  const landD = [];
   for (const r of o.land || []) {
     let d = '', inBox = false;
     for (let k = 0; k < r.length; k += 2) { if (r[k] >= x0 - 5 && r[k] <= x1 + 5 && r[k + 1] >= y0 - 5 && r[k + 1] <= y1 + 5) inBox = true; d += `${k ? 'L' : 'M'}${px(r[k]).toFixed(1)} ${py(r[k + 1]).toFixed(1)}`; }
-    if (inBox) s.push(`<path d="${d}Z" fill="#e6e6dc" stroke="#b9b9a8" stroke-width="0.6"/>`);
+    if (inBox) landD.push(`${d}Z`);
   }
-  for (const v of niceTicks(x0, x1, 6)) s.push(`<line x1="${px(v)}" y1="${top}" x2="${px(v)}" y2="${top + H}" stroke="#c9d3d6" stroke-width="0.4" stroke-dasharray="2 3"/><text x="${px(v) + 2}" y="${top + H - 4}" fill="#7a8682" font-size="9">${v}°</text>`);
-  for (const v of niceTicks(y0, y1, 4)) s.push(`<line x1="0" y1="${py(v)}" x2="${W}" y2="${py(v)}" stroke="#c9d3d6" stroke-width="0.4" stroke-dasharray="2 3"/><text x="3" y="${py(v) - 2}" fill="#7a8682" font-size="9">${v}°</text>`);
+  s.push(`<defs><clipPath id="mapclip"><rect x="0" y="${top}" width="${W}" height="${H}"/></clipPath>${raster && bg.href2 ? `<clipPath id="landclip">${landD.map((d) => `<path d="${d}"/>`).join('')}</clipPath>` : ''}</defs><g clip-path="url(#mapclip)">`);
+  const img = (href, extra = '') => `<image x="0" y="${top}" width="${W}" height="${H}" preserveAspectRatio="none" href="${href}" xlink:href="${href}" opacity="${st.bgOpacity}"${extra}/>`;
+  if (raster) { s.push(img(bg.href)); if (bg.href2) s.push(`<g clip-path="url(#landclip)">${img(bg.href2)}</g>`); }
+  if (o.grid) {
+    const cw = W / o.nx, ch = H / o.ny;
+    o.grid.forEach((v, i) => { if (v == null) return; const ix = i % o.nx, iy = Math.floor(i / o.nx); s.push(`<rect x="${(ix * cw).toFixed(1)}" y="${(top + iy * ch).toFixed(1)}" width="${(cw + 0.6).toFixed(1)}" height="${(ch + 0.6).toFixed(1)}" fill="${divColor(v)}" fill-opacity="${raster ? 0.55 : 0.75}"/>`); });
+  }
+  if (!raster) for (const d of landD) s.push(`<path d="${d}" fill="${esc2(st.land)}" stroke="#b9b9a8" stroke-width="0.6"/>`);
+  else if (st.coast) for (const d of landD) s.push(`<path d="${d}" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="0.6"/>`);
+  if (st.graticule) {
+    const gc = raster ? '#ffffff' : '#c9d3d6', tc = raster ? '#ffffff' : '#7a8682';
+    for (const v of niceTicks(x0, x1, 6)) s.push(`<line x1="${px(v)}" y1="${top}" x2="${px(v)}" y2="${top + H}" stroke="${gc}" stroke-opacity="0.8" stroke-width="0.4" stroke-dasharray="2 3"/><text x="${px(v) + 2}" y="${top + H - 4}" fill="${tc}" font-size="9">${v}°</text>`);
+    for (const v of niceTicks(y0, y1, 4)) s.push(`<line x1="0" y1="${py(v)}" x2="${W}" y2="${py(v)}" stroke="${gc}" stroke-opacity="0.8" stroke-width="0.4" stroke-dasharray="2 3"/><text x="3" y="${py(v) - 2}" fill="${tc}" font-size="9">${v}°</text>`);
+  }
+  const halo = st.halo ? ` stroke="${raster ? '#000000' : '#ffffff'}" stroke-opacity="0.6" stroke-width="3" paint-order="stroke" stroke-linejoin="round"` : '';
+  const lblColor = raster && st.labelColor === MAP_STYLE.labelColor && st.halo ? '#ffffff' : st.labelColor;
   for (const p of o.points) {
-    const cx = px(p.lon).toFixed(1), cy = py(p.lat).toFixed(1);
-    let fill = '#ffffff', r = 6, label = p.name;
-    if (!p.n) { fill = '#ffffff'; r = 4; }
-    else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = 5 + 5 * (p.fraction ?? 0.6); label += p.dominant && p.fraction != null ? ` ${Math.round(p.fraction * 100)}%` : ''; }
-    else { fill = divColor(p.value); label += ` ${(+p.value).toFixed(2)}`; }
-    s.push(`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="${fill}" stroke="#1c2422" stroke-width="${p.n ? 1 : 0.6}" ${p.n ? '' : 'stroke-dasharray="2 2"'}/>`);
-    s.push(`<text x="${(+cx + r + 3).toFixed(1)}" y="${(+cy + 4).toFixed(1)}" fill="#1c2422">${esc2(label)}</text>`);
+    const cx = px(p.lon), cy = py(p.lat);
+    if (cx < -20 || cx > W + 20 || cy < top - 20 || cy > top + H + 20) continue;
+    let fill = st.pointColor, r = 6, label = p.name;
+    if (!p.n) r = 4;
+    else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = st.sizeByFraction ? 5 + 5 * (p.fraction ?? 0.6) : 7; if (st.labelValue && p.dominant && p.fraction != null) label += ` ${Math.round(p.fraction * 100)}%`; }
+    else { fill = divColor(p.value); if (st.labelValue) label += ` ${(+p.value).toFixed(2)}`; }
+    r *= st.size;
+    s.push(symbolSVG(st.symbol, cx, cy, r, `fill="${esc2(fill)}" stroke="${esc2(st.stroke)}" stroke-width="${p.n ? 1 : 0.6}"${p.n ? '' : ' stroke-dasharray="2 2"'}`));
+    if (st.labels) s.push(`<text x="${(cx + r + 3).toFixed(1)}" y="${(cy + st.labelSize * 0.36).toFixed(1)}" font-size="${st.labelSize}" fill="${esc2(lblColor)}"${halo}>${esc2(label)}</text>`);
   }
+  if (st.scaleBar) {
+    const { km, px: L } = scaleBarKm(o.bbox, W), bx = W - L - 16, by = top + H - 14, c = raster ? '#ffffff' : '#1c2422';
+    s.push(`<g><rect x="${bx.toFixed(1)}" y="${by}" width="${(L / 2).toFixed(1)}" height="5" fill="${c}" stroke="${c}"/><rect x="${(bx + L / 2).toFixed(1)}" y="${by}" width="${(L / 2).toFixed(1)}" height="5" fill="none" stroke="${c}"/><text x="${(bx + L).toFixed(1)}" y="${by - 4}" text-anchor="end" font-size="9" fill="${c}">${km} km</text></g>`);
+  }
+  if (st.north) { const nx = W - 24, ny = top + 14, c = raster ? '#ffffff' : '#1c2422'; s.push(`<polygon points="${nx},${ny} ${nx - 7},${ny + 20} ${nx},${ny + 15} ${nx + 7},${ny + 20}" fill="${c}"/><text x="${nx}" y="${ny + 32}" text-anchor="middle" font-size="10" font-weight="600" fill="${c}">N</text>`); }
   s.push('</g>');
   let lx = 8; const ly = top + H + 20;
-  for (const [name, color] of o.legend || []) { s.push(`<rect x="${lx}" y="${ly - 9}" width="11" height="11" fill="${color}" stroke="#1c2422" stroke-width="0.5"/><text x="${lx + 15}" y="${ly}" fill="#1c2422">${esc2(name)}</text>`); lx += 30 + name.length * 6.2; }
+  for (const [name, color] of o.legend || []) { s.push(`${symbolSVG(st.symbol, lx + 5.5, ly - 3.5, 5.5, `fill="${esc2(color)}" stroke="#1c2422" stroke-width="0.5"`)}<text x="${lx + 15}" y="${ly}" fill="#1c2422">${esc2(name)}</text>`); lx += 30 + name.length * 6.2; }
   if (o.note) s.push(`<text x="8" y="${top + H + 46}" fill="#5b6763" font-size="10">${esc2(o.note)}</text>`);
+  if (bg && bg.attribution) s.push(`<text x="${W - 6}" y="${top + H + 62}" text-anchor="end" fill="#5b6763" font-size="8.5">${esc2(bg.attribution)}</text>`);
   s.push('</svg>');
   return s.join('');
 }

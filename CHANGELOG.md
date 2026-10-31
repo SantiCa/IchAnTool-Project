@@ -2,6 +2,12 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V15 — Web app 0.9 — 2026-10-31
+- Map customisation: background (simple vector, physical, shaded relief, topographic, bathymetric,
+  GEBCO bathymetry + topography, aerial photo, aerial photo + bathymetry), core symbol, size, colours,
+  labels (size, colour, halo), land/sea colours, graticule, scale bar and north arrow.
+- Map zoom: mouse wheel, drag to pan, double click, buttons and editable extent; saved with the project.
+
 ## V14 — Web app 0.8 — 2026-10-31
 - Restructure: start screen with all projects, a table of all cores and a multiproject map; projects hold
   several cores (images/bioturbation, imported data, records, age model, intervals); project file v3

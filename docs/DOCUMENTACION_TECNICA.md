@@ -1018,6 +1018,32 @@ entrenado. «Colorear registros por clase» rellena el fondo de cada columna de 
   Natural Earth 1:50 m (dominio público), 1223 anillos en `examples/data/land-50m.json`.
 - Exportación SVG y CSV (`core, lat, lon, n_samples, dominant_class, fraction, value`).
 
+### 21.6 bis Personalización, fondos y zoom (desde V15)
+- **Estilo** (`MAP_STYLE`, valores por defecto): `bg='vector'`, `bgOpacity=1`, `coast=true`,
+  `symbol='circle'`, `size=1`, `sizeByFraction=true`, `labels=true`, `labelSize=11`,
+  `labelColor='#1c2422'`, `halo=true`, `labelValue=true`, `pointColor='#ffffff'`, `stroke='#1c2422'`,
+  `land='#e6e6dc'`, `sea='#f4f8f9'`, `graticule=true`, `scaleBar=true`, `north=false`.
+- **Radio del símbolo:** clase `r = (sizeByFraction ? 5 + 5·fracción : 7) · size`; valor `6 · size`;
+  sin datos `4 · size`. Símbolos: círculo, cuadrado (lado 1,78 r), triángulo, rombo, estrella (10
+  vértices, interior 0,45), hexágono y cruz.
+- **Fondos** (`MAP_BG`): una imagen por mapa pedida en EPSG:4326 para la extensión exacta, con píxeles
+  cuadrados en grados (ancho 1600 px, alto `1600·Δlat/Δlon`, máx. 3000) y estirada sobre el área del
+  mapa; como el mapa es equirectangular con la longitud escalada por una constante, la correspondencia
+  es exacta. Servicios: Esri ArcGIS `MapServer/export` (World_Physical_Map, World_Shaded_Relief,
+  World_Topo_Map, Ocean/World_Ocean_Base, World_Imagery) y WMS 1.1.1 de GEBCO (capa `GEBCO_LATEST`).
+  «Foto aérea + batimetría» = GEBCO debajo y World_Imagery recortada con los polígonos de tierra de
+  Natural Earth. Con fondo de imagen la tierra vectorial se dibuja solo como línea de costa y la IDW
+  con opacidad 0,55. Las imágenes se guardan como data URL (el SVG exportado es autónomo). Si falla la
+  descarga se dibuja el mapa simple.
+- **Barra de escala:** km por píxel = `Δlon · 111,32 · cos(lat central) / 900`; se elige el mayor
+  valor 1, 2 o 5 × 10ⁿ km que quepa en 160 px.
+- **Zoom** (`zoomBBox(bbox, f, lon, lat, dlon, dlat)`): `x0' = lon − (lon − x0)/f + dlon`, ídem para
+  `x1`, `y0`, `y1`; anchura máxima 360°, latitudes limitadas a ±85°. Rueda: f = 1,2 por paso; doble
+  clic: f = 2; botones: f = 1,5. Arrastre: `dlon = −dx/(k·900)·Δlon`, `dlat = dy/(k·H)·Δlat`, con
+  `k` la escala de pantalla del SVG.
+- La extensión elegida se guarda en `geo.map.view` (`null` = ajustada a los sondeos con margen de 3°
+  y 3° más al este para las etiquetas); el estilo en `geo.map.style`.
+
 ### 21.7 Superposición con el registro del sondeo
 - En el modo «Multiproxy», el registro de cada sondeo muestra sus variables numéricas y una banda
   por capa de intervalos en orden jerárquico (las hijas con «↳»), dibujada desde los intervalos;

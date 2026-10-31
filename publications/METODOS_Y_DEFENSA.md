@@ -265,6 +265,8 @@ métodos más simples (k-NN, Bayes) en el mismo esquema de validación.
 **¿La interpolación del mapa es fiable?**
 La IDW es solo visual y exploratoria (§21.6): no estima incertidumbre ni tiene en cuenta la
 geografía. Las conclusiones se basan en los valores de cada sondeo, que también se exportan.
+Los fondos de los mapas (Esri, GEBCO; §21.6 bis) son solo contexto visual: no entran en ningún
+cálculo, y su fuente debe citarse en el pie de la figura (el programa la escribe en el mapa).
 
 **¿Cómo entran datos categóricos como la litología en un modelo numérico?**
 Como columnas 0/1 por categoría, sin escalar (§21.2). La ausencia de descripción vale 0, igual que

@@ -205,6 +205,16 @@ dialog ol { padding-left: 20px; display: grid; gap: 6px; }
 #geoStage .gpane { flex: 1; overflow: auto; padding: 14px 16px; min-height: 0; }
 #geoStage .gctl { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-bottom: 10px; }
 #geoStage .gctl .f { min-width: 90px; }
+.mapstyle details { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
+.mapstyle summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.mapstyle .msgrid { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-top: 8px; }
+.mapstyle .msgrid .f { min-width: 0; }
+.mapstyle input[type=color] { width: 38px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
+.mapstyle input[type=number] { width: 76px; }
+.mapstyle .zbtn { display: flex; gap: 4px; align-items: center; }
+.zmap { position: relative; touch-action: none; }
+.zmap svg { cursor: grab; display: block; max-width: 100%; height: auto; }
+.zmap.dragging svg { cursor: grabbing; }
 #geoLogSvg, #geoMapSvg { display: inline-block; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r); max-width: 100%; }
 #geoLogSvg svg { display: block; }
 #geoMapSvg svg { display: block; max-width: 100%; height: auto; }
@@ -612,7 +622,8 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
           <div class="row" id="gmRefRow"><label class="chk"><input type="checkbox" id="gmRef"><span data-i18n="geo.ref"></span></label><input type="number" id="gmR0" step="any" style="width:60px"><input type="number" id="gmR1" step="any" style="width:60px"></div>
           <div class="row"><button class="btn small primary" id="gmSvg">SVG</button><button class="btn small" id="gmCsv">CSV</button><button class="btn small" data-win="map" data-i18n="win.new"></button><button class="btn small" data-float="map" data-i18n="win.panel"></button></div>
         </div>
-        <div id="geoMapSvg"></div>
+        <div class="mapstyle" id="gmStyle"></div>
+        <div id="geoMapSvg" class="zmap"></div>
         <p class="note" data-i18n="geo.mapHelp"></p>
       </div>
       <div class="gpane" data-pane="model" hidden>
@@ -670,7 +681,8 @@ body.viewonly .top .seg, body.viewonly .corebar, body.viewonly #projBtn { displa
         <label class="f"><span data-i18n="geo.ageTo"></span><input type="number" id="amA1" step="any" value="14" style="width:70px"></label>
         <div class="row"><button class="btn small" id="amPrev">◀</button><button class="btn small" id="amNext">▶</button><button class="btn small" id="amSvg">SVG</button></div>
       </div>
-      <div id="allMap"></div>
+      <div class="mapstyle" id="amStyle"></div>
+      <div id="allMap" class="zmap"></div>
       <div class="tablewrap" style="max-height:40vh"><table class="dtable" id="allTable"></table></div>
     </section>
   </div>

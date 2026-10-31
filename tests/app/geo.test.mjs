@@ -110,3 +110,18 @@ test('interval layers: import, 0/1 features, target layer, nesting check', async
   assert.deepEqual(intervalsOnAxis([{ core: 'X', axis: 'depth', from: -1, to: 2 }], 'age', c).map((q) => [q.from, q.to]), [[0, 20]]);   // clamped end
   assert.equal(intervalsOnAxis([{ core: 'X', axis: 'depth', from: 7, to: 9 }], 'age', c).length, 0);                                  // fully outside
 });
+
+test('V15 map style: symbols, labels, background image, zoom', async () => {
+  const { symbolSVG, MAP_SYMBOLS, zoomBBox, mapGeometry } = await import('../../app/js/geo.js');
+  for (const k of MAP_SYMBOLS) assert.match(symbolSVG(k, 10, 10, 5, 'fill="red"'), /fill="red"/);
+  const pts = [{ name: 'A', lat: 37, lon: -10, n: 3, value: 1 }, { name: 'B', lat: 36, lon: -9, n: 0 }];
+  const bbox = [-12, 34, -6, 39];
+  const svg = buildMapSVG({ land: [[-8, 36, -6, 36, -6, 38, -8, 38]], bbox, points: pts, mode: 'value',
+    style: { symbol: 'star', size: 2, labels: false, sea: '#123456', scaleBar: true }, bg: { href: 'data:image/jpeg;base64,AAAA', href2: 'data:image/jpeg;base64,BBBB', attribution: 'Fuente X' } });
+  assert.match(svg, /<polygon/); assert.ok(!/>A /.test(svg) && !/>A</.test(svg));
+  assert.match(svg, /fill="#123456"/); assert.match(svg, /href="data:image\/jpeg;base64,AAAA"/);
+  assert.match(svg, /clip-path="url\(#landclip\)"/); assert.match(svg, /Fuente X/); assert.match(svg, / km</);
+  const z = zoomBBox(bbox, 2, -9, 36.5); assert.deepEqual(z, [-10.5, 35.25, -7.5, 37.75]);
+  const zo = zoomBBox([-170, -80, 170, 80], 0.5); assert.deepEqual([zo[0], zo[2], zo[1], zo[3]], [-180, 180, -85, 85]);
+  assert.equal(mapGeometry(bbox).W, 900);
+});

@@ -6,7 +6,7 @@ import { storageAvailable, listProjects, getProject, putProject, putMeta, delete
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
 import { Classifier, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, idwGrid, buildMapSVG, mapBBox, MAP_STYLE, MAP_SYMBOLS, zoomBBox, mapGeometry } from './geo.js';
 
 const $ = (id) => document.getElementById(id);
 const VERSION = '3.0.0-dev';
@@ -2621,22 +2621,152 @@ function renderGeoMap() {
   if (!geoRT.samples.some((s) => s.age != null)) { box.innerHTML = `<p class="note" style="padding:20px">${t('geo.mapNoAge')}</p>`; return; }
   const preds = geoRT.preds.length ? geoRT.preds : geoRT.labels.map((l) => ({ label: l.label }));
   const pts = mapSummary(geoRT.samples, preds, S.cores, { a0: m.a0, a1: m.a1, mode: m.mode, feature: names.indexOf(m.feature), ref: m.ref ? [m.r0, m.r1] : null });
-  const bbox = mapBBox(pts); bbox[2] += 3;
+  const auto = mapBBox(pts); auto[2] += 3; geoAutoBBox = auto;
+  const bbox = m.view || auto, style = geoMapStyle();
   const nx = 90, ny = Math.max(10, Math.round((90 * (bbox[3] - bbox[1])) / ((bbox[2] - bbox[0]) * Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180))));
+  const bg = mapBackground(style.bg, bbox, refreshProjectMaps);
   const grid = m.mode === 'value' && m.idw && pts.filter((p) => p.value != null).length >= 3 ? idwGrid(pts, bbox, nx, ny, m.power) : null;
   const colors = {}, legend = [];
   if (m.mode === 'class') for (const p of pts) if (p.dominant && !colors[p.dominant]) { const c = geoCat(p.dominant); if (c) { colors[p.dominant] = c.color; legend.push([c.name, c.color]); } }
   const target = geoLayer(st.target)?.name || '';
   const svg = buildMapSVG({
-    land: geoLand, bbox, points: pts, mode: m.mode, colors, grid, nx, ny, legend,
+    land: geoLand, bbox, points: pts, mode: m.mode, colors, grid, nx, ny, legend, style, bg,
     title: m.mode === 'class' ? t('geo.mapTitleClass', { l: target, a0: m.a0, a1: m.a1 }) : t('geo.mapTitleValue', { f: m.feature, a0: m.a0, a1: m.a1 }),
     subtitle: m.mode === 'class' ? (geoRT.preds.length ? t('geo.mapSubPred', { m: geoRT.model?.kind || '' }) : t('geo.mapSubLabels')) : (m.ref ? t('geo.mapSubRef', { r0: m.r0, r1: m.r1 }) : t('geo.mapSubZ')),
     note: t('geo.mapNote'),
   });
-  box.innerHTML = svg; geoLastMap = { svg, pts }; return svg;
+  box.innerHTML = svg; geoLastMap = { svg, pts };
+  mapStyleUI('gmStyle', geoMapGet, (s2, v) => { S.geo.map.style = s2; S.geo.map.view = v; markDirty(); }, refreshProjectMaps);
+  return svg;
 }
 let geoLand = [], geoLastMap = null;
 async function loadLand() { if (geoLand.length) return; try { geoLand = (await (await fetchAsset('data/land-50m.json')).json()).rings; } catch { geoLand = []; } }
+
+/* ───────────── map customisation, backgrounds and zoom (V15) ───────────── */
+// Backgrounds come as single images in EPSG:4326 (lon/lat) for the exact extent, so they lie on the plate carrée map unchanged.
+const ESRI = (svc) => (b, w, h) => `https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/export?bbox=${b.join(',')}&bboxSR=4326&imageSR=4326&size=${w},${h}&format=jpg&f=image`;
+const GEBCO = (b, w, h) => `https://wms.gebco.net/mapserv?service=WMS&version=1.1.1&request=GetMap&layers=GEBCO_LATEST&styles=&srs=EPSG:4326&bbox=${b.join(',')}&width=${w}&height=${h}&format=image/jpeg`;
+const MAP_BG = {
+  vector: null,
+  physical: { url: ESRI('World_Physical_Map'), attr: 'Fondo: Esri, U.S. National Park Service (World Physical Map)' },
+  relief: { url: ESRI('World_Shaded_Relief'), attr: 'Fondo: Esri (World Shaded Relief)' },
+  topo: { url: ESRI('World_Topo_Map'), attr: 'Fondo: Esri y colaboradores (World Topographic Map)' },
+  bathy: { url: ESRI('Ocean/World_Ocean_Base'), attr: 'Fondo: Esri, Garmin, GEBCO, NOAA NGDC y otros (World Ocean Base)' },
+  gebco: { url: GEBCO, attr: 'Batimetría y topografía: GEBCO Compilation Group, GEBCO_LATEST grid (www.gebco.net)' },
+  photo: { url: ESRI('World_Imagery'), attr: 'Imagen: Esri, Maxar, Earthstar Geographics y GIS User Community (World Imagery)' },
+  photobathy: { url: GEBCO, url2: ESRI('World_Imagery'), attr: 'Batimetría: GEBCO Compilation Group (GEBCO_LATEST); tierra: Esri, Maxar, Earthstar Geographics (World Imagery)' },
+};
+const bgCache = new Map(); let bgFailShown = false;
+const blobToDataURL = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+async function fetchImage(url) { const r = await fetch(url); if (!r.ok || !/^image\//.test(r.headers.get('content-type') || '')) throw new Error(`HTTP ${r.status}`); return blobToDataURL(await r.blob()); }
+/** Background for a map: returns {href, href2, attribution} when cached; otherwise starts the download and calls onReady. */
+function mapBackground(kind, bbox, onReady) {
+  const def = MAP_BG[kind]; if (!def) return null;
+  const key = `${kind}|${bbox.join(',')}`, hit = bgCache.get(key);
+  if (hit && hit !== 'pending') return hit === 'fail' ? null : hit;
+  if (!hit) {
+    bgCache.set(key, 'pending');
+    // square pixels in degrees (ArcGIS would otherwise widen the extent); the image is then stretched onto the cos(lat) map
+    let w = 1600, h = Math.round((w * (bbox[3] - bbox[1])) / (bbox[2] - bbox[0]));
+    if (h > 3000) { w = Math.round((w * 3000) / h); h = 3000; } h = Math.max(h, 50);
+    Promise.all([fetchImage(def.url(bbox, w, h)), def.url2 ? fetchImage(def.url2(bbox, w, h)) : null])
+      .then(([href, href2]) => { bgCache.set(key, { href, href2, attribution: def.attr }); onReady(); })
+      .catch(() => { bgCache.set(key, 'fail'); if (!bgFailShown) { bgFailShown = true; toast(t('ms.bgFail')); } onReady(); });
+  }
+  return null;
+}
+const bgPending = (kind, bbox) => bgCache.get(`${kind}|${bbox.join(',')}`) === 'pending';
+
+/** Style panel for a map. get() → {style, view}; set(style, view) stores; redraw() renders; fit() resets the extent. */
+function mapStyleUI(boxId, get, set, redraw) {
+  const box = $(boxId), { style: st, view } = get();
+  if (box.dataset.built === lang()) { // already built: only refresh the values (rebuilding would steal the focus)
+    for (const el of box.querySelectorAll('[data-k]')) if (el !== document.activeElement) { if (el.type === 'checkbox') el.checked = !!st[el.dataset.k]; else el.value = st[el.dataset.k]; }
+    for (const el of box.querySelectorAll('[data-e]')) if (el !== document.activeElement) el.value = view ? view[+el.dataset.e] : '';
+    box.querySelector('.msload').textContent = bgPending(st.bg, view || get().auto || [0, 0, 0, 0]) ? ' · ' + t('ms.loading') : '';
+    return;
+  }
+  box.dataset.built = lang();
+  const chk = (k, l) => `<label class="chk"><input type="checkbox" data-k="${k}" ${st[k] ? 'checked' : ''}><span>${t(l)}</span></label>`;
+  const col = (k, l) => `<label class="f"><span>${t(l)}</span><input type="color" data-k="${k}" value="${esc(st[k])}"></label>`;
+  const num = (k, l, a, b, s) => `<label class="f"><span>${t(l)}</span><input type="number" data-k="${k}" min="${a}" max="${b}" step="${s}" value="${st[k]}"></label>`;
+  const ext = view || ['', '', '', ''];
+  box.innerHTML = `<details><summary>${t('ms.title')}</summary><div class="msgrid">
+    <label class="f"><span>${t('ms.bg')}</span><select data-k="bg">${Object.keys(MAP_BG).map((k) => `<option value="${k}" ${k === st.bg ? 'selected' : ''}>${t('ms.bg.' + k)}</option>`).join('')}</select></label>
+    ${num('bgOpacity', 'ms.opacity', 0.1, 1, 0.1)}${chk('coast', 'ms.coast')}
+    <label class="f"><span>${t('ms.symbol')}</span><select data-k="symbol">${MAP_SYMBOLS.map((k) => `<option value="${k}" ${k === st.symbol ? 'selected' : ''}>${t('ms.sym.' + k)}</option>`).join('')}</select></label>
+    ${num('size', 'ms.size', 0.3, 4, 0.1)}${chk('sizeByFraction', 'ms.sizeFrac')}${col('pointColor', 'ms.pointColor')}${col('stroke', 'ms.stroke')}
+    ${chk('labels', 'ms.labels')}${num('labelSize', 'ms.labelSize', 6, 30, 1)}${col('labelColor', 'ms.labelColor')}${chk('halo', 'ms.halo')}${chk('labelValue', 'ms.labelValue')}
+    ${col('land', 'ms.land')}${col('sea', 'ms.sea')}${chk('graticule', 'ms.grat')}${chk('scaleBar', 'ms.scale')}${chk('north', 'ms.north')}
+    <label class="f"><span>${t('ms.extent')}</span><span class="row">${[0, 1, 2, 3].map((i) => `<input type="number" step="any" data-e="${i}" value="${ext[i]}">`).join('')}</span></label>
+    <div class="zbtn"><button class="btn small" data-z="in" title="Zoom +">＋</button><button class="btn small" data-z="out" title="Zoom −">－</button><button class="btn small" data-z="fit">${t('ms.fit')}</button><button class="btn small" data-z="reset">${t('ms.reset')}</button></div>
+    <p class="note" style="margin:0;flex-basis:100%">${t('ms.zoomHelp')}<span class="msload"></span></p></div></details>`;
+  box.onchange = (e) => {
+    const el = e.target, cur = get();
+    if (el.dataset.k) { const k = el.dataset.k; cur.style[k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? +el.value : el.value; set(cur.style, cur.view); }
+    else if (el.dataset.e != null) {
+      const v = [...box.querySelectorAll('[data-e]')].map((x) => +x.value);
+      if (v.every(Number.isFinite) && v[2] > v[0] && v[3] > v[1]) set(cur.style, v);
+    }
+    redraw();
+  };
+  box.onclick = (e) => {
+    const z = e.target.closest('[data-z]')?.dataset.z; if (!z) return;
+    const cur = get(), vb = cur.view || cur.auto;
+    if (z === 'in' || z === 'out') set(cur.style, zoomBBox(vb, z === 'in' ? 1.5 : 1 / 1.5));
+    else if (z === 'fit') set(cur.style, null);
+    else set({ ...MAP_STYLE }, cur.view);
+    redraw();
+  };
+}
+
+/** Wheel zoom, drag pan and double-click zoom on a map container. get() → {view, auto}; set(bbox); redraw(). */
+function attachMapZoom(el, get, set, redraw) {
+  const lonlat = (e, b) => {
+    const svg = el.querySelector('svg'); if (!svg) return null;
+    const r = svg.getBoundingClientRect(), g = mapGeometry(b), k = r.width / g.W;
+    return [b[0] + ((e.clientX - r.left) / k / g.W) * (b[2] - b[0]), b[3] - (((e.clientY - r.top) / k - g.top) / g.H) * (b[3] - b[1])];
+  };
+  let raf = 0;
+  const zoomAt = (e, f) => { const c = get(), b = c.view || c.auto; if (!b) return; const p = lonlat(e, b); if (!p) return; set(zoomBBox(b, f, p[0], p[1])); cancelAnimationFrame(raf); raf = requestAnimationFrame(redraw); };
+  el.addEventListener('wheel', (e) => { if (!el.querySelector('svg')) return; e.preventDefault(); zoomAt(e, e.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
+  el.addEventListener('dblclick', (e) => zoomAt(e, e.shiftKey ? 1 / 2 : 2));
+  let drag = null;
+  el.addEventListener('pointerdown', (e) => {
+    const svg = el.querySelector('svg'); if (!svg || e.button !== 0) return;
+    const c = get(), b = c.view || c.auto; if (!b) return;
+    const g = mapGeometry(b), k = svg.getBoundingClientRect().width / g.W; if (!(k > 0)) return;
+    drag = { x: e.clientX, y: e.clientY, b, g, k, moved: false }; el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    const svg = el.querySelector('svg');
+    if (svg && Math.abs(dx) + Math.abs(dy) > 3) { drag.moved = true; el.classList.add('dragging'); svg.style.transform = `translate(${dx}px, ${dy}px)`; }
+  });
+  const end = (e) => {
+    if (!drag) return; const d = drag; drag = null; el.classList.remove('dragging'); const svg = el.querySelector('svg'); if (svg) svg.style.transform = '';
+    if (!d.moved) return;
+    const { g, k } = d;
+    const dlon = (-(e.clientX - d.x) / k / g.W) * (d.b[2] - d.b[0]), dlat = ((e.clientY - d.y) / k / g.H) * (d.b[3] - d.b[1]);
+    set(zoomBBox(d.b, 1, null, null, dlon, dlat)); redraw();
+  };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+
+// project map: style and extent are saved with the project (S.geo.map.style, S.geo.map.view)
+const geoMapStyle = () => (S.geo.map.style = { ...MAP_STYLE, ...(S.geo.map.style || {}) });
+let geoAutoBBox = null;
+function refreshProjectMaps() { renderGeoMap(); scheduleFloat(); if (mode === 'fig') renderFigure(); }
+const geoMapGet = () => ({ style: geoMapStyle(), view: S.geo.map.view || null, auto: geoAutoBBox });
+attachMapZoom($('geoMapSvg'), geoMapGet, (b) => { S.geo.map.view = b; markDirty(); }, refreshProjectMaps);
+
+// all-projects map: style and extent kept in this browser
+let allStyle = { ...MAP_STYLE }, allView = null, allAutoBBox = null;
+try { allStyle = { ...MAP_STYLE, ...JSON.parse(localStorage.getItem('ichantool.allMapStyle') || '{}') }; allView = JSON.parse(localStorage.getItem('ichantool.allMapView') || 'null'); } catch { /* storage blocked */ }
+function saveAllStyle() { try { localStorage.setItem('ichantool.allMapStyle', JSON.stringify(allStyle)); localStorage.setItem('ichantool.allMapView', JSON.stringify(allView)); } catch { /* storage blocked */ } }
+const allMapGet = () => ({ style: allStyle, view: allView, auto: allAutoBBox });
+function redrawAllMap() { allMapSvg = buildAllMap($('amMode').value); $('allMap').innerHTML = allMapSvg; mapStyleUI('amStyle', allMapGet, (s2, v) => { allStyle = s2; allView = v; saveAllStyle(); }, redrawAllMap); }
+attachMapZoom($('allMap'), allMapGet, (b) => { allView = b; saveAllStyle(); }, redrawAllMap);
 $('geoMapCtl').addEventListener('change', (e) => {
   const m = S.geo.map, el = e.target, num = (v) => (v === '' ? null : +v);
   if (el.id === 'gmA0') m.a0 = num(el.value); else if (el.id === 'gmA1') m.a1 = num(el.value); else if (el.id === 'gmMode') m.mode = el.value;
@@ -2725,7 +2855,7 @@ async function renderAllProjects() {
   $('amVarRow').hidden = mode !== 'value'; $('amLayRow').hidden = mode !== 'class';
   $('allTable').innerHTML = `<thead><tr><th>${t('home.project')}</th><th>${t('geo.core')}</th><th>Lat</th><th>Lon</th><th>${t('home.nVars')}</th><th>${t('geo.ivs')}</th><th>${t('home.images')}</th></tr></thead><tbody>${
     allLite.flatMap((l) => l.cores.map((c) => `<tr data-p="${l.id}" data-c="${c.id}" style="cursor:pointer"><td class="txt">${esc(l.name)}</td><td class="txt">${esc(c.name)}</td><td>${fmt(c.lat, 3)}</td><td>${fmt(c.lon, 3)}</td><td>${Object.keys(c.proxies || {}).length}</td><td>${(l.intervals || []).filter((q) => q.core === c.id).length}</td><td>${c.nImages || 0}</td></tr>`)).join('')}</tbody>`;
-  allMapSvg = buildAllMap(mode); $('allMap').innerHTML = allMapSvg;
+  redrawAllMap();
 }
 
 /** Map of the cores of every project: sites, mean within-core z-score of a variable, or dominant category of a layer (by name). */
@@ -2761,11 +2891,13 @@ function buildAllMap(mode) {
     }
   });
   if (!pts.length) return `<p class="note" style="padding:16px">${t('home.noSites')}</p>`;
-  const bbox = mapBBox(pts); bbox[2] += 3;
+  const auto = mapBBox(pts); auto[2] += 3; allAutoBBox = auto;
+  const bbox = allView || auto;
   const nx = 90, ny = Math.max(10, Math.round((90 * (bbox[3] - bbox[1])) / ((bbox[2] - bbox[0]) * Math.cos((((bbox[1] + bbox[3]) / 2) * Math.PI) / 180))));
+  const bg = mapBackground(allStyle.bg, bbox, redrawAllMap);
   const grid = mode === 'value' && pts.filter((p) => p.value != null).length >= 3 ? idwGrid(pts, bbox, nx, ny, 2) : null;
   const title = mode === 'sites' ? t('home.mapSites') : mode === 'value' ? t('home.mapValue', { f: $('amVar').value, a0, a1 }) : t('home.mapLayer', { l: $('amLayer').value, a0, a1 });
-  return buildMapSVG({ land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, grid, nx, ny, legend, title, subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote') });
+  return buildMapSVG({ land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, grid, nx, ny, legend, title, subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote'), style: allStyle, bg });
 }
 $('allCtl').addEventListener('change', () => renderAllProjects());
 for (const [id, dir] of [['amPrev', -1], ['amNext', 1]]) $(id).addEventListener('click', () => { const a = +$('amA0').value, b = +$('amA1').value, w = b - a; $('amA0').value = a + dir * w; $('amA1').value = b + dir * w; renderAllProjects(); });

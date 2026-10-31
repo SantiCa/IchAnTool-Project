@@ -534,6 +534,33 @@ Object.assign(D.en, {
 Object.assign(D.es, { 'help.structure': '<p><b>Organización.</b> ⌂ Proyectos abre la pantalla inicial: todos los proyectos, sus sondeos y un mapa multiproyecto. Cada proyecto tiene varios <b>sondeos</b> (selector «Sondeo», + para añadir, ✎ para editar posición y unidades). Cada sondeo guarda sus imágenes y su bioturbación, sus datos importados, registros, modelo de edad e intervalos. Pestañas: <b>Bioturbación</b> (imágenes), <b>Registro</b> (sondeo en profundidad o edad), <b>Datos</b> (todos los datos, columnas calculadas y hoja libre), <b>Multiproxy</b> (registros, mapa y clasificación de los sondeos del proyecto) y <b>Figuras</b>. El mapa y los registros se pueden abrir en otra ventana o en un panel flotante.</p>' });
 Object.assign(D.en, { 'help.structure': '<p><b>Organisation.</b> ⌂ Projects opens the start screen: every project, its cores and a multiproject map. Each project has several <b>cores</b> (Core selector, + to add, ✎ to edit position and units). Each core keeps its images and bioturbation, imported data, records, age model and intervals. Tabs: <b>Bioturbation</b> (images), <b>Core log</b>, <b>Data</b> (all data, computed columns and free sheet), <b>Multiproxy</b> (logs, map and classification of the project cores) and <b>Figures</b>. Map and logs can open in another window or a floating panel.</p>' });
 
+Object.assign(D.es, {
+  'ms.title': 'Personalizar mapa y zoom', 'ms.bg': 'Fondo', 'ms.opacity': 'Opacidad del fondo', 'ms.coast': 'Línea de costa',
+  'ms.bg.vector': 'Simple (vectorial, sin conexión)', 'ms.bg.physical': 'Mapa físico', 'ms.bg.relief': 'Relieve sombreado',
+  'ms.bg.topo': 'Topográfico', 'ms.bg.bathy': 'Batimétrico', 'ms.bg.gebco': 'Batimétrico y topográfico (GEBCO)',
+  'ms.bg.photo': 'Foto aérea / satélite', 'ms.bg.photobathy': 'Foto aérea y batimetría',
+  'ms.symbol': 'Símbolo', 'ms.sym.circle': 'Círculo', 'ms.sym.square': 'Cuadrado', 'ms.sym.triangle': 'Triángulo', 'ms.sym.diamond': 'Rombo',
+  'ms.sym.star': 'Estrella', 'ms.sym.hexagon': 'Hexágono', 'ms.sym.cross': 'Cruz',
+  'ms.size': 'Tamaño', 'ms.sizeFrac': 'Tamaño según fracción', 'ms.labels': 'Etiquetas', 'ms.labelSize': 'Tamaño etiqueta', 'ms.labelValue': 'Valor en la etiqueta',
+  'ms.halo': 'Halo', 'ms.labelColor': 'Color etiqueta', 'ms.pointColor': 'Color sondeos', 'ms.stroke': 'Borde', 'ms.land': 'Tierra', 'ms.sea': 'Mar',
+  'ms.grat': 'Retícula', 'ms.scale': 'Escala', 'ms.north': 'Norte', 'ms.extent': 'Extensión (O S E N)', 'ms.fit': 'Ajustar a los sondeos', 'ms.reset': 'Estilo por defecto',
+  'ms.zoomHelp': 'Rueda del ratón: zoom · arrastrar: mover · doble clic: acercar.', 'ms.loading': 'Cargando fondo…',
+  'ms.bgFail': 'No se pudo descargar el fondo (sin conexión o bloqueado); se muestra el mapa simple.',
+});
+Object.assign(D.en, {
+  'ms.title': 'Customise map and zoom', 'ms.bg': 'Background', 'ms.opacity': 'Background opacity', 'ms.coast': 'Coastline',
+  'ms.bg.vector': 'Simple (vector, offline)', 'ms.bg.physical': 'Physical map', 'ms.bg.relief': 'Shaded relief',
+  'ms.bg.topo': 'Topographic', 'ms.bg.bathy': 'Bathymetric', 'ms.bg.gebco': 'Bathymetry and topography (GEBCO)',
+  'ms.bg.photo': 'Aerial / satellite photo', 'ms.bg.photobathy': 'Aerial photo and bathymetry',
+  'ms.symbol': 'Symbol', 'ms.sym.circle': 'Circle', 'ms.sym.square': 'Square', 'ms.sym.triangle': 'Triangle', 'ms.sym.diamond': 'Diamond',
+  'ms.sym.star': 'Star', 'ms.sym.hexagon': 'Hexagon', 'ms.sym.cross': 'Cross',
+  'ms.size': 'Size', 'ms.sizeFrac': 'Size by fraction', 'ms.labels': 'Labels', 'ms.labelSize': 'Label size', 'ms.labelValue': 'Value in label',
+  'ms.halo': 'Halo', 'ms.labelColor': 'Label colour', 'ms.pointColor': 'Core colour', 'ms.stroke': 'Outline', 'ms.land': 'Land', 'ms.sea': 'Sea',
+  'ms.grat': 'Graticule', 'ms.scale': 'Scale bar', 'ms.north': 'North arrow', 'ms.extent': 'Extent (W S E N)', 'ms.fit': 'Fit to cores', 'ms.reset': 'Default style',
+  'ms.zoomHelp': 'Mouse wheel: zoom · drag: pan · double click: zoom in.', 'ms.loading': 'Loading background…',
+  'ms.bgFail': 'The background could not be downloaded (offline or blocked); showing the simple map.',
+});
+
 let current = 'es';
 try { current = localStorage.getItem('ichantool.lang') || (navigator.language || 'es').slice(0, 2); } catch { /* storage blocked */ }
 if (!D[current]) current = 'en';
