@@ -12,7 +12,7 @@ Estado del proyecto al pasar de la conversación de claude.ai a Claude Code. Lé
 - App en local: desde la raíz, `python -m http.server 8765` y abrir `http://localhost:8765/app/`.
 - Archivo sin conexión: `python tools/build_standalone.py` → `dist/CorAnTool_V<n>.html` (incluye los datos privados
   si existen en `examples/tesis_casanova/privado/`; `dist/` no se sube a git).
-- Python: `pip install -e .[excel,plot]` y `pytest`.
+- Python: `pip install -e ".[dev]"` (incluye pytest, openpyxl y matplotlib) y `pytest`.
 
 ## Datos privados de la tesis
 - Van en `examples/tesis_casanova/privado/` (ignorado por git; **nunca** subirlos). El dueño los tiene en un zip
