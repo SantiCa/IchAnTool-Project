@@ -45,6 +45,7 @@ La descripción detallada de los algoritmos está en
 | V25 | 31-10-2026 | Aplicación web 1.9 | Multiproxy más ordenado: panel compacto con resumen por paso, ayuda al pasar el ratón en todo el modo, cursor que lee todos los valores, columnas desplazables y redimensionables con nombres en dos líneas (también en Columna), clase elegida en la barra de curvas, clic para editar intervalos y borrado de clases con confirmación |
 | V26 | 01-11-2026 | Aplicación web 2.0 | Multiproxy rehecho en torno a familias de intervalos y clasificadores: clasificación manual arrastrando en la columna de cualquier familia y sondeo, varios clasificadores definidos por el usuario (qué clasifican, con qué datos, qué modelo), red neuronal (perceptrón multicapa) y comparación de modelos |
 | V27 | 01-11-2026 | Aplicación web 2.0.1 | Barra de progreso del entrenamiento (con tiempo restante y Cancelar) y número de versión visible en el programa y en el nombre del archivo descargable |
+| V28 | 01-11-2026 | Documentación | Nota de traspaso a Claude Code (estado, cómo ejecutar, datos privados, pendientes) |
 
 ---
 
@@ -616,6 +617,21 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V28 — Traspaso a Claude Code (01-11-2026)
+
+**Qué se hizo.** Nota `docs/TRASPASO_CLAUDE_CODE.md` para seguir el proyecto en Claude Code: estado, cómo ejecutar la
+app y las pruebas, dónde van los datos privados, estructura y lista de pendientes por prioridad.
+
+**Cambios.** Solo documentación; `DELIVERY` pasa a V28. Sin cambios en el programa respecto a V27.
+
+**Por qué.** Santiago decide continuar el desarrollo en Claude Code con el repositorio en su ordenador.
+
+**Comprobación.** `npm test` 44 y `pytest` 9 correctas.
+
+**Pendiente o problemas conocidos.** Ver la lista de la nota de traspaso.
 
 ---
 

@@ -2,6 +2,9 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V28 — 2026-11-01
+- Documentation only: handoff note for continuing in Claude Code (`docs/TRASPASO_CLAUDE_CODE.md`).
+
 ## V27 — Web app 2.0.1 — 2026-11-01
 - Visible training progress (step, epoch, time left, Cancel) without freezing the page; `crossValidateSteps`, `fitModelSteps`.
 - Version tag (V27) in the header, start screen, help and window title, `delivery` field in project files; offline file named `CorAnTool_V27.html`.
