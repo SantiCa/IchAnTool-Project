@@ -374,7 +374,9 @@ function kmeansProba(m, x) {
    class weights (balanced: n / (K · n_c)); L2 penalty; mini-batch Adam (β1 0.9, β2 0.999); He/Xavier initialisation;
    early stopping on 15 % of the training samples (stratified, when n ≥ 40) keeping the weights with the lowest
    validation loss. Deterministic for a given seed. */
-function mlpFit(X, y, p, seed) {
+function mlpFit(X, y, p, seed) { return runSteps(mlpFitSteps(X, y, p, seed)); }
+/** Generator version: yields {epoch, epochs} after each epoch (V27: progress and cancel). */
+function* mlpFitSteps(X, y, p, seed) {
   const rnd = seededRandom(seed), n = X.length, d = X[0]?.length || 0, classes = [...new Set(y)].sort(), K = classes.length;
   const sizes = [d, ...String(p.hidden || '16').split(/[,; ]+/).map(Number).filter((v) => v > 0).map(Math.round), K];
   const mu = Array(d).fill(0), sd = Array(d).fill(0);
@@ -419,6 +421,7 @@ function mlpFit(X, y, p, seed) {
         const g = gB[l][a] / batch.length; mB[l][a] = b1 * mB[l][a] + (1 - b1) * g; vB[l][a] = b2 * vB[l][a] + (1 - b2) * g * g; B[l][a] -= (lr * mB[l][a] / c1) / (Math.sqrt(vB[l][a] / c2) + 1e-8);
       }
     }
+    yield { epoch: epochs, epochs: p.epochs };
     if (va.length) {
       const L = lossOf(va);
       if (L < best - 1e-6) { best = L; bestW = W.map((w) => w.map((r) => r.slice())); bestB = B.map((b) => b.slice()); wait = 0; } else if (++wait >= (p.patience || 25)) break;
@@ -437,6 +440,12 @@ function mlpProba(m, x) {
   return Object.fromEntries(m.classes.map((c, k) => [c, a[k]]));
 }
 
+const runSteps = (it) => { let r; while (!(r = it.next()).done); return r.value; };
+/** Any model as a generator (only the neural network yields, once per epoch); returns the fitted model. */
+export function* fitModelSteps(method, X, y, params, seed = 42) {
+  if (method === 'mlp') return yield* mlpFitSteps(X, y, { ...METHODS.mlp.defaults, ...params }, seed);
+  return fitModel(method, X, y, params, seed);
+}
 export function fitModel(method, X, y, params, seed = 42) {
   const p = { ...METHODS[method].defaults, ...params };
   if (method === 'rf') return rfFit(X, y, p, seed);
@@ -461,7 +470,14 @@ export function predictLabel(model, x, minProb = 0) {
  * Cross-validation. With ≥2 labelled cores: leave-one-core-out (no core is both trained and tested).
  * Otherwise: 5 folds of contiguous blocks along the axis within each core (limits autocorrelation leakage).
  */
+/** Same as crossValidateSteps, run to the end. */
 export function crossValidate(samples, labels, method, params, seed = 42, opt = {}) {
+  const it = crossValidateSteps(samples, labels, method, params, seed, opt); let r;
+  while (!(r = it.next()).done);
+  return r.value;
+}
+/** Cross-validation as a generator: yields {fold, folds} before each fold (V27: lets the interface show progress), returns the result. */
+export function* crossValidateSteps(samples, labels, method, params, seed = 42, opt = {}) {
   // opt.scored(i): only these labelled samples are scored (e.g. described intervals, not rule labels, which would be circular);
   // all labelled samples may still be used for training. opt.minProb: threshold used in practice (coverage reported).
   const idx = samples.map((_, i) => i).filter((i) => labels[i] != null), scored = opt.scored || (() => true);
@@ -474,10 +490,13 @@ export function crossValidate(samples, labels, method, params, seed = 42, opt = 
   }
   const classes = [...new Set(idx.map((i) => labels[i]))].sort(), cm = classes.map(() => classes.map(() => 0));
   const perFold = []; let nScored = 0, nCovered = 0, nCovOk = 0;
-  for (const test of folds) {
+  for (const [fi, test] of folds.entries()) {
+    yield { fold: fi, folds: folds.length };
     const tset = new Set(test), train = idx.filter((i) => !tset.has(i)), tst = test.filter(scored);
     if (new Set(train.map((i) => labels[i])).size < 2 || !tst.length) continue;
-    const m = fitModel(method, train.map((i) => samples[i].f), train.map((i) => labels[i]), params, seed);
+    const fit = fitModelSteps(method, train.map((i) => samples[i].f), train.map((i) => labels[i]), params, seed);
+    let fr; while (!(fr = fit.next()).done) yield { fold: fi, folds: folds.length, ...fr.value };
+    const m = fr.value;
     const rc = {};
     for (const i of tst) {
       const pr = predictLabel(m, samples[i].f), a = classes.indexOf(labels[i]), b = classes.indexOf(pr.label); nScored++;

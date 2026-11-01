@@ -2,6 +2,10 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V27 — Web app 2.0.1 — 2026-11-01
+- Visible training progress (step, epoch, time left, Cancel) without freezing the page; `crossValidateSteps`, `fitModelSteps`.
+- Version tag (V27) in the header, start screen, help and window title, `delivery` field in project files; offline file named `CorAnTool_V27.html`.
+
 ## V26 — Web app 2.0 — 2026-11-01
 - Multiproxy rebuilt around interval families and classifiers: every family is a column in every core; drag in it
   to classify by hand, click to edit; copy automatic columns to the family.

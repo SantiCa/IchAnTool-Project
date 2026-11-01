@@ -1,6 +1,6 @@
 """Build a single self-contained HTML file of the web app (double-click to open, works offline).
 
-Usage:  python tools/build_standalone.py  ->  dist/CorAnTool.html
+Usage:  python tools/build_standalone.py  ->  dist/CorAnTool_V<n>.html (delivery number from app.js DELIVERY)
 
 ES modules cannot be loaded from file:// URLs, so the modules are concatenated (in dependency
 order, with import/export statements removed) into one inline <script type="module">, and the
@@ -33,7 +33,16 @@ def strip_module(src: str) -> str:
     return re.sub(r"^export\s+", "", src, flags=re.M)
 
 
-def build(out: Path = ROOT / "dist" / "CorAnTool.html") -> Path:
+def delivery() -> str:
+    m = re.search(r"const DELIVERY = '(V\d+)'", (APP / "js" / "app.js").read_text(encoding="utf-8"))
+    if not m:
+        raise SystemExit("DELIVERY constant not found in app/js/app.js")
+    return m.group(1)
+
+
+def build(out: Path | None = None) -> Path:
+    ver = delivery()
+    out = out or ROOT / "dist" / f"CorAnTool_{ver}.html"
     seen: dict[str, str] = {}
     parts = []
     for name in ORDER:
@@ -50,7 +59,7 @@ def build(out: Path = ROOT / "dist" / "CorAnTool.html") -> Path:
     assets = {a: f"data:{MIME[Path(a).suffix]};base64," + base64.b64encode((EXAMPLES / a).read_bytes()).decode() for a in ASSETS + private}
     assets_js = "window.ICHANTOOL_ASSETS = " + json.dumps(assets) + ";"
 
-    html = (APP / "index.html").read_text(encoding="utf-8")
+    html = (APP / "index.html").read_text(encoding="utf-8").replace("<title>CorAnTool</title>", f"<title>CorAnTool {ver}</title>")
     tag = '<script type="module" src="js/app.js"></script>'
     if tag not in html:
         raise SystemExit("script tag not found in app/index.html")

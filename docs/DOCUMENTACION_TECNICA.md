@@ -1083,6 +1083,17 @@ defecto 42): el mismo proyecto da el mismo resultado. Parámetros por defecto en
   clic edita la clase o lo borra. Copiar desde una columna automática: un tramo → intervalo confirmado; la columna
   entera → intervalos `auto: true` (pendientes de revisar, no entran en el entrenamiento hasta confirmarlos).
 
+### 21.4 quater Progreso del entrenamiento y número de versión (desde V27)
+- El entrenamiento avanza por pasos: por cada clasificador y familia, 1 ajuste del modelo + 1 paso por pliegue de la
+  validación (`crossValidateSteps`, generador que cede antes de cada pliegue); la red neuronal cede además tras cada
+  época (`fitModelSteps` / `mlpFitSteps`). `crossValidate` y `fitModel` siguen existiendo y dan el mismo resultado.
+- Progreso = (pasos terminados + fracción de épocas del paso actual) / pasos totales; tiempo restante ≈
+  transcurrido / progreso × (1 − progreso), mostrado a partir de 1,5 s. La página recibe el control como mucho cada
+  60 ms. «Cancelar» detiene el entrenamiento y conserva los modelos anteriores del clasificador interrumpido.
+- **Número de entrega** (`DELIVERY` en `app.js`, p. ej. «V27»): visible junto al nombre del programa (cabecera y
+  pantalla inicial), en la ayuda, en el título de la ventana, en los archivos de proyecto (`delivery`) y en el nombre
+  del archivo sin conexión (`dist/CorAnTool_V27.html`, leído por `tools/build_standalone.py`).
+
 ### 21.5 Validación cruzada
 `crossValidate`:
 - Con muestras etiquetadas en **dos o más sondeos: dejando un sondeo fuera** (cada sondeo se

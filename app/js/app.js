@@ -8,12 +8,14 @@ import { buildXYPlot, buildStratPlot, PLOT_TYPES, FIT_KINDS, PLOT_COLORS } from 
 import { evalColumn, evalCells, cellName, FUNCTIONS } from './sheet.js';
 import { Classifier, TaxonModel, evaluateModels, vec, FEATURES } from './learn.js';
 import { t, lang, setLang, applyI18n } from './i18n.js';
-import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, mapSummary, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, fitBBoxAspect, mapGeometry, mapFrame } from './geo.js';
+import { coresFromLongTable, coreFromRows, applyCatalogue, coreAges, featureSeries, buildSamples, colStats, labelSamples, layerFeatureNames, intervalsOnAxis, orphanIntervals, intervalsFromTable, METHODS, fitModel, predictLabel, crossValidate, crossValidateSteps, fitModelSteps, mapSummary, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, MAP_PROJECTIONS, zoomBBox, fitBBoxAspect, mapGeometry, mapFrame } from './geo.js';
 
 /** App name (V16: IchAnTool → CorAnTool). Files written by IchAnTool are still accepted; browser storage keys keep the old name. */
 const APP = 'CorAnTool', APP_NAMES = ['CorAnTool', 'IchAnTool'];
 const $ = (id) => document.getElementById(id);
 const VERSION = '3.0.0-dev';
+/** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
+const DELIVERY = 'V27';
 const ASSET_BASES = ['', '../examples/'];
 
 /** Bundled files (example images, test core). The standalone build injects them as data URIs. */
@@ -1467,7 +1469,7 @@ function serSection(s, binary) {
 function serialize(binary) {
   const { cores: _c, ...geo } = S.geo;
   return {
-    app: APP, kind: 'project', version: 3, appVersion: VERSION, saved: new Date().toISOString(),
+    app: APP, kind: 'project', version: 3, appVersion: VERSION, delivery: DELIVERY, saved: new Date().toISOString(),
     id: S.id, name: S.name, notes: S.notes, classes: S.classes, active: S.active, settings: S.settings, library: S.library,
     projectKind: S.kind || 'normal', multiSource: S.multiSource || null, models: projectModels(),
     geo, sheet: S.sheet, fig: S.fig, curCore: S.curCore, plots: S.plots || [], plotCur: S.plotCur || 0,
@@ -1530,7 +1532,7 @@ async function loadProject(p) {
   activateCore(cur.id, true);
   syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0);
   refreshAllCores();
-  if (S.geo.trained) setTimeout(() => { try { geoTrain(true); } catch { /* retrained on demand */ } }, 0); else scheduleGeo(0);
+  if (S.geo.trained) setTimeout(() => { geoTrain(true).catch(() => { /* retrained on demand */ }); }, 0); else scheduleGeo(0);
   try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
   dirty = false; setSaveState(storageOK ? 'saved' : 'off');
 }
@@ -2221,26 +2223,34 @@ function labelsFor(layerId, useRules = true) {
   const g = S.geo, st = g.settings;
   return labelSamples(geoRT.samples, { intervals: g.intervals, rules: g.rules, useRules, features: geoRT.featNames, axis: st.axis, cores: S.cores, layer: layerId });
 }
-/** Train classifier c on every family it targets; validation leaving one core out (or by blocks). */
-function trainClassifier(c) {
+/** Number of validation folds for a family: one per core with labels (≥ 2 cores) or 5 blocks. */
+function foldsFor(labels) { const cores = new Set(geoRT.samples.filter((_, i) => labels[i].label).map((s) => s.core)); return cores.size >= 2 ? cores.size : Math.min(5, labels.filter((l) => l.label).length); }
+/** Train classifier c on every family it targets; validation leaving one core out (or by blocks). tick(text) is awaited between steps. */
+async function trainClassifier(c, tick = async () => {}) {
   const g = S.geo, st = g.settings, method = c.method, params = { ...METHODS[method].defaults, ...(c.params?.[method] || {}) }, seed = c.seed ?? 42;
   const cols = clfCols(c), run = { byTarget: new Map(), cols, at: Date.now() };
-  geoRT.runs.set(c.id, run);
-  if (!cols.length) { run.error = 'cl.noInputs'; return run; }
+  if (!cols.length) { run.error = 'cl.noInputs'; geoRT.runs.set(c.id, run); return run; }
   const view = geoRT.samples.map((s) => ({ core: s.core, x: s.x, f: cols.map((j) => s.f[j]) }));
   const scale = st.scaling === 'global' ? scaleOf(geoRT.samples, geoRT.nNum) : null;
   for (const lid of c.targets) {
-    if (!geoLayer(lid)) continue;
+    const L = geoLayer(lid); if (!L) continue;
     const labels = labelsFor(lid, c.useRules !== false), idx = labels.map((l, i) => (l.label ? i : -1)).filter((i) => i >= 0);
     if (method !== 'kmeans' && new Set(idx.map((i) => labels[i].label)).size < 2) { run.byTarget.set(lid, { labels, preds: [], error: 'cl.needLabels' }); continue; }
     const X = method === 'kmeans' ? view.map((v) => v.f) : idx.map((i) => view[i].f), y = method === 'kmeans' ? null : idx.map((i) => labels[i].label);
-    const model = fitModel(method, X, y, params, seed);
+    const fit = fitModelSteps(method, X, y, params, seed); let fr;
+    if (await tick(t('cl.pFit', { c: c.name, f: L.name }), 0, true)) return null;
+    while (!(fr = fit.next()).done) if (await tick(t('cl.pFit', { c: c.name, f: L.name }) + ' · ' + t('cl.pEpoch', { e: fr.value.epoch, n: fr.value.epochs }), fr.value.epoch / fr.value.epochs, false)) return null;
+    const model = fr.value;
     Object.assign(model, { cols, nNum: geoRT.nNum, colNames: cols.map((j) => geoRT.featNames[j]), isNum: cols.map((j) => j < geoRT.nNum), zmu: scale ? cols.map((j) => scale.mu[j] ?? 0) : null, zsd: scale ? cols.map((j) => scale.sd[j] || 1) : null,
       scaling: st.scaling, axis: st.axis, target: lid, features: cols.map((j) => geoRT.featNames[j]), n: X.length });
-    const cv = method === 'kmeans' ? null : crossValidate(view, labels.map((l) => l.label), method, params, seed, { scored: (i) => labels[i].source !== 'rule', minProb: c.minProb });
+    let cv = null;
+    if (method !== 'kmeans') {
+      const it = crossValidateSteps(view, labels.map((l) => l.label), method, params, seed, { scored: (i) => labels[i].source !== 'rule', minProb: c.minProb });
+      for (let r = it.next(); ; r = it.next()) { if (r.done) { cv = r.value; break; } const v = r.value; if (await tick(t('cl.pFold', { c: c.name, f: L.name, k: v.fold + 1, n: v.folds }) + (v.epoch ? ' · ' + t('cl.pEpoch', { e: v.epoch, n: v.epochs }) : ''), v.epoch ? v.epoch / v.epochs : 0, !v.epoch)) return null; }
+    }
     run.byTarget.set(lid, { model, cv, labels, preds: [] });
   }
-  predictRun(c);
+  geoRT.runs.set(c.id, run); predictRun(c);
   c.trained = { at: new Date().toISOString(), n: [...run.byTarget.values()].reduce((a, r) => a + (r.model?.n || 0), 0) };
   return run;
 }
@@ -2279,23 +2289,56 @@ const scaleOf = (samples, nNum) => colStats(samples, nNum); // same statistics a
 
 function geoReset() { Object.assign(geoRT, { samples: [], labels: [], preds: [], model: null, cv: null, dirty: true, featNames: [], orphans: new Set(), runs: new Map(), layerCols: new Map(), ruleLabels: new Map() }); }
 
+/* ── V27: training runs in steps (one model fit or one validation fold each) with a visible progress bar and Cancel ── */
+let geoTraining = null;
+function trainProgress(on, frac = 0, text = '') {
+  for (const el of document.querySelectorAll('.tprog')) { el.hidden = !on; const bar = el.querySelector('i'); if (bar) bar.style.width = `${Math.round(frac * 100)}%`; const tx = el.querySelector('.tptext'); if (tx) tx.textContent = text; el.setAttribute('aria-valuenow', String(Math.round(frac * 100))); }
+  document.querySelectorAll('#geoTrainBtn, #clfList [data-c=train], #geoModelTrain').forEach((b) => (b.disabled = on));
+  $('geoTrainState').hidden = on;
+}
 /** Train every classifier (or only the one given). */
-function geoTrain(silent = false, only = null) {
+async function geoTrain(silent = false, only = null) {
+  if (geoTraining) { if (!silent) toast(t('cl.busy')); return; }
   geoComputeSamples();
   if (!geoRT.samples.length || !geoRT.featNames.length) { if (!silent) toast(t('geo.noSamples')); return; }
   const list = only ? S.geo.classifiers.filter((c) => c.id === only) : S.geo.classifiers;
   if (!list.length) { if (!silent) toast(t('cl.none')); return; }
+  // total steps: per classifier and family, 1 fit + the validation folds
+  let total = 0;
+  for (const c of list) for (const lid of c.targets) { if (!geoLayer(lid)) continue; const lab = labelsFor(lid, c.useRules !== false); total += 1 + (c.method === 'kmeans' ? 0 : foldsFor(lab)); }
+  const job = (geoTraining = { cancel: false, done: 0, total: Math.max(1, total), t0: performance.now() });
+  // tick(text, partial, newStep): newStep moves to the next of the total steps; partial = fraction of the current step.
+  // The page is given a frame at most every 60 ms, so progress is visible and Cancel works without slowing training.
+  let last = 0;
+  const tick = async (text, partial = 0, newStep = true) => {
+    if (newStep && job.started) job.done++;
+    job.started = true;
+    const frac = Math.min(1, (job.done + Math.min(0.99, partial)) / job.total), now = performance.now();
+    if (now - last < 60) return job.cancel;
+    last = now;
+    const el = (now - job.t0) / 1000, eta = frac > 0.02 ? (el / frac) * (1 - frac) : null;
+    trainProgress(true, frac, `${text}${eta != null && el > 1.5 ? ' · ' + t('cl.eta', { s: Math.max(1, Math.round(eta)) }) : ''}`);
+    await new Promise((r) => setTimeout(r, 0));
+    return job.cancel;
+  };
   const problems = [];
-  for (const c of list) {
-    const run = trainClassifier(c);
-    if (run.error) problems.push(`${c.name}: ${t(run.error)}`);
-    for (const [lid, r] of run.byTarget) if (r.error) problems.push(`${c.name} · ${geoLayer(lid)?.name}: ${t(r.error)}`);
-  }
+  try {
+    for (const c of list) {
+      const run = await trainClassifier(c, tick);
+      if (!run) break;   // cancelled
+      if (run.error) problems.push(`${c.name}: ${t(run.error)}`);
+      for (const [lid, r] of run.byTarget) if (r.error) problems.push(`${c.name} · ${geoLayer(lid)?.name}: ${t(r.error)}`);
+    }
+  } finally { geoTraining = null; trainProgress(false); }
   syncCurrent();
-  S.geo.trained = { at: new Date().toISOString() };
-  if (!silent) { markDirty(); if (problems.length) toast(problems.join(' · ')); }
+  if (!job.cancel) S.geo.trained = { at: new Date().toISOString() };
+  if (!silent) { markDirty(); toast(job.cancel ? t('cl.cancelled') : problems.length ? problems.join(' · ') : t('cl.doneIn', { s: fmt((performance.now() - job.t0) / 1000, 2) })); }
   renderGeo(); scheduleLog();
 }
+document.addEventListener('click', (e) => { if (e.target.closest('[data-tcancel]') && geoTraining) geoTraining.cancel = true; });
+// version tag everywhere it can be read (V27)
+for (const el of document.querySelectorAll('[data-version]')) el.textContent = DELIVERY;
+document.title = `CorAnTool ${DELIVERY}`;
 
 /* ── left panel ── */
 function geoCoreNote(c) {
@@ -2421,7 +2464,7 @@ $('clfList').addEventListener('click', (e) => {
   const g = S.geo, c = g.classifiers.find((x) => x.id === sec.dataset.id), b = e.target.closest('[data-c]'); if (!c || !b) return;
   const act = b.dataset.c;
   if (act === 'sel') { g.view.clf = c.id; g.view.clfTarget = null; syncCurrent(); renderGeoPanel(); renderGeo(); return; }
-  if (act === 'train') { busy(() => geoTrain(false, c.id)); return; }
+  if (act === 'train') { geoTrain(false, c.id); return; }
   if (act === 'results') { g.view.clf = c.id; g.view.tab = 'model'; syncCurrent(); renderGeo(); return; }
   if (act === 'del') { if (!armed(b, t('cl.delConfirm'))) return; g.classifiers = g.classifiers.filter((x) => x !== c); geoRT.runs.delete(c.id); if (!g.classifiers.length) g.clfCleared = true; syncCurrent(); markDirty(); renderGeoPanel(); renderGeo(); return; }
   if (act === 'vall') c.features = null; else if (act === 'vnone') c.features = [];
@@ -2511,7 +2554,7 @@ $('geoLayerDel').addEventListener('click', (e) => {
 });
 $('geoAddRule').addEventListener('click', () => { const g = S.geo; if (!geoLayer(g.activeLayer)?.cats.length) return; g.rules.push({ id: uid(), layer: g.activeLayer, cat: g.activeCat, enabled: true, conds: [{ feature: geoRT.featNames[0] || g.settings.features[0] || allNumericVars()[0], op: 'z>', value: 1 }] }); geoMarkDirty(); renderGeoPanel(); });
 $('geoAddRatio').addEventListener('click', () => { const a = $('geoRatioA').value, b = $('geoRatioB').value; if (a && b && a !== b && !S.geo.ratios.some((r) => r.a === a && r.b === b)) { S.geo.ratios.push({ a, b }); geoMarkDirty(); renderGeoPanel(); } });
-$('geoTrainBtn').addEventListener('click', () => busy(() => geoTrain()));
+$('geoTrainBtn').addEventListener('click', () => geoTrain());
 $('geoDemo').addEventListener('click', () => busy(loadGeoDemo));
 
 /** Store a core read from a table as imported data of a project core (merging with a core of the same name). */
@@ -3588,7 +3631,7 @@ function renderGeoModel() {
   let html = cmp + `<h3>⚙ ${esc(curC?.name || '')} → ${esc(target?.name || '')}</h3><p class="note">${t('geo.modelIntro', { l: esc(target?.name || ''), v: nn, c: mc.length - nn })}</p>`;
   html += `<div class="stat"><div data-tip="${esc(t('gx.tip.samples'))}"><b>${geoRT.samples.length}</b><span>${t('geo.samples')}</span></div><div data-tip="${esc(t('gx.tip.byIv'))}"><b>${nInt}</b><span>${t('geo.byIntervals')}</span></div><div data-tip="${esc(t('gx.tip.byRule'))}"><b>${nRule}</b><span>${t('geo.byRules')}</span></div></div>`;
   html += `<div class="bars">${Object.entries(counts).map(([id, n]) => { const c = geoCat(id); return `<div><span><span class="swatch" style="background:${c?.color}"></span>${esc(c?.name || id)}</span><em>${n}</em></div>`; }).join('')}</div>`;
-  if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => curC && busy(() => geoTrain(false, curC.id)); return; }
+  if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => curC && geoTrain(false, curC.id); return; }
   html += `<h3>${t('geo.m.name.' + geoRT.model.kind)} · ${t('geo.trainedOn', { n: geoRT.model.n ?? '' })}${geoRT.model.kind === 'mlp' ? ` · ${t('cl.mlpInfo', { s: geoRT.model.sizes.join('–'), e: geoRT.model.epochs })}` : ''}</h3>`;
   if (geoRT.cv) {
     const cv = geoRT.cv, name = (id) => esc(geoCat(id)?.name || id);
@@ -3840,7 +3883,7 @@ async function showTourStep() {
   if (st.mode && mode !== st.mode) setMode(st.mode);
   if (st.pane) showTab(st.pane);
   if (st.geoTab && S.geo.view.tab !== st.geoTab) { S.geo.view.tab = st.geoTab; renderGeo(); }
-  if (st.train && !geoRT.model && !$('geoTrainBtn').disabled) { $('geoTrainBtn').click(); await new Promise((r) => setTimeout(r, 1500)); renderGeo(); }
+  if (st.train && !geoRT.model && !$('geoTrainBtn').disabled) { await geoTrain(); renderGeo(); }
   if (st.pick && !S.selected) { const s = sec(), o = s && [...s.objects.values()].find((q) => !q.cls && q.bbox && q.feat); if (o) { centerOn(o); select(o.id); showTab('object'); } }
   await new Promise((r) => setTimeout(r, st.home ? 700 : 260));
   const el = document.querySelector(st.sel); el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });

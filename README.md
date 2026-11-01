@@ -33,7 +33,7 @@ composite core log with external records, and a **multiproxy mode** (any numeric
 hierarchical described intervals — lithology, turbidites… — for many cores, user-defined labels by
 intervals or rules, configurable automatic interval classification, maps by age, overlay on the core log).
 See [`app/`](app/) and run it with any static server (`python -m http.server`, then open `/app/`),
-or build a single offline file with `python tools/build_standalone.py` (-> `dist/CorAnTool.html`, open by double-click).
+or build a single offline file with `python tools/build_standalone.py` (-> `dist/CorAnTool_V<n>.html`, open by double-click).
 
 ## Install
 

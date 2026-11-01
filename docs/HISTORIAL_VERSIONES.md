@@ -44,6 +44,7 @@ La descripción detallada de los algoritmos está en
 | V24 | 31-10-2026 | Aplicación web 1.8.1 | Los análisis entre proyectos dejan de aparecer como proyectos: se guardan y abren desde la pestaña «Entre proyectos» |
 | V25 | 31-10-2026 | Aplicación web 1.9 | Multiproxy más ordenado: panel compacto con resumen por paso, ayuda al pasar el ratón en todo el modo, cursor que lee todos los valores, columnas desplazables y redimensionables con nombres en dos líneas (también en Columna), clase elegida en la barra de curvas, clic para editar intervalos y borrado de clases con confirmación |
 | V26 | 01-11-2026 | Aplicación web 2.0 | Multiproxy rehecho en torno a familias de intervalos y clasificadores: clasificación manual arrastrando en la columna de cualquier familia y sondeo, varios clasificadores definidos por el usuario (qué clasifican, con qué datos, qué modelo), red neuronal (perceptrón multicapa) y comparación de modelos |
+| V27 | 01-11-2026 | Aplicación web 2.0.1 | Barra de progreso del entrenamiento (con tiempo restante y Cancelar) y número de versión visible en el programa y en el nombre del archivo descargable |
 
 ---
 
@@ -618,6 +619,34 @@ la vez; se planifica aparte).
 
 ---
 
+## V27 — Barra de progreso del entrenamiento y número de versión visible (01-11-2026)
+
+**Qué se hizo.** Petición de Santiago: una barra de progreso visible al entrenar los modelos y un indicativo de
+versión en el archivo descargable y en el propio programa.
+
+**Cambios.**
+- Entrenamiento por pasos sin bloquear la página: barra de progreso arriba de Multiproxy y en el pie del panel,
+  con el paso en curso («Entrenando «Red» · Capas orgánicas · época 120/200», «validación 3 de 7»), el tiempo
+  restante estimado y **Cancelar** (conserva los modelos anteriores). Los botones de entrenar se desactivan mientras
+  tanto; al terminar, aviso con la duración.
+- `geo.js`: `crossValidateSteps` y `fitModelSteps` (generadores); la red neuronal cede tras cada época.
+- **Versión:** etiqueta «V27» junto a CorAnTool en la cabecera, en la pantalla inicial y en la ayuda; título de la
+  ventana «CorAnTool V27»; campo `delivery` en los proyectos guardados; el archivo sin conexión pasa a llamarse
+  `CorAnTool_V27.html` (el número sale de `DELIVERY` en `app.js`).
+
+**Por qué.** Con redes neuronales o muchos clasificadores el entrenamiento tarda segundos y la página parecía
+colgada; y con varias versiones descargadas no se sabía cuál era cuál.
+
+**Comprobación.** `npm test`: 44 correctas (nueva: la validación cede una vez por pliegue y la red una vez por época,
+con el mismo resultado que la llamada directa). En navegador: barra avanzando de 0 a 100 % con textos de pliegue y
+época, Cancelar a mitad de una red grande (64,32 neuronas, 600 épocas) mantiene el modelo anterior; etiqueta V27 en
+la cabecera y la pantalla inicial; título de la ventana con la versión. Sin errores.
+
+**Pendiente o problemas conocidos.** Al cambiar de entrega hay que actualizar `DELIVERY` en `app.js` (anotado en
+CLAUDE.md).
+
+---
+
 ## V26 — Familias, clasificación manual en columnas, clasificadores a medida y red neuronal (01-11-2026)
 
 **Qué se hizo.** Rediseño del modo Multiproxy según lo pedido por Santiago: abrir sondeos y ver su compuesto;
@@ -1017,7 +1046,7 @@ copia ligera guardada de cada proyecto, que se actualiza al guardarlo.
   actualización en `ensureThesisProject`; `APP`/`APP_NAMES`; nombres de los archivos exportados
   (`.corantool.json`, `corantool_*`).
 - `index.html`, `i18n.js`, cabeceras de los módulos, `README.md`, `app/README.md`, `CLAUDE.md`,
-  `tools/build_standalone.py` (salida `dist/CorAnTool.html`).
+  `tools/build_standalone.py` (salida `dist/CorAnTool_V<n>.html`).
 
 **Por qué.** Santiago pidió que estuvieran todos los sondeos y los foraminíferos de su carpeta, y
 preguntó si era el momento de cambiar el nombre; eligió CorAnTool.

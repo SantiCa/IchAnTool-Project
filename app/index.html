@@ -549,12 +549,24 @@ details.mini[open] { display: grid; gap: 6px; }
 #geoModelOut .cmpt td, #geoModelOut .cmpt th { text-align: left; font-family: var(--font-body); }
 #geoModelOut .cmpt td:nth-child(n+4), #geoModelOut .cmpt th:nth-child(n+4) { text-align: right; font-variant-numeric: tabular-nums; }
 .cmpt tr[data-c] { cursor: pointer; } .cmpt tr.sel td { background: var(--accent-soft); font-weight: 600; }
+
+/* V27: training progress and version tag */
+.trainbar { flex-wrap: wrap; }
+.tprog { flex: 1 1 100%; display: grid; gap: 4px; }
+.tprog[hidden] { display: none; }
+.tprog .tbar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.tprog .tbar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width .15s linear; }
+@media (prefers-reduced-motion: reduce) { .tprog .tbar i { transition: none; } }
+.tprog .tprow { display: flex; gap: 8px; align-items: center; }
+.tprog .tptext { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tprog.tptop { flex: 0 0 auto; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.vtag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line-strong); font: 600 11px/1.4 var(--font-body); color: var(--muted); vertical-align: middle; letter-spacing: 0; }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand" title="CorAnTool (antes IchAnTool)"><b>Cor<i>An</i>Tool</b></div>
+    <div class="brand" title="CorAnTool (antes IchAnTool)"><b>Cor<i>An</i>Tool</b><span class="vtag" data-version data-i18n-title="ver.tip"></span></div>
     <button class="btn proj" id="projBtn" data-i18n-title="home.title"><span aria-hidden="true">⌂</span><span class="lbl" data-i18n="proj.label"></span><b id="projName"></b></button>
     <div class="corebar"><span class="lbl" data-i18n="core.label"></span><select id="coreSel"></select><button class="btn small" id="coreAdd" data-i18n-title="core.add">+</button><button class="btn small ghost" id="coreEdit" data-i18n-title="core.edit">✎</button></div>
     <div class="seg" role="group"><button id="modeSection" data-i18n-title="mode.hint.section" aria-pressed="true" data-i18n="mode.section"></button><button id="modeLog" data-i18n-title="mode.hint.log" aria-pressed="false" data-i18n="mode.log"></button><button id="modeData" data-i18n-title="mode.hint.data" aria-pressed="false" data-i18n="mode.data"></button><button id="modeGeo" data-i18n-title="mode.hint.geo" aria-pressed="false" data-i18n="mode.geo"></button><button id="modeFig" data-i18n-title="mode.hint.fig" aria-pressed="false" data-i18n="mode.fig"></button></div>
@@ -833,9 +845,10 @@ details.mini[open] { display: grid; gap: 6px; }
           <div class="row"><button class="btn small" id="clfAdd" data-i18n="cl.add" data-i18n-title="cl.tip.add"></button><button class="btn small" id="clfDup" data-i18n="cl.dup" data-i18n-title="cl.tip.dup"></button></div>
         </div>
       </details>
-      <div class="trainbar"><button class="btn primary" id="geoTrainBtn" data-i18n="cl.trainAll" data-i18n-title="cl.tip.trainAll"></button><span class="note" id="geoTrainState"></span></div>
+      <div class="trainbar"><div class="tprog" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="tbar"><i></i></div><div class="tprow"><span class="tptext"></span><button class="btn small ghost" data-tcancel data-i18n="cl.cancel"></button></div></div><button class="btn primary" id="geoTrainBtn" data-i18n="cl.trainAll" data-i18n-title="cl.tip.trainAll"></button><span class="note" id="geoTrainState"></span></div>
     </aside>
     <section id="geoStage">
+      <div class="tprog tptop" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="tbar"><i></i></div><div class="tprow"><span class="tptext"></span><button class="btn small ghost" data-tcancel data-i18n="cl.cancel"></button></div></div>
       <div class="tabs" role="tablist" id="geoTabs">
         <button role="tab" data-tab="logs" aria-selected="true" data-i18n="geo.tab.logs"></button>
         <button role="tab" data-tab="map" aria-selected="false" data-i18n="geo.tab.map"></button>
@@ -883,7 +896,7 @@ details.mini[open] { display: grid; gap: 6px; }
 </div>
 
 <dialog id="help">
-  <h2 data-i18n="help.title"></h2>
+  <h2><span data-i18n="help.title"></span> <span class="vtag" data-version></span></h2>
   <div class="row" style="gap:10px;margin-bottom:8px"><button class="btn primary small" id="tourBtn" data-i18n="tour.start"></button><label class="chk"><input type="checkbox" id="tipsToggle"><span data-i18n="tip.toggle"></span></label></div>
   <div data-i18n-html="help.structure"></div>
   <div data-i18n-html="help.body"></div>
@@ -891,7 +904,7 @@ details.mini[open] { display: grid; gap: 6px; }
 </dialog>
 <section id="home" hidden>
   <header class="hhead">
-    <div class="hbrand"><b>Cor<i>An</i>Tool</b><span data-i18n="home.tagline"></span></div>
+    <div class="hbrand"><b>Cor<i>An</i>Tool</b><span class="vtag" data-version data-i18n-title="ver.tip"></span><span data-i18n="home.tagline"></span></div>
     <div class="hacts">
       <label class="btn file"><span data-i18n="proj.import"></span><input type="file" id="impProj" accept=".json,application/json" multiple></label>
       <button class="btn primary" id="newProjOpen" data-i18n="home.newProject"></button>

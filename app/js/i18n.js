@@ -1101,3 +1101,18 @@ Object.assign(D.en, {
 });
 Object.assign(D.es, { 'geo.modelIntro': 'Familia que clasifica: «{l}». Aprende de {v} variables numéricas y {c} columnas 0/1 de otras familias.' });
 Object.assign(D.en, { 'geo.modelIntro': 'Family classified: “{l}”. Learns from {v} numeric variables and {c} 0/1 columns of other families.' });
+
+// V27: training progress and version tag
+Object.assign(D.es, {
+  'cl.cancel': 'Cancelar', 'cl.busy': 'Ya se está entrenando: espera o cancela.', 'cl.cancelled': 'Entrenamiento cancelado: se mantienen los modelos anteriores.',
+  'cl.pFit': 'Entrenando «{c}» · {f}', 'cl.pFold': '«{c}» · {f}: validación {k} de {n}', 'cl.eta': 'quedan ≈ {s} s', 'cl.doneIn': 'Entrenado en {s} s',
+  'ver.tip': 'Versión (entrega) del programa. Compárala con el nombre del archivo descargado.',
+});
+Object.assign(D.en, {
+  'cl.cancel': 'Cancel', 'cl.busy': 'Training already running: wait or cancel.', 'cl.cancelled': 'Training cancelled: previous models kept.',
+  'cl.pFit': 'Training “{c}” · {f}', 'cl.pFold': '“{c}” · {f}: validation {k} of {n}', 'cl.eta': '≈ {s} s left', 'cl.doneIn': 'Trained in {s} s',
+  'ver.tip': 'Program version (delivery). Compare it with the name of the downloaded file.',
+});
+
+Object.assign(D.es, { 'cl.pEpoch': 'época {e}/{n}' });
+Object.assign(D.en, { 'cl.pEpoch': 'epoch {e}/{n}' });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
 import { coresFromLongTable, applyCatalogue, buildSamples, labelSamples, ruleMatches, resample, coreConvert,
-  fitModel, predictLabel, crossValidate, kmeansFit, mapSummary, idwGrid, buildMapSVG, mapBBox, seededRandom, fitBBoxAspect, mapGeometry } from '../../app/js/geo.js';
+  fitModel, predictLabel, crossValidate, kmeansFit, mapSummary, idwGrid, buildMapSVG, mapBBox, seededRandom, crossValidateSteps, fitModelSteps, fitBBoxAspect, mapGeometry } from '../../app/js/geo.js';
 
 const tab = parseTable(readFileSync(new URL('../../examples/geochem_demo/demo_long.csv', import.meta.url), 'utf8'));
 const H = tab.headers, col = (n) => H.indexOf(n);
@@ -162,4 +162,16 @@ test('neural network (MLP) learns a non-linear boundary, is deterministic and va
   const S = X.map((x, i) => ({ core: i < 120 ? 'a' : 'b', x: i, f: x }));
   const cv = crossValidate(S, y, 'mlp', { epochs: 80 }, 5);
   assert.equal(cv.scheme, 'leave-one-core-out'); assert.ok(cv.balancedAccuracy > 0.8, `cv ${cv.balancedAccuracy}`);
+});
+
+test('training steps: validation yields once per fold, the neural network once per epoch, same result as the plain call (V27)', () => {
+  const r = seededRandom(9), X = [], y = [];
+  for (let i = 0; i < 90; i++) { const a = r(); X.push([a, r()]); y.push(a > 0.5 ? 'p' : 'q'); }
+  const S = X.map((x, i) => ({ core: ['a', 'b', 'c'][i % 3], x: i, f: x }));
+  const it = crossValidateSteps(S, y, 'knn', {}, 1); let n = 0, res;
+  for (let s = it.next(); ; s = it.next()) { if (s.done) { res = s.value; break; } n++; }
+  assert.equal(n, 3); assert.equal(res.balancedAccuracy, crossValidate(S, y, 'knn', {}, 1).balancedAccuracy);
+  const g = fitModelSteps('mlp', X, y, { epochs: 12, patience: 100 }, 2); let e = 0, m;
+  for (let s = g.next(); ; s = g.next()) { if (s.done) { m = s.value; break; } e++; }
+  assert.equal(e, 12); assert.deepEqual(m.W, fitModel('mlp', X, y, { epochs: 12, patience: 100 }, 2).W);
 });
