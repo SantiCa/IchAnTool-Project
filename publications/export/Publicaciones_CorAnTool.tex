@@ -1,0 +1,1545 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  10pt,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newlength{\cslentryspacingunit} % times entry-spacing
+\setlength{\cslentryspacingunit}{\parskip}
+\newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
+ {% don't indent paragraphs
+  \setlength{\parindent}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+  \let\oldpar\par
+  \def\par{\hangindent=\cslhangindent\oldpar}
+  \fi
+  % set entry spacing
+  \setlength{\parskip}{#2\cslentryspacingunit}
+ }%
+ {}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+\ifLuaTeX
+\usepackage[bidi=basic]{babel}
+\else
+\usepackage[bidi=default]{babel}
+\fi
+\babelprovide[main,import]{spanish}
+% get rid of language-specific shorthands (see #6817):
+\let\LanguageShortHands\languageshorthands
+\def\languageshorthands#1{}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Publicaciones previstas --- CorAnTool},
+  pdfauthor={Santiago Casanova-Arenillas},
+  pdflang={es},
+  colorlinks=true,
+  linkcolor={Maroon},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Publicaciones previstas --- CorAnTool}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Cartera, métodos, defensa ante revisores y borradores}
+\author{Santiago Casanova-Arenillas}
+\date{01-11-2026 · software V29}
+
+\begin{document}
+\maketitle
+
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\hypertarget{publicaciones-previstas-corantool-antes-ichantool}{%
+\section{Publicaciones previstas --- CorAnTool (antes
+IchAnTool)}\label{publicaciones-previstas-corantool-antes-ichantool}}
+
+Borradores, revistas candidatas y estado de cada trabajo. Estado al
+\textbf{01-11-2026} (software en la entrega V28). Todo lo marcado
+\texttt{{[}TODO{]}} está pendiente; ningún resultado de estos borradores
+es definitivo.
+
+\begin{quote}
+Aviso: si el repositorio es \textbf{público}, no subir aquí datos ni
+resultados inéditos de la tesis hasta que el manuscrito esté enviado o
+publicado como preprint (o pasar los borradores a un repositorio
+privado).
+\end{quote}
+
+\hypertarget{cartera-de-publicaciones}{%
+\subsection{Cartera de publicaciones}\label{cartera-de-publicaciones}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.0222}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.1778}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 8\tabcolsep) * \real{0.1333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\#
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Trabajo y aporte
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Revista principal (alternativas)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Depende de
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Estado
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & \textbf{Software: CorAnTool.} Herramienta abierta y reproducible &
+JOSS (Applied Computing and Geosciences; Computers \& Geosciences) &
+Release con DOI & Borrador en inglés \\
+2 & \textbf{Dataset anotado y segmentación automática.} Datos abiertos y
+método & Earth System Science Data (Scientific Data; AI in Geosciences;
+Computers \& Geosciences) & 1 e imágenes con permiso & Esquema \\
+3 & \textbf{Validación frente a índices visuales y aplicación
+paleoambiental.} Interpretación geológica & Palaeogeography,
+Palaeoclimatology, Palaeoecology (Ichnos; Marine Geology; Sedimentary
+Geology) & 1 (y 2) & Esquema \\
+4 & \textbf{Clasificación automática de intervalos con datos
+multiproxy.} Método de aprendizaje automático & Computers \& Geosciences
+(AI in Geosciences; Applied Computing and Geosciences; Marine Geology) &
+1 y sondeos con eventos descritos & Esquema y primeras pruebas \\
+5 & \textbf{Nota breve en español.} Difusión en España & Geogaceta
+(Spanish Journal of Palaeontology) & 1 & Idea \\
+\end{longtable}
+
+\textbf{Orden recomendado:} 1 $\rightarrow$ 5 $\rightarrow$ 4 $\rightarrow$ 2 $\rightarrow$ 3.
+
+\begin{itemize}
+\tightlist
+\item
+  El 1 da el DOI que citan los demás; el 5 se puede escribir a la vez
+  con el mismo material.
+\item
+  El 4 es el más avanzado en software (V26--V27: familias,
+  clasificadores, red neuronal, validación) y solo necesita datos con
+  eventos descritos de forma independiente.
+\item
+  El 2 y el 3 dependen de trabajo con otras personas (anotadores,
+  observadores a ciegas) y llevan más tiempo.
+\end{itemize}
+
+\hypertarget{quuxe9-puede-afirmar-hoy-cada-uno-resumen}{%
+\subsection{Qué puede afirmar hoy cada uno
+(resumen)}\label{quuxe9-puede-afirmar-hoy-cada-uno-resumen}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.0270}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.4865}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.4865}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+\#
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Se puede afirmar
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+No se puede afirmar todavía
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & Reproduce exactamente los resultados de 2020; es determinista;
+integra imágenes, registros, intervalos, clasificación, mapas y figuras
+& Rendimiento de la detección automática en datos reales \\
+2 & Las herramientas de anotación existen y producen máscaras abiertas &
+Precisión de la segmentación (faltan datos anotados) \\
+3 & La app registra BI/ii manuales junto a los automáticos &
+Concordancia con observadores (falta el experimento) \\
+4 & La cadena funciona con verdad conocida (sintético: RF $\approx$ 91 \%, red $\approx$
+80 \%) & Capacidad predictiva real: con los datos de la tesis, 18 \% de
+acierto equilibrado dejando un sondeo fuera (7 clases) \\
+5 & Funcionalidad y ejemplo con datos públicos & --- \\
+\end{longtable}
+
+\hypertarget{documentaciuxf3n-de-muxe9todos}{%
+\subsection{Documentación de
+métodos}\label{documentaciuxf3n-de-muxe9todos}}
+
+Qué algoritmos usa cada artículo, qué se puede afirmar, qué falta
+validar y respuestas preparadas a revisores: METODOS\_Y\_DEFENSA.md.
+Detalle técnico con fórmulas: ../docs/DOCUMENTACION\_TECNICA.md.
+Revistas: journals.md.
+
+\hypertarget{antes-de-enviar}{%
+\subsection{Antes de enviar}\label{antes-de-enviar}}
+
+\begin{itemize}
+\tightlist
+\item
+  Confirmar coautorías (F.J. Rodríguez-Tovar, F. Martínez-Ruiz, J.
+  Dorador u otros según aporten datos o validación).
+\item
+  ORCID de todos los autores.
+\item
+  Release con DOI de Zenodo del código citado (indicar la entrega,
+  p.~ej. V28).
+\item
+  Comprobar en la web de cada revista: alcance, formato, APC y política
+  de preprints.
+\item
+  Preprint opcional en EarthArXiv.
+\end{itemize}
+
+\newpage
+
+\hypertarget{muxe9todos-y-defensa-ante-revisores}{%
+\section{Métodos y defensa ante
+revisores}\label{muxe9todos-y-defensa-ante-revisores}}
+
+Estado al 01-11-2026 (software en la entrega \textbf{V28}, aplicación
+web 2.0.1). Cartera completa en README.md.
+
+\hypertarget{lo-que-hay-que-saber-del-software-antes-de-escribir-cualquier-artuxedculo}{%
+\subsection{Lo que hay que saber del software antes de escribir
+cualquier
+artículo}\label{lo-que-hay-que-saber-del-software-antes-de-escribir-cualquier-artuxedculo}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Nombre:} desde V16 el programa se llama \textbf{CorAnTool}
+  (antes IchAnTool). En los artículos: «CorAnTool (formerly IchAnTool;
+  Casanova-Arenillas et al., 2020)». Citar la entrega usada (p.~ej.
+  «V28») y, al enviar, la release con DOI.
+\item
+  \textbf{Icnotaxones (imágenes):} tres modelos (sondeo, proyecto, todos
+  los proyectos; §10.6 bis) y tres métodos (k-NN, bosque aleatorio,
+  Bayes ingenuo; §10.6 ter). Desde V22 la evaluación agrupa por imagen
+  (sección) y cuenta como error cualquier predicción de un taxón ausente
+  del conjunto de prueba. Hay que decir qué modelo y método se usó y su
+  acierto equilibrado. Las «probabilidades» de RF, NB y k-NN son
+  proporciones de voto o verosimilitudes normalizadas, no probabilidades
+  calibradas.
+\item
+  \textbf{Multiproxy (V26--V27):} familias de intervalos (p.~ej. periodo
+  frío/cálido; baja oxigenación con sapropel/ORL) que se clasifican a
+  mano en cualquier sondeo, y \textbf{clasificadores definidos por el
+  usuario} (qué familias, con qué variables y familias de entrada, qué
+  modelo: bosque aleatorio, red neuronal MLP, k-NN, Bayes, k-medias),
+  validados dejando un sondeo fuera (§21.4--§21.5). Solo se puntúan
+  intervalos descritos, no los etiquetados por reglas.
+\item
+  \textbf{Selección de modelo:} comparar varios clasificadores con la
+  misma validación y quedarse con el mejor \textbf{sesga el acierto al
+  alza}. Un artículo debe informar de todos los modelos probados o
+  reservar sondeos para una prueba final independiente (pendiente de
+  implementar en la interfaz).
+\item
+  \textbf{Sondeos compartidos entre proyectos (V23):} cuentan una sola
+  vez en mapas y análisis entre proyectos, y los ejemplos de icnotaxones
+  repetidos se descartan. La coincidencia es por nombre: revisar los
+  marcados «en N proyectos».
+\item
+  \textbf{Mapas:} los valores usan solo datos reales; la interpolación
+  (IDW, kriging, TIN, RBF\ldots; §21.6 ter) mide distancias en km y es
+  exploratoria. Los mapas de z por sondeo eliminan el gradiente absoluto
+  entre sondeos: úsense para patrones relativos. Los fondos (Esri,
+  GEBCO) son contexto visual y se citan en el pie.
+\item
+  \textbf{Datos de la tesis:} LC06, LC14 y LC20 tienen profundidad
+  supuesta (secciones apiladas, §21.8 ter): no usarlos en una figura
+  publicada sin verificarla. Las cifras obtenidas con versiones
+  anteriores a V22 deben recalcularse.
+\end{itemize}
+
+Para cada artículo previsto: qué partes de IchAnTool usa, qué se puede
+afirmar con lo que ya está hecho, qué falta comprobar antes de enviarlo
+y las preguntas que probablemente hará un revisor, con una respuesta
+preparada.
+
+Los detalles de cada algoritmo (fórmulas, parámetros, archivos de
+código) están en \texttt{docs/DOCUMENTACION\_TECNICA.md}. Aquí se cita
+la sección (§). El historial de cambios está en
+\texttt{docs/HISTORIAL\_VERSIONES.md}.
+
+Regla general: \textbf{solo se afirma lo que está medido}. Lo que no
+está validado se presenta como limitación o trabajo futuro.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{artuxedculo-1-software-corantool-joss}{%
+\subsection{Artículo 1 --- Software: CorAnTool
+(JOSS)}\label{artuxedculo-1-software-corantool-joss}}
+
+\hypertarget{quuxe9-describe}{%
+\subsubsection{Qué describe}\label{quuxe9-describe}}
+
+El paquete Python y la aplicación web como herramienta abierta de
+análisis de sondeos: series continuas de bioturbación a partir de
+imágenes, junto con registros multiproxy, intervalos descritos,
+clasificación automática de intervalos, mapas por edad y figuras,
+organizado en proyectos.
+
+\hypertarget{muxe9todos-que-usa}{%
+\subsubsection{Métodos que usa}\label{muxe9todos-que-usa}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.7273}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.2727}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Método
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+§
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Escala de profundidad y zona de análisis & §2 \\
+Porcentaje por intervalos, multiclase y exclusiones & §3, §8 \\
+BI e ii (tramos de la V2, configurables) & §4 \\
+Modelo de edad (interpolación lineal) & §5 \\
+Realce, detección y edición (aplicación web) & §6--§8 \\
+Identificación asistida k-NN (aplicación web) & §10 \\
+Formatos de exportación & §12 \\
+Resolución de trabajo, proyectos & §16--§17 \\
+Registro compuesto y registros externos & §18--§19 \\
+Herramienta multiproxy: familias, clasificadores (RF, MLP, k-NN, NB),
+validación & §21--§21.5 \\
+Mapas: proyecciones, interpolación (IDW, kriging, TIN, RBF\ldots),
+exportación & §21.6--§21.6 quater \\
+Gráficos de datos (tipo Grapher) y hoja de cálculo & §22.3 bis \\
+Organización por proyectos y sondeos, análisis entre proyectos, figuras
+& §22 \\
+Proyecto de entrenamiento y recorrido guiado & §22.7 \\
+\end{longtable}
+
+\hypertarget{quuxe9-se-puede-afirmar-hoy}{%
+\subsubsection{Qué se puede afirmar
+hoy}\label{quuxe9-se-puede-afirmar-hoy}}
+
+\begin{itemize}
+\tightlist
+\item
+  Integra en una sola herramienta las imágenes, la bioturbación y otros
+  registros del mismo sondeo, en profundidad o en edad, con exportación
+  vectorial (§18). Demostrado con datos públicos del IODP (sondeo de
+  prueba U1385I-1H).
+\item
+  Reproduce exactamente los resultados publicados en 2020 (prueba de
+  regresión, §13.1).
+\item
+  La aplicación web da los mismos BI e ii que la versión publicada en la
+  imagen de ejemplo (100 \%), con una diferencia de porcentaje $\leq$ 0,56
+  puntos explicada por los pesos de gris (§3.4, §13.2).
+\item
+  Es determinista y el archivo de proyecto permite reproducir cualquier
+  análisis (§15).
+\item
+  Tiene pruebas automáticas en integración continua (§13.1).
+\item
+  Integra en el mismo proyecto la interpretación icnológica, registros
+  numéricos de cualquier tipo, intervalos descritos jerárquicos y una
+  clasificación automática de intervalos (§21). Sobre esta parte solo
+  puede afirmarse que funciona como herramienta; su capacidad de
+  detectar eventos reales no está validada (ver artículo 4).
+\end{itemize}
+
+\hypertarget{quuxe9-falta-antes-de-enviarlo}{%
+\subsubsection{Qué falta antes de
+enviarlo}\label{quuxe9-falta-antes-de-enviarlo}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Publicar en PyPI y crear la release con DOI en Zenodo.
+\item[$\square$]
+  Documentación de uso (tutorial con un testigo real) y notebook de
+  ejemplo.
+\item[$\square$]
+  Capa de exclusión también en el paquete Python, para igualar las dos
+  implementaciones.
+\item[$\square$]
+  Alojar la aplicación en GitHub Pages.
+\item[$\square$]
+  Decidir la licencia definitiva.
+\item[$\square$]
+  Revisar la bibliografía.
+\item[$\square$]
+  Dividir \texttt{app.js} en módulos (los revisores de JOSS miran la
+  calidad del código).
+\item[$\square$]
+  Decidir el alcance: un único artículo de software con todo, o dejar la
+  parte multiproxy para el artículo 4.
+\end{itemize}
+
+\hypertarget{preguntas-probables-de-revisores-joss-revisa-tambiuxe9n-el-cuxf3digo}{%
+\subsubsection{Preguntas probables de revisores (JOSS revisa también el
+código)}\label{preguntas-probables-de-revisores-joss-revisa-tambiuxe9n-el-cuxf3digo}}
+
+\textbf{¿Qué aporta frente a ImageJ/Fiji, que ya cuenta píxeles?} ImageJ
+da un área total. IchAnTool da una \textbf{serie continua por
+profundidad o edad} con BI, ii y porcentaje por icnotaxón, lista para
+correlacionar con datos geoquímicos. Gestiona varias secciones, zonas
+excluidas y modelo de edad en un solo flujo. Ese flujo en ImageJ
+requiere macros propias.
+
+\textbf{¿Cómo sé que los resultados son correctos?} Pruebas con casos
+calculados a mano y prueba de regresión frente a los resultados
+publicados (§13.1). Ambas se ejecutan automáticamente en cada cambio.
+
+\textbf{¿Cómo se eligen los parámetros de realce?} Con los ajustes
+publicados (Dorador et al., 2014; Miguez-Salas et al., 2019) o con la
+propuesta automática por separabilidad de Otsu (§6), que es propia y se
+presenta como punto de partida. No hay en la bibliografía un método
+publicado de preselección automática (revisión V12).
+
+\textbf{¿Los ajustes «de artículo» reproducen fielmente los protocolos
+publicados?} Reproducen la secuencia y los parámetros publicados donde
+existen (§6). Las diferencias están documentadas: los niveles se
+calculan por percentiles porque el artículo los elige en cada imagen; la
+gamma es automática dentro del rango publicado; el contraste y el brillo
+de Photoshop solo tienen equivalentes aproximados; y el CLAHE es por
+mosaicos (Zuiderveld, 1994) frente a la ventana deslizante de Fiji. Los
+parámetros efectivos de cada sección se guardan en el proyecto.
+
+\textbf{¿Por qué dos implementaciones (Python y JavaScript)?} Python
+para análisis por lotes y reproducibilidad en scripts. Web para el
+trabajo interactivo sin instalar nada. Comparten las mismas definiciones
+y las pruebas comprueban los mismos casos en las dos (§1, §13.1).
+
+\textbf{¿Por qué BI e ii salen solo del porcentaje?} Es la componente
+cuantificable de esas escalas. Se documenta que no sustituye la
+descripción completa del icnofábrica, y la aplicación guarda el índice
+manual del usuario (§4.3).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{artuxedculo-2-conjunto-de-datos-anotado-y-segmentaciuxf3n-automuxe1tica}{%
+\subsection{Artículo 2 --- Conjunto de datos anotado y segmentación
+automática}\label{artuxedculo-2-conjunto-de-datos-anotado-y-segmentaciuxf3n-automuxe1tica}}
+
+\hypertarget{quuxe9-describiruxe1}{%
+\subsubsection{Qué describirá}\label{quuxe9-describiruxe1}}
+
+Un conjunto abierto de imágenes de testigos con máscaras de bioturbación
+(y de icnotaxones), anotado con la aplicación web, y la evaluación de
+métodos automáticos de detección e identificación.
+
+\hypertarget{muxe9todos-que-usa-1}{%
+\subsubsection{Métodos que usa}\label{muxe9todos-que-usa-1}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Método & § \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Herramientas de anotación (varita, pincel, lazo, exclusión) & §8 \\
+Detección clásica: umbral adaptativo + morfología (método base) & §7 \\
+Descriptores de objeto & §9 \\
+k-NN con rechazo de novedad (método base de identificación) & §10 \\
+Segmentación aprendida tipo U-Net (\textbf{por implementar}) & --- \\
+Formato de máscara y paleta & §12 \\
+\end{longtable}
+
+\hypertarget{quuxe9-se-puede-afirmar-hoy-1}{%
+\subsubsection{Qué se puede afirmar
+hoy}\label{quuxe9-se-puede-afirmar-hoy-1}}
+
+Nada sobre la precisión en datos reales: todavía no hay datos anotados.
+Solo que las herramientas existen y producen máscaras en un formato
+abierto.
+
+\begin{itemize}
+\tightlist
+\item
+  La identificación asistida de icnotaxones ya tiene evaluación por
+  imagen (V22); falta medirla en testigos independientes anotados por
+  expertos.
+\end{itemize}
+
+\hypertarget{experimentos-necesarios}{%
+\subsubsection{Experimentos necesarios}\label{experimentos-necesarios}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Datos:} testigos con imágenes de licencia clara (IODP/ODP son
+  públicas; las imágenes tratadas del grupo de la UGR, con permiso).
+  Anotar la resolución y el equipo de cada imagen.
+\item
+  \textbf{Protocolo de anotación escrito}, con criterios de qué es
+  traza, qué es artefacto y qué se excluye.
+\item
+  \textbf{Concordancia entre anotadores:} al menos dos expertos anotan
+  el mismo subconjunto. Se mide IoU (intersección sobre unión) y la
+  diferencia de porcentaje por intervalo.
+\item
+  \textbf{División por testigo}, no por recortes: los testigos de prueba
+  no se usan para entrenar ni para ajustar parámetros. Evita resultados
+  inflados por autocorrelación espacial.
+\item
+  \textbf{Métricas:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    IoU y F1 por píxel.
+  \item
+    Error absoluto del porcentaje por intervalo.
+  \item
+    Coincidencia de BI e ii.
+  \item
+    Para la identificación: matriz de confusión y F1 por clase.
+  \end{itemize}
+\item
+  \textbf{Comparaciones:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    umbral adaptativo (método base);
+  \item
+    flujo Fiji/ICY de Miguez-Salas et al.~(2019): CLAHE + umbral o
+    K-medias + rellenar huecos, ya implementado;
+  \item
+    tratamiento de Dorador et al.~(2014), ya implementado;
+  \item
+    U-Net, comparable con Kikuchi y Naruse (2024, Dice 0,892 para
+    \emph{Phycosiphon});
+  \item
+    concordancia entre humanos, que es el techo razonable.
+  \end{itemize}
+\end{enumerate}
+
+\hypertarget{preguntas-probables-de-revisores}{%
+\subsubsection{Preguntas probables de
+revisores}\label{preguntas-probables-de-revisores}}
+
+\textbf{¿Por qué un umbral adaptativo como base y no directamente deep
+learning?} Porque es reproducible, no necesita datos de entrenamiento y
+marca el nivel mínimo que un método aprendido debe superar. Se compara
+con U-Net en el mismo conjunto de prueba.
+
+\textbf{¿El acierto del k-NN no está inflado?} El acierto dejando uno
+fuera que muestra la aplicación sí puede estarlo (§10, nota al revisor).
+En el artículo solo se dará el acierto en \textbf{testigos
+independientes}.
+
+\textbf{¿Qué pasa con la dependencia del color y de la cámara?} Se
+documentan el equipo y la iluminación de cada imagen y se evalúa el
+rendimiento entre fuentes distintas (entrenar con unas, probar con
+otras). Los descriptores de tamaño van en unidades físicas (§9).
+
+\textbf{¿Hay trabajos previos con deep learning en bioturbación?} Sí.
+Hay que revisarlos y citarlos: el artículo de \emph{Applied Sciences}
+11(16):7736 (2021) sobre deep learning en análisis icnológico y la
+patente US12142024. La aportación propia es el \textbf{conjunto de datos
+abierto}, la herramienta de anotación libre y la comparación con
+concordancia humana.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{artuxedculo-3-validaciuxf3n-y-aplicaciuxf3n-paleoambiental}{%
+\subsection{Artículo 3 --- Validación y aplicación
+paleoambiental}\label{artuxedculo-3-validaciuxf3n-y-aplicaciuxf3n-paleoambiental}}
+
+\hypertarget{quuxe9-describiruxe1-1}{%
+\subsubsection{Qué describirá}\label{quuxe9-describiruxe1-1}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Cuánto difieren los índices automáticos de la estimación visual de
+  varios icnólogos.
+\item
+  Registros continuos de bioturbación y de icnotaxones en testigos
+  largos, correlacionados con indicadores geoquímicos y de temperatura
+  (amplía el ejemplo de ODP 977 de 2020).
+\end{enumerate}
+
+\hypertarget{muxe9todos-que-usa-2}{%
+\subsubsection{Métodos que usa}\label{muxe9todos-que-usa-2}}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Método & § \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Porcentaje, BI e ii automáticos & §3--§4 \\
+BI e ii manuales en la aplicación & §4.3 \\
+Porcentaje por icnotaxón e identificación asistida & §3, §10--§11 \\
+Modelo de edad & §5 \\
+Registro compuesto, registros externos y CSV interpolado & §18--§19 \\
+\end{longtable}
+
+\hypertarget{experimentos-necesarios-1}{%
+\subsubsection{Experimentos
+necesarios}\label{experimentos-necesarios-1}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{-1}
+\tightlist
+\item
+  \textbf{Modelo de edad publicado:} el del sondeo de prueba es
+  ilustrativo y no vale para interpretar.
+\item
+  \textbf{Experimento a ciegas:} de 3 a 5 icnólogos asignan BI e ii
+  visuales a los mismos intervalos, sin ver el resultado automático. La
+  aplicación ya permite registrarlo (columnas \texttt{BI\_manual} e
+  \texttt{ii\_manual}).
+\item
+  \textbf{Estadística:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Concordancia entre observadores (kappa de Cohen ponderado o
+    coeficiente de correlación intraclase).
+  \item
+    Sesgo de cada observador frente al valor automático.
+  \item
+    Diagrama de Bland-Altman para el porcentaje.
+  \end{itemize}
+\item
+  \textbf{Aplicación:}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    Elegir testigos con buenas imágenes y datos de indicadores ya
+    publicados (material de la tesis).
+  \item
+    Correlación con desfase y prueba de significación que tenga en
+    cuenta la autocorrelación de las series.
+  \end{itemize}
+\end{enumerate}
+
+\hypertarget{preguntas-probables-de-revisores-1}{%
+\subsubsection{Preguntas probables de
+revisores}\label{preguntas-probables-de-revisores-1}}
+
+\textbf{Si los observadores no coinciden entre sí, ¿con qué se valida el
+método?} No se trata de que la máquina «acierte» a un experto. Se mide
+cuánta variabilidad hay entre expertos y si el método automático cae
+dentro de ella, con la ventaja de ser reproducible.
+
+\textbf{¿Una medida 2D de la cara del testigo representa la
+bioturbación?} Es la misma limitación de las estimaciones visuales, que
+también se hacen sobre la cara expuesta. Se indica como limitación (§14)
+y se mantiene la comparación en las mismas condiciones.
+
+\textbf{¿Cómo afecta la incertidumbre del modelo de edad a las
+correlaciones?} Se discute aparte. Si hace falta, se repite el análisis
+con modelos de edad alternativos. El programa no propaga esa
+incertidumbre (§5).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{artuxedculo-4-clasificaciuxf3n-automuxe1tica-de-intervalos-con-registros-multiproxy-descripciones-e-icnologuxeda}{%
+\subsection{Artículo 4 --- Clasificación automática de intervalos con
+registros multiproxy, descripciones e
+icnología}\label{artuxedculo-4-clasificaciuxf3n-automuxe1tica-de-intervalos-con-registros-multiproxy-descripciones-e-icnologuxeda}}
+
+\hypertarget{quuxe9-describiruxe1-2}{%
+\subsubsection{Qué describirá}\label{quuxe9-describiruxe1-2}}
+
+Un método reproducible para etiquetar intervalos (eventos como baja
+oxigenación, aporte detrítico o corrientes de fondo, pero también
+litologías o facies) en muchos sondeos a partir de registros numéricos
+(geoquímica, foraminíferos, TOC, sedimentología\ldots) y de intervalos
+descritos (litología, turbiditas\ldots), combinando el criterio experto
+(intervalos y reglas) con aprendizaje supervisado, y su cartografía por
+ventanas de edad. Incluye la icnología (bioturbación, BI, ii,
+icnotaxones) como variables.
+
+\hypertarget{muxe9todos-que-usa-3}{%
+\subsubsection{Métodos que usa}\label{muxe9todos-que-usa-3}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.7273}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 2\tabcolsep) * \real{0.2727}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Método
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+§
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Importación, remuestreo, razones, log y escalado & §21.1--§21.2 \\
+Capas de intervalos jerárquicas como variables (0/1) & §21.2--§21.3 \\
+Etiquetas por intervalos y reglas & §21.3 \\
+Clasificadores definidos por el usuario (familias objetivo, entradas,
+modelo) & §21.4 ter \\
+Bosque aleatorio, red neuronal (MLP), k-NN, Bayes ingenuo, k-medias &
+§21.4, §21.4 bis \\
+Clasificación manual en columnas y copia desde columnas automáticas &
+§21.4 ter \\
+Validación dejando un sondeo fuera & §21.5 \\
+Mapas por edad e IDW & §21.6 \\
+Bioturbación e índices como variables & §3--§4, §18, §21.1 \\
+\end{longtable}
+
+\hypertarget{quuxe9-se-puede-afirmar-hoy-2}{%
+\subsubsection{Qué se puede afirmar
+hoy}\label{quuxe9-se-puede-afirmar-hoy-2}}
+
+\begin{itemize}
+\tightlist
+\item
+  La implementación funciona y es reproducible (semilla) con datos
+  sintéticos de verdad conocida (§21.8).
+\item
+  Primera prueba con datos reales (§21.8 bis): con registros públicos de
+  ODP 977A, los tipos de ORL de la tesis se reconocen mal (acierto
+  equilibrado 36 \% por bloques). No se puede afirmar capacidad
+  predictiva; faltan los datos geoquímicos propios (XRF) y más sondeos
+  etiquetados.
+\item
+  Con los datos propios (V12, §21.8 ter): acierto equilibrado 17,7 \%
+  dejando un sondeo fuera con 7 clases. La transferencia entre sondeos
+  con variables y escáneres distintos es el problema principal que un
+  artículo tendría que resolver (armonizar variables, más sondeos por
+  tipo de variable).
+\item
+  V26 (misma tesis): el clasificador creado desde los ajustes guardados
+  da 18 \% de acierto equilibrado, coherente con la cifra anterior. En
+  el proyecto sintético de entrenamiento, bosque aleatorio $\approx$ 91 \% y red
+  neuronal $\approx$ 80 \% (verdad conocida; solo demuestra que la cadena
+  funciona).
+\end{itemize}
+
+\hypertarget{experimentos-necesarios-2}{%
+\subsubsection{Experimentos
+necesarios}\label{experimentos-necesarios-2}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Datos reales con interpretación independiente:} sondeos con
+  eventos publicados (p.~ej. sapropeles datados, contornitas, niveles
+  detríticos) que no hayan servido para definir las reglas.
+\item
+  \textbf{Etiquetas solo por intervalos} para entrenar y evaluar. Las
+  reglas se evalúan aparte, como «modelo experto», frente a la misma
+  verdad.
+\item
+  \textbf{Validación dejando sondeos enteros fuera} y, si hay
+  suficientes, por regiones (bloques espaciales), para medir la
+  transferencia a sondeos lejanos.
+\item
+  \textbf{Métricas:} acierto equilibrado, F1 por clase y matriz de
+  confusión; incertidumbre por remuestreo de sondeos (bootstrap por
+  sondeo).
+\item
+  \textbf{Comparaciones:} reglas expertas solas; bosque aleatorio; red
+  neuronal; k-NN; Bayes; y el efecto de añadir la icnología (con y sin
+  bioturbación/índices) y las capas descritas (con y sin litología) como
+  variables. Vigilar que una capa descrita no sea casi la misma
+  información que el objetivo (fuga de información), y declarar qué
+  capas se usaron.
+\item
+  \textbf{Importancia por permutación} (por implementar) además de MDI.
+\item
+  \textbf{Sensibilidad} al paso de remuestreo, al escalado (global
+  frente a por sondeo) y a la probabilidad mínima.
+\item
+  \textbf{Modelos de edad:} repetir los mapas con modelos alternativos o
+  con la incertidumbre publicada de cada sondeo.
+\item
+  \textbf{Prueba final independiente:} reservar 2--3 sondeos que no se
+  usan para elegir modelo ni ajustes, y dar en el artículo el acierto en
+  ellos.
+\end{enumerate}
+
+\hypertarget{preguntas-probables-de-revisores-2}{%
+\subsubsection{Preguntas probables de
+revisores}\label{preguntas-probables-de-revisores-2}}
+
+\textbf{¿El acierto no está inflado por la autocorrelación de las
+series?} Por eso la validación deja sondeos enteros fuera (o bloques
+contiguos si solo hay uno) y nunca mezcla muestras vecinas entre
+entrenamiento y prueba (§21.5).
+
+\textbf{Si las etiquetas salen de reglas, ¿el modelo no aprende solo las
+reglas?} Sí, y así se declara (§21.8). Para la evaluación se usan
+intervalos con interpretación independiente; las reglas solo sirven para
+proponer etiquetas o como referencia experta.
+
+\textbf{¿Por qué no deep learning?} El programa incluye una red neuronal
+(perceptrón multicapa con parada temprana, §21.4 bis) y se compara con
+el bosque aleatorio, k-NN y Bayes en el mismo esquema de validación. Con
+pocas decenas o cientos de intervalos etiquetados, los árboles suelen
+ser más robustos y dan una medida de importancia; redes más profundas
+(recurrentes, convolucionales sobre la serie) necesitarían muchos más
+sondeos etiquetados de los disponibles.
+
+\textbf{Probasteis varios modelos: ¿no estáis eligiendo el que mejor
+sale por azar?} Se informa de todos los modelos probados con la misma
+validación y el acierto final se da en sondeos reservados que no
+intervinieron en la elección (experimento 9).
+
+\textbf{¿La interpolación del mapa es fiable?} La interpolación es
+visual y exploratoria (§21.6, §21.6 ter): ningún método estima la
+incertidumbre de forma útil con pocos sondeos (el kriging da una
+varianza, pero su variograma con \textasciitilde10 sondeos es muy
+incierto) y ninguno tiene en cuenta barreras geográficas. Las
+conclusiones se basan en los valores de cada sondeo, que también se
+exportan. Los fondos de los mapas (Esri, GEBCO; §21.6 bis) son solo
+contexto visual: no entran en ningún cálculo, y su fuente debe citarse
+en el pie de la figura (el programa la escribe en el mapa).
+
+\textbf{¿Cómo entran datos categóricos como la litología en un modelo
+numérico?} Como columnas 0/1 por categoría, sin escalar (§21.2). La
+ausencia de descripción vale 0, igual que «no presente»; se declara como
+limitación y conviene usar solo sondeos con la capa descrita entera.
+
+\textbf{¿Cómo se combinan proxies medidos con técnicas o calibraciones
+distintas?} Con el z-score por sondeo (§21.2) se eliminan diferencias de
+nivel; se documenta qué escalado se usó y se muestra su efecto
+(experimento 7).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{artuxedculo-5-nota-breve-en-espauxf1ol-geogaceta}{%
+\subsection{Artículo 5 --- Nota breve en español
+(Geogaceta)}\label{artuxedculo-5-nota-breve-en-espauxf1ol-geogaceta}}
+
+\hypertarget{quuxe9-describiruxe1-3}{%
+\subsubsection{Qué describirá}\label{quuxe9-describiruxe1-3}}
+
+Presentación de CorAnTool a la comunidad geológica española: qué hace,
+para quién es y un ejemplo con un testigo de datos públicos (IODP
+U1385I-1H, margen ibérico) y el proyecto de entrenamiento. Sin
+resultados inéditos.
+
+\hypertarget{quuxe9-se-puede-afirmar-hoy-3}{%
+\subsubsection{Qué se puede afirmar
+hoy}\label{quuxe9-se-puede-afirmar-hoy-3}}
+
+Lo mismo que en el artículo 1 (funcionalidad y reproducibilidad), sin
+cifras de validación nuevas.
+
+\hypertarget{quuxe9-falta}{%
+\subsubsection{Qué falta}\label{quuxe9-falta}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Release con DOI y aplicación accesible en línea (GitHub Pages).
+\item[$\square$]
+  Figura: imagen tratada + columna compuesta + mapa de ejemplo.
+\item[$\square$]
+  Comprobar formato y extensión en las normas de la revista.
+\end{itemize}
+
+\hypertarget{preguntas-probables-de-revisores-3}{%
+\subsubsection{Preguntas probables de
+revisores}\label{preguntas-probables-de-revisores-3}}
+
+\textbf{¿Qué aporta frente a hacerlo a mano en Photoshop/ImageJ y una
+hoja de cálculo?} Un flujo único, reproducible y gratuito desde la
+imagen hasta series, mapas y figuras, con el proyecto guardado para
+repetir el análisis.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{lista-de-comprobaciuxf3n-antes-de-enviar-cualquier-artuxedculo}{%
+\subsection{Lista de comprobación antes de enviar cualquier
+artículo}\label{lista-de-comprobaciuxf3n-antes-de-enviar-cualquier-artuxedculo}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Cada método citado en el texto tiene su sección en
+  \texttt{DOCUMENTACION\_TECNICA.md}, y coincide con el código de la
+  versión citada.
+\item[$\square$]
+  Versión del software citada con DOI de Zenodo.
+\item[$\square$]
+  Parámetros usados guardados (archivo de proyecto) y publicados como
+  material suplementario.
+\item[$\square$]
+  Datos y máscaras depositados (Zenodo o PANGAEA) con licencia.
+\item[$\square$]
+  Limitaciones declaradas (§14).
+\item[$\square$]
+  Referencias comprobadas contra los originales.
+\item[$\square$]
+  Coautorías y agradecimientos acordados.
+\end{itemize}
+
+\newpage
+
+\hypertarget{borrador-1-software-joss-en-ingluxe9s}{%
+\section{Borrador 1 --- Software (JOSS, en
+inglés)}\label{borrador-1-software-joss-en-ingluxe9s}}
+
+\hypertarget{summary}{%
+\subsection{Summary}\label{summary}}
+
+Bioturbation intensity is a key parameter of the ichnofabric approach
+and is routinely estimated in sediment cores with semi-quantitative
+visual schemes such as the Bioturbation Index (Reineck 1963; Taylor y
+Goldring 1993) and the ichnofabric index (Droser y Bottjer 1986). Visual
+estimation is subjective, slow, and usually discontinuous along the
+core. IchAnTool converts segmented core images into continuous, depth-
+or age-referenced series of bioturbated-surface percentage, per-class
+coverage (e.g.~per ichnotaxon), and the corresponding semi-quantitative
+indices, ready to be correlated with geochemical, mineralogical, or
+logging data.
+
+\hypertarget{statement-of-need}{%
+\subsection{Statement of need}\label{statement-of-need}}
+
+Digital image treatment has improved the visibility and quantification
+of trace fossils in cores (Dorador y Rodríguez-Tovar 2014, 2018), but
+turning treated images into continuous data series remained a manual,
+repetitive task. A first version (IchAnTool), a single script, was
+introduced in Casanova-Arenillas, Rodríguez-Tovar, y Martínez-Ruiz
+(2020). CorAnTool is a complete rewrite: an installable, tested Python
+package with a command-line interface and API, and a browser application
+that needs no installation, aimed at sedimentologists, ichnologists,
+palaeoceanographers, and core-analysis practitioners in academia and
+industry. {[}TODO: one paragraph on existing alternatives and why
+IchAnTool is needed.{]}
+
+\hypertarget{functionality}{%
+\subsection{Functionality}\label{functionality}}
+
+\begin{itemize}
+\tightlist
+\item
+  Input: treated images (PNG, TIFF, JPEG) with bioturbation painted in a
+  single colour, colour-coded classes, or integer label masks.
+\item
+  Row-wise bioturbated percentage, aggregated into user-defined depth
+  bins.
+\item
+  Per-class percentages for colour-coded ichnotaxa.
+\item
+  Configurable index schemes (BI and ii provided).
+\item
+  Depth-to-age conversion with user age models.
+\item
+  CSV/Excel export, quick-look plots, and a modular segmentation
+  interface for future learned models.
+\item
+  Results reproduce those of the published version exactly (regression
+  test).
+\item
+  Browser application: projects with several cores; numeric records of
+  any kind (XRF, foraminifera, TOC, colour) in depth or age; families of
+  described intervals classified by hand; user-defined classifiers
+  (random forest, multilayer perceptron, k-nearest neighbours, naive
+  Bayes, k-means) validated leaving whole cores out; maps by age window
+  with several projections and interpolation methods; Grapher-like
+  plots; publication figures; a synthetic training project with a guided
+  tour.
+\end{itemize}
+
+\hypertarget{implementation}{%
+\subsection{Implementation}\label{implementation}}
+
+Both implementations share the same definitions. A label mask (0 =
+matrix, 1..n = objects or classes) is restricted to an analysis area.
+The bioturbated percentage of each depth interval of \emph{N} pixel rows
+is the ratio of bioturbated to valid pixels. Excluded pixels (cracks,
+voids, samples; currently in the web application only) leave both terms.
+Each interval is assigned the depth of its centre, interpolated linearly
+between the top and bottom depths of the analysis area. Percentages map
+to BI and ii through half-open tiers, and ages come from linear
+interpolation of a user age model.
+
+The web application adds four steps before the mask is final:
+
+\begin{itemize}
+\tightlist
+\item
+  image enhancement: levels, gamma, contrast, saturation, histogram
+  equalisation and unsharp-mask local contrast;
+\item
+  candidate detection: adaptive mean-C thresholding, 3 × 3 morphological
+  opening/closing and 8-connected components with a minimum size;
+\item
+  interactive editing: colour region growing, brush, lasso and an
+  exclusion layer;
+\item
+  assisted ichnotaxon identification: a distance-weighted
+  \emph{k}-nearest-neighbour classifier (\emph{k} = 5) on twelve
+  standardised shape, size (physical units) and colour descriptors, with
+  a confidence threshold, a novelty gate based on the leave-one-out
+  nearest-neighbour distance and exportable models.
+\end{itemize}
+
+All computations are deterministic. Project files store the original
+image and every parameter. A full technical reference, with formulas and
+default values, is distributed with the code (\texttt{docs/}).
+
+{[}TODO: figure --- example core, mask and output curves
+(\texttt{examples/}).{]}
+
+\hypertarget{acknowledgements}{%
+\subsection{Acknowledgements}\label{acknowledgements}}
+
+{[}TODO{]}
+
+\hypertarget{references}{%
+\subsection{References}\label{references}}
+
+\newpage
+
+\hypertarget{borrador-2-dataset-y-segmentaciuxf3n}{%
+\section{Borrador 2 --- Dataset y
+segmentación}\label{borrador-2-dataset-y-segmentaciuxf3n}}
+
+\hypertarget{paper-2-open-annotated-dataset-and-automatic-segmentation-of-bioturbation-in-core-images}{%
+\subsection{Paper 2 --- Open annotated dataset and automatic
+segmentation of bioturbation in core
+images}\label{paper-2-open-annotated-dataset-and-automatic-segmentation-of-bioturbation-in-core-images}}
+
+\textbf{Target:} Earth System Science Data (data focus) or Computers \&
+Geosciences / AI in Geosciences (method focus). Decide once the dataset
+size and model results are known.
+
+\hypertarget{working-title}{%
+\subsubsection{Working title}\label{working-title}}
+
+An open, annotated dataset of sediment-core images for automatic
+segmentation of bioturbation and ichnotaxa {[}TODO{]}
+
+\hypertarget{provisional-abstract}{%
+\subsubsection{Provisional abstract}\label{provisional-abstract}}
+
+Quantifying bioturbation in cores still depends on manual selection of
+trace fossils on images, the main bottleneck of image-based ichnofabric
+analysis. We present {[}N{]} core images from {[}sites/expeditions{]}
+with expert masks of bioturbation {[}and ichnotaxa{]}, and train
+{[}model{]} to segment them automatically. Automatic masks are compared
+with expert masks and with visual BI/ii estimates. Data, code
+(IchAnTool) and trained models are openly released. {[}TODO: results{]}
+
+\hypertarget{outline}{%
+\subsubsection{Outline}\label{outline}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Introduction --- subjectivity and cost of manual selection; image
+  treatment state of the art.
+\item
+  Related work --- recent deep-learning approaches to bioturbation
+  {[}TODO: review, incl. Applied Sciences 11(16):7736 (2021) and patent
+  US12142024; verify authors{]}.
+\item
+  Data --- sources (ODP/IODP, UGR collections), resolution, licences,
+  annotation protocol, inter-annotator agreement.
+\item
+  Methods --- annotation tool, model, training/validation split by core
+  (not by tile).
+\item
+  Results --- IoU/F1, percentage error per bin, BI/ii agreement.
+\item
+  Usage --- integration with IchAnTool (\texttt{segmentation} module).
+\item
+  Data availability --- Zenodo/PANGAEA DOI.
+\end{enumerate}
+
+\hypertarget{needs}{%
+\subsubsection{Needs}\label{needs}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Permission and licence for the images (IODP images are public; UGR
+  treated images: ask).
+\item[$\square$]
+  Annotation by $\geq$2 experts on a subset to measure agreement.
+\item[$\square$]
+  GPU for training (a single consumer GPU is enough for a U-Net).
+\end{itemize}
+
+\newpage
+
+\hypertarget{borrador-3-validaciuxf3n-y-aplicaciuxf3n}{%
+\section{Borrador 3 --- Validación y
+aplicación}\label{borrador-3-validaciuxf3n-y-aplicaciuxf3n}}
+
+\hypertarget{paper-3-validation-and-palaeoenvironmental-application}{%
+\subsection{Paper 3 --- Validation and palaeoenvironmental
+application}\label{paper-3-validation-and-palaeoenvironmental-application}}
+
+\textbf{Target:} Palaeogeography, Palaeoclimatology, Palaeoecology.
+Alternatives: Ichnos, Marine Geology, Sedimentary Geology.
+
+\hypertarget{working-title-1}{%
+\subsubsection{Working title}\label{working-title-1}}
+
+Continuous, objective bioturbation records from core images: validation
+against visual indices and application to {[}region/period{]} {[}TODO{]}
+
+\hypertarget{idea}{%
+\subsubsection{Idea}\label{idea}}
+
+\begin{itemize}
+\tightlist
+\item
+  Validation: compare IchAnTool percentages with blind visual BI/ii
+  estimates by several ichnologists on the same intervals; quantify
+  subjectivity and bias of visual schemes.
+\item
+  Application: continuous bioturbation and per-ichnotaxon records along
+  long cores, correlated with geochemical/redox and SST proxies
+  (e.g.~Western Mediterranean during the Last Glacial Cycle; extends the
+  ODP 977 example of Casanova-Arenillas et al., 2020).
+\end{itemize}
+
+\hypertarget{outline-1}{%
+\subsubsection{Outline}\label{outline-1}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Introduction
+\item
+  Material --- cores, images, age models, proxy data
+\item
+  Methods --- IchAnTool workflow, observer experiment, statistics
+\item
+  Results --- agreement and bias; continuous records
+\item
+  Discussion --- what continuous records reveal that discrete estimates
+  miss
+\item
+  Conclusions
+\end{enumerate}
+
+\hypertarget{needs-1}{%
+\subsubsection{Needs}\label{needs-1}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Choose cores with good images and existing proxy data (thesis
+  material).
+\item[$\square$]
+  Recruit 3--5 observers for the blind test.
+\end{itemize}
+
+\newpage
+
+\hypertarget{borrador-4-clasificaciuxf3n-multiproxy}{%
+\section{Borrador 4 --- Clasificación
+multiproxy}\label{borrador-4-clasificaciuxf3n-multiproxy}}
+
+\hypertarget{paper-4-automatic-classification-of-core-intervals-from-multiproxy-records}{%
+\subsection{Paper 4 --- Automatic classification of core intervals from
+multiproxy
+records}\label{paper-4-automatic-classification-of-core-intervals-from-multiproxy-records}}
+
+\textbf{Target:} Computers \& Geosciences. Alternatives: Artificial
+Intelligence in Geosciences, Applied Computing and Geosciences; Marine
+Geology if the emphasis is the palaeoceanographic result.
+
+\hypertarget{working-title-2}{%
+\subsubsection{Working title}\label{working-title-2}}
+
+Reproducible classification of core intervals (sapropels, organic-rich
+layers, turbidites\ldots) from multiproxy records with user-defined
+machine-learning classifiers {[}TODO{]}
+
+\hypertarget{provisional-abstract-1}{%
+\subsubsection{Provisional abstract}\label{provisional-abstract-1}}
+
+Interval interpretation in cores (e.g.~low-oxygen events, detrital
+pulses, climate stages) is done by experts core by core and is hard to
+reproduce across many cores and laboratories. We present a workflow in
+CorAnTool in which experts define families of intervals and their
+classes, label some cores, and train classifiers (random forest,
+multilayer perceptron, k-nearest neighbours, naive Bayes) on resampled
+multiproxy records (XRF, foraminifera, TOC, colour, bioturbation).
+Models are validated leaving whole cores out and tested on {[}N{]} cores
+withheld from model selection. {[}TODO: results --- balanced accuracy
+per family, per class F1, transfer between basins, effect of adding
+ichnology.{]}
+
+\hypertarget{outline-2}{%
+\subsubsection{Outline}\label{outline-2}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Introduction --- expert interval interpretation; reproducibility
+  across cores; prior ML in core logging {[}TODO review{]}.
+\item
+  Data --- cores, proxies, age models, described intervals (independent
+  of the rules), harmonisation of variables.
+\item
+  Methods --- resampling and scaling (§21.2); families and labels
+  (§21.3); classifiers (§21.4--§21.4 ter); validation leaving one core
+  out (§21.5); held-out cores for the final test; permutation importance
+  {[}TODO implement{]}.
+\item
+  Results --- comparison of models and inputs; maps by age window
+  (§21.6) as illustration only.
+\item
+  Discussion --- transfer between cores with different scanners; leakage
+  between families; limits.
+\item
+  Software and data availability --- CorAnTool release (DOI), project
+  files as supplementary material.
+\end{enumerate}
+
+\hypertarget{needs-2}{%
+\subsubsection{Needs}\label{needs-2}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Cores with independently described events (published sapropels/ORL,
+  turbidites) not used to define rules.
+\item[$\square$]
+  Harmonised variable set across cores (same XRF ratios or calibrated
+  values).
+\item[$\square$]
+  Held-out cores option in the interface (to avoid model-selection
+  bias).
+\item[$\square$]
+  Permutation importance (also valid for the neural network).
+\end{itemize}
+
+\newpage
+
+\hypertarget{borrador-5-nota-en-geogaceta}{%
+\section{Borrador 5 --- Nota en
+Geogaceta}\label{borrador-5-nota-en-geogaceta}}
+
+\hypertarget{artuxedculo-5-nota-breve-corantool-una-herramienta-abierta-para-el-anuxe1lisis-de-sondeos}{%
+\subsection{Artículo 5 --- Nota breve: CorAnTool, una herramienta
+abierta para el análisis de
+sondeos}\label{artuxedculo-5-nota-breve-corantool-una-herramienta-abierta-para-el-anuxe1lisis-de-sondeos}}
+
+\textbf{Revista:} Geogaceta (Sociedad Geológica de España). Alternativa:
+Spanish Journal of Palaeontology.
+
+\hypertarget{tuxedtulo-provisional}{%
+\subsubsection{Título provisional}\label{tuxedtulo-provisional}}
+
+CorAnTool: una herramienta abierta para cuantificar la bioturbación e
+integrar datos multiproxy en sondeos {[}TODO{]}
+
+\hypertarget{idea-1}{%
+\subsubsection{Idea}\label{idea-1}}
+
+Presentar el programa a la comunidad española con un ejemplo
+reproducible sobre datos públicos (IODP U1385I-1H, margen ibérico) y el
+proyecto de entrenamiento: imagen tratada $\rightarrow$ porcentaje de bioturbación,
+BI e ii $\rightarrow$ columna compuesta con registros geoquímicos $\rightarrow$ familias de
+intervalos y clasificación $\rightarrow$ mapa por edad.
+
+\hypertarget{esquema}{%
+\subsubsection{Esquema}\label{esquema}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Introducción: subjetividad de los índices visuales y falta de
+  herramientas abiertas que integren imagen y datos.
+\item
+  La herramienta: flujo, formatos, reproducibilidad (proyecto guardado,
+  semilla), aplicación web sin instalación.
+\item
+  Ejemplo con datos públicos (figura única con tres paneles).
+\item
+  Disponibilidad: código, DOI, licencia, aplicación en línea.
+\end{enumerate}
+
+\hypertarget{pendiente}{%
+\subsubsection{Pendiente}\label{pendiente}}
+
+\begin{itemize}
+\tightlist
+\item[$\square$]
+  Normas de extensión y formato de la revista.
+\item[$\square$]
+  Figura y aplicación publicada en GitHub Pages.
+\end{itemize}
+
+\newpage
+
+\hypertarget{revistas-candidatas}{%
+\section{Revistas candidatas}\label{revistas-candidatas}}
+
+No se incluyen factores de impacto ni APC: cambian cada año. Verificar
+en la web de cada revista antes de enviar.
+
+\hypertarget{software-y-muxe9todos-computacionales}{%
+\subsection{Software y métodos
+computacionales}\label{software-y-muxe9todos-computacionales}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.3056}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2222}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2222}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Revista
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Editorial
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Acceso
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Encaje
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Journal of Open Source Software (JOSS) & Open Journals & Abierto, sin
+coste & Artículo corto + revisión del código en GitHub. Ideal para
+IchAnTool 3. \\
+Computers \& Geosciences & Elsevier & Híbrido & Donde se publicó la v2.1
+(2020). Bueno para un método nuevo (segmentación automática). \\
+Applied Computing and Geosciences & Elsevier & Abierto & Revista hermana
+de C\&G, orientada a aplicaciones y software. \\
+Artificial Intelligence in Geosciences & KeAi & Abierto & Encaje directo
+si el aporte principal es el modelo de deep learning. \\
+Geoscientific Instrumentation, Methods and Data Systems & Copernicus &
+Abierto & Métodos y sistemas de datos; alternativa a C\&G. \\
+\end{longtable}
+
+\hypertarget{datos}{%
+\subsection{Datos}\label{datos}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.3056}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2222}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2222}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Revista
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Editorial
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Acceso
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Encaje
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Earth System Science Data (ESSD) & Copernicus & Abierto & Dataset
+anotado de imágenes de testigos y máscaras de bioturbación. \\
+Scientific Data & Springer Nature & Abierto & Data descriptor; alta
+visibilidad fuera de geología. \\
+Geoscience Data Journal & Wiley & Abierto & Alternativa para datasets
+geocientíficos. \\
+\end{longtable}
+
+\hypertarget{icnologuxeda-sedimentologuxeda-y-paleoambiente}{%
+\subsection{Icnología, sedimentología y
+paleoambiente}\label{icnologuxeda-sedimentologuxeda-y-paleoambiente}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.3056}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2222}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 6\tabcolsep) * \real{0.2222}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Revista
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Editorial
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Acceso
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Encaje
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Ichnos & Taylor \& Francis & Híbrido & Revista de referencia en
+icnología; validación frente a BI/ii visual. \\
+Palaeogeography, Palaeoclimatology, Palaeoecology & Elsevier & Híbrido &
+Aplicación paleoambiental (p.~ej. Último Ciclo Glacial en el
+Mediterráneo). \\
+Marine Geology & Elsevier & Híbrido & Aplicación en testigos marinos
+(IODP/ODP). \\
+Sedimentary Geology & Elsevier & Híbrido & Enfoque
+sedimentológico/icnofábrica. \\
+Palaios & SEPM & Híbrido & Paleoecología e icnología. \\
+Lethaia & Scandinavian University Press & Abierto & Paleontología e
+icnología. \\
+Marine and Petroleum Geology / AAPG Bulletin & Elsevier / AAPG & Híbrido
+& Si se orienta a reservorios y caracterización de testigos en
+industria. \\
+\end{longtable}
+
+\hypertarget{divulgaciuxf3n-tuxe9cnica-en-espauxf1ol}{%
+\subsection{Divulgación técnica en
+español}\label{divulgaciuxf3n-tuxe9cnica-en-espauxf1ol}}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.3214}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.3929}}
+  >{\raggedright\arraybackslash}p{(\columnwidth - 4\tabcolsep) * \real{0.2857}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Revista
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Editorial
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Encaje
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Geogaceta & Sociedad Geológica de España & Nota corta presentando la
+herramienta a la comunidad española. \\
+Spanish Journal of Palaeontology & Sociedad Española de Paleontología &
+Aplicaciones icnológicas. \\
+\end{longtable}
+
+\hypertarget{criterios-para-elegir}{%
+\subsection{Criterios para elegir}\label{criterios-para-elegir}}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  ¿El aporte es el software, los datos, el método o la interpretación
+  geológica? Eso decide la familia de revistas.
+\item
+  Acceso abierto: aumenta adopción de la herramienta; JOSS y Copernicus
+  no cobran o cobran poco.
+\item
+  Plazo: JOSS y las revistas de datos suelen ser más rápidas que las de
+  paleoambiente.
+\end{enumerate}
+
+\hypertarget{refs}{}
+\begin{CSLReferences}{1}{0}
+\leavevmode\vadjust pre{\hypertarget{ref-casanova2020}{}}%
+Casanova-Arenillas, Santiago, Francisco J. Rodríguez-Tovar, y Francisca
+Martínez-Ruiz. 2020. {«Applied ichnology in sedimentary geology: Python
+scripts as a method to automatize ichnofabric analysis in marine core
+images»}. \emph{Computers \& Geosciences} 136: 104407.
+\url{https://doi.org/10.1016/j.cageo.2020.104407}.
+
+\leavevmode\vadjust pre{\hypertarget{ref-dorador2014}{}}%
+Dorador, Javier, y Francisco J. Rodríguez-Tovar. 2014. {«Quantitative
+estimation of bioturbation based on digital image analysis»}.
+\emph{Marine Geology} 349: 55-60.
+
+\leavevmode\vadjust pre{\hypertarget{ref-dorador2018}{}}%
+---------. 2018. {«High-resolution image treatment in ichnological core
+analysis: Initial steps, advances and prospects»}. \emph{Earth-Science
+Reviews} 177: 226-37.
+
+\leavevmode\vadjust pre{\hypertarget{ref-droser1986}{}}%
+Droser, Mary L., y David J. Bottjer. 1986. {«A semiquantitative field
+classification of ichnofabric»}. \emph{Journal of Sedimentary Petrology}
+56: 558-59.
+
+\leavevmode\vadjust pre{\hypertarget{ref-reineck1963}{}}%
+Reineck, H.-E. 1963. {«Sedimentgef{ü}ge im Bereich der s{ü}dlichen
+Nordsee»}. \emph{Abhandlungen der Senckenbergischen Naturforschenden
+Gesellschaft} 505: 1-138.
+
+\leavevmode\vadjust pre{\hypertarget{ref-taylor1993}{}}%
+Taylor, A. M., y R. Goldring. 1993. {«Description and analysis of
+bioturbation and ichnofabric»}. \emph{Journal of the Geological Society}
+150: 141-48.
+
+\end{CSLReferences}
+
+\end{document}

@@ -4,7 +4,7 @@ Estado del proyecto al pasar de la conversación de claude.ai a Claude Code. Lé
 (reglas) y `docs/HISTORIAL_VERSIONES.md` (qué se hizo en cada entrega).
 
 ## Estado
-- Última entrega: **V28** (`DELIVERY` en `app/js/app.js`; el programa es el de V27, aplicación web 2.0.1).
+- Última entrega: **V29** (`DELIVERY` en `app/js/app.js`; el programa es el de V27, aplicación web 2.0.1).
 - Pruebas: `npm test` (44, Node) y `pytest` (9, Python). Deben pasar antes de cada commit.
 - Rama de trabajo: `master`. Remoto: `https://github.com/SantiCa/IchAnTool-Project.git` (público).
 
@@ -12,6 +12,7 @@ Estado del proyecto al pasar de la conversación de claude.ai a Claude Code. Lé
 - App en local: desde la raíz, `python -m http.server 8765` y abrir `http://localhost:8765/app/`.
 - Archivo sin conexión: `python tools/build_standalone.py` → `dist/CorAnTool_V<n>.html` (incluye los datos privados
   si existen en `examples/tesis_casanova/privado/`; `dist/` no se sube a git).
+- Publicaciones en Word y LaTeX: `python tools/export_publications.py` (necesita pandoc).
 - Python: `pip install -e ".[dev]"` (incluye pytest, openpyxl y matplotlib) y `pytest`.
 
 ## Datos privados de la tesis

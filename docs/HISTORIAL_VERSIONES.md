@@ -46,6 +46,7 @@ La descripción detallada de los algoritmos está en
 | V26 | 01-11-2026 | Aplicación web 2.0 | Multiproxy rehecho en torno a familias de intervalos y clasificadores: clasificación manual arrastrando en la columna de cualquier familia y sondeo, varios clasificadores definidos por el usuario (qué clasifican, con qué datos, qué modelo), red neuronal (perceptrón multicapa) y comparación de modelos |
 | V27 | 01-11-2026 | Aplicación web 2.0.1 | Barra de progreso del entrenamiento (con tiempo restante y Cancelar) y número de versión visible en el programa y en el nombre del archivo descargable |
 | V28 | 01-11-2026 | Documentación | Nota de traspaso a Claude Code (estado, cómo ejecutar, datos privados, pendientes) |
+| V29 | 01-11-2026 | Publicaciones | Cartera de publicaciones actualizada (5 trabajos, estado y orden), métodos y defensa reorganizados, borradores 4 y 5, y exportación del dossier a Word y LaTeX |
 
 ---
 
@@ -617,6 +618,34 @@ ningún error.
 
 **Pendiente o problemas conocidos.** Reestructuración del programa en proyectos → sondeos (pedida a
 la vez; se planifica aparte).
+
+---
+
+## V29 — Publicaciones actualizadas y exportación a Word y LaTeX (01-11-2026)
+
+**Qué se hizo.** Puesta al día de las publicaciones previstas con lo desarrollado hasta V28 y versión descargable del
+dossier en Word y LaTeX.
+
+**Cambios.**
+- `publications/README.md`: cartera de 5 trabajos (software; dataset y segmentación; validación y aplicación;
+  clasificación multiproxy, nuevo; nota en Geogaceta, nueva), orden recomendado 1 → 5 → 4 → 2 → 3 y tabla de qué puede
+  afirmar hoy cada uno.
+- `METODOS_Y_DEFENSA.md`: las notas de versión dispersas pasan a una sección «Lo que hay que saber del software»;
+  se recolocan dos notas que estaban en el artículo 2; artículo 1 con todos los módulos (multiproxy, mapas, gráficos,
+  proyecto de entrenamiento); artículo 4 con clasificadores, red neuronal, cifras de V26, prueba final independiente y
+  respuesta sobre el sesgo de selección de modelo; artículo 5 nuevo.
+- Borradores nuevos: `04_multiproxy_classification/draft.md` (inglés) y `05_nota_geogaceta/draft.md`.
+- Borrador JOSS: nombre CorAnTool y funciones de la aplicación web.
+- `tools/export_publications.py` (pandoc) genera `publications/export/Publicaciones_CorAnTool.docx` y `.tex` (citas
+  del borrador JOSS resueltas con su `paper.bib`; símbolos fuera de Latin-1 convertidos para que compile con pdflatex).
+
+**Por qué.** Petición de Santiago: actualizar las potenciales publicaciones en GitHub y poder descargarlas en Word y
+LaTeX.
+
+**Comprobación.** El `.tex` compila con pdflatex (18 páginas) y el `.docx` se abre y convierte bien (19 páginas);
+tablas y listas revisadas visualmente. Pruebas del programa sin cambios (`npm test` 44, `pytest` 9).
+
+**Pendiente o problemas conocidos.** Las cifras de los borradores son provisionales. El programa no cambia (V27).
 
 ---
 

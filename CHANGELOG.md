@@ -2,6 +2,9 @@
 
 Delivery numbers (V1–V5) and full details: [docs/HISTORIAL_VERSIONES.md](docs/HISTORIAL_VERSIONES.md).
 
+## V29 — 2026-11-01
+- Publications: updated portfolio (5 papers), methods and defence reorganised, drafts 4 and 5, Word/LaTeX export (`tools/export_publications.py`).
+
 ## V28 — 2026-11-01
 - Documentation only: handoff note for continuing in Claude Code (`docs/TRASPASO_CLAUDE_CODE.md`).
 

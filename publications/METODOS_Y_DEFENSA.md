@@ -1,23 +1,30 @@
 # Métodos y defensa ante revisores
 
-> **V22 (revisión del concilio):** la evaluación de icnotaxones se valida por imagen (sección) y cuenta como error
-> cualquier predicción de un taxón ausente del conjunto de prueba; el clasificador de intervalos se puntúa solo con
-> intervalos descritos (no con reglas) e informa el acierto por sondeo (media ± DE) y la cobertura a la probabilidad
-> mínima; los mapas de valores usan solo datos reales y la interpolación mide distancias en km. Las cifras obtenidas
-> con versiones anteriores deben recalcularse. Las «probabilidades» de RF, NB y k-NN son proporciones de voto o
-> verosimilitudes normalizadas, no probabilidades calibradas. Los mapas z por sondeo eliminan las diferencias de
-> nivel absoluto entre sondeos (el gradiente espacial): úsense para patrones relativos.
+Estado al 01-11-2026 (software en la entrega **V28**, aplicación web 2.0.1). Cartera completa en
+[README.md](README.md).
 
-> Desde V16 el programa se llama **CorAnTool** (antes IchAnTool). En los artículos: «CorAnTool (formerly
-> IchAnTool; Casanova-Arenillas et al., 2020)». Los sondeos LC06, LC14 y LC20 tienen profundidad supuesta
-> (secciones apiladas, §21.8 ter): no usarlos en una figura publicada sin verificarla.
-> Desde V17 hay tres modelos de icnotaxones (sondeo, proyecto, todos los proyectos; §10.6 bis). En un
-> artículo hay que decir cuál se usó y su acierto dejando uno fuera; la «probabilidad» es la proporción del
-> voto ponderado de los k vecinos, no una probabilidad calibrada.
-> Desde V18 se puede elegir k-NN, Random Forest o Bayes ingenuo; la evaluación integrada (5 grupos
-> estratificados, semilla 42, mismas trazas para los 9 casos; §10.6 ter) da el acierto equilibrado que hay que
-> citar. Los grupos son aleatorios dentro del sondeo: trazas vecinas pueden caer en grupos distintos, así que
-> el acierto puede ser algo optimista frente a un sondeo nuevo (para eso, comparar con el modelo «todos»).
+## Lo que hay que saber del software antes de escribir cualquier artículo
+- **Nombre:** desde V16 el programa se llama **CorAnTool** (antes IchAnTool). En los artículos: «CorAnTool (formerly
+  IchAnTool; Casanova-Arenillas et al., 2020)». Citar la entrega usada (p. ej. «V28») y, al enviar, la release con DOI.
+- **Icnotaxones (imágenes):** tres modelos (sondeo, proyecto, todos los proyectos; §10.6 bis) y tres métodos (k-NN,
+  bosque aleatorio, Bayes ingenuo; §10.6 ter). Desde V22 la evaluación agrupa por imagen (sección) y cuenta como error
+  cualquier predicción de un taxón ausente del conjunto de prueba. Hay que decir qué modelo y método se usó y su acierto
+  equilibrado. Las «probabilidades» de RF, NB y k-NN son proporciones de voto o verosimilitudes normalizadas, no
+  probabilidades calibradas.
+- **Multiproxy (V26–V27):** familias de intervalos (p. ej. periodo frío/cálido; baja oxigenación con sapropel/ORL)
+  que se clasifican a mano en cualquier sondeo, y **clasificadores definidos por el usuario** (qué familias, con qué
+  variables y familias de entrada, qué modelo: bosque aleatorio, red neuronal MLP, k-NN, Bayes, k-medias), validados
+  dejando un sondeo fuera (§21.4–§21.5). Solo se puntúan intervalos descritos, no los etiquetados por reglas.
+- **Selección de modelo:** comparar varios clasificadores con la misma validación y quedarse con el mejor **sesga el
+  acierto al alza**. Un artículo debe informar de todos los modelos probados o reservar sondeos para una prueba final
+  independiente (pendiente de implementar en la interfaz).
+- **Sondeos compartidos entre proyectos (V23):** cuentan una sola vez en mapas y análisis entre proyectos, y los
+  ejemplos de icnotaxones repetidos se descartan. La coincidencia es por nombre: revisar los marcados «en N proyectos».
+- **Mapas:** los valores usan solo datos reales; la interpolación (IDW, kriging, TIN, RBF…; §21.6 ter) mide distancias
+  en km y es exploratoria. Los mapas de z por sondeo eliminan el gradiente absoluto entre sondeos: úsense para patrones
+  relativos. Los fondos (Esri, GEBCO) son contexto visual y se citan en el pie.
+- **Datos de la tesis:** LC06, LC14 y LC20 tienen profundidad supuesta (secciones apiladas, §21.8 ter): no usarlos en
+  una figura publicada sin verificarla. Las cifras obtenidas con versiones anteriores a V22 deben recalcularse.
 
 Para cada artículo previsto: qué partes de IchAnTool usa, qué se puede afirmar con lo que ya está
 hecho, qué falta comprobar antes de enviarlo y las preguntas que probablemente hará un revisor,
@@ -32,11 +39,12 @@ limitación o trabajo futuro.
 
 ---
 
-## Artículo 1 — Software (JOSS)
+## Artículo 1 — Software: CorAnTool (JOSS)
 
 ### Qué describe
-El paquete Python y la aplicación web como herramienta abierta para calcular series continuas de
-bioturbación a partir de imágenes de testigos.
+El paquete Python y la aplicación web como herramienta abierta de análisis de sondeos: series continuas de
+bioturbación a partir de imágenes, junto con registros multiproxy, intervalos descritos, clasificación automática de
+intervalos, mapas por edad y figuras, organizado en proyectos.
 
 ### Métodos que usa
 | Método | § |
@@ -50,8 +58,11 @@ bioturbación a partir de imágenes de testigos.
 | Formatos de exportación | §12 |
 | Resolución de trabajo, proyectos | §16–§17 |
 | Registro compuesto y registros externos | §18–§19 |
-| Herramienta multiproxy (si se incluye) | §21 |
-| Organización por proyectos y sondeos, datos, figuras | §22 |
+| Herramienta multiproxy: familias, clasificadores (RF, MLP, k-NN, NB), validación | §21–§21.5 |
+| Mapas: proyecciones, interpolación (IDW, kriging, TIN, RBF…), exportación | §21.6–§21.6 quater |
+| Gráficos de datos (tipo Grapher) y hoja de cálculo | §22.3 bis |
+| Organización por proyectos y sondeos, análisis entre proyectos, figuras | §22 |
+| Proyecto de entrenamiento y recorrido guiado | §22.7 |
 
 ### Qué se puede afirmar hoy
 - Integra en una sola herramienta las imágenes, la bioturbación y otros registros del mismo sondeo, en profundidad o en edad, con exportación vectorial (§18). Demostrado con datos públicos del IODP (sondeo de prueba U1385I-1H).
@@ -72,6 +83,8 @@ bioturbación a partir de imágenes de testigos.
 - [ ] Alojar la aplicación en GitHub Pages.
 - [ ] Decidir la licencia definitiva.
 - [ ] Revisar la bibliografía.
+- [ ] Dividir `app.js` en módulos (los revisores de JOSS miran la calidad del código).
+- [ ] Decidir el alcance: un único artículo de software con todo, o dejar la parte multiproxy para el artículo 4.
 
 ### Preguntas probables de revisores (JOSS revisa también el código)
 **¿Qué aporta frente a ImageJ/Fiji, que ya cuenta píxeles?**
@@ -127,16 +140,8 @@ identificación.
 Nada sobre la precisión en datos reales: todavía no hay datos anotados. Solo que las herramientas
 existen y producen máscaras en un formato abierto.
 
-- Desde V23 un sondeo presente en varios proyectos cuenta una sola vez (mapa, análisis multiproyecto)
-  y los ejemplos de icnotaxones repetidos entre proyectos se descartan, de modo que no inflan la
-  evaluación del modelo de todos los proyectos. La coincidencia es por nombre: conviene declararlo y
-  revisar los sondeos marcados «en N proyectos» antes de publicar resultados.
-
-- Desde V26 se pueden definir varios clasificadores (bosque aleatorio, red neuronal MLP, k vecinos, Bayes ingenuo)
-  con entradas distintas y compararlos con la misma validación dejando un sondeo fuera. **Cuidado:** elegir el mejor
-  modelo con esa misma validación sesga el acierto al alza (selección de modelo); un artículo debe informar de todos
-  los modelos probados o reservar sondeos para una prueba final independiente. La red neuronal necesita más muestras
-  etiquetadas; con pocos sondeos no conviene atribuirle ventaja si no supera claramente al bosque aleatorio.
+- La identificación asistida de icnotaxones ya tiene evaluación por imagen (V22); falta medirla en testigos
+  independientes anotados por expertos.
 
 ### Experimentos necesarios
 1. **Datos:** testigos con imágenes de licencia clara (IODP/ODP son públicas; las imágenes tratadas
@@ -243,7 +248,9 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 | Importación, remuestreo, razones, log y escalado | §21.1–§21.2 |
 | Capas de intervalos jerárquicas como variables (0/1) | §21.2–§21.3 |
 | Etiquetas por intervalos y reglas | §21.3 |
-| Random Forest, k-NN, Bayes ingenuo, k-medias | §21.4 |
+| Clasificadores definidos por el usuario (familias objetivo, entradas, modelo) | §21.4 ter |
+| Bosque aleatorio, red neuronal (MLP), k-NN, Bayes ingenuo, k-medias | §21.4, §21.4 bis |
+| Clasificación manual en columnas y copia desde columnas automáticas | §21.4 ter |
 | Validación dejando un sondeo fuera | §21.5 |
 | Mapas por edad e IDW | §21.6 |
 | Bioturbación e índices como variables | §3–§4, §18, §21.1 |
@@ -257,6 +264,9 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
 - Con los datos propios (V12, §21.8 ter): acierto equilibrado 17,7 % dejando un sondeo fuera con 7
   clases. La transferencia entre sondeos con variables y escáneres distintos es el problema principal
   que un artículo tendría que resolver (armonizar variables, más sondeos por tipo de variable).
+- V26 (misma tesis): el clasificador creado desde los ajustes guardados da 18 % de acierto equilibrado, coherente con
+  la cifra anterior. En el proyecto sintético de entrenamiento, bosque aleatorio ≈ 91 % y red neuronal ≈ 80 %
+  (verdad conocida; solo demuestra que la cadena funciona).
 
 ### Experimentos necesarios
 1. **Datos reales con interpretación independiente:** sondeos con eventos publicados (p. ej.
@@ -268,7 +278,7 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
    espaciales), para medir la transferencia a sondeos lejanos.
 4. **Métricas:** acierto equilibrado, F1 por clase y matriz de confusión; incertidumbre por
    remuestreo de sondeos (bootstrap por sondeo).
-5. **Comparaciones:** reglas expertas solas; Random Forest; k-NN; Bayes; y el efecto de añadir
+5. **Comparaciones:** reglas expertas solas; bosque aleatorio; red neuronal; k-NN; Bayes; y el efecto de añadir
    la icnología (con y sin bioturbación/índices) y las capas descritas (con y sin litología) como
    variables. Vigilar que una capa descrita no sea casi la misma información que el objetivo
    (fuga de información), y declarar qué capas se usaron.
@@ -277,6 +287,8 @@ la icnología (bioturbación, BI, ii, icnotaxones) como variables.
    probabilidad mínima.
 8. **Modelos de edad:** repetir los mapas con modelos alternativos o con la incertidumbre
    publicada de cada sondeo.
+9. **Prueba final independiente:** reservar 2–3 sondeos que no se usan para elegir modelo ni ajustes, y dar en el
+   artículo el acierto en ellos.
 
 ### Preguntas probables de revisores
 **¿El acierto no está inflado por la autocorrelación de las series?**
@@ -287,10 +299,15 @@ mezcla muestras vecinas entre entrenamiento y prueba (§21.5).
 Sí, y así se declara (§21.8). Para la evaluación se usan intervalos con interpretación
 independiente; las reglas solo sirven para proponer etiquetas o como referencia experta.
 
-**¿Por qué Random Forest y no deep learning?**
-Con pocas decenas o cientos de intervalos etiquetados, los métodos de árboles son robustos, no
-necesitan normalizar la forma de cada proxy y dan una medida de importancia. Se comparan con
-métodos más simples (k-NN, Bayes) en el mismo esquema de validación.
+**¿Por qué no deep learning?**
+El programa incluye una red neuronal (perceptrón multicapa con parada temprana, §21.4 bis) y se compara con el bosque
+aleatorio, k-NN y Bayes en el mismo esquema de validación. Con pocas decenas o cientos de intervalos etiquetados, los
+árboles suelen ser más robustos y dan una medida de importancia; redes más profundas (recurrentes, convolucionales
+sobre la serie) necesitarían muchos más sondeos etiquetados de los disponibles.
+
+**Probasteis varios modelos: ¿no estáis eligiendo el que mejor sale por azar?**
+Se informa de todos los modelos probados con la misma validación y el acierto final se da en sondeos reservados que no
+intervinieron en la elección (experimento 9).
 
 **¿La interpolación del mapa es fiable?**
 La interpolación es visual y exploratoria (§21.6, §21.6 ter): ningún método estima la incertidumbre
@@ -306,6 +323,27 @@ Como columnas 0/1 por categoría, sin escalar (§21.2). La ausencia de descripci
 **¿Cómo se combinan proxies medidos con técnicas o calibraciones distintas?**
 Con el z-score por sondeo (§21.2) se eliminan diferencias de nivel; se documenta qué escalado se
 usó y se muestra su efecto (experimento 7).
+
+---
+
+## Artículo 5 — Nota breve en español (Geogaceta)
+
+### Qué describirá
+Presentación de CorAnTool a la comunidad geológica española: qué hace, para quién es y un ejemplo con un testigo de
+datos públicos (IODP U1385I-1H, margen ibérico) y el proyecto de entrenamiento. Sin resultados inéditos.
+
+### Qué se puede afirmar hoy
+Lo mismo que en el artículo 1 (funcionalidad y reproducibilidad), sin cifras de validación nuevas.
+
+### Qué falta
+- [ ] Release con DOI y aplicación accesible en línea (GitHub Pages).
+- [ ] Figura: imagen tratada + columna compuesta + mapa de ejemplo.
+- [ ] Comprobar formato y extensión en las normas de la revista.
+
+### Preguntas probables de revisores
+**¿Qué aporta frente a hacerlo a mano en Photoshop/ImageJ y una hoja de cálculo?**
+Un flujo único, reproducible y gratuito desde la imagen hasta series, mapas y figuras, con el proyecto guardado para
+repetir el análisis.
 
 ---
 

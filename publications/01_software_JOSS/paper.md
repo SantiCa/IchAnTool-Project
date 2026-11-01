@@ -1,5 +1,5 @@
 ---
-title: 'IchAnTool: an open Python package for quantitative ichnofabric analysis of sediment core images'
+title: 'CorAnTool (formerly IchAnTool): open software for quantitative ichnofabric and multiproxy analysis of sediment cores'
 tags:
   - Python
   - ichnology
@@ -15,7 +15,7 @@ authors:
 affiliations:
   - name: '[TODO]'
     index: 1
-date: 30 October 2026
+date: 1 November 2026
 bibliography: paper.bib
 ---
 
@@ -33,9 +33,9 @@ indices, ready to be correlated with geochemical, mineralogical, or logging data
 
 Digital image treatment has improved the visibility and quantification of trace fossils in
 cores [@dorador2014; @dorador2018], but turning treated images into continuous data series
-remained a manual, repetitive task. A first version of IchAnTool, a single script, was
-introduced in @casanova2020. Version 3 is a complete rewrite as an installable, tested
-package with a command-line interface and a Python API, aimed at sedimentologists,
+remained a manual, repetitive task. A first version (IchAnTool), a single script, was
+introduced in @casanova2020. CorAnTool is a complete rewrite: an installable, tested Python package
+with a command-line interface and API, and a browser application that needs no installation, aimed at sedimentologists,
 ichnologists, palaeoceanographers, and core-analysis practitioners in academia and industry.
 [TODO: one paragraph on existing alternatives and why IchAnTool is needed.]
 
@@ -50,6 +50,11 @@ ichnologists, palaeoceanographers, and core-analysis practitioners in academia a
 - CSV/Excel export, quick-look plots, and a modular segmentation interface for future
   learned models.
 - Results reproduce those of the published version exactly (regression test).
+- Browser application: projects with several cores; numeric records of any kind (XRF, foraminifera, TOC,
+  colour) in depth or age; families of described intervals classified by hand; user-defined classifiers
+  (random forest, multilayer perceptron, k-nearest neighbours, naive Bayes, k-means) validated leaving
+  whole cores out; maps by age window with several projections and interpolation methods; Grapher-like
+  plots; publication figures; a synthetic training project with a guided tour.
 
 # Implementation
 
