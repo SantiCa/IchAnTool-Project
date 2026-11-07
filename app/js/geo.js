@@ -33,6 +33,19 @@ export function mergeAgeImports(a, b) {
   return { depth: null, age: rows.map((r) => r.age), proxies: Object.fromEntries(names.map((name) => [name, rows.map((r) => r.source.proxies[name]?.[r.i] ?? null)])) };
 }
 
+/** Combine age-only and depth-based imports using an invertible depth–age relation, without extrapolation. */
+export function mergeMixedImports(a, b, model) {
+  const pairs = model?.depth?.map((d, i) => [d, model.age[i]]) ?? [a, b].flatMap((s) => (s.depth && s.age ? s.depth.map((d, i) => [d, s.age[i]]) : []));
+  const valid = pairs.filter(([d, age]) => Number.isFinite(d) && Number.isFinite(age)).sort((x, y) => x[0] - y[0]);
+  if (valid.length < 2 || valid.some((p, i) => i && (p[0] <= valid[i - 1][0] || p[1] <= valid[i - 1][1]))) return null;
+  const inverse = { depth: valid.map((p) => p[1]), age: valid.map((p) => p[0]) };
+  const rows = [a, b].flatMap((s) => (s.depth || s.age).map((v, i) => ({ d: s.depth ? v : interpAge(inverse, v), age: s.age?.[i] ?? null, s, i })));
+  if (rows.some((r) => !Number.isFinite(r.d))) return null;
+  rows.sort((x, y) => x.d - y.d);
+  const names = [...new Set([...Object.keys(a.proxies), ...Object.keys(b.proxies)])];
+  return { depth: rows.map((r) => r.d), age: rows.map((r) => r.age), proxies: Object.fromEntries(names.map((n) => [n, rows.map((r) => r.s.proxies[n]?.[r.i] ?? null)])) };
+}
+
 /**
  * Cores from a long table. roles = {core, lat, lon, depth, age, proxies:[col]} (column indices; -1 = none).
  * tab = parseTable output, but with the core column kept as text (rowsText).

@@ -34,6 +34,26 @@ try {
     return { initial, hidden, applied, reset };
   });
   if (!Object.values(ui).every(Boolean)) fail(`column controls: ${JSON.stringify(ui)}`);
+  // A drawing failure must invalidate the previously exportable figure.
+  const figureFailure = await p.evaluate(async () => {
+    const I = window.ichantool, figures = await import('./js/figures.js');
+    I.setMode('log'); I.setMode('fig'); I.S.fig.type = 'log'; figures.renderFigure();
+    const hadFigure = !!document.querySelector('#figOut svg');
+    const fig = I.S.fig, previous = fig.type, logError = console.error, createURL = URL.createObjectURL;
+    let exports = 0; URL.createObjectURL = (...args) => { exports++; return createURL(...args); };
+    console.error = () => {};
+    try {
+      Object.defineProperty(fig, 'type', { configurable: true, get() { throw new Error('simulated drawing failure'); } });
+      figures.renderFigure();
+      document.getElementById('figSvg').click();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { hadFigure, errorShown: document.getElementById('figOut').textContent.includes('simulated drawing failure'), exports };
+    } finally {
+      Object.defineProperty(fig, 'type', { configurable: true, writable: true, enumerable: true, value: previous });
+      URL.createObjectURL = createURL; console.error = logError; I.setMode('section');
+    }
+  });
+  if (!figureFailure.hadFigure || !figureFailure.errorShown || figureFailure.exports) fail(`stale figure export: ${JSON.stringify(figureFailure)}`);
   const first = await p.evaluate(() => window.ichantool.S.sections[window.ichantool.S.cur].objects.size);
   await p.evaluate(() => window.ichantool.runDetection()); await W(3000);
   const again = await p.evaluate(() => window.ichantool.S.sections[window.ichantool.S.cur].objects.size);

@@ -1,6 +1,6 @@
 /* Multiproxy tool: numeric records, interval layers, classifiers, composite-log readout, manual classification and maps. */
 import { lang, t } from './i18n.js';
-import { mergeAgeImports } from './geo.js';
+import { mergeAgeImports, mergeMixedImports } from './geo.js';
 import { MAP_PROJECTIONS, MAP_STYLE, MAP_SYMBOLS, METHODS, applyCatalogue, buildMapSVG, buildSamples, coreAges, coreFromRows, coresFromLongTable, crossValidateSteps, featureSeries, fitBBoxAspect, fitModel, fitModelSteps, fitSampleTransform, intervalsFromTable, intervalsOnAxis, labelSamples, layerFeatureNames, mapBBox, mapFrame, mapGeometry, mapSummary, orphanIntervals, predictLabel, tidyIntervals, transformSample, zoomBBox } from './geo.js';
 import { $, S, fetchAsset, fmt, sec, uid } from './state.js';
 import { DELIVERY, armed, busy, cropState, endCrop, esc, finalTestsHTML, holdoutHTML, holdoutIds, loadLib, makeCore, markDirty, openCoreDlg, refreshAllCores, refreshCoreData, renderCoreBar, runFinalGeo, safe, saveFile, scheduleFloat, toast, updateTip, view, withProv, zoomAt } from './app.js';
@@ -401,13 +401,22 @@ export function addImported(c, source, id = null) {
   const imp = { depth: c.depth, age: c.age, proxies: c.proxies };
   let core = S.cores.find((o) => (id && o.id === id) || norm(o.name) === norm(c.name));
   if (core) {
-    if (core.imp && !core.imp.depth && !imp.depth && core.imp.age && imp.age) core.imp = mergeAgeImports(core.imp, imp);
+    if (core.imp && !!core.imp.depth !== !!imp.depth) {
+      const merged = mergeMixedImports(core.imp, imp, core.ageModel?.model);
+      if (!merged) return null;
+      core.imp = merged;
+    }
+    else if (core.imp && !core.imp.depth && !imp.depth && core.imp.age && imp.age) core.imp = mergeAgeImports(core.imp, imp);
     else if (core.imp && core.imp.depth && imp.depth && core.imp.depth.length === imp.depth.length && core.imp.depth.every((d, i) => d === imp.depth[i])) core.imp.proxies = { ...core.imp.proxies, ...imp.proxies };
     else if (core.imp) { // different depths: keep both as one table on the union of rows
       const rows = [...(core.imp.depth || []).map((d, i) => ({ d, a: core.imp.age?.[i], v: core.imp.proxies, i })), ...(imp.depth || []).map((d, i) => ({ d, a: imp.age?.[i], v: imp.proxies, i }))].sort((x, y) => x.d - y.d);
       const names = [...new Set([...Object.keys(core.imp.proxies), ...Object.keys(imp.proxies)])], P = {};
       for (const n of names) P[n] = rows.map((r) => r.v[n]?.[r.i] ?? null);
       core.imp = { depth: rows.map((r) => r.d), age: rows.some((r) => r.a != null) ? rows.map((r) => r.a ?? null) : null, proxies: P };
+    } else if (!imp.depth && imp.age && core.depth?.length) {
+      const merged = mergeMixedImports({ depth: [], age: null, proxies: {} }, imp, core.ageModel?.model);
+      if (!merged) return null;
+      core.imp = merged;
     } else core.imp = imp;
     if (c.lat != null) core.lat = c.lat; if (c.lon != null) core.lon = c.lon;
   } else { core = makeCore({ id: id || undefined, name: c.name, lat: c.lat, lon: c.lon, source, imp, units: c.units, age: { text: c.ageText || '' } }); S.cores.push(core); }
@@ -1326,9 +1335,9 @@ export function initMultiproxy() {
         if (roles.depth < 0 && roles.age < 0) return;
         added = added.concat(p.kind === 'long' ? coresFromLongTable(tab, roles) : [coreFromRows(p.names[k], tab.rows, tab.headers, roles)]);
       });
-      for (const c of added) addImported(c, 'import');
+      const rejected = added.filter((c) => !addImported(c, 'import'));
       renderCoreBar();
-      toast(t('geo.imported', { n: added.length }));
+      toast(rejected.length ? t('geo.mixedImportFailed', { n: rejected.length, names: rejected.map((c) => c.name).join(', ') }) : t('geo.imported', { n: added.length }));
     }
     if (!g.view.core && S.cores.length) g.view.core = S.cores[0].id;
     $('geoImpDlg').close(); geoMarkDirty(); renderGeo();

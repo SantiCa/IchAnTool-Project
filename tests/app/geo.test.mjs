@@ -2,7 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
-import { mergeAgeImports } from '../../app/js/geo.js';
+import { mergeAgeImports, mergeMixedImports } from '../../app/js/geo.js';
+
+test('mixed age and depth imports require a usable relation and preserve both sources', () => {
+  const a = { depth: [0, 10], age: null, proxies: { A: [1, 2] } };
+  const b = { depth: null, age: [5], proxies: { B: [3] } };
+  assert.equal(mergeMixedImports(a, b, null), null);
+  assert.equal(mergeMixedImports(a, b, { depth: [0, 10], age: [10, 0] }), null);
+  assert.equal(mergeMixedImports(a, { ...b, age: [20] }, { depth: [0, 10], age: [0, 10] }), null);
+  const result = mergeMixedImports(a, b, { depth: [0, 10], age: [0, 10] });
+  assert.deepEqual(result.depth, [0, 5, 10]);
+  assert.deepEqual(result.proxies, { A: [1, null, 2], B: [null, 3, null] });
+});
 
 test('resampling retains observations at both edges of a large gap', () => {
   assert.deepEqual(resample([0, 1, 10, 11], [10, 20, 30, 40], [1, 2, 10], 3), [20, null, 30]);

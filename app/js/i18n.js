@@ -311,6 +311,7 @@ Object.assign(D.es, {
   'geo.r.note': 'Indica qué columna es cada cosa. Hace falta profundidad o edad. Los valores no numéricos se ignoran.',
   'geo.nSamples': '{n} muestras', 'geo.missing': 'le falta: {f} (no entra en el análisis hasta que las tenga o las desmarques)',
   'geo.imported': '{n} sondeos importados', 'geo.catApplied': 'Posición aplicada a {n} filas del catálogo',
+  'geo.mixedImportFailed': 'No se importaron {n} sondeos ({names}): se necesita una relación edad-profundidad creciente que cubra todos los datos. Los datos existentes se conservan.',
 });
 Object.assign(D.en, {
   'mode.geo': 'Geochemistry',
@@ -377,6 +378,7 @@ Object.assign(D.en, {
   'geo.r.note': 'Say which column is which. Depth or age is required. Non-numeric values are ignored.',
   'geo.nSamples': '{n} samples', 'geo.missing': 'missing: {f} (left out of the analysis until it has them or you untick them)',
   'geo.imported': '{n} cores imported', 'geo.catApplied': 'Position applied to {n} catalogue rows',
+  'geo.mixedImportFailed': '{n} cores not imported ({names}): a strictly increasing depth–age relation covering all data is required. Existing data are preserved.',
 });
 
 // V10: multiproxy tool (numeric records + interval layers), replaces the "geochemistry" wording

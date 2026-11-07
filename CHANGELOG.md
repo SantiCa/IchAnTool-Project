@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.82 — 2026-11-07
+- Preserve imported series when combining age-only and depth-based tables using a suitable age model; report imports that cannot be converted safely.
+
 ## V0.81 — 2026-11-07
 - Ignore invalid geographic coordinates in multiproxy maps and interpolation.
 - Prevent exporting an earlier figure when drawing the current figure fails.
