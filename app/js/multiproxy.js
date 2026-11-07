@@ -206,7 +206,7 @@ export function geoComputeSamples() {
   ensureClassifiers();
   if (!st.features.length && !featLayers().length) st.features = allNumericVars().filter((k) => S.cores.some((c) => (c.proxies[k] || []).some((v) => v != null))).slice(0, 12);
   const layers = featLayers();
-  geoRT.samples = buildSamples(S.cores, { axis: st.axis, step: st.step, features: st.features, ratios: g.ratios, logs: st.logs, scaling: st.scaling, maxGap: st.maxGap || Infinity, layers, intervals: g.intervals, missing: st.missing });
+  geoRT.samples = buildSamples(S.cores, { axis: st.axis, step: st.step, features: st.features, ratios: g.ratios, logs: st.logs, scaling: st.scaling, maxGap: st.maxGap, layers, intervals: g.intervals, missing: st.missing });
   geoRT.featNames = [...st.features, ...layerFeatureNames(layers)];
   geoRT.nNum = st.features.length;
   geoRT.layerCols = new Map(); let j = st.features.length;

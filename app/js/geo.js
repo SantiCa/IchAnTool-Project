@@ -119,6 +119,8 @@ export function resample(xs, ys, grid, maxGap = Infinity) {
     if (!X.length || g < X[0] || g > X[X.length - 1]) return null;
     let lo = 0, hi = X.length - 1;
     while (hi - lo > 1) { const m = (lo + hi) >> 1; if (X[m] <= g) lo = m; else hi = m; }
+    if (X[lo] === g) return Y[lo];
+    if (X[hi] === g) return Y[hi];
     if (X[hi] - X[lo] > maxGap) return null;
     return X[hi] === X[lo] ? Y[lo] : Y[lo] + ((g - X[lo]) / (X[hi] - X[lo])) * (Y[hi] - Y[lo]);
   });

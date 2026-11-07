@@ -4,6 +4,13 @@ import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
 import { mergeAgeImports } from '../../app/js/geo.js';
 
+test('resampling retains observations at both edges of a large gap', () => {
+  assert.deepEqual(resample([0, 1, 10, 11], [10, 20, 30, 40], [1, 2, 10], 3), [20, null, 30]);
+  const cores = [{ id: 'c', depth: [0, 1, 100, 101], proxies: { A: [10, 20, 30, 40] } }];
+  const samples = buildSamples(cores, { axis: 'depth', step: 1, features: ['A'], scaling: 'none', maxGap: null });
+  assert.deepEqual(samples.map((s) => s.x), [0, 1, 100, 101]);
+});
+
 test('age-only imports retain both series on matching and differing ages', () => {
   const a = { depth: null, age: [1, 2], proxies: { A: [10, 20] } };
   assert.deepEqual(mergeAgeImports(a, { age: [1, 2], proxies: { B: [30, 40] } }),

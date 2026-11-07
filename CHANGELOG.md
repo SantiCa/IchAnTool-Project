@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.80 — 2026-11-07
+- Multiproxy resampling preserves measured values beside large gaps and applies the automatic gap limit when the field is blank.
+
 ## V0.79 — 2026-11-07
 - Preserve age-only series when importing additional variables into an existing core.
 

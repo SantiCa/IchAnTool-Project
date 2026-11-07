@@ -1215,7 +1215,8 @@ comes from the age model. In this way the ichnological interpretation becomes da
 2. **Common grid** per core: from `ceil(min/step)·step` to the maximum, every `step` (1 by default).
 3. **Linear resampling** (`resample`): interpolation between the two neighbouring samples; empty outside the core's
    range (no extrapolation) or if the two neighbours are farther apart than `maxGap` (by default `autoGap` =
-   3 × the median spacing of the real samples of that series).
+   3 × the median spacing of the real samples of that series, also used when the interface field is blank). Exact
+   observations are retained even when an adjacent gap exceeds that limit.
 4. **Ratios** A/B created by the user are computed row by row on the original data (empty if the divisor is 0 or
    missing) before resampling.
 5. **Logarithm**, optional per variable: `t = log10(v)` if `v > 0`; otherwise empty.
