@@ -5,6 +5,9 @@ import { niceTicks } from './log.js';
 
 /* ───────── utilities ───────── */
 
+/** Geographic coordinates accepted for multiproxy maps (decimal degrees). */
+export const validMapCoords = (p) => Number.isFinite(p.lat) && p.lat >= -90 && p.lat <= 90 && Number.isFinite(p.lon) && p.lon >= -180 && p.lon <= 180;
+
 /** Seeded pseudo-random generator (mulberry32): every training run is reproducible from its seed. */
 export function seededRandom(seed = 42) {
   let a = seed >>> 0;
@@ -566,7 +569,7 @@ export function* crossValidateSteps(samples, labels, method, params, seed = 42, 
  * mode 'value': mean of feature j (z-scored per core), optionally minus the mean in a reference window.
  */
 export function mapSummary(samples, preds, cores, { a0, a1, mode, feature = 0, ref = null }) {
-  return cores.filter((c) => c.lat != null && c.lon != null).map((c) => {
+  return cores.filter(validMapCoords).map((c) => {
     const id = c.id ?? c.name;
     const sel = samples.map((s, i) => [s, i]).filter(([s]) => s.core === id && s.age != null && s.age >= a0 && s.age < a1);
     if (!sel.length) return { core: id, name: c.name, lat: c.lat, lon: c.lon, n: 0 };
@@ -774,7 +777,7 @@ export function buildMapSVG(o) {
 
 /** Map extent around the cores with a margin (degrees). */
 export function mapBBox(points, margin = 3) {
-  const p = points.filter((q) => q.lat != null && q.lon != null);
+  const p = points.filter(validMapCoords);
   if (!p.length) return [-10, 30, 40, 48];
   const lon = p.map((q) => q.lon), lat = p.map((q) => q.lat);
   return [Math.min(...lon) - margin, Math.min(...lat) - margin, Math.max(...lon) + margin, Math.max(...lat) + margin];

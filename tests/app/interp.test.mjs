@@ -5,6 +5,13 @@ import { interpolate, delaunay, fitVariogram, variogram, contourSegments, contou
 const pts = [{ lat: 0, lon: 0, value: 0 }, { lat: 0, lon: 2, value: 2 }, { lat: 2, lon: 0, value: 2 }, { lat: 2, lon: 2, value: 4 }, { lat: 1, lon: 1, value: 2 }];
 const bbox = [0, 0, 2, 2];
 
+test('invalid coordinates cannot contribute to an interpolated map', () => {
+  for (const point of [{ lat: NaN, lon: 0 }, { lat: 91, lon: 0 }, { lat: 0, lon: 181 }]) {
+    const result = interpolate([{ ...point, value: 42 }], bbox, 3, 3, { method: 'nearest', hull: false });
+    assert.deepEqual(result.grid, Array(9).fill(null));
+  }
+});
+
 test('every method reproduces a plane on its data and stays finite', () => {
   for (const method of ['idw', 'nearest', 'tin', 'mincurv', 'rbf', 'kriging', 'movavg']) {
     const r = interpolate(pts, bbox, 10, 10, { method, hull: false, mask: 'both', radius: method === 'movavg' ? 170 : 0, shape: 100 });

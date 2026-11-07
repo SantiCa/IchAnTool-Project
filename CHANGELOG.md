@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.81 — 2026-11-07
+- Ignore invalid geographic coordinates in multiproxy maps and interpolation.
+- Prevent exporting an earlier figure when drawing the current figure fails.
+
 ## V0.80 — 2026-11-07
 - Multiproxy resampling preserves measured values beside large gaps and applies the automatic gap limit when the field is blank.
 

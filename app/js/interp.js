@@ -5,7 +5,7 @@
 // (spherical / exponential / gaussian / linear variogram, fitted automatically or by hand) and moving average.
 // Contours by marching squares; colour ramps for the grid and the colour bar.
 
-import { makeProjection } from './geo.js';
+import { makeProjection, validMapCoords } from './geo.js';
 
 export const INTERP_METHODS = ['idw', 'nearest', 'tin', 'mincurv', 'rbf', 'kriging', 'movavg'];
 export const INTERP_DEFAULT = {
@@ -91,7 +91,7 @@ export function fitVariogram(xy, v, model = 'spherical') {
  * Returns {grid (row-major from the north, null = empty), nx, ny, info} with info.variogram for kriging.
  */
 export function interpolate(points, bbox, nx, ny, opt = {}) {
-  const o = { ...INTERP_DEFAULT, ...opt }, raw = points.filter((p) => p.value != null && Number.isFinite(p.value) && p.lat != null && p.lon != null);
+  const o = { ...INTERP_DEFAULT, ...opt }, raw = points.filter((p) => Number.isFinite(p.value) && validMapCoords(p));
   const pr = makeProjection('laea', bbox), X = (lon, lat) => pr.fwd(lon, lat).map((q) => q * 6371); // km
   // co-located cores (< 10 m apart) are averaged: duplicates would make the kriging and RBF systems singular
   const merged = [];

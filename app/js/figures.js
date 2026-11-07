@@ -760,7 +760,7 @@ export function renderFigure() {
     else { if (geoRT.dirty) geoComputeSamples(); svg = renderGeoMap() || null; }
     if (svg && orientOf(F) === 'h' && !['map', 'locmap'].includes(F.type)) svg = orientSVG(svg);   // V0.51
     if (svg) svg = scopeIds(svg);   // V0.70
-  } catch (e) { console.error(e); $('figOut').innerHTML = `<p class="note" style="padding:20px">${esc(axisErr(e))}</p>`; return; }
+  } catch (e) { figSvgCache = ''; console.error(e); $('figOut').innerHTML = `<p class="note" style="padding:20px">${esc(axisErr(e))}</p>`; return; }
   figSvgCache = svg ? wrapFigure(svg, F.title, F.caption) : '';
   // V0.27: an empty figure is a blank sheet with what to do next
   $('figOut').innerHTML = figSvgCache || `<div class="figempty"><p>${t(F.type === 'traces' ? 'fig.pickFirst' : 'fig.empty')}</p>${F.type === 'traces' ? `<button class="btn primary" type="button" data-figauto>${t('fig.auto')}</button>` : ''}</div>`;

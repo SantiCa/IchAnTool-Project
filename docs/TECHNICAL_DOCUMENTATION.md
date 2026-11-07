@@ -1189,6 +1189,7 @@ window. It is stored in the same project (field `geo` of the project file). Code
   the first row of the core that has them.
 - **One file per core:** the file name (without extension) is the core name (`coreFromRows`).
 - **Catalogue:** assigns latitude, longitude and water depth by core name, case-insensitive (`applyCatalogue`).
+- Multiproxy maps and interpolation use only finite coordinates in decimal degrees, with latitude in [−90, 90] and longitude in [−180, 180].
 - Formats: CSV/TXT (same reader as §16) and spreadsheets (SheetJS, first sheet).
 - The user chooses which column is the core, latitude, longitude, depth, age, and which variables to import. Depth or
   age is required; non-numeric values are ignored. If the core already exists, new variables are added to it.
