@@ -21,6 +21,15 @@ const lerp = (xs, ys, x) => interpAge({ depth: xs, age: ys }, x);
 
 /* ───────── import ───────── */
 
+/** Merge two age-only imports without losing either series. */
+export function mergeAgeImports(a, b) {
+  if (a.age.length === b.age.length && a.age.every((v, i) => v === b.age[i]))
+    return { depth: null, age: a.age.slice(), proxies: { ...a.proxies, ...b.proxies } };
+  const rows = [a, b].flatMap((source) => source.age.map((age, i) => ({ age, source, i }))).sort((x, y) => x.age - y.age);
+  const names = [...new Set([...Object.keys(a.proxies), ...Object.keys(b.proxies)])];
+  return { depth: null, age: rows.map((r) => r.age), proxies: Object.fromEntries(names.map((name) => [name, rows.map((r) => r.source.proxies[name]?.[r.i] ?? null)])) };
+}
+
 /**
  * Cores from a long table. roles = {core, lat, lon, depth, age, proxies:[col]} (column indices; -1 = none).
  * tab = parseTable output, but with the core column kept as text (rowsText).

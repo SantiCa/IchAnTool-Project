@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
+import { mergeAgeImports } from '../../app/js/geo.js';
+
+test('age-only imports retain both series on matching and differing ages', () => {
+  const a = { depth: null, age: [1, 2], proxies: { A: [10, 20] } };
+  assert.deepEqual(mergeAgeImports(a, { age: [1, 2], proxies: { B: [30, 40] } }),
+    { depth: null, age: [1, 2], proxies: { A: [10, 20], B: [30, 40] } });
+  assert.deepEqual(mergeAgeImports(a, { age: [3], proxies: { B: [30] } }),
+    { depth: null, age: [1, 2, 3], proxies: { A: [10, 20, null], B: [null, null, 30] } });
+});
 import { coresFromLongTable, applyCatalogue, buildSamples, labelSamples, ruleMatches, resample, coreConvert,
   fitModel, predictLabel, crossValidate, kmeansFit, mapSummary, buildMapSVG, mapBBox, seededRandom, crossValidateSteps, fitModelSteps, fitBBoxAspect, mapGeometry, fitSampleTransform, transformSample } from '../../app/js/geo.js';
 

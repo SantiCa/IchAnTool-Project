@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.79 — 2026-11-07
+- Preserve age-only series when importing additional variables into an existing core.
+
 ## V0.78 — 2026-11-07
 - New optional column «Sections» (Core column and the «Core column» figure): an empty column with one box per section
   showing its name or number, vertical or horizontal (Scales and style → row «Sections»). It can be shown, hidden and

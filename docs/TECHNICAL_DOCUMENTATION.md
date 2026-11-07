@@ -1094,6 +1094,8 @@ intervals.
 
 ## 16. External records
 
+When two imported tables for the same core contain ages but no depths, matching age rows retain both sets of variables. If their age axes differ, their rows are combined in age order, with missing values for variables absent from each source.
+
 Implementation: `log.js::parseTable, decodeText, guessAxisColumn`, `exportio.js::recordSeries` and `app.js` (records
 dialog). External records are any measured down-core series added to a core (XRF, colour, susceptibility…).
 
