@@ -85,8 +85,9 @@ U-Net on the computer.
 4. **Read the results** per interval (thickness in cm): bioturbation %, % per ichnotaxon, BI and ii. Add an age model
    to work in age.
 5. **Combine and interpret** in the *Core column*, *Data* and *Multiproxy* modes, and prepare figures in *Figures*.
-   In Multiproxy, collapse *Numeric variables used* to free space, widen the side panel to read long interval
-   class names, and use *Column order and visibility* in *Curves* to reorder or hide tracks. Each multiproxy log
+   In Multiproxy, collapse *Numeric variables used* to free space, drag the edge of the name column in
+   *Interval families* to resize it, and use *Column order and visibility* in *Curves* to reorder or hide tracks.
+   Double-click the name column handle to restore the automatic width. Each multiproxy log
    figure can choose its own proxies. In *Across projects*, select entire projects for an analysis and set
    site map colours and symbols by project or core.
 6. **Save and share:** projects are saved automatically on your computer. *Export this project (with images)* creates

@@ -9,7 +9,7 @@ import { parseAgeModel, toCSV } from './core.js';
 import { buildLogSVG, compositeRows, decodeText, parseTable } from './log.js';
 import { renderFigure, verticalStyleHTML } from './figures.js';
 import { INTERP_DEFAULT, INTERP_METHODS, RAMPS, colorRange, contourLevels, contourSegments, interpolate, maskLand, rampColor } from './interp.js';
-import { frameRatio, placeSplitters } from './panels.js';
+import { frameRatio, panelPrefs, placeSplitters, savePanels } from './panels.js';
 
 /* ───────────── multiproxy tool: numeric records, interval layers and automatic interval classification ─────────────
    Independent of the ichnotaxon suggestions of the Section mode (learn.js). State lives in S.geo (key kept for file compatibility). */
@@ -321,7 +321,13 @@ function renderGeoPanel() {
   $('geoLayerSel').innerHTML = tree.map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(layer.name)}</option>`).join('');
   $('geoLayerName').value = L?.name || '';
   $('geoLayerParent').innerHTML = `<option value="">${t('geo.noParent')}</option>` + g.layers.filter((l) => L && l.id !== L.id && !isDescendant(l.id, L.id)).map((l) => `<option value="${l.id}" ${l.id === L?.parent ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
-  $('geoLabels').innerHTML = (L?.cats || []).map((c) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}"><input type="color" value="${c.color}" aria-label="${esc(t('mp.color'))}"><input class="name" type="text" value="${esc(c.name)}" title="${esc(c.name)}" aria-label="${esc(t('geo.cats'))}"><span class="cnt" title="${esc(t('gx.tip.catCount'))}">${g.intervals.filter((q) => q.cat === c.id).length}</span><button class="del" title="${esc(t('gx.delCat'))}" aria-label="${esc(t('gx.delCat'))}">✕</button></li>`).join('');
+  const resizeName = esc(t('gx.resizeClassName'));
+  $('geoLabels').innerHTML = (L?.cats || []).map((c, i) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}">
+    <input type="color" value="${c.color}" aria-label="${esc(t('mp.color'))}">
+    <input class="name" type="text" value="${esc(c.name)}" title="${esc(c.name)}" aria-label="${esc(t('geo.cats'))}">
+    <button class="geo-name-handle" type="button" ${i ? 'tabindex="-1"' : ''} title="${resizeName}" aria-label="${resizeName}"></button>
+    <span class="cnt" title="${esc(t('gx.tip.catCount'))}">${g.intervals.filter((q) => q.cat === c.id).length}</span>
+    <button class="del" title="${esc(t('gx.delCat'))}" aria-label="${esc(t('gx.delCat'))}">✕</button></li>`).join('');
   const lopts = (sel) => (L?.cats || []).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const names = geoRT.featNames.length ? geoRT.featNames : st.features;
   const fopts = (sel) => names.map((k) => `<option ${k === sel ? 'selected' : ''}>${esc(k)}</option>`).join('');
@@ -1228,7 +1234,57 @@ export function geoOverlay(axis) {
 }
 
 /** Event wiring and start-up work of this module; called from app.js at the point where this code used to run. */
+function initGeoNameResize() {
+  const list = $('geoLabels'), scroller = list.parentElement;
+  const clamp = (width) => Math.max(60, Math.min(1600, Math.round(width)));
+  let width = Number.isFinite(panelPrefs.geo?.classNameW) ? clamp(panelPrefs.geo.classNameW) : null;
+  let drag = null;
+  const apply = (next) => {
+    width = next;
+    if (width == null) list.style.removeProperty('--geo-name-width');
+    else list.style.setProperty('--geo-name-width', width + 'px');
+  };
+  const save = () => {
+    const prefs = (panelPrefs.geo ||= {});
+    if (width == null) delete prefs.classNameW;
+    else prefs.classNameW = width;
+    savePanels();
+  };
+  const reset = () => { apply(null); save(); };
+  const nameWidth = (handle) => handle.previousElementSibling.getBoundingClientRect().width;
+  apply(width);
+  list.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.geo-name-handle');
+    if (!handle || e.button !== 0 || drag) return;
+    drag = { id: e.pointerId, x: e.clientX, scroll: scroller.scrollLeft, start: nameWidth(handle), previous: width };
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (drag?.id !== e.pointerId) return;
+    const dx = e.clientX - drag.x + scroller.scrollLeft - drag.scroll;
+    if (dx && !list.hasPointerCapture(e.pointerId)) list.setPointerCapture(e.pointerId);
+    apply(dx ? clamp(drag.start + dx) : drag.previous);
+  });
+  document.addEventListener('pointerup', (e) => {
+    if (drag?.id !== e.pointerId) return;
+    drag = null; save();
+  });
+  document.addEventListener('pointercancel', (e) => {
+    if (drag?.id !== e.pointerId) return;
+    apply(drag.previous); drag = null;
+  });
+  list.addEventListener('dblclick', (e) => { if (e.target.closest('.geo-name-handle')) reset(); });
+  list.addEventListener('click', (e) => { if (e.detail === 0 && e.target.closest('.geo-name-handle')) reset(); });
+  list.addEventListener('keydown', (e) => {
+    const handle = e.target.closest('.geo-name-handle');
+    if (!handle || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    apply(clamp(nameWidth(handle) + (e.key === 'ArrowLeft' ? -10 : 10)));
+    save();
+  });
+}
+
 export function initMultiproxy() {
+  initGeoNameResize();
   S.geo = defaultGeo();
   document.addEventListener('click', (e) => { if (e.target.closest('[data-tcancel]') && geoTraining) geoTraining.cancel = true; });
   for (const el of document.querySelectorAll('[data-version]')) el.textContent = DELIVERY;

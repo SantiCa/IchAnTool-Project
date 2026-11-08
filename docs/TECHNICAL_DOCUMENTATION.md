@@ -1244,6 +1244,10 @@ comes from the age model. In this way the ichnological interpretation becomes da
    variables.
 
 ### 18.3 Interval layers, hierarchy and labels
+
+The class-name column fills the available space by default. A manual width is stored in the browser's panel
+preferences and applies to every interval family. When the column exceeds the panel width, the list scrolls
+horizontally.
 - **Layer** ("family" in the interface): `{id, name, parent, cats:[{id, name, color}]}`. A layer "Events" with four
   categories exists by default. The user creates, renames and deletes layers and defines categories.
 - **Hierarchy:** `parent` makes a layer a subdivision of another (for example Turbidite inside Lithology). Cycles are

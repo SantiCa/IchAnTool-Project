@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.84 — 2026-11-08
+- Drag the name column edge in Multiproxy interval families to resize it within the side panel.
+
 ## V0.83 — 2026-11-08
 - Collapse the numeric variable list in Multiproxy and read interval class names in fields that use the available panel width.
 - Reorder and hide tracks, including automatic classifications, directly from the Multiproxy curves toolbar.

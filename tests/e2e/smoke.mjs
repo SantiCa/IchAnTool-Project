@@ -150,6 +150,30 @@ try {
     return { reordered, hidden, restored, collapsed, readableName, independent, follows };
   });
   if (!Object.values(multiproxy).every(Boolean)) fail(`multiproxy controls: ${JSON.stringify(multiproxy)}`);
+  const nameHandle = '#geoLabels .geo-name-handle';
+  await p.evaluate(() => window.ichantool.setMode('geo'));
+  await until(() => document.getElementById('busy').hidden);
+  const beforeDrag = await p.$eval(nameHandle, (handle) => {
+    handle.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const r = handle.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, width: handle.previousElementSibling.offsetWidth,
+      panel: document.getElementById('geoPanel').offsetWidth };
+  });
+  await p.mouse.move(beforeDrag.x, beforeDrag.y);
+  await p.mouse.down();
+  await p.mouse.move(beforeDrag.x + 180, beforeDrag.y, { steps: 6 });
+  await p.mouse.up();
+  const afterDrag = await p.$eval(nameHandle, (handle) => {
+    const scroll = handle.closest('.geo-label-scroll');
+    return { width: handle.previousElementSibling.offsetWidth, panel: document.getElementById('geoPanel').offsetWidth,
+      overflow: scroll.scrollWidth > scroll.clientWidth,
+      saved: JSON.parse(localStorage.getItem('ichantool.panels') || '{}').geo?.classNameW };
+  });
+  if (Math.abs(afterDrag.width - beforeDrag.width - 180) > 1 || afterDrag.panel !== beforeDrag.panel ||
+      !afterDrag.overflow || afterDrag.saved !== afterDrag.width) fail(`name column drag: ${JSON.stringify({ beforeDrag, afterDrag })}`);
+  await p.click(nameHandle, { clickCount: 2 });
+  const resetWidth = await p.$eval(nameHandle, (handle) => handle.previousElementSibling.offsetWidth);
+  if (resetWidth !== beforeDrag.width) fail(`name column reset: ${resetWidth} instead of ${beforeDrag.width}`);
   const across = await p.evaluate(async () => {
     const { putLite } = await import('./js/storage.js');
     const id = 'smoke-marker-project';

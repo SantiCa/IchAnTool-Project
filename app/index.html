@@ -162,8 +162,13 @@ input[type=number] { font-family: var(--font-data); font-variant-numeric: tabula
 .clist kbd { font: 11px var(--font-data); color: var(--muted); text-align: center; }
 .clist input[type=color] { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
 .clist input.name { min-width: 0; border: 0; background: transparent; padding: 2px 3px; font-style: italic; }
-#geoLabels li { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
+.geo-label-scroll { overflow-x: auto; }
+#geoLabels { min-width: calc(var(--geo-name-width, 0px) + 104px + 6ch); }
+#geoLabels li { grid-template-columns: 22px var(--geo-name-width, minmax(0, 1fr)) 12px 6ch 32px; }
 #geoLabels .name { width: 100%; box-sizing: border-box; }
+.geo-name-handle { align-self: stretch; min-height: 22px; padding: 0; border: 0; background: none; cursor: col-resize; touch-action: none; }
+.geo-name-handle::after { content: ''; display: block; margin: auto; width: 2px; height: 16px; background: var(--line-strong); }
+.geo-name-handle:hover::after, .geo-name-handle:focus-visible::after { background: var(--accent); }
 .clist li.plain input.name { font-style: normal; }
 .clist input.name:focus { background: var(--field); }
 .clist .cnt { font: 11px var(--font-data); color: var(--muted); white-space: nowrap; }
@@ -987,7 +992,7 @@ details.mini[open] { display: grid; gap: 6px; }
             <label data-i18n-title="gx.tip.parent" class="f"><span data-i18n="geo.layerParent"></span><select id="geoLayerParent"></select></label></div>
           <div class="row u2"><input type="text" id="geoNewLayer" data-i18n-ph="geo.newLayer"><button class="btn small" id="geoAddLayer" data-i18n="geo.addLayer"></button></div>
           <label class="chk"><input type="checkbox" id="geoNewLayerChild"><span data-i18n="geo.newLayerChild"></span></label>
-          <div data-i18n-title="gx.tip.cats" class="f"><span data-i18n="geo.cats"></span><ul class="clist" id="geoLabels"></ul></div>
+          <div data-i18n-title="gx.tip.cats" class="f"><span data-i18n="geo.cats"></span><div class="geo-label-scroll"><ul class="clist" id="geoLabels"></ul></div></div>
           <div class="row u2"><input type="text" id="geoNewLabel" data-i18n-ph="geo.newLabel"><button class="btn small" id="geoAddLabel" data-i18n="geo.addLabel"></button></div>
           <p class="note" data-i18n="geo.labelsNote"></p>
           <div data-i18n-title="gx.tip.rules" class="f"><span data-i18n="geo.rules"></span><div class="u6" id="geoRules"></div>

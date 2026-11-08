@@ -1130,6 +1130,7 @@ Object.assign(D.es, {
   'geo.layer': 'Familia', 'geo.layerName': 'Nombre de la familia', 'geo.layerParent': 'Subdivisión de', 'geo.layerDel': 'Eliminar la familia y sus intervalos', 'geo.noParent': '— (familia principal)',
   'geo.newLayer': 'Nueva familia (p. ej. Periodo climático)', 'geo.addLayer': 'Añadir familia', 'geo.newLayerChild': 'Crearla como subdivisión de la familia actual',
   'geo.cats': 'Clases de la familia', 'geo.newLabel': 'Nueva clase (p. ej. Sapropel)', 'geo.addLabel': 'Añadir clase',
+  'gx.resizeClassName': 'Ancho de los nombres: arrastra o usa las flechas. Doble clic o Intro para restablecer.',
   'geo.labelsNote': 'Una familia es un tipo de intervalo con sus clases: periodo frío/cálido; baja oxigenación (sapropel, ORL…); litología… Puede ser subdivisión de otra. Las familias aparecen como columnas en todos los sondeos y se clasifican a mano arrastrando en la columna.',
   'gx.tip.layer': 'Una familia agrupa intervalos de un mismo tipo (periodo climático, baja oxigenación, litología…). Puede subdividir a otra.', 'gx.tip.cats': 'Clases de la familia (p. ej. sapropel, ORL). También se crean desde la propia columna al dibujar un intervalo.',
   'gx.delCat': 'Eliminar esta clase', 'gx.tip.catCount': 'Intervalos de esta clase en todos los sondeos',
@@ -1138,6 +1139,7 @@ Object.assign(D.en, {
   'geo.layer': 'Family', 'geo.layerName': 'Family name', 'geo.layerParent': 'Subdivision of', 'geo.layerDel': 'Delete the family and its intervals', 'geo.noParent': '— (main family)',
   'geo.newLayer': 'New family (e.g. Climate period)', 'geo.addLayer': 'Add family', 'geo.newLayerChild': 'Create it as a subdivision of the current family',
   'geo.cats': 'Family classes', 'geo.newLabel': 'New class (e.g. Sapropel)', 'geo.addLabel': 'Add class',
+  'gx.resizeClassName': 'Name column width: drag or use the arrow keys. Double-click or press Enter to reset.',
   'geo.labelsNote': 'A family is a type of interval with its classes: cold/warm period; low oxygenation (sapropel, ORL…); lithology… It can subdivide another. Families appear as columns in every core and are classified by hand by dragging in the column.',
   'gx.tip.layer': 'A family groups intervals of one kind (climate period, low oxygenation, lithology…). It can subdivide another.', 'gx.tip.cats': 'Classes of the family (e.g. sapropel, ORL). Can also be created from the column itself when drawing an interval.',
 });
