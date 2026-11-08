@@ -5,7 +5,15 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from sedcoretool import BI_TAYLOR_GOLDRING, II_DROSER_BOTTJER, analyze_image, analyze_mask, mask_from_palette, mask_from_threshold
+from sedcoretool import (
+    BI_TAYLOR_GOLDRING,
+    II_DROSER_BOTTJER,
+    IndexScheme,
+    analyze_image,
+    analyze_mask,
+    mask_from_palette,
+    mask_from_threshold,
+)
 from sedcoretool.cli import main
 from sedcoretool.depth import depth_to_age, pixel_depths
 
@@ -16,6 +24,33 @@ def test_indices_match_v21_tiers():
     p = np.array([0, 0.5, 3, 20, 50, 80, 95, 100])
     assert BI_TAYLOR_GOLDRING.classify(p).tolist() == [0, 0, 1, 2, 3, 4, 5, 6]
     assert II_DROSER_BOTTJER.classify(p).tolist() == [1, 1, 2, 3, 4, 5, 5, 6]
+
+
+
+@pytest.mark.parametrize("scheme", [BI_TAYLOR_GOLDRING, II_DROSER_BOTTJER])
+def test_index_classification_preserves_boundaries_in_multidimensional_arrays(scheme):
+    edges = np.unique([edge for lo, hi, _ in scheme.tiers for edge in (lo, hi)])
+    samples = np.concatenate([np.nextafter(edges, -np.inf), edges, np.nextafter(edges, np.inf),
+                              [np.nan, -np.inf, np.inf]])
+    p = np.resize(samples, (2, 3, samples.size))[:, ::2, ::-1]
+    expected = np.full(p.shape, -1, dtype=int)
+    for lo, hi, value in scheme.tiers:
+        expected[(p >= lo) & (p < hi)] = value
+    actual = scheme.classify(p)
+    np.testing.assert_array_equal(actual, expected)
+    assert actual.shape == p.shape and actual.dtype == expected.dtype
+    scalar = scheme.classify(np.array(100.0))
+    assert isinstance(scalar, np.ndarray) and scalar.shape == () and scalar.item() == 6
+
+
+def test_custom_index_classification_keeps_gaps_and_last_matching_tier():
+    scheme = IndexScheme("custom", ((3, 8, 4), (-np.inf, 0, 2), (1.5, 4.5, 3), (2.75, 3.25, 9),
+                                   (4.5, 4.5, 10), (8.5, np.inf, 11), (np.nan, 5, 12)))
+    p = np.array([[[-np.inf, 0, 1.5, 2.75], [3, 3.25, 4.5, 8]], [[8.5, np.inf, np.nan, 2], [7, 4, -2, 10]]])
+    np.testing.assert_array_equal(scheme.classify(p),
+                                  [[[2, -1, 3, 9], [9, 3, 4, -1]], [[11, -1, -1, 3], [4, 3, 2, 11]]])
+    np.testing.assert_array_equal(IndexScheme("empty", ()).classify(p), np.full(p.shape, -1))
+    assert scheme.classify(np.empty((0, 2))).shape == (0, 2)
 
 
 def test_percentage_and_bins():

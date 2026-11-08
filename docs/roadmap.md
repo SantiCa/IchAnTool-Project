@@ -69,6 +69,8 @@ Keep task IDs stable. The changelog records what shipped.
 
 - [ ] **M3.1 - Analysis performance.** Profile Python and JavaScript before optimising shared algorithms.
       Preserve configurable interval boundaries and regression results.
+  - [x] **M3.1.1 - Vectorise Python index classification.** Compile interval maps and preserve custom
+        scheme precedence. [V0.89](../CHANGELOG.md#v089--2026-11-09)
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
 

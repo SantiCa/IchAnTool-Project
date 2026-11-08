@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.89 — 2026-11-09
+- Classify large multidimensional arrays of BI and ii faster in Python with the same interval results.
+
 ## V0.88 — 2026-11-09
 - Reclaim unused overlap stacks during long editing sessions while preserving undo and trace order.
 

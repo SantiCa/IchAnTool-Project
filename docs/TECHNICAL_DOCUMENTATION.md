@@ -342,7 +342,10 @@ for masks.
 | 6 | 100 |
 
 These are the same tiers as in version 2.1. In Python, other schemes can be defined as data with `IndexScheme`
-(`indices.py`) without changing the code.
+(`indices.py`) without changing the code. `IndexScheme.classify` compiles each scheme once into disjoint intervals,
+with the last declared tier taking precedence when tiers overlap. It preserves the shape of an input array of any
+dimension. For nonnegative integer boundaries up to 256 it looks up the class of each percentage's integer part.
+Other schemes use right-sided `numpy.searchsorted` on the sorted boundaries. Values outside all tiers return `-1`.
 
 **No value.** For an interval without valid pixels, or a percentage that is not a number, Python returns `−1`
 (NumPy integer arrays, as in version 2.1) and the program returns an empty value, exported as an empty cell. Both
