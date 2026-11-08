@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { provenanceLines, withProvenance, ageModelText, bioturbationTable, objectsTable, recordSeries } from '../../app/js/exportio.js';
+import { toCSV } from '../../app/js/core.js';
 import { parseTable } from '../../app/js/log.js';
 
 test('V0.44: provenance header and age-model text', () => {
@@ -27,4 +28,16 @@ test('V0.44: record series from a table', () => {
   const s = recordSeries(tab, 0, [1, 2], ['#a', '#b', '#c'], 2);
   assert.deepEqual(s.map((x) => [x.name, x.x, x.y, x.color]), [['Ba', [1, 2], [4, 5], '#c'], ['Ti', [1, 3], [7, 8], '#a']]);
   assert.deepEqual(recordSeries(tab, 0, [], ['#a']), []);
+});
+
+test('CSV escapes formula text, quotes alternate separators and preserves numeric measurements', () => {
+  assert.equal(toCSV([['=1+1', '+cmd', '-cmd', '@cmd', '  ＝1+1', -5]]),
+    "'=1+1,'+cmd,'-cmd,'@cmd,'  ＝1+1,-5\n");
+  assert.equal(toCSV([['safe;=1+1', 'safe\r=1+1', '\t=1+1']]),
+    '"safe;=1+1","safe\r=1+1","\'\t=1+1"\n');
+  const lines = provenanceLines({ delivery: 'V', format: 5, date: 'D', project: 'p;=1+1\r\n=2+2', detection: 'd,=3+3' });
+  assert.equal(lines.length, 2);
+  assert.ok(lines.every((line) => !/[\r\n]/.test(line)));
+  assert.ok(lines[0].includes('p\\u003b=1+1\\u000d\\u000a=2+2'));
+  assert.ok(lines[1].includes('d\\u002c=3+3'));
 });

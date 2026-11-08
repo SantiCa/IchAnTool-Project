@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.91 — 2026-11-09
+- Escape formula-like text in CSV and Excel exports while preserving numeric measurements.
+- Reject oversized or malformed ZIP project and U-Net training imports before unsafe expansion.
+- Read only documented manifest columns using fixed text and depth types.
+
 ## V0.90 — 2026-11-09
 - U-Net training switches to CPU if GPU memory is insufficient and resumes from the last completed checkpoint. Use `--cpu-only` to force CPU execution in the Python CLI.
 

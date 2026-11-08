@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from csv import QUOTE_NONNUMERIC
 from datetime import date
 from pathlib import Path
 
@@ -13,6 +14,7 @@ import pandas as pd
 from .pipeline import UNIT_TO_CM, CoreSection
 
 DEPTH_COLS = ("depth_top", "depth_bottom", "depth")
+_FORMULA_START = re.compile(r"^[ \u00a0]*[\t\r\n]|^[\s\x00-\x1f\ufeff]*[=+@\-＝＋－＠]")
 
 
 def combine(sections: Iterable[CoreSection]) -> pd.DataFrame:
@@ -56,20 +58,59 @@ def join_sections(sections: Iterable[CoreSection], units: str | None = None, ove
     return out
 
 
-def to_csv(sections: Iterable[CoreSection], path: str | Path) -> Path:
+
+def spreadsheet_text(value):
+    """Escape a potentially active spreadsheet cell while leaving numeric values numeric."""
+    if isinstance(value, str) and _FORMULA_START.match(value):
+        return "'" + value
+    return value
+
+
+def _spreadsheet_table(table: pd.DataFrame) -> pd.DataFrame:
+    out = table.copy(deep=False)
+    out.columns = table.columns.map(spreadsheet_text)
+    for i, dtype in enumerate(table.dtypes):
+        if pd.api.types.is_string_dtype(dtype) or isinstance(dtype, pd.CategoricalDtype):
+            out.isetitem(i, table.iloc[:, i].map(spreadsheet_text))
+    return out
+
+
+def write_csv_table(table: pd.DataFrame, path: str | Path) -> Path:
     path = Path(path)
-    combine(sections).to_csv(path, index=False)
+    _spreadsheet_table(table).to_csv(path, index=False, quoting=QUOTE_NONNUMERIC, lineterminator="\r\n")
     return path
+
+
+def write_excel_table(table: pd.DataFrame, path: str | Path) -> Path:
+    path = Path(path)
+    _spreadsheet_table(table).to_excel(path, engine="openpyxl", index=False)
+    return path
+
+
+def to_csv(sections: Iterable[CoreSection], path: str | Path) -> Path:
+    return write_csv_table(combine(sections), path)
+
+
+def _worksheet_name(value: str, used: set[str]) -> str:
+    stem = re.sub(r"[\x00-\x1f\[\]:*?/\\]", "_", value)[:31].strip("'") or "section"
+    name, i = stem, 2
+    while name.casefold() in used:
+        suffix = f"_{i}"
+        name = stem[:31 - len(suffix)] + suffix
+        i += 1
+    used.add(name.casefold())
+    return name
 
 
 def to_excel(sections: Iterable[CoreSection], path: str | Path) -> Path:
     """One sheet with all data plus one sheet per section (needs openpyxl)."""
     sections = list(sections)
     path = Path(path)
-    with pd.ExcelWriter(path) as xw:
-        combine(sections).to_excel(xw, sheet_name="all", index=False)
+    used = {"all"}
+    with pd.ExcelWriter(path, engine="openpyxl") as xw:
+        _spreadsheet_table(combine(sections)).to_excel(xw, sheet_name="all", index=False)
         for s in sections:
-            s.data.to_excel(xw, sheet_name=s.name[:31], index=False)
+            _spreadsheet_table(s.data).to_excel(xw, sheet_name=_worksheet_name(s.name, used), index=False)
     return path
 
 

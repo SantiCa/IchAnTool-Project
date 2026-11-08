@@ -10,7 +10,7 @@ import numpy as np
 
 from . import __version__
 from .batch import load_exclusion, run_manifest, write_manifest_template
-from .export import join_sections, to_csv, to_excel, to_las
+from .export import join_sections, to_csv, to_excel, to_las, write_csv_table, write_excel_table
 from .io import load_image, load_mask
 from .pipeline import analyze_mask
 from .segmentation import mask_from_palette, mask_from_threshold
@@ -65,11 +65,7 @@ def _write(sections, out: Path, overlap: str | None, well: str = "") -> Path:
         return to_las(sections, out, well=well, overlap=overlap or "upper")
     if overlap and overlap != "keep":
         rows = join_sections(sections, overlap=overlap)
-        if ext == ".xlsx":
-            rows.to_excel(out, index=False)
-        else:
-            rows.to_csv(out, index=False)
-        return out
+        return (write_excel_table if ext == ".xlsx" else write_csv_table)(rows, out)
     return (to_excel if ext == ".xlsx" else to_csv)(sections, out)
 
 

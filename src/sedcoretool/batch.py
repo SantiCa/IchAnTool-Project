@@ -19,10 +19,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .export import spreadsheet_text, write_csv_table
 from .io import SUPPORTED, load_image, load_mask
 from .pipeline import UNIT_TO_CM, CoreSection, analyze_mask
 
 REQUIRED = ("image", "top", "bottom")
+_MANIFEST_ESCAPE = "__sedcoretool_csv_escape__"
+_ESCAPE_VERSION = "apostrophe-v1"
+_MANIFEST_TYPES = {**dict.fromkeys(("image", "core", "name", "exclude", "units", _MANIFEST_ESCAPE), "string"),
+                   "top": "float64", "bottom": "float64"}
 
 
 def load_exclusion(path: str | Path) -> np.ndarray:
@@ -33,17 +38,26 @@ def load_exclusion(path: str | Path) -> np.ndarray:
 
 def read_manifest(path: str | Path) -> pd.DataFrame:
     path = Path(path)
-    m = pd.read_csv(path, dtype={"image": str, "core": str, "name": str, "exclude": str, "units": str})
-    m.columns = [c.strip().lower() for c in m.columns]
+    headers = pd.read_csv(path, nrows=0, compression=None).columns
+    columns = {c: c.strip().lower() for c in headers if c.strip().lower() in _MANIFEST_TYPES}
+    if len(set(columns.values())) != len(columns):
+        raise ValueError(f"manifest {path.name}: duplicate column names")
+    m = pd.read_csv(path, usecols=list(columns), dtype={c: _MANIFEST_TYPES[key] for c, key in columns.items()},
+                    compression=None).rename(columns=columns)
     missing = [c for c in REQUIRED if c not in m]
     if missing:
         raise ValueError(f"manifest {path.name}: missing column(s) {', '.join(missing)}")
     if m.empty:
         raise ValueError(f"manifest {path.name} has no rows")
-    for c in ("top", "bottom"):
+    for c in REQUIRED:
         if m[c].isna().any():
             rows = ", ".join(str(i + 2) for i in m.index[m[c].isna()])
             raise ValueError(f"manifest {path.name}: empty '{c}' in line(s) {rows}")
+    if _MANIFEST_ESCAPE in m:
+        escaped = m.pop(_MANIFEST_ESCAPE).eq(_ESCAPE_VERSION).fillna(False)
+        for column in ("image", "core", "name", "exclude", "units"):
+            if column in m:
+                m.loc[escaped, column] = m.loc[escaped, column].str.removeprefix("'")
     m["core"] = m["core"].fillna(path.stem) if "core" in m else path.stem
     m["units"] = m["units"].fillna("cm") if "units" in m else "cm"
     base = path.parent
@@ -66,8 +80,11 @@ def write_manifest_template(folder: str | Path, out: str | Path | None = None) -
     out = Path(out) if out else folder / "sections.csv"
     rows = [{"image": p.name, "core": folder.name, "top": "", "bottom": "", "units": "cm", "name": p.stem,
              "exclude": (p.stem + "_excl.png") if (folder / (p.stem + "_excl.png")).exists() else ""} for p in imgs]
-    pd.DataFrame(rows).to_csv(out, index=False)
-    return out
+    for i, row in enumerate(rows):
+        if any(spreadsheet_text(value) != value for value in row.values()):
+            rows[i] = {key: "'" + value if value.startswith("'") else spreadsheet_text(value)
+                       for key, value in row.items()} | {_MANIFEST_ESCAPE: _ESCAPE_VERSION}
+    return write_csv_table(pd.DataFrame(rows), out)
 
 
 def run_manifest(manifest: str | Path, to_mask: Callable[[Path], tuple] | None = None,

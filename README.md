@@ -124,6 +124,9 @@ section.add_age(model_depth=[0, 500], model_age=[0, 40_000])     # optional age 
 section.data.to_csv("core.csv", index=False)                     # depth, bioturbation_pct, <class>_pct, BI, ii, age
 ```
 
+CSV and Excel results escape text that spreadsheet programs could interpret as formulas. Project and U-Net ZIP
+imports apply the [project ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#231-project-packages-sedcoretool) and [U-Net ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#92-training-data-and-training-python-package).
+
 Use lossless formats (PNG, TIFF) for masks. The complete API, command line and U-Net commands are described in the
 [technical documentation](docs/TECHNICAL_DOCUMENTATION.md#25-the-sedcoretool-python-package).
 

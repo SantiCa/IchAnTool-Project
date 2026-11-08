@@ -303,6 +303,43 @@ try {
     return { selected, partial, styled, inherited };
   });
   if (!Object.values(across).every(Boolean)) fail(`across-project controls: ${JSON.stringify(across)}`);
+
+  // A legacy project ZIP still opens through the normal picker. A hostile ZIP is rejected before saving.
+  const importZip = await p.evaluate(async () => {
+    const { zipFiles } = await import('./js/zip.js');
+    const input = document.getElementById('impProj');
+    const send = async (path, id) => {
+      const data = JSON.stringify({ app: 'CorAnTool', kind: 'project', version: 5, id, name: id, cores: [] });
+      const blob = await zipFiles([{ name: path, data }]);
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([blob], id + '.corantool', { type: 'application/zip' }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const { getProject } = await import('./js/storage.js');
+    const waitFor = async (predicate) => {
+      for (let i = 0; i < 300; i++) {
+        if (await predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return false;
+    };
+    await send('project.json', 'legacy-zip-smoke');
+    const opened = await waitFor(() => window.ichantool.S.id === 'legacy-zip-smoke');
+    const saved = !!(await getProject('legacy-zip-smoke'));
+    const log = console.error;
+    let rejected = false;
+    console.error = (error, ...args) => {
+      if (String(error).includes('ZIP member name')) rejected = true;
+      else log(error, ...args);
+    };
+    try {
+      await send('../project.json', 'hostile-zip-smoke');
+      await waitFor(() => rejected);
+      return [opened, saved, rejected, !(await getProject('hostile-zip-smoke'))];
+    } finally { console.error = log; }
+  });
+  assert.deepEqual(importZip, [true, true, true, true]);
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);
 } catch (e) { fail(e.message); } finally { await b.close(); }

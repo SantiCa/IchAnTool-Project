@@ -14,13 +14,13 @@ from __future__ import annotations
 import io
 import json
 import shutil
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
 
+from ..io import open_training_export
 from .tiling import IGNORE, resample_bilinear, tile_starts
 
 
@@ -33,26 +33,24 @@ class Item:
     px_per_cm: float
 
 
-def _reader(src: Path):
-    if src.is_dir():
-        return lambda name: (src / name).read_bytes()
-    z = zipfile.ZipFile(src)
-    return z.read
-
 
 def load_export(src: str | Path) -> tuple[list[Item], list[dict]]:
     """Items and classes of an exported training set (ZIP file or folder)."""
-    read = _reader(Path(src))
-    man = json.loads(read("manifest.json"))
-    if man.get("kind") != "segmentation-dataset":
-        raise ValueError("not a SedCoreTool (or CorAnTool) segmentation dataset (manifest kind)")
-    items = []
-    for it in man["items"]:
-        img = np.asarray(Image.open(io.BytesIO(read(it["image"]))).convert("RGB"))
-        msk = np.asarray(Image.open(io.BytesIO(read(it["mask"]))).convert("L"))
-        if img.shape[:2] != msk.shape:
-            raise ValueError(f"image and mask sizes differ: {it['image']}")
-        items.append(Item(it["core"], it["section"], img, msk, float(it["pxPerCm"])))
+    with open_training_export(src) as read:
+        man = json.loads(read("manifest.json"))
+        if man.get("kind") != "segmentation-dataset":
+            raise ValueError("not a SedCoreTool (or CorAnTool) segmentation dataset (manifest kind)")
+        items, decoded = [], 0
+        for it in man["items"]:
+            with Image.open(io.BytesIO(read(it["image"]))) as image, Image.open(io.BytesIO(read(it["mask"]))) as mask:
+                if image.size != mask.size:
+                    raise ValueError(f"image and mask sizes differ: {it['image']}")
+                pixels = image.width * image.height
+                decoded += 4 * pixels  # RGB plus the grayscale mask
+                if 4 * pixels > 256 * 1024**2 or decoded > 1024**3:
+                    raise ValueError("decoded training images exceed the import limit")
+                img, msk = np.asarray(image.convert("RGB")), np.asarray(mask.convert("L"))
+            items.append(Item(it["core"], it["section"], img, msk, float(it["pxPerCm"])))
     return items, man["classes"]
 
 

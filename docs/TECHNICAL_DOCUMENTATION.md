@@ -686,6 +686,12 @@ time.
 
 Dataset preparation requires an empty output directory and rejects validation and test core lists that overlap.
 Choose a new output directory for each preparation so stale tiles cannot contaminate the split.
+Python accepts classic stored or Deflate training ZIPs up to 2 GiB on disk. It checks a central directory of at
+most 16 MiB before parsing it, limits declared and requested expanded bytes to 1 GiB, individual members to
+256 MiB and `manifest.json` to 16 MiB. The unpacked-folder path uses the same member and read limits and accepts
+only files within the export directory. The final RGB and mask arrays are limited to 256 MiB per image pair and
+1 GiB per dataset before decoding.
+
 The data come from the program: **Results → U-Net training data (ZIP)** exports every image of the project that has
 at least one reviewed trace (§24). The Python package then provides four commands (`sedcoretool unet …`, §25.4):
 
@@ -1836,6 +1842,12 @@ with **Import file…** on another computer. **Download full backup (all project
 files (with images in base64) are still imported. On import a new identifier is assigned so that no other project is
 overwritten, and images go to the `images` store.
 
+Project ZIP import accepts classic stored and Deflate archives. It checks paths, directory and local headers,
+and declared uncompressed sizes before reading entries. Limits are 16 MiB for the central directory, 128 MiB
+per project or settings JSON, 256 MiB per Deflate member, 1 GiB for Deflate data and less than 4 GiB for all
+members. The same aggregate limits apply to repeated reads. Deflate output is checked against the declared size
+and CRC during extraction. Stored original images are accessed by range.
+
 ### 23.2 Project folder and automatic copy
 The automatic copy writes, in a folder chosen by the user (ideally synchronised with OneDrive, Google Drive or
 Dropbox; Chrome and Edge, and the desktop program), one folder per project:
@@ -1921,7 +1933,12 @@ are later deleted.
 figures, data) starts with `#` lines:
 `# SedCoreTool <version> (format 5) · <ISO date> · <project>` and
 `# settings: binCm=…; minValid=…; includePred=…; predThr=…; countCandidates=…; detection=…; age model=…`.
-The readers of the program and of the Python package ignore lines starting with `#`. Tables are produced by the pure
+The program ignores these `#` lines on table import. User-supplied delimiters and line breaks in those comments
+are escaped so they cannot open another field or row. CSV and Excel exporters prepend an apostrophe to text
+that starts with spreadsheet formula characters (`=`, `+`, `-`, `@`, including full-width equivalents), even after
+leading whitespace. Leading tabs and line breaks also trigger the escape. Numeric cells retain their numeric
+values. Text fields with delimiters or line breaks are quoted in CSV. Excel section sheet names are normalised and
+made unique within the workbook. Tables are produced by the pure
 module `exportio.js` (`bioturbationTable`, `objectsTable`, `provenanceLines`/`withProvenance`, `ageModelText`,
 `recordSeries`), so the content of each file is tested.
 
@@ -2067,7 +2084,10 @@ Implementation: `batch.py`, `export.py::join_sections, to_las`.
 (default: the manifest's file name), `units` (default cm), `name` (default: the image's file stem), `exclude`
 (exclusion image). Relative paths are read from the manifest's folder. `sedcoretool manifest FOLDER [-o
 sections.csv]` lists the images of a folder with empty depths (and `<stem>_excl.png` as exclusion when it exists);
-the depths are filled in by hand.
+the depths are filled in by hand. `read_manifest` recognises documented headers without case sensitivity,
+loads depth columns as float64 and the identifiers and paths as strings. It skips extra columns and reads plain CSV.
+Templates containing formula-like names include an escape marker so the manifest reader can recover the original
+paths and labels.
 
 ```bash
 sedcoretool batch sections.csv [--bin-cm 1 | --bin-px N] [--threshold 5 | --palette p.json | --label-mask

@@ -220,8 +220,9 @@ export function baconToAgeText(text, { center = 'median', depthUnit = 'cm', ageD
 export function toCSV(rows) {
   const q = (v) => {
     if (v == null) return '';
-    const s = typeof v === 'number' ? String(+v.toFixed(6)) : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    let s = typeof v === 'number' ? String(+v.toFixed(6)) : String(v);
+    if (typeof v !== 'number' && (/^[ \u00a0]*[\t\r\n]/.test(s) || /^[\s\u0000-\u001f]*[=+@\-＝＋－＠]/u.test(s))) s = "'" + s;
+    return /[",;|\t\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(q).join(',')).join('\n') + '\n';
 }

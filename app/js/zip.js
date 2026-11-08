@@ -44,28 +44,103 @@ export async function zipFiles(files) {
   return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
 }
 
-/** Read the table of contents of a ZIP Blob: Map name → { get(): Promise<Blob> }. */
+
+const ZIP_DIRECTORY_LIMIT = 16 * 1024**2;
+const ZIP_JSON_LIMIT = 128 * 1024**2;
+const ZIP_INFLATE_ENTRY_LIMIT = 256 * 1024**2;
+const ZIP_INFLATE_TOTAL_LIMIT = 1024**3;
+
+function inflateZipMember(raw, size, expectedCRC) {
+  let offset = 0, produced = 0, crc = 0;
+  const input = new ReadableStream({
+    async pull(controller) {
+      if (offset === raw.size) { controller.close(); return; }
+      const end = Math.min(raw.size, offset + 16 * 1024);
+      controller.enqueue(new Uint8Array(await raw.slice(offset, end).arrayBuffer()));
+      offset = end;
+    },
+  });
+  const verify = new TransformStream({
+    transform(chunk, controller) {
+      produced += chunk.byteLength;
+      if (produced > size) throw new Error('ZIP inflated size exceeds declared size');
+      crc = crc32(chunk, crc);
+      controller.enqueue(chunk);
+    },
+    flush() {
+      if (produced !== size || crc !== expectedCRC) throw new Error('ZIP size or CRC mismatch');
+    },
+  });
+  return new Response(input.pipeThrough(new DecompressionStream('deflate-raw')).pipeThrough(verify)).blob();
+}
+
+/** Validate a classic ZIP before exposing lazy, bounded readers for its members. */
 export async function unzipBlob(blob) {
+  if (blob.size > 0xffffffff) throw new Error('ZIP exceeds the supported size');
   const tailLen = Math.min(blob.size, 65557), tail = new DataView(await blob.slice(blob.size - tailLen).arrayBuffer());
   let eocd = -1;
-  for (let i = tailLen - 22; i >= 0; i--) if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  for (let i = tailLen - 22; i >= 0; i--) {
+    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) === tailLen) { eocd = i; break; }
+  }
   if (eocd < 0) throw new Error('not a ZIP file');
   const n = tail.getUint16(eocd + 10, true), cdSize = tail.getUint32(eocd + 12, true), cdOff = tail.getUint32(eocd + 16, true);
-  const cd = new DataView(await blob.slice(cdOff, cdOff + cdSize).arrayBuffer()), dec = new TextDecoder(), out = new Map();
-  for (let i = 0, p = 0; i < n; i++) {
-    if (cd.getUint32(p, true) !== 0x02014b50) throw new Error('bad ZIP directory');
-    const method = cd.getUint16(p + 10, true), csize = cd.getUint32(p + 20, true), nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true), lo = cd.getUint32(p + 42, true);
-    const name = dec.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nl));
+  if (tail.getUint16(eocd + 4, true) || tail.getUint16(eocd + 6, true) || tail.getUint16(eocd + 8, true) !== n ||
+      cdSize > ZIP_DIRECTORY_LIMIT || cdSize < 46 * n || cdOff + cdSize !== blob.size - tailLen + eocd) {
+    throw new Error('Invalid or oversized ZIP directory');
+  }
+  const cd = new DataView(await blob.slice(cdOff, cdOff + cdSize).arrayBuffer());
+  const dec = new TextDecoder(), entries = [], out = new Map();
+  let p = 0, expanded = 0, inflated = 0, bytesRead = 0, bytesInflated = 0;
+  for (let i = 0; i < n; i++) {
+    if (p + 46 > cdSize || cd.getUint32(p, true) !== 0x02014b50) throw new Error('Invalid ZIP directory entry');
+    const flags = cd.getUint16(p + 8, true), method = cd.getUint16(p + 10, true), crc = cd.getUint32(p + 16, true);
+    const csize = cd.getUint32(p + 20, true), size = cd.getUint32(p + 24, true), lo = cd.getUint32(p + 42, true);
+    const nl = cd.getUint16(p + 28, true), next = p + 46 + nl + cd.getUint16(p + 30, true) + cd.getUint16(p + 32, true);
+    if (!nl || next > cdSize || flags & 0x41 || cd.getUint16(p + 34, true) || ![0, 8].includes(method)) {
+      throw new Error('Invalid or unsupported ZIP member');
+    }
+    const name = dec.decode(new Uint8Array(cd.buffer, p + 46, nl));
+    if (/[\\\u0000]/.test(name) || name.startsWith('/') || /^[a-z]:/i.test(name) ||
+        name.replace(/\/$/, '').split('/').some((part) => !part || part === '..' || part === '.') || out.has(name)) {
+      throw new Error('Invalid or duplicate ZIP member name');
+    }
+    expanded += size;
+    if (method === 8) inflated += size;
+    if (expanded > 0xffffffff || inflated > ZIP_INFLATE_TOTAL_LIMIT ||
+        (method === 8 && size > ZIP_INFLATE_ENTRY_LIMIT) ||
+        ((name.endsWith('project.json') || name === 'settings.json') && size > ZIP_JSON_LIMIT)) {
+      throw new Error('ZIP uncompressed size exceeds the import limit');
+    }
+    if ((method === 0 && size !== csize) || lo + 30 + csize > cdOff) throw new Error('Invalid ZIP member size or offset');
+    const entry = { lo, csize, end: cdOff };
+    entries.push(entry);
     out.set(name, {
       async get() {
-        const lh = new DataView(await blob.slice(lo, lo + 30).arrayBuffer()), start = lo + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+        bytesRead += size;
+        if (method === 8) bytesInflated += size;
+        if (bytesRead > 0xffffffff || bytesInflated > ZIP_INFLATE_TOTAL_LIMIT) throw new Error('ZIP read exceeds the import limit');
+        const lh = new DataView(await blob.slice(lo, lo + 30).arrayBuffer());
+        if (lh.getUint32(0, true) !== 0x04034b50 || lh.getUint16(6, true) !== flags || lh.getUint16(8, true) !== method ||
+            (!(flags & 8) && (lh.getUint32(14, true) !== crc || lh.getUint32(18, true) !== csize || lh.getUint32(22, true) !== size))) {
+          throw new Error('ZIP local header does not match directory');
+        }
+        const localNameSize = lh.getUint16(26, true), start = lo + 30 + localNameSize + lh.getUint16(28, true);
+        if (localNameSize !== nl || start + csize > entry.end ||
+            dec.decode(await blob.slice(lo + 30, lo + 30 + localNameSize).arrayBuffer()) !== name) {
+          throw new Error('Invalid or overlapping ZIP member');
+        }
         const raw = blob.slice(start, start + csize);
-        if (method === 0) return raw;
-        if (method === 8) return new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
-        throw new Error('unsupported ZIP compression');
+        return method === 0 ? raw : inflateZipMember(raw, size, crc);
       },
     });
-    p += 46 + nl + xl + cl;
+    p = next;
+  }
+  if (p !== cdSize) throw new Error('Invalid ZIP directory length');
+  entries.sort((a, b) => a.lo - b.lo);
+  for (let i = 0; i + 1 < entries.length; i++) {
+    const current = entries[i];
+    current.end = entries[i + 1].lo;
+    if (current.lo + 30 + current.csize > current.end) throw new Error('Overlapping ZIP members');
   }
   return out;
 }

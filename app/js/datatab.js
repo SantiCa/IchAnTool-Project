@@ -8,6 +8,7 @@ import { mode } from './columns.js';
 import { FIT_KINDS, PLOT_COLORS, PLOT_TYPES, buildStratPlot, buildXYPlot } from './plot.js';
 
 import { toCSV } from './core.js';
+import { csvCommentText } from './exportio.js';
 import { intervalsOnAxis } from './geo.js';
 import { FUNCTIONS, cellName, evalCells, parseFormula } from './sheet.js';
 
@@ -319,6 +320,6 @@ $('dCsv').addEventListener('click', () => {
   const rows = [['core', 'depth', 'age', ...M.cols.map(([k]) => k), ...M.layers.map((L) => L.name)], ...M.rows.map((r) => [r.c.name, r.depth, r.age, ...r.vals, ...r.lay])];
   // V0.35: the cells edited by hand are listed in the header (lines starting with # are ignored when the file is read back)
   const notes = [];
-  for (const c of M.cores) for (const [col, E] of Object.entries(c.edits || {})) for (const [x, ed] of Object.entries(E)) notes.push(`# edited by hand: ${c.name}; ${col}; ${c.depth ? 'depth' : 'age'} ${x}; original ${ed.o ?? ''}; new ${ed.v ?? ''}; ${ed.at || ''}`);
+  for (const c of M.cores) for (const [col, E] of Object.entries(c.edits || {})) for (const [x, ed] of Object.entries(E)) notes.push(`# edited by hand: ${csvCommentText(c.name)}; ${csvCommentText(col)}; ${c.depth ? 'depth' : 'age'} ${csvCommentText(x)}; original ${csvCommentText(ed.o ?? '')}; new ${csvCommentText(ed.v ?? '')}; ${csvCommentText(ed.at || '')}`);
   saveFile(`${safe(S.name)}_datos.csv`, notes.join('\n') + '\n' + withProv(toCSV(rows)), 'text/csv');
 });

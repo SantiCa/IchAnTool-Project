@@ -1,10 +1,14 @@
 // SedCoreTool web — V0.44: tables written to files and records read from tables. DOM-free and tested
 // (tests/app/exportio.test.mjs); app.js only gathers the data and saves the files.
 
+/** Escape user text inside a single-line CSV comment, where normal field quoting is unavailable. */
+export const csvCommentText = (value) => String(value).replace(/[\u0000-\u001f\u007f,;|"\u2028\u2029]/gu,
+  (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+
 /** Provenance lines (start with #, ignored when read back) for an exported CSV. */
 export function provenanceLines({ delivery, format, date, project, settings: st = {}, detection = '', age = 'none' }) {
-  return [`# SedCoreTool ${delivery} (format ${format}); exported ${date}; project "${String(project).replace(/"/g, "'")}"`,
-    `# settings: binCm=${st.binCm}; minValid=${st.minValid}%; includePred=${!!st.includePred}; predThr=${st.predThr}; countCandidates=${!!st.countCandidates}; detection=${detection}; age model=${age}`];
+  return [`# SedCoreTool ${delivery} (format ${format}); exported ${date}; project "${csvCommentText(String(project).replace(/"/g, "'"))}"`,
+    `# settings: binCm=${csvCommentText(st.binCm)}; minValid=${csvCommentText(st.minValid)}%; includePred=${!!st.includePred}; predThr=${csvCommentText(st.predThr)}; countCandidates=${!!st.countCandidates}; detection=${csvCommentText(detection)}; age model=${csvCommentText(age)}`];
 }
 export const withProvenance = (csv, info) => [...provenanceLines(info), csv].join('\n');
 

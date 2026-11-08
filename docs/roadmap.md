@@ -20,9 +20,8 @@ Keep task IDs stable. The changelog records what shipped.
 
 - [ ] **M0.1 - Reproducible performance baseline.** **Ready.** First task. Codex edits and delivers.
       Claude reviews in read-only mode and independently reruns both benchmark cases.
-- [ ] **M0.2 - Import and export safety.** Bound ZIP expansion during decompression and test malformed packages
-      alongside valid legacy projects. Prevent formula interpretation in exported user-entered CSV text while
-      preserving numeric values, including negative measurements.
+- [x] **M0.2 - Import and export safety.** Bound ZIP expansion and escape formula-like spreadsheet text
+      while preserving numeric measurements. [V0.91](../CHANGELOG.md#v091--2026-11-09)
 - [ ] **M0.3 - Project validation.** Identify the supported formats and migration paths. Start with diagnostic
       warnings and cover current and legacy projects before considering rejection rules.
 

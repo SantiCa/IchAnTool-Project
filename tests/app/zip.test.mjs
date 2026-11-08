@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { deflateRawSync } from 'node:zlib';
 import { zipFiles, unzipBlob, crc32 } from '../../app/js/zip.js';
 
 test('V0.8: zip round trip (text and binary entries) and CRC-32', async () => {
@@ -23,4 +24,32 @@ test('ZIP computes the CRC across bounded slices without reading the original as
   const result = await (await unzipBlob(zip)).get('images/core.tif').get();
   assert.equal(result.size, bytes.length);
   assert.deepEqual(new Uint8Array(await result.slice(-25, -21).arrayBuffer()), new Uint8Array([12, 34, 56, 78]));
+});
+
+async function deflatedMember(data, size = data.length) {
+  const blob = await zipFiles([{ name: 'project.json', data: deflateRawSync(data) }]);
+  const view = new DataView(await blob.arrayBuffer()), cd = view.getUint32(view.byteLength - 6, true);
+  view.setUint16(8, 8, true); view.setUint16(cd + 10, 8, true);
+  view.setUint32(14, crc32(data), true); view.setUint32(cd + 16, crc32(data), true);
+  view.setUint32(22, size, true); view.setUint32(cd + 24, size, true);
+  return new Blob([view.buffer]);
+}
+
+test('ZIP accepts valid deflate and rejects a forged low or oversized expanded size', async () => {
+  const data = new TextEncoder().encode(JSON.stringify({ a: 'A'.repeat(64 * 1024) }));
+  const valid = await unzipBlob(await deflatedMember(data));
+  assert.deepEqual(new Uint8Array(await (await valid.get('project.json').get()).arrayBuffer()), data);
+  const forged = await unzipBlob(await deflatedMember(data, 64));
+  await assert.rejects(forged.get('project.json').get(), /inflated size/);
+  await assert.rejects(unzipBlob(await deflatedMember(data, 129 * 1024**2)), /uncompressed size/);
+});
+
+test('ZIP rejects unsafe paths, duplicate names and overlapping member offsets', async () => {
+  await assert.rejects(unzipBlob(await zipFiles([{ name: '../project.json', data: '{}' }])), /member name/);
+  const repeated = [{ name: 'project.json', data: '{}' }, { name: 'project.json', data: '{}' }];
+  await assert.rejects(unzipBlob(await zipFiles(repeated)), /duplicate/);
+  const blob = await zipFiles([{ name: 'a', data: 'A' }, { name: 'b', data: 'B' }]);
+  const view = new DataView(await blob.arrayBuffer()), cd = view.getUint32(view.byteLength - 6, true);
+  view.setUint32(cd + 47 + 42, 0, true);
+  await assert.rejects(unzipBlob(new Blob([view.buffer])), /Overlapping ZIP/);
 });
