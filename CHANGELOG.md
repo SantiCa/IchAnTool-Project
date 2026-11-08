@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.90 — 2026-11-09
+- U-Net training switches to CPU if GPU memory is insufficient and resumes from the last completed checkpoint. Use `--cpu-only` to force CPU execution in the Python CLI.
+
 ## V0.89 — 2026-11-09
 - Classify large multidimensional arrays of BI and ii faster in Python with the same interval results.
 

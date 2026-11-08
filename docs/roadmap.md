@@ -73,6 +73,8 @@ Keep task IDs stable. The changelog records what shipped.
         scheme precedence. [V0.89](../CHANGELOG.md#v089--2026-11-09)
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
+  - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU
+        after a recoverable GPU error and expose an explicit CPU option. [V0.90](../CHANGELOG.md#v090--2026-11-09)
 
 ### M4 - Optional acceleration
 

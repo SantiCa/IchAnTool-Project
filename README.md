@@ -131,6 +131,10 @@ Use lossless formats (PNG, TIFF) for masks. The complete API, command line and U
 desktop program (*Detection → U-Net → Train on this computer…*) or with `sedcoretool unet` — and then used as a
 detection method. No model trained on real cores is distributed yet.
 
+Training checks GPU memory and continues on CPU if the accelerator is unavailable or runs out of memory.
+Use `sedcoretool unet train DATA OUT --cpu-only` or `train(..., cpu_only=True)` to train on CPU without
+probing CUDA or Metal. The `predict` and `evaluate` subcommands also accept `--cpu-only`.
+
 When preparing training data from the command line, choose a new or empty output directory for each preparation.
 While any core is reserved for a final test, the ichnotaxon classifier excludes all library and other-project
 examples, whose independence cannot be established for older model files.

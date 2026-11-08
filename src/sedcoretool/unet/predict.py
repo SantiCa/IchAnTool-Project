@@ -18,7 +18,7 @@ class OnnxUnet:
             import onnxruntime as ort
         except ImportError as e:  # pragma: no cover - optional dependency
             raise ImportError("install the optional dependencies: pip install 'sedcoretool[unet]'") from e
-        path = Path(path)
+        path = self._path = Path(path)
         js = path.with_suffix(".json")
         self.config = config or (UnetConfig.from_json(json.loads(js.read_text(encoding="utf-8"))) if js.exists() else UnetConfig())
         self.session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
@@ -27,7 +27,11 @@ class OnnxUnet:
     def run_tile(self, x: np.ndarray) -> np.ndarray:
         return self.session.run(None, {self._in: x[None].astype(np.float32)})[0][0]
 
-    def predict(self, rgb: np.ndarray, px_per_cm: float | None = None):
+    def predict(self, rgb: np.ndarray, px_per_cm: float | None = None, *, cpu_only: bool = False):
         """(probability of bioturbation, class map or None) for an (h, w, 3) uint8 image."""
         scale = self.config.px_per_cm / px_per_cm if (self.config.px_per_cm and px_per_cm) else 1.0
-        return predict_proba(self.run_tile, rgb, self.config, scale)
+        net = self
+        if cpu_only and self.session.get_providers() != ["CPUExecutionProvider"]:
+            # Keep any caller-configured provider session intact.
+            net = OnnxUnet(self._path, self.config)
+        return predict_proba(net.run_tile, rgb, self.config, scale)

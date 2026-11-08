@@ -55,18 +55,20 @@ def mask_from_palette(img: np.ndarray, palette: Mapping[str, str | Sequence[int]
 
 
 def mask_from_unet(img: np.ndarray, model, px_per_cm: float | None = None,
-                   threshold: float = 0.5) -> tuple[np.ndarray, list[str]]:
+                   threshold: float = 0.5, *, cpu_only: bool = False) -> tuple[np.ndarray, list[str]]:
     """Label mask from a trained U-Net (V0.15).
 
     ``model``: path to the .onnx file (its .json next to it) or an ``sedcoretool.unet.predict.OnnxUnet``.
     ``px_per_cm`` of the image, so it is resampled to the training resolution. Pixels with probability of
     bioturbation >= ``threshold`` get class 1 (binary model) or the most probable class (multi-class model).
+    ``cpu_only`` enforces CPU execution even for a caller-configured ONNX session.
     """
     from .unet.predict import OnnxUnet
 
     net = model if isinstance(model, OnnxUnet) else OnnxUnet(model)
     rgb = img if img.ndim == 3 else np.repeat(img[..., None], 3, axis=2)
-    prob, cls = net.predict(rgb[..., :3].astype(np.uint8), px_per_cm)
+    kwargs = {"cpu_only": True} if cpu_only else {}
+    prob, cls = net.predict(rgb[..., :3].astype(np.uint8), px_per_cm, **kwargs)
     on = prob >= threshold
     mask = np.where(on, cls if cls is not None else 1, 0).astype(np.int32)
     return mask, list(net.config.classes)

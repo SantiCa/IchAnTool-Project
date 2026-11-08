@@ -18,7 +18,7 @@ from .predict import OnnxUnet
 
 
 def evaluate(export: str | Path, model: str | Path, cores: list[str] | None = None, threshold: float = 0.5,
-             bin_cm: float = 1.0, dataset: str | Path | None = None) -> dict:
+             bin_cm: float = 1.0, dataset: str | Path | None = None, *, cpu_only: bool = False) -> dict:
     """Scores on the images of ``cores`` (default: the test cores recorded in ``dataset``/dataset.json)."""
     if cores is None and dataset is not None:
         cores = json.loads((Path(dataset) / "dataset.json").read_text(encoding="utf-8"))["split"]["test"]["cores"]
@@ -30,7 +30,7 @@ def evaluate(export: str | Path, model: str | Path, cores: list[str] | None = No
     net = OnnxUnet(model)
     rows, tp = [], np.zeros(3, int)
     for it in items:
-        prob, _ = net.predict(it.image, it.px_per_cm)
+        prob, _ = net.predict(it.image, it.px_per_cm, cpu_only=cpu_only)
         pred = (prob >= threshold).astype(np.uint8)
         s = score(pred, it.mask, bin_cm * it.px_per_cm)
         tp += [s["tp"], s["fp"], s["fn"]]

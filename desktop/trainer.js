@@ -41,11 +41,21 @@ class Trainer {
 
   hasNvidia() { return spawnSync('nvidia-smi', ['-L'], { encoding: 'utf8', timeout: 15000 }).status === 0; }
 
+  /** Use the bundled application code with the dependencies from the managed interpreter. */
+  pythonEnv(bundled = true) {
+    const src = this.pySrc && path.join(this.pySrc, 'src');
+    const env = { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' };
+    if (bundled && !this.fixedPython && src && fs.existsSync(path.join(src, 'sedcoretool', 'cli.py'))) {
+      env.PYTHONPATH = [src, env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+    }
+    return env;
+  }
+
   /** What the dialog shows: interpreter, whether the module is ready, training hardware, models and an unfinished run. */
   async status() {
     const py = this.python(), out = { python: py, installed: false, device: null, system: null, models: this.models(), busy: this.busy, platform: process.platform };
     if (!py) { out.system = this.systemPython(); return out; }
-    const r = spawnSync(py, ['-m', 'sedcoretool.cli', 'unet', 'device'], { encoding: 'utf8', timeout: 120000 });
+    const r = spawnSync(py, ['-m', 'sedcoretool.cli', 'unet', 'device'], { encoding: 'utf8', timeout: 120000, env: this.pythonEnv() });
     if (r.status === 0) { out.installed = true; try { out.device = JSON.parse(r.stdout.trim().split('\n').pop()); } catch { /* keep null */ } }
     else out.error = (r.stderr || '').trim().split('\n').slice(-3).join('\n');
     return out;
@@ -54,7 +64,8 @@ class Trainer {
   /** Run a command, sending each output line; resolves with the exit code. */
   run(cmd, args, opt = {}) {
     return new Promise((resolve, reject) => {
-      const env = { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' };
+      const cli = args[0] === '-m' && args[1] === 'sedcoretool.cli';
+      const env = this.pythonEnv(cli);
       const p = spawn(cmd, args, { cwd: opt.cwd || this.root, env, windowsHide: true });
       this.child = p;
       const feed = (buf) => {

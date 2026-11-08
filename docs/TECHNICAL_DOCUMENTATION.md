@@ -646,7 +646,7 @@ fast, deterministic and easy to explain.
 ### 9.1 Running a model in the program
 With the detection method **U-Net**, a U-Net trained outside the interactive tools (with the Python package or the
 desktop training module, §9.2–9.3) gives, for every pixel, the probability of bioturbation `P`. The program runs it
-with ONNX Runtime Web (WebAssembly, one thread, no GPU); the Python package runs it with ONNX Runtime. Both follow
+with ONNX Runtime Web (WebAssembly, one thread, no GPU); Python uses ONNX Runtime's CPU provider. Both follow
 the same rules (`app/js/unet.js` and `src/sedcoretool/unet/tiling.py`), checked against the same reference file
 (`tests/fixtures/unet_parity.json`).
 
@@ -704,6 +704,12 @@ at least one reviewed trace (§24). The Python package then provides four comman
   90° rotations**, because the orientation of a trace relative to bedding is diagnostic. AdamW (lr 3·10⁻⁴, weight
   decay 10⁻⁴), cosine schedule, at most 60 epochs and early stopping after 12 epochs without improving validation
   Dice. It exports ONNX (opset 17, input `image` 1×3×T×T, output `logits`) and the JSON description.
+  PyTorch checks global free CUDA memory or the Metal recommended working set minus allocations by this process.
+  Training requires at least the larger of 256 MiB and `batch × tile² × 20` bytes of headroom for the input and
+  target. CUDA takes precedence when available. A failed probe or insufficient headroom selects CPU. If a
+  recoverable accelerator error occurs while training, the program releases GPU allocations and retries once on
+  CPU from the last complete checkpoint of this run, or from its starting state if no epoch was saved.
+  `cpu_only=True` or `--cpu-only` bypasses the probes and takes precedence over the requested training device.
 - **`evaluate`** predicts each **whole** image of the test cores (as the program does) and compares it with the
   expert mask, ignoring pixels marked 255. Bioturbation = any class > 0. IoU = TP/(TP+FP+FN);
   Dice = 2TP/(2TP+FP+FN); precision = TP/(TP+FP); recall = TP/(TP+FN). Per interval of `b` cm (`b·ρ` rows, same
@@ -721,15 +727,19 @@ graphics card.
    Python ≥ 3.10 (`py -3`, `python` or `python3`). It installs PyTorch (on Windows with an NVIDIA card, detected with
    `nvidia-smi -L`, from `https://download.pytorch.org/whl/cu128`, because PyPI only has the CPU build; on Linux and
    macOS from PyPI) and `sedcoretool[unet]` from the copy of the package shipped with the program
-   (`resources/python`). It is installed once, when the user asks (2–3 GB).
-2. **Hardware:** `sedcoretool unet device` → `cuda` (NVIDIA), `mps` (Apple) or `cpu`, in that order of preference.
+   (`resources/python`). It is installed once, when the user asks (2–3 GB). The desktop runs the CLI code from
+   its bundled Python source with the dependencies from this environment, including on app upgrades.
+2. **Hardware:** `sedcoretool unet device` reports the accelerator that passes the memory probe or `cpu`. Each
+   training run probes again using its tile and batch size. Progress reports the device used for each epoch.
 3. **Data:** the same ZIP as "U-Net training data", built in memory. The user marks each core as Auto, Validation or
    Test (`--val`, `--test` of `prepare`); Auto follows the rule of `prepare`.
 4. **Run:** `prepare` → `train --progress-json` (one JSON line per epoch: epoch, loss, validation Dice, best Dice and
    its epoch, device) → `evaluate` on the test cores if there are any. Everything goes to
    `<user data>/trainer/runs/<name>`; the model to `trainer/models/<name>.onnx` and `.json`.
-5. **Stop and resume:** after every epoch `<name>.ckpt` is saved (network, optimiser, scheduler, epoch, best Dice,
-   history and patience). Resume continues from there with the same tiles (`train --resume`). The result is not
+5. **Stop and resume:** after every epoch `<name>.ckpt` is atomically replaced (network, optimiser, scheduler,
+   epoch, best Dice, history and patience). The best weights for that checkpoint can be recovered if writing
+   stops between committing the checkpoint and publishing the best weights. Resume continues from the checkpoint
+   with the same tiles (`train --resume`). The result is not
    bit-identical to an uninterrupted run (the random order of augmentations is not saved); this is recorded in the
    model's history.
 6. **When it finishes:** the model is loaded in Detection. The model list shows the validation Dice and, if there
@@ -1977,7 +1987,7 @@ Masks follow one contract: a 2-D integer array where `0` = matrix and `1…n` = 
 | `to_gray(img)` | `io.py` | Grey with the weights of version 2.1: 0.30 R + 0.56 G + 0.11 B. |
 | `mask_from_threshold(img, threshold=5, class_name="bioturbation")` | `segmentation.py` | Binary mask: grey ≤ threshold is bioturbation (bioturbation painted black, as in version 2.1). |
 | `mask_from_palette(img, palette, tolerance=10)` | `segmentation.py` | Multi-class mask from a colour-coded image: `palette = {"Zoophycos": "#ff0000", …}`; a pixel belongs to a class when each RGB channel is within `tolerance` of the class colour (the first matching class wins). The `*_mask.png` and `*_palette.json` exported by the program are read this way. |
-| `mask_from_unet(img, model, px_per_cm=None, threshold=0.5)` | `segmentation.py` | Mask from a trained U-Net (`.onnx` with its `.json` next to it), with the rules of §9.1. |
+| `mask_from_unet(img, model, px_per_cm=None, threshold=0.5, *, cpu_only=False)` | `segmentation.py` | Mask from a trained U-Net (`.onnx` with its `.json` next to it), with the rules of §9.1. |
 | `analyze_mask(mask, top, bottom, *, units="cm", bin_px=1, bin_cm=None, class_names=None, schemes=(BI, ii), exclude=None, min_valid=0.2, keep_partial=True, name="section_1")` | `pipeline.py` | Intervals, percentages and indices (§3–§4). `bin_cm` sets the interval thickness in cm (as in the program); otherwise `bin_px` rows per interval (may be fractional, ≥ 1). `exclude`: boolean array of the mask's size, `True` = excluded pixel (§3.2); intervals with less than `min_valid` of their pixels valid have no data. `units`: mm, cm or m. |
 | `analyze_image(path, top, bottom, *, threshold=5, **kwargs)` | `pipeline.py` | Version 2.1-compatible entry point: painted image → `mask_from_threshold` → `analyze_mask`. |
 | `CoreSection` | `pipeline.py` | Result of one section: `name, top, bottom, units, bin_px, class_names, data` (pandas DataFrame) and `metadata` (`image_rows`, `image_cols`, `px_per_unit`, `excluded_pct`). `add_age(model_depth, model_age, extrapolate=False)` adds an `age` column (§5). |
@@ -2036,10 +2046,10 @@ The U-Net workflow (§9.2), with its defaults:
 | Command | Arguments and options |
 |---------|----------------------|
 | `prepare EXPORT OUT` | `EXPORT` = the ZIP exported by the program; `--tile 512`, `--overlap 64`, `--px-per-cm` (default: median of the export), `--multiclass`, `--val CORE…`, `--test CORE…` (never used for training), `--seed 42`, `--overwrite` (replace a previous dataset in `OUT`). Prints the tiles and cores of each set and warns if there are no test cores. |
-| `train DATA OUT` | `DATA` = folder made by `prepare`; `OUT` = output name (e.g. `models/unet_v1` → `.onnx`, `.json`, `.ckpt`); `--encoder resnet34`, `--no-pretrained`, `--epochs 60`, `--batch 8`, `--lr 3e-4`, `--patience 12`, `--seed 42`, `--device cuda|mps|cpu` (default: the best available), `--resume`, `--progress-json`. |
-| `device` | Prints, as JSON, the training hardware PyTorch sees. |
-| `evaluate EXPORT MODEL` | `--dataset` (use the test cores of a prepared folder) or `--cores CORE…`, `--threshold 0.5`, `--bin-cm 1.0`, `-o scores.json`. Prints pooled IoU and Dice. |
-| `predict IMAGE MODEL` | `--px-per-cm`, `--threshold 0.5`, `-o mask.png` (default `<image>_unet_mask.png`). |
+| `train DATA OUT` | `DATA` = folder made by `prepare`; `OUT` = output name (e.g. `models/unet_v1` → `.onnx`, `.json`, `.ckpt`); `--encoder resnet34`, `--no-pretrained`, `--epochs 60`, `--batch 8`, `--lr 3e-4`, `--patience 12`, `--seed 42`, `--device cuda|mps|cpu` (default: probe the available hardware), `--cpu-only`, `--resume`, `--progress-json`. |
+| `device` | Prints the training device selected by the PyTorch probe as JSON. `--cpu-only` reports CPU without probing. |
+| `evaluate EXPORT MODEL` | `--dataset` (use the test cores of a prepared folder) or `--cores CORE…`, `--threshold 0.5`, `--bin-cm 1.0`, `--cpu-only`, `-o scores.json`. Prints pooled IoU and Dice. |
+| `predict IMAGE MODEL` | `--px-per-cm`, `--threshold 0.5`, `--cpu-only`, `-o mask.png` (default `<image>_unet_mask.png`). |
 
 ### 25.5 Differences from the program
 - The package starts from a mask: it has no enhancement, detection, editing tools or ichnotaxa classifier.

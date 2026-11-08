@@ -126,7 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     tr.add_argument("--device", default=None, help="cuda, mps or cpu (default: the best available)")
     tr.add_argument("--resume", action="store_true", help="continue from the last checkpoint (<out>.ckpt)")
     tr.add_argument("--progress-json", action="store_true", help="one JSON line per epoch (used by the desktop app)")
-    u.add_parser("device", help="training hardware seen by PyTorch (JSON)")
+    di = u.add_parser("device", help="training hardware seen by PyTorch (JSON)")
     ev = u.add_parser("evaluate", help="score whole images of independent cores")
     ev.add_argument("export", type=Path)
     ev.add_argument("model", type=Path)
@@ -141,6 +141,8 @@ def build_parser() -> argparse.ArgumentParser:
     pd_.add_argument("--px-per-cm", type=float, default=None)
     pd_.add_argument("--threshold", type=float, default=0.5)
     pd_.add_argument("-o", "--output", type=Path)
+    for command in (tr, di, ev, pd_):
+        command.add_argument("--cpu-only", action="store_true", help="force CPU execution")
     return p
 
 
@@ -189,14 +191,14 @@ def _unet(args) -> int:
         prog = (lambda d: print(json.dumps({"progress": d}), flush=True)) if args.progress_json else None
         s = train(args.data, args.out, args.encoder, None if args.no_pretrained else "imagenet", args.epochs,
                   args.batch, args.lr, args.patience, args.seed, args.device,
-                  log=lambda m: print(m, flush=True), progress=prog, resume=args.resume)
+                  log=lambda m: print(m, flush=True), progress=prog, resume=args.resume, cpu_only=args.cpu_only)
         print(f"best epoch {s['bestEpoch']}, validation Dice {s['valDice']:.4f} -> {args.out.with_suffix('.onnx')}")
     elif args.unet == "device":
         from .unet.train import device_info
-        print(json.dumps(device_info()))
+        print(json.dumps(device_info(cpu_only=args.cpu_only)))
     elif args.unet == "evaluate":
         from .unet.evaluate import evaluate
-        r = evaluate(args.export, args.model, args.cores, args.threshold, args.bin_cm, args.dataset)
+        r = evaluate(args.export, args.model, args.cores, args.threshold, args.bin_cm, args.dataset, cpu_only=args.cpu_only)
         p = r["pooled"]
         print(f"cores {', '.join(r['cores'])}: IoU {p['iou']:.4f}  Dice {p['dice']:.4f}")
         if args.output:
@@ -205,7 +207,8 @@ def _unet(args) -> int:
         from PIL import Image
 
         from .segmentation import mask_from_unet
-        mask, names = mask_from_unet(load_image(args.image, "RGB"), args.model, args.px_per_cm, args.threshold)
+        mask, names = mask_from_unet(load_image(args.image, "RGB"), args.model, args.px_per_cm, args.threshold,
+                                     cpu_only=args.cpu_only)
         out = args.output or args.image.with_name(args.image.stem + "_unet_mask.png")
         Image.fromarray(mask.astype("uint8")).save(out)
         print(f"classes {names}; {100 * (mask > 0).mean():.2f} % bioturbation -> {out}")
