@@ -267,7 +267,9 @@ document.addEventListener('change', (e) => {
   const el = e.target; if (el.dataset?.colshow == null) return;
   const box = el.closest('[data-colord]'), lv = colView(box.dataset.colord); lv.style ||= {};
   const h = new Set(lv.style.colHide || []); if (el.checked) h.delete(el.dataset.colshow); else h.add(el.dataset.colshow);
-  lv.style.colHide = [...h]; afterColChange(box.dataset.colord);
+  lv.style.colHide = [...h];
+  if (box.dataset.colord === 'geo' && el.dataset.colshow === 'band:fam:' + S.geo.activeLayer) $('geoLayerShow').checked = el.checked;
+  afterColChange(box.dataset.colord);
 });
 document.addEventListener('click', (e) => {
   const b = e.target.closest?.('[data-colmv]'); if (!b) return;

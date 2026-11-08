@@ -2,7 +2,7 @@
 import { $, S, clsById, fmt, hex, uid } from './state.js';
 import { tickFieldsHTML, arrowFormHTML, axesFormHTML, colOrderHTML, colView, colorsFormHTML, compositeData, coreImages, lastLog, logRecords, logStyleOf, mode, ndFormHTML, onStyleInput, reduceRGBA, renderLog, scheduleLog, speciesFormHTML, styleFormHTML, syncColOrder } from './columns.js';
 import { busy, clsAbbr, compositeMarks, curCore, depthAtRow, effClassArray, effClassId, esc, idListOf, idMode, legendOf, markDirty, needPixels, pxPerCm, requestRender, rowAtDepth, safe, saveFile, toast } from './app.js';
-import { fetchImage, geoComputeSamples, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoLogs, renderGeoMap } from './multiproxy.js';
+import { buildGeoLog, fetchImage, geoComputeSamples, geoFigureVars, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoMap } from './multiproxy.js';
 
 import { UNIT_TO_CM, hasId, interpAge, topAt } from './core.js';
 import { vec } from './learn.js';
@@ -11,6 +11,9 @@ import { t } from './i18n.js';
 import { LOCMAP_DEFAULTS, buildLocMapSVG, lmFitBBox, lmUtmZone, lmZoom } from './locmap.js';
 
 /* ───────────── figures: representative traces, interpreted core, logs and maps ───────────── */
+
+const figGeoCore = (F) => S.cores.find((c) => c.id === (F.geoCore || S.geo.view.core)) || S.cores[0];
+const figGeoFeatures = (F) => F.geoFeatures ?? S.geo.settings.features.filter((k) => !S.geo.view.style?.colHide?.includes('rec:' + k));
 
 export const defaultFig = () => ({ type: 'traces', title: '', caption: '', n: 4, pick: 'largest', tile: 150, img: 'enh', outline: true, picks: {}, coreH: 1400,
   secFrom: null, secTo: null, panels: ['orig', 'enh', 'alpha', 'mask', 'arrows'], panelW: 150, panelH: 700, keepRatio: false, tracks: null, recs: null, coreImgW: 70, alpha: 0.5, minArea: 0, hideExcl: false, rangeH: 900, rangeTotal: true,
@@ -525,7 +528,10 @@ export function renderFigPanel() {
       <p class="note">${t('fig.coreNote')}</p>`;
     syncCoreFigSize();
   } else if (F.type === 'geolog') {
-    box.innerHTML = `<label class="f"><span>${t('geo.core')}</span><select id="figGeoCore">${S.cores.map((c) => `<option value="${c.id}" ${c.id === S.geo.view.core ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label><p class="note">${t('fig.geoNote')}</p>`;
+    const core = figGeoCore(F), names = geoFigureVars(core), shown = figGeoFeatures(F);
+    box.innerHTML = `<label class="f"><span>${t('geo.core')}</span><select id="figGeoCore">${S.cores.map((c) => `<option value="${c.id}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <details class="mini" open><summary>${t('fig.recs')}</summary><div class="chk2">${names.map((n) => `<label class="chk"><input type="checkbox" data-fgeo="${esc(n)}" ${shown.includes(n) ? 'checked' : ''}><span>${esc(n)}</span></label>`).join('') || '—'}</div>
+      <button type="button" class="btn small" id="figGeoReset" ${F.geoFeatures == null ? 'disabled' : ''}>${t('fig.geoReset')}</button></details><p class="note">${t('fig.geoNote')}</p>`;
   } else if (F.type === 'locmap') box.innerHTML = locmapPanelHTML();
   else box.innerHTML = `<p class="note">${t(F.type === 'map' ? 'fig.mapNote' : 'fig.logNote')}</p>`;
   if (F.type === 'log' || F.type === 'geolog') box.insertAdjacentHTML('afterbegin', `<label class="chk"><input type="checkbox" id="figLogHideExcl" ${S.logView.hideExcl ? 'checked' : ''}><span>${t('log.hideExcl')}</span></label>`);   // V0.51: every figure with the core
@@ -755,7 +761,7 @@ export function renderFigure() {
     else if (F.type === 'sections') svg = sectionsSVG();
     else if (F.type === 'range') svg = rangeSVG();
     else if (F.type === 'log') { renderLog(); svg = lastLog?.svg || null; }
-    else if (F.type === 'geolog') { if (geoRT.dirty) geoComputeSamples(); renderGeoLogs(); svg = $('geoLogSvg').querySelector('svg')?.outerHTML || null; }
+    else if (F.type === 'geolog') { if (geoRT.dirty) geoComputeSamples(); svg = buildGeoLog(figGeoCore(F), F.geoFeatures)?.res.svg || null; }
     else if (F.type === 'locmap') svg = locmapSVG();
     else { if (geoRT.dirty) geoComputeSamples(); svg = renderGeoMap() || null; }
     if (svg && orientOf(F) === 'h' && !['map', 'locmap'].includes(F.type)) svg = orientSVG(svg);   // V0.51
@@ -778,6 +784,11 @@ export function scopeIds(svg) {
   const q = ids.map((i) => i.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).sort((x, y) => y.length - x.length).join('|');
   return svg.replace(new RegExp(`(\\sid="|url\\(#|href="#)(${q})(?=["')])`, 'g'), (m, a2, id) => `${a2}fig-${id}`);
 }
+$('figPanel').addEventListener('click', (e) => {
+  if (e.target.id !== 'figGeoReset') return;
+  delete S.fig.geoFeatures;
+  renderFigPanel(); markDirty(); scheduleFigure();
+});
 let figTimer = 0;
 export const scheduleFigure = () => { clearTimeout(figTimer); figTimer = setTimeout(renderFigure, 150); };
 $('figPanel').addEventListener('change', (e) => {
@@ -798,7 +809,13 @@ $('figPanel').addEventListener('change', (e) => {
   else if (el.id === 'figCoreHideExcl') F.coreHideExcl = el.checked;
   else if (el.dataset.ftrack) { F.tracks = { ...(F.tracks || S.logView.tracks), [el.dataset.ftrack]: el.checked }; }
   else if (el.dataset.frec != null) { const set = new Set(F.recs || S.records.flatMap((r) => r.series.filter((x) => x.show).map((x) => x.name))); if (el.checked) set.add(el.dataset.frec); else set.delete(el.dataset.frec); F.recs = [...set]; }
-  else if (el.id === 'figGeoCore') S.geo.view.core = el.value;
+  else if (el.id === 'figGeoCore') { F.geoCore = el.value; renderFigPanel(); }
+  else if (el.dataset.fgeo != null) {
+    const chosen = new Set(figGeoFeatures(F));
+    if (el.checked) chosen.add(el.dataset.fgeo); else chosen.delete(el.dataset.fgeo);
+    F.geoFeatures = [...chosen];
+    $('figGeoReset').disabled = false;
+  }
   else if (el.id === 'figSecFrom') F.secFrom = el.value === '' ? null : +el.value; else if (el.id === 'figSecTo') F.secTo = el.value === '' ? null : +el.value;
   else if (el.id === 'figPanelW') F.panelW = Math.max(10, +el.value || 150);
   else if (el.id === 'figPanelH') { F.panelH = Math.max(50, +el.value || 700); const z = secFigSize(figLightD()); if (z.r) F.panelW = Math.max(10, Math.min(600, Math.round(F.panelH / z.r))); }

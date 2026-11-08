@@ -763,7 +763,7 @@ export function buildMapSVG(o) {
     else if (o.mode === 'class') { fill = (p.dominant && o.colors[p.dominant]) || '#9aa5a1'; r = st.sizeByFraction ? 5 + 5 * (p.fraction ?? 0.6) : 7; if (st.labelValue && p.dominant && p.fraction != null) label += ` ${Math.round(p.fraction * 100)}%`; }
     else { fill = (o.colorFn || divColor)(p.value); if (st.labelValue) label += ` ${(+p.value).toFixed(2)}`; }
     r *= st.size;
-    const sym = symbolSVG(st.symbol, cx, cy, r, `fill="${esc2(fill)}" stroke="${esc2(st.stroke)}" stroke-width="${p.n ? 1 : 0.6}"${p.n ? '' : ' stroke-dasharray="2 2"'}`);
+    const sym = symbolSVG(p.symbol || st.symbol, cx, cy, r, `fill="${esc2(p.color || fill)}" stroke="${esc2(st.stroke)}" stroke-width="${p.n ? 1 : 0.6}"${p.n ? '' : ' stroke-dasharray="2 2"'}`);
     s.push(o.tipFn ? `<g data-tip="${esc2(o.tipFn(p))}" style="cursor:help">${sym}</g>` : sym);   // V25: hover information
     if (st.labels) s.push(`<text x="${(cx + r + 3).toFixed(1)}" y="${(cy + st.labelSize * 0.36).toFixed(1)}" font-size="${st.labelSize}" fill="${esc2(lblColor)}"${halo}>${esc2(label)}</text>`);
   }
@@ -774,7 +774,7 @@ export function buildMapSVG(o) {
   if (st.north) { const nx = W - 24, ny = top + 14, c = raster ? '#ffffff' : '#1c2422'; s.push(`<polygon points="${nx},${ny} ${nx - 7},${ny + 20} ${nx},${ny + 15} ${nx + 7},${ny + 20}" fill="${c}"/><text x="${nx}" y="${ny + 32}" text-anchor="middle" font-size="10" font-weight="600" fill="${c}">N</text>`); }
   s.push('</g>');
   let lx = 8; const ly = top + H + 20;
-  for (const [name, color] of o.legend || []) { s.push(`${symbolSVG(st.symbol, lx + 5.5, ly - 3.5, 5.5, `fill="${esc2(color)}" stroke="#1c2422" stroke-width="0.5"`)}<text x="${lx + 15}" y="${ly}" fill="${esc2(st.textColor)}">${esc2(name)}</text>`); lx += 30 + name.length * 6.2; }
+  for (const [name, color, symbol] of o.legend || []) { s.push(`${symbolSVG(symbol || st.symbol, lx + 5.5, ly - 3.5, 5.5, `fill="${esc2(color)}" stroke="#1c2422" stroke-width="0.5"`)}<text x="${lx + 15}" y="${ly}" fill="${esc2(st.textColor)}">${esc2(name)}</text>`); lx += 30 + name.length * 6.2; }
   if (o.colorbar) { // horizontal colour bar under the map, right side
     const cb = o.colorbar, bw = 240, bx = W - bw - 16, by = top + H + 12, nst = 60, ticks = cb.ticks || niceTicks(cb.min, cb.max, 5);
     for (let k = 0; k < nst; k++) { const v = cb.min + ((k + 0.5) / nst) * (cb.max - cb.min); s.push(`<rect x="${(bx + (k * bw) / nst).toFixed(1)}" y="${by}" width="${(bw / nst + 0.4).toFixed(1)}" height="10" fill="${cb.fn(v)}"/>`); }

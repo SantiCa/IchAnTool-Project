@@ -565,7 +565,7 @@ Object.assign(D.es, {
   'fig.chosen': '{n} elegidos de {m}', 'fig.nOf': '{n} de {m} trazas', 'fig.noTraces': 'Este sondeo aún no tiene trazas asignadas a icnotaxones.',
   'fig.pickFirst': 'Marca los ejemplos de cada icnotaxón (o pulsa «Elegir automáticamente»).', 'fig.empty': 'No hay datos para esta figura en el sondeo o proyecto actual.',
   'fig.coreSub': 'Sondeo completo · {n} secciones', 'fig.coreNote': 'Imagen con las trazas, bioturbación, icnotaxones, índices, registros y bandas de intervalos y clasificación, de techo a muro. Las pistas visibles son las del Registro del sondeo.',
-  'fig.geoNote': 'Usa las variables, capas y clasificación del modo Multiproxy.', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
+  'fig.geoNote': 'Las capas y la clasificación proceden de Multiproxy. Cada figura puede elegir sus propias variables.', 'fig.geoReset': 'Seguir la selección de Multiproxy', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
   'fig.logNote': 'Usa la ventana, la altura y las pistas elegidas en Registro del sondeo.',
 });
 Object.assign(D.en, {
@@ -577,7 +577,7 @@ Object.assign(D.en, {
   'fig.chosen': '{n} chosen of {m}', 'fig.nOf': '{n} of {m} traces', 'fig.noTraces': 'This core has no traces assigned to ichnotaxa yet.',
   'fig.pickFirst': 'Tick the examples of each ichnotaxon (or press “Choose automatically”).', 'fig.empty': 'No data for this figure in the current core or project.',
   'fig.coreSub': 'Whole core · {n} sections', 'fig.coreNote': 'Image with traces, bioturbation, ichnotaxa, indices, records and interval/classification bands, top to bottom. Tracks as in Core log.',
-  'fig.geoNote': 'Uses the variables, layers and classification of Multiproxy.', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
+  'fig.geoNote': 'Layers and classification come from Multiproxy. Each figure can select its own variables.', 'fig.geoReset': 'Follow the Multiproxy selection', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
   'fig.logNote': 'Uses the window, height and tracks of Core log.',
 });
 
@@ -2031,3 +2031,14 @@ Object.assign(D.en, {"fx.noBracket": "missing ]", "fx.noQuote": "missing quote",
 // V0.78: section column
 Object.assign(D.es, {"log.secs": "Secciones", "st.secOrient": "Texto de la sección", "st.secV": "Vertical", "st.secH": "Horizontal", "st.secLabel": "Mostrar", "st.secName": "Nombre", "st.secNum": "Número"});
 Object.assign(D.en, {"log.secs": "Sections", "st.secOrient": "Section text", "st.secV": "Vertical", "st.secH": "Horizontal", "st.secLabel": "Show", "st.secName": "Name", "st.secNum": "Number"});
+
+Object.assign(D.es, {
+  'mp.projects': 'Seleccionar proyectos completos', 'mp.cores': 'Sondeos', 'mp.markers': 'Colores y símbolos por proyecto o sondeo',
+  'mp.markerFor': 'Editar marcador de', 'mp.color': 'Color', 'mp.markerReset': 'Restablecer marcador',
+  'mp.markerDefault': 'Heredado', 'mp.markerNote': 'Los sondeos heredan el estilo de su proyecto salvo que se personalicen. Los sondeos compartidos se muestran una vez y heredan del primer proyecto por nombre.',
+});
+Object.assign(D.en, {
+  'mp.projects': 'Select entire projects', 'mp.cores': 'Cores', 'mp.markers': 'Colours and symbols by project or core',
+  'mp.markerFor': 'Edit marker for', 'mp.color': 'Colour', 'mp.markerReset': 'Reset marker',
+  'mp.markerDefault': 'Inherited', 'mp.markerNote': 'Cores inherit their project’s style unless customised. Shared cores appear once and inherit from the first project by name.',
+});

@@ -162,6 +162,8 @@ input[type=number] { font-family: var(--font-data); font-variant-numeric: tabula
 .clist kbd { font: 11px var(--font-data); color: var(--muted); text-align: center; }
 .clist input[type=color] { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
 .clist input.name { min-width: 0; border: 0; background: transparent; padding: 2px 3px; font-style: italic; }
+#geoLabels li { grid-template-columns: 22px minmax(0, 1fr) auto auto; }
+#geoLabels .name { width: 100%; box-sizing: border-box; }
 .clist li.plain input.name { font-style: normal; }
 .clist input.name:focus { background: var(--field); }
 .clist .cnt { font: 11px var(--font-data); color: var(--muted); white-space: nowrap; }
@@ -970,7 +972,7 @@ details.mini[open] { display: grid; gap: 6px; }
           </div>
           <label data-i18n-title="gx.tip.missing" class="f"><span data-i18n="geo.missingSel"></span><select id="geoMissing"><option value="drop" data-i18n="geo.miss.drop"></option><option value="mean" data-i18n="geo.miss.mean"></option></select></label>
           <p class="note" data-i18n="geo.prepNote"></p>
-          <div data-i18n-title="gx.tip.features" class="f"><span data-i18n="geo.features"></span><div id="geoFeats" class="rec"></div></div>
+          <details class="mini" open><summary data-i18n="geo.features" data-i18n-title="gx.tip.features"></summary><div id="geoFeats" class="rec"></div></details>
           <div data-i18n-title="gx.tip.ratio" class="f"><span data-i18n="geo.ratio"></span>
             <div class="row u2"><select id="geoRatioA"></select><span>/</span><select id="geoRatioB"></select><button class="btn small" id="geoAddRatio" data-i18n-title="aria.addRatio">+</button></div>
           </div>
@@ -1018,6 +1020,7 @@ details.mini[open] { display: grid; gap: 6px; }
           <div class="grp"><label class="chk" data-i18n-title="gx.tip.shade"><input type="checkbox" id="geoShade"><span data-i18n="geo.shade"></span></label><div id="geoShadeBy" class="shadeby" hidden></div>
             <label class="f inl" data-i18n-title="gx.tip.trackW"><span data-i18n="gx.trackW"></span><input type="range" id="geoTrackW" min="60" max="260" step="10"></label>
             <button class="btn small" id="geoTrackReset" data-i18n="gx.trackReset" data-i18n-title="gx.tip.trackReset"></button></div>
+          <div class="grp"><details class="mini" id="geoColumns"><summary data-i18n="co.title"></summary><div class="u12" id="geoColumnsForm"></div></details></div>
           <div class="grp"><details class="mini" id="geoStyleBox" data-stt="geo"><summary data-i18n="st.scales"></summary><div class="u12" id="geoStyleForm"></div></details></div>
           <div class="grp"><button class="btn small primary" id="geoTestBtn" data-i18n="geo.test" data-i18n-title="gx.tip.test"></button><span id="geoTestOut" class="note"></span></div>
           <div class="grp end"><button class="btn small" data-win="geologs" data-i18n="win.new"></button></div>
@@ -1126,12 +1129,20 @@ details.mini[open] { display: grid; gap: 6px; }
         <div class="row"><button class="btn small" id="amPrev" data-i18n-title="aria.prev">◀</button><button class="btn small" id="amNext" data-i18n-title="aria.next">▶</button><button class="btn small" id="amSvg">SVG</button><select class="u4" id="amPngW"><option value="1800">PNG 1800 px</option><option value="3600" selected>PNG 3600 px</option><option value="7200">PNG 7200 px</option></select><button class="btn small" id="amPng">PNG</button></div>
       </div>
       <div class="mapstyle" id="amCores"></div>
+      <div class="mapstyle"><details class="mini" id="amMarkers" hidden><summary data-i18n="mp.markers"></summary>
+        <div class="row"><label class="f"><span data-i18n="mp.markerFor"></span><select id="amMarkerFor"></select></label>
+          <label class="f"><span data-i18n="mp.color"></span><input type="color" id="amMarkerColor"></label>
+          <label class="f"><span data-i18n="ms.symbol"></span><select id="amMarkerSymbol"></select></label>
+          <button class="btn small" type="button" id="amMarkerReset" data-i18n="mp.markerReset"></button></div>
+        <p class="note" data-i18n="mp.markerNote"></p>
+      </details></div>
       <div class="mapstyle" id="amInterp"></div>
       <div class="mapstyle" id="amStyle"></div>
       <div class="mapframe" id="amFrame"><div id="allMap" class="zmap"></div><div class="rszh" data-frame="amFrame" data-i18n-title="ui.resizeMap"></div><div class="rszv" data-frame="amFrame" data-i18n-title="ui.resizeMap"></div></div>
       <div class="mpbox"><h3 data-i18n="mp.title"></h3><p class="note" data-i18n="mp.note"></p>
         <div class="row"><button class="btn small" id="mpAll" data-i18n="mp.all"></button><button class="btn small" id="mpNone" data-i18n="mp.none"></button><span class="note" id="mpCount"></span>
-          <input class="u23" type="text" id="mpName" data-i18n-ph="mp.name"><button class="btn small primary" id="mpCreate" data-i18n="mp.create"></button></div></div>
+          <input class="u23" type="text" id="mpName" data-i18n-ph="mp.name"><button class="btn small primary" id="mpCreate" data-i18n="mp.create"></button></div>
+        <details class="mini"><summary data-i18n="mp.projects"></summary><div class="chklist" id="mpProjects"></div></details></div>
       <div class="tablewrap u24"><table class="dtable" id="allTable"></table></div>
     </section>
   </div>

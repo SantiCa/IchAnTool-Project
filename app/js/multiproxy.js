@@ -94,6 +94,11 @@ function layerTree() {
 }
 const isDescendant = (id, anc) => { for (let l = geoLayer(id); l?.parent; l = geoLayer(l.parent)) if (l.parent === anc) return true; return false; };
 
+export function geoFigureVars(core) {
+  if (!core) return [];
+  const xs = S.geo.settings.axis === 'age' ? coreAges(core) : core.depth;
+  return allNumericVars().filter((k) => featureSeries(core, k, S.geo.ratios)?.some((v, i) => v != null && xs?.[i] != null));
+}
 function allNumericVars() {
   const set = new Set();
   for (const c of S.cores) Object.keys(c.proxies).forEach((k) => set.add(k));
@@ -316,7 +321,7 @@ function renderGeoPanel() {
   $('geoLayerSel').innerHTML = tree.map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(layer.name)}</option>`).join('');
   $('geoLayerName').value = L?.name || '';
   $('geoLayerParent').innerHTML = `<option value="">${t('geo.noParent')}</option>` + g.layers.filter((l) => L && l.id !== L.id && !isDescendant(l.id, L.id)).map((l) => `<option value="${l.id}" ${l.id === L?.parent ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
-  $('geoLabels').innerHTML = (L?.cats || []).map((c) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}"><span></span><input type="color" value="${c.color}"><input class="name" type="text" value="${esc(c.name)}"><span class="cnt" title="${esc(t('gx.tip.catCount'))}">${g.intervals.filter((q) => q.cat === c.id).length}</span><button class="del" title="${esc(t('gx.delCat'))}" aria-label="${esc(t('gx.delCat'))}">✕</button></li>`).join('');
+  $('geoLabels').innerHTML = (L?.cats || []).map((c) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}"><input type="color" value="${c.color}" aria-label="${esc(t('mp.color'))}"><input class="name" type="text" value="${esc(c.name)}" title="${esc(c.name)}" aria-label="${esc(t('geo.cats'))}"><span class="cnt" title="${esc(t('gx.tip.catCount'))}">${g.intervals.filter((q) => q.cat === c.id).length}</span><button class="del" title="${esc(t('gx.delCat'))}" aria-label="${esc(t('gx.delCat'))}">✕</button></li>`).join('');
   const lopts = (sel) => (L?.cats || []).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const names = geoRT.featNames.length ? geoRT.featNames : st.features;
   const fopts = (sel) => names.map((k) => `<option ${k === sel ? 'selected' : ''}>${esc(k)}</option>`).join('');
@@ -535,7 +540,10 @@ export function renderGeo() {
   renderGeoPanel();
   document.querySelectorAll('#geoTabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === S.geo.view.tab)));
   document.querySelectorAll('.gpane').forEach((p) => (p.hidden = p.dataset.pane !== S.geo.view.tab));
-  if (S.geo.view.tab === 'logs') renderGeoLogs(); else if (S.geo.view.tab === 'map') renderGeoMap(); else renderGeoModel();
+  if (S.geo.view.tab === 'logs') {
+    $('geoColumnsForm').replaceChildren();
+    renderGeoLogs();
+  } else if (S.geo.view.tab === 'map') renderGeoMap(); else renderGeoModel();
 }
 
 /** Contiguous runs of samples of one core with the same class, as band segments. */
@@ -589,25 +597,21 @@ const bandLegendOf = (bands) => [...new Set(bands.flatMap((b) => b.segs.map((s) 
 
 function renderGeoMarkHint() { /* V26: classes are chosen on the columns themselves */ }
 
-export function renderGeoLogs() {
-  const g = S.geo, st = g.settings, box = $('geoLogSvg');
-  renderGeoMarkHint();
-  $('geoCoreSel').innerHTML = S.cores.map((c) => `<option value="${c.id}" ${c.id === g.view.core ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-  const core = geoCore(g.view.core) || S.cores[0];
-  if (!core) { box.innerHTML = `<p class="note" style="padding:20px">${t('geo.noCores')}</p>`; $('geoIntervals').innerHTML = ''; return; }
-  g.view.core = core.id;
+export function buildGeoLog(core, features = null) {
+  const g = S.geo, st = g.settings;
+  if (!core) return null;
   const axis = st.axis, xs = axis === 'age' ? coreAges(core) : core.depth;
   const ivAxis = intervalsOnAxis(g.intervals.filter((q) => q.core === core.id), axis, core).flatMap((q) => [q.from, q.to]);
   const valid = [...(xs || []).filter((v) => v != null), ...ivAxis];
-  if (!valid.length) { box.innerHTML = `<p class="note" style="padding:20px">${t('geo.noAxis')}</p>`; renderIntervalList(core); return; }
+  if (!valid.length) return null;
   const from = Math.min(...valid), to = Math.max(...valid);
-  const records = xs ? st.features.map((k, j) => {
+  const vars = features ? allNumericVars() : st.features;
+  const records = xs ? (features ?? st.features).map((k) => {
+    const j = Math.max(0, (st.features.includes(k) ? st.features : vars).indexOf(k));
     const ser = featureSeries(core, k, g.ratios) || [];
     return { name: k, color: GROUP_COLORS[j % GROUP_COLORS.length], reverse: false, pts: xs.map((x, i) => [x, ser[i]]) };
-  }).filter((r) => r.pts.some((p) => p[1] != null)) : [];
+  }).filter((r) => r.pts.some(([x, y]) => x != null && y != null)) : [];
   const bands = coreBands(core, axis, true, g.view.showEmpty !== false);
-  $('geoShade').checked = !!g.view.shade; $('geoShowEmpty').checked = g.view.showEmpty !== false;
-  renderShadeBy();
   let shade = null, shadeLanes = 1;
   if (g.view.shade) {
     // V0.34: colour by the chosen families (their intervals), side by side or blended; none chosen = classifier target/predictions
@@ -623,8 +627,6 @@ export function renderGeoLogs() {
       shadeLanes = split ? n : 1;
     }
   }
-  const T = geoRT.test;
-  $('geoTestOut').textContent = T?.core === core.id ? t(T.n ? 'geo.testRes' : 'geo.testResNo', { s: t('geo.testScheme.' + T.scheme), p: T.n ? fmt((100 * T.ok) / T.n, 1) : '', n: T.n }) : '';
   let rows = [], image = null, images = null, tracks = { image: false, total: false, species: false, BI: false, ii: false, manual: false };
   if (core.id === S.curCore && S.sections.length && (axis === 'depth' || S.age.model)) {
     const D = compositeData();
@@ -632,20 +634,44 @@ export function renderGeoLogs() {
     tracks = { ...tracks, image: true, total: true };
     const ims = columnImages({ ...D, axis }, from, to, 700); image = ims[0]; images = ims;   // V0.25: same panels and width as the core column
   }
+  const style = { ...g.view.style };
+  if (features != null) style.colHide = (style.colHide || []).filter((id) => !id.startsWith('rec:'));
+  const visibleBands = bands.filter((b) => !style.colHide?.includes('band:' + b.key));
   const res = buildLogSVG({
     title: core.name, subtitle: t('geo.subtitleLogs', { n: geoRT.samples.filter((s) => s.core === core.id).length, step: st.step }),
     axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`,
-    from, to, height: 700, rows, classes: [], tracks, image, images, imageWidth: image?.w || 64, records, boundaries: [], bands, bandLegend: bandLegendOf(bands), shade, shadeLanes,
+    from, to, height: 700, rows, classes: [], tracks, image, images, imageWidth: image?.w || 64, records, boundaries: [], bands, bandLegend: bandLegendOf(visibleBands), shade, shadeLanes,
     labels: { noData: t('log.noData'), total: t('log.total'), species: t('log.species'), image: t('log.image') },
-    colWidths: (g.view.colW ||= {}), recWidth: g.view.trackW || 120, style: g.view.style || {},
+    colWidths: g.view.colW || {}, recWidth: g.view.trackW || 120, style,
   });
-  syncColOrder('geo', res.columns);   // V0.33
-  if (!$('geoStyleBox').open || !$('geoStyleForm').innerHTML) $('geoStyleForm').innerHTML = colOrderHTML('geo') + verticalStyleHTML(g.view.style || {}) + colorsFormHTML(g.view.style || {}, 'geo') + axesFormHTML(['total', ...records.map((r) => 'rec:' + r.name)], g.view, records.map((r) => r.name));
+  return { res, axis, from, to, records, bands: visibleBands };
+}
+
+export function renderGeoLogs() {
+  const g = S.geo, st = g.settings, box = $('geoLogSvg');
+  renderGeoMarkHint();
+  const core = geoCore(g.view.core) || S.cores[0];
+  if (core) g.view.core = core.id;
+  $('geoCoreSel').innerHTML = S.cores.map((c) => `<option value="${c.id}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  const log = buildGeoLog(core);
+  syncColOrder('geo', log?.res.columns || []);
+  if (!$('geoColumnsForm').innerHTML) $('geoColumnsForm').innerHTML = colOrderHTML('geo');
+  if (!log) {
+    box.innerHTML = `<p class="note" style="padding:20px">${t(core ? 'geo.noAxis' : 'geo.noCores')}</p>`;
+    geoLast = null;
+    if (core) renderIntervalList(core); else $('geoIntervals').innerHTML = '';
+    return;
+  }
+  const { res, axis, from, to, records, bands } = log, T = geoRT.test;
+  $('geoShade').checked = !!g.view.shade; $('geoShowEmpty').checked = g.view.showEmpty !== false;
+  renderShadeBy();
+  $('geoTestOut').textContent = T?.core === core.id ? t(T.n ? 'geo.testRes' : 'geo.testResNo', { s: t('geo.testScheme.' + T.scheme), p: T.n ? fmt((100 * T.ok) / T.n, 1) : '', n: T.n }) : '';
+  if (!$('geoStyleBox').open || !$('geoStyleForm').innerHTML) $('geoStyleForm').innerHTML = verticalStyleHTML(g.view.style || {}) + colorsFormHTML(g.view.style || {}, 'geo') + axesFormHTML(['total', ...records.map((r) => 'rec:' + r.name)], g.view, records.map((r) => r.name));
   box.innerHTML = res.svg;
   geoLast = { core, from, to, top: res.plotTop, height: res.plotHeight, axis, layout: res.layout, width: res.width };
   $('geoTrackW').value = g.view.trackW || 120;
   const sIdx = geoRT.samples.map((sm, i) => [sm, i]).filter(([sm]) => sm.core === core.id);
-  logInteract(box, res, { clickHint: t('gx.clickHint'), from, to, axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`, records, bands, widths: g.view.colW,
+  logInteract(box, res, { clickHint: t('gx.clickHint'), from, to, axisLabel: axis === 'age' ? `${t('r.age')} (${S.age.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`, records: records.filter((r) => !g.view.style?.colHide?.includes('rec:' + r.name)), bands, widths: (g.view.colW ||= {}),
     onResize: () => { markDirty(); renderGeoLogs(); },
     bandText: (bkey, a) => {   // automatic columns: class and probability of the nearest sample
       if (!bkey?.startsWith('auto:')) return null;

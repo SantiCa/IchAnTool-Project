@@ -108,6 +108,81 @@ try {
     return result;
   });
   if (failure.closed || failure.state !== 'error' || !failure.dialog) fail(`failed save did not keep the window open and ask: ${JSON.stringify(failure)}`);
+  const multiproxy = await p.evaluate(async () => {
+    const I = window.ichantool, { normalizeGeo, buildGeoLog } = await import('./js/multiproxy.js');
+    const { renderFigPanel, renderFigure, figTabsData, loadFigTabs } = await import('./js/figures.js');
+    I.S.geo = normalizeGeo({ classifiers: [{ id: 'smoke-nb', name: 'Smoke classifier', method: 'nb', targets: ['events'] }] });
+    I.setMode('geo');
+    await I.loadGeoDemo();
+    const ready = () => document.querySelector('#geoColumnsForm [data-colshow^="band:auto:"]');
+    for (let i = 0; i < 200 && !ready(); i++) await new Promise((resolve) => setTimeout(resolve, 50));
+    const auto = ready();
+    if (!auto) throw new Error('The demo did not draw the automatic classification column');
+    const core = I.S.cores.find((c) => c.id === I.S.geo.view.core), id = auto.dataset.colshow;
+    const layout = () => buildGeoLog(core).res.layout.map((c) => c.id);
+    const original = layout().indexOf(id);
+    auto.closest('li').querySelector('[data-colmv="-1"]').click();
+    const reordered = layout().indexOf(id) === original - 1;
+    auto.click();
+    const hidden = !layout().includes(id);
+    auto.click();
+    const restored = layout().includes(id);
+    const feats = document.querySelector('#geoFeats'), numeric = feats.closest('details');
+    const expandedHeight = numeric.offsetHeight;
+    numeric.querySelector('summary').click();
+    const collapsed = !numeric.open && numeric.offsetHeight < expandedHeight;
+    numeric.querySelector('summary').click();
+    const field = document.querySelector('#geoLabels .name');
+    const readableName = field.getBoundingClientRect().width > 100 && field.title === field.value;
+    const [a, b] = I.S.geo.settings.features;
+    I.S.geo.settings.features = [a];
+    I.renderGeo();
+    I.setMode('fig'); I.S.fig.type = 'geolog'; renderFigPanel();
+    const proxy = (name) => [...document.querySelectorAll('[data-fgeo]')].find((el) => el.dataset.fgeo === name);
+    proxy(a).click(); proxy(b).click();
+    loadFigTabs(JSON.parse(JSON.stringify(figTabsData())));
+    renderFigPanel(); renderFigure();
+    const independent = proxy(b).checked && !proxy(a).checked &&
+      I.S.geo.settings.features.join() === a && !layout().includes('rec:' + b) &&
+      document.querySelector('#figOut svg')?.textContent.includes(b);
+    document.getElementById('figGeoReset').click(); renderFigure();
+    const follows = proxy(a).checked && !proxy(b).checked;
+    return { reordered, hidden, restored, collapsed, readableName, independent, follows };
+  });
+  if (!Object.values(multiproxy).every(Boolean)) fail(`multiproxy controls: ${JSON.stringify(multiproxy)}`);
+  const across = await p.evaluate(async () => {
+    const { putLite } = await import('./js/storage.js');
+    const id = 'smoke-marker-project';
+    await putLite(id, { name: 'Marker smoke test', cores: [
+      { id: 'a', name: 'Marker Alpha', lat: 40, lon: -6 }, { id: 'b', name: 'Marker Beta', lat: 41, lon: -5 },
+    ] });
+    await window.ichantool.showHome();
+    document.querySelector('[data-htab="all"]').click();
+    const project = document.querySelector(`[data-mp-project="${id}"]`);
+    const cores = [...document.querySelectorAll(`[data-p="${id}"] .mpchk`)];
+    project.click();
+    const selected = cores.length === 2 && cores.every((c) => c.checked);
+    cores[0].click();
+    const partial = project.indeterminate;
+    const change = (id, value) => {
+      const el = document.getElementById(id); el.value = value;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    change('amMode', 'sites');
+    for (let i = 0; i < 100 && document.getElementById('amMarkers').hidden; i++) await new Promise((resolve) => setTimeout(resolve, 20));
+    change('amMarkerFor', 'project:' + id);
+    change('amMarkerColor', '#123456'); change('amMarkerSymbol', 'square');
+    change('amMarkerFor', 'ck:markeralpha');
+    change('amMarkerColor', '#654321'); change('amMarkerSymbol', 'diamond');
+    const shape = (name) => [...document.querySelectorAll('#allMap g[data-tip]')]
+      .find((g) => g.dataset.tip.includes(name))?.firstElementChild;
+    const styled = shape('Marker Alpha')?.matches('polygon[fill="#654321"]') &&
+      shape('Marker Beta')?.matches('rect[fill="#123456"]');
+    document.getElementById('amMarkerReset').click();
+    const inherited = shape('Marker Alpha')?.matches('rect[fill="#123456"]');
+    return { selected, partial, styled, inherited };
+  });
+  if (!Object.values(across).every(Boolean)) fail(`across-project controls: ${JSON.stringify(across)}`);
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);
 } catch (e) { fail(e.message); } finally { await b.close(); }

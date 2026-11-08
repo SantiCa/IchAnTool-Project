@@ -14,7 +14,7 @@ import { t, lang, setLang, applyI18n, fxText } from './i18n.js';
 import { zipFiles, unzipBlob } from './zip.js';
 import { UNET_DEFAULTS, IGNORE, predictProb, doubtful, trainingMask, cropRGBA } from './unet.js';
 import { VISION_MODEL, visionFeatureId, traceWindow, traceInput, pickEmbedding } from './vision.js';
-import { coresFromLongTable, applyCatalogue, coreAges, intervalsOnAxis, intervalsFromTable, fitModel, buildMapSVG, mapBBox, predictProba, MAP_STYLE, fitBBoxAspect } from './geo.js';
+import { coresFromLongTable, applyCatalogue, coreAges, intervalsOnAxis, intervalsFromTable, fitModel, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, fitBBoxAspect, validMapCoords } from './geo.js';
 import { $, APP, APP_NAMES, CLF_SCOPES, ML_DEFAULT, S, VERSION, clsById, defaultClasses, fetchAsset, fmt, hex, hideMissingExamples, keyOf, sec, uid } from './state.js';
 import { figTabsData, loadFigTabs, renderFigPanel, renderFigure, resetFigTabs, scheduleFigure, traceCanvas } from './figures.js';
 import { renderData } from './datatab.js';
@@ -22,7 +22,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.82';
+export const DELIVERY = 'V0.83';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -3304,6 +3304,12 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') tipHide();
 let allStyle = { ...MAP_STYLE }, allView = null, allAutoBBox = null;
 try { allStyle = { ...MAP_STYLE, ...JSON.parse(localStorage.getItem('ichantool.allMapStyle') || '{}') }; allView = JSON.parse(localStorage.getItem('ichantool.allMapView') || 'null'); } catch { /* storage blocked */ }
 function saveAllStyle() { try { localStorage.setItem('ichantool.allMapStyle', JSON.stringify(allStyle)); localStorage.setItem('ichantool.allMapView', JSON.stringify(allView)); } catch { /* storage blocked */ } }
+// Project defaults and individual overrides for the site map, local to this browser.
+let allMarkers = new Map();
+try { allMarkers = new Map(Object.entries(JSON.parse(localStorage.getItem('ichantool.allMarkers') || '{}'))); } catch { /* storage blocked */ }
+function saveAllMarkers() {
+  try { localStorage.setItem('ichantool.allMarkers', JSON.stringify(Object.fromEntries(allMarkers))); } catch { /* storage blocked */ }
+}
 const allMapGet = () => ({ style: allStyle, view: allView, auto: allAutoBBox });
 let allInterp = { ...INTERP_DEFAULT }, allOff = new Set(), allCoreItems = [], allVl = null;
 try { allInterp = { ...INTERP_DEFAULT, ...JSON.parse(localStorage.getItem('ichantool.allInterp') || '{}') }; allOff = new Set(JSON.parse(localStorage.getItem('ichantool.allOff') || '[]')); } catch { /* storage blocked */ }
@@ -3314,6 +3320,7 @@ export function redrawAllMap() {
   $('amInterp').hidden = $('amMode').value !== 'value';
   if ($('amMode').value === 'value') interpUI('amInterp', () => allInterp, saveAllInterp, redrawAllMap, allVl?.info);
   coreListUI('amCores', allCoreItems, allOff, saveAllInterp, redrawAllMap);
+  renderAllMarkers();
 }
 attachMapZoom($('allMap'), allMapGet, (b) => { allView = b; saveAllStyle(); }, redrawAllMap);
 
@@ -3339,6 +3346,7 @@ async function renderAllProjects() {
   fill('amVar', vars); fill('amLayer', layers);
   const mode = $('amMode').value;
   $('amVarRow').hidden = mode !== 'value'; $('amLayRow').hidden = mode !== 'class';
+  $('mpProjects').innerHTML = allLite.filter((l) => l.cores.length).map((l) => `<label class="chk"><input type="checkbox" data-mp-project="${esc(l.id)}"><span>${esc(l.name)}</span></label>`).join('');
   renderMpCount();
   const shared = sharedCores(allLite), q = coreKey($('homeSearch').value);
   const rows = allLite.flatMap((l) => l.cores.map((c) => ({ l, c }))).filter(({ l, c }) => !q || coreKey(c.name).includes(q) || coreKey(l.name).includes(q))
@@ -3353,10 +3361,17 @@ function buildAllMap(mode) {
   const a0 = +$('amA0').value, a1 = +$('amA1').value, pts = [], colors = {}, legend = [];
   allLite.forEach((l, pi) => {
     for (const c of l.cores) {
-      if (c.lat == null || c.lon == null) continue;
-      const p = { name: c.name, lat: c.lat, lon: c.lon, n: 0, key: `${l.id}|${c.id}`, project: l.name };
+      if (!validMapCoords(c)) continue;
+      const p = { name: c.name, lat: c.lat, lon: c.lon, n: 0, projectId: l.id, project: l.name };
       const ages = coreAges(c);
-      if (mode === 'sites') { p.n = 1; p.dominant = l.id; p.fraction = null; if (!colors[l.id]) { colors[l.id] = GROUP_COLORS[pi % GROUP_COLORS.length]; legend.push([l.name, colors[l.id]]); } }
+      if (mode === 'sites') {
+        p.n = 1; p.dominant = l.id; p.fraction = null;
+        if (!colors[l.id]) {
+          const marker = allMarkers.get('project:' + l.id);
+          colors[l.id] = marker?.color || GROUP_COLORS[pi % GROUP_COLORS.length];
+          legend.push([l.name, colors[l.id], marker?.symbol]);
+        }
+      }
       else if (mode === 'value') {
         const v = c.proxies?.[$('amVar').value];
         if (v && ages) {
@@ -3387,9 +3402,14 @@ function buildAllMap(mode) {
     const withData = g.filter((p) => p.n), base = { ...(withData[0] || g[0]) };
     if (mode === 'value' && withData.length > 1) { base.value = withData.reduce((a, p) => a + p.value, 0) / withData.length; base.n = withData.reduce((a, p) => a + p.n, 0); }
     base.key = k; base.project = [...new Set(g.map((p) => p.project))].join(', '); base.nProjects = new Set(g.map((p) => p.project)).size;
+    if (mode === 'sites') {
+      const project = allMarkers.get('project:' + base.projectId), core = allMarkers.get(k);
+      base.color = core?.color || colors[base.projectId];
+      base.symbol = core?.symbol || project?.symbol;
+    }
     return base;
   });
-  allCoreItems = merged.map((p) => ({ id: p.key, name: p.nProjects > 1 ? `${p.name} (${p.nProjects})` : p.name, lat: p.lat, where: p.project }));
+  allCoreItems = merged.map((p) => ({ id: p.key, name: p.nProjects > 1 ? `${p.name} (${p.nProjects})` : p.name, lat: p.lat, where: p.project, projectId: p.projectId }));
   pts.length = 0; pts.push(...merged.filter((p) => !allOff.has(p.key)));
   if (!pts.length) return `<p class="note" style="padding:16px">${t('home.noSites')}</p>`;
   const fr = frameRatio('amFrame');
@@ -3401,6 +3421,41 @@ function buildAllMap(mode) {
   const title = mode === 'sites' ? t('home.mapSites') : mode === 'value' ? t('home.mapValue', { f: $('amVar').value, a0, a1 }) : t('home.mapLayer', { l: $('amLayer').value, a0, a1 });
   return buildMapSVG({ tipFn: (p) => mapTip(p, mode, $('amVar').value), land: geoLand, bbox, points: pts, mode: mode === 'value' ? 'value' : 'class', colors, legend, title, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}), subtitle: t('home.mapSub', { n: allLite.length }), note: t('geo.mapNote'), style: allStyle, bg });
 }
+function renderAllMarkers() {
+  const box = $('amMarkers'), sel = $('amMarkerFor'), prev = sel.value;
+  box.hidden = $('amMode').value !== 'sites' || !allCoreItems.length;
+  if (box.hidden) return;
+  const opt = (id, name) => `<option value="${esc(id)}">${esc(name)}</option>`;
+  const projects = allLite.filter((l) => l.cores.some(validMapCoords));
+  sel.innerHTML = `<optgroup label="${esc(t('home.tab.projects'))}">${projects.map((l) => opt('project:' + l.id, l.name)).join('')}</optgroup>
+    <optgroup label="${esc(t('mp.cores'))}">${allCoreItems.map((c) => opt(c.id, c.name)).join('')}</optgroup>`;
+  if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  syncAllMarkerFields();
+}
+function syncAllMarkerFields() {
+  const key = $('amMarkerFor').value, own = allMarkers.get(key);
+  const isProject = key.startsWith('project:');
+  const projectId = isProject ? key.slice(8) : allCoreItems.find((c) => c.id === key)?.projectId;
+  const project = isProject ? null : allMarkers.get('project:' + projectId);
+  const i = allLite.findIndex((l) => l.id === projectId);
+  $('amMarkerColor').value = own?.color || project?.color || GROUP_COLORS[Math.max(0, i) % GROUP_COLORS.length];
+  $('amMarkerSymbol').innerHTML = `<option value="">${t('mp.markerDefault')}</option>` + MAP_SYMBOLS.map((k) => `<option value="${k}">${t('ms.sym.' + k)}</option>`).join('');
+  $('amMarkerSymbol').value = own?.symbol || '';
+  $('amMarkerReset').disabled = !own;
+}
+$('amMarkers').addEventListener('change', (e) => {
+  const key = $('amMarkerFor').value;
+  if (e.target.id === 'amMarkerFor') { syncAllMarkerFields(); return; }
+  const marker = { ...allMarkers.get(key) };
+  if (e.target.id === 'amMarkerColor') marker.color = e.target.value;
+  else if (e.target.value) marker.symbol = e.target.value;
+  else delete marker.symbol;
+  if (Object.keys(marker).length) allMarkers.set(key, marker); else allMarkers.delete(key);
+  saveAllMarkers(); redrawAllMap();
+});
+$('amMarkerReset').addEventListener('click', () => {
+  allMarkers.delete($('amMarkerFor').value); saveAllMarkers(); redrawAllMap();
+});
 $('allCtl').addEventListener('change', () => renderAllProjects());
 for (const [id, dir] of [['amPrev', -1], ['amNext', 1]]) $(id).addEventListener('click', () => { const a = +$('amA0').value, b = +$('amA1').value, w = b - a; $('amA0').value = a + dir * w; $('amA1').value = b + dir * w; renderAllProjects(); });
 $('amPng').addEventListener('click', () => busy(() => exportMapPNG(() => buildAllMap($('amMode').value), 'sedcoretool_mapa_proyectos.png', +$('amPngW').value)));
@@ -3787,7 +3842,27 @@ async function updateMultiProject(id) {
   await busy(async () => { if (await buildMultiProject(meta.name, keys, id)) toast(t('mp.updated')); });
   await renderProjects();
 }
-function renderMpCount() { $('mpCount').textContent = t('mp.sel', { n: mpSel.size }); }
+function renderMpCount() {
+  $('mpCount').textContent = t('mp.sel', { n: mpSel.size });
+  for (const input of $('mpProjects').querySelectorAll('[data-mp-project]')) {
+    const project = allLite.find((l) => l.id === input.dataset.mpProject);
+    const count = project.cores.filter((c) => mpSel.has(`${project.id}|${c.id}`)).length;
+    input.checked = count === project.cores.length;
+    input.indeterminate = count > 0 && !input.checked;
+  }
+}
+$('mpProjects').addEventListener('change', (e) => {
+  const project = allLite.find((l) => l.id === e.target.dataset.mpProject);
+  if (!project) return;
+  for (const c of project.cores) {
+    const key = `${project.id}|${c.id}`;
+    if (e.target.checked) mpSel.add(key); else mpSel.delete(key);
+  }
+  for (const row of $('allTable').querySelectorAll('tr[data-p]')) {
+    if (row.dataset.p === project.id) row.querySelector('.mpchk').checked = e.target.checked;
+  }
+  renderMpCount();
+});
 $('mpAll').addEventListener('click', () => { for (const l of allLite.filter((x) => x.kind !== 'multi')) for (const c of l.cores) mpSel.add(`${l.id}|${c.id}`); renderAllProjects(); });
 $('mpNone').addEventListener('click', () => { mpSel.clear(); renderAllProjects(); });
 $('mpCreate').addEventListener('click', async () => {

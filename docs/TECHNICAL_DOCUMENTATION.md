@@ -1607,6 +1607,10 @@ Changing the representation changes neither results nor stored data.
 
 ### 20.6 Core column, multiproxy column and map
 The current views of those modes, with the figure options (title, caption, window, orientation).
+The multiproxy log can store its own core (`geoCore`) and list of displayed variables (`geoFeatures`) in each
+figure tab. Without these settings it follows the core and visible numeric records of the Multiproxy curves.
+An explicit empty list omits all numeric records. The available variables have data on the current axis of the
+selected core. Interval and classification tracks still use the Multiproxy order and visibility.
 
 ### 20.7 Core location map
 Module `locmap.js` (pure); settings in `fig.loc` (defaults `LOCMAP_DEFAULTS`). Points: the cores of the project with
@@ -1684,7 +1688,10 @@ These settings only affect the drawing, never the result tables or the indices.
 ### 21.1 Structure
 - **Start screen.** Tab **Projects**: project cards (open, rename, delete, create, import, backups), with a search box
   over project and core names. Tab **Across projects**: a table of the cores of all projects, a multi-project map and
-  the cross-project analyses (§23.5).
+  the cross-project analyses (§23.5). A project checkbox selects all its cores for an analysis, including those
+  filtered out by search. On the site map, marker colours and symbols are stored in browser preferences.
+  A core override takes precedence over the project style. A core shared across projects uses the style of
+  the first project by name that has valid coordinates for it.
 - **Project → cores.** Each core (`makeCore`) has: name, latitude, longitude, water depth, depth units, notes, image
   sections with their bioturbation, external records, imported data (`imp`), manual columns (`user`), hand edits
   (`edits`), age model, column view and the reserved flag (`holdout`). Intervals, layers, rules, multiproxy settings,
