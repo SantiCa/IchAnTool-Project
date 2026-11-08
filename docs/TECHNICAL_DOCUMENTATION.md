@@ -404,19 +404,26 @@ propagated into the results; that would have to be done separately.
 
 Implementation: `imageproc.js::downsampleRGBA`, `app.js::decodeBytes, changeResolution`.
 
-Supported images: JPEG, PNG and TIFF (TIFF read with the bundled UTIF library).
+Supported images are JPEG, PNG and TIFF. `tiff.js::decodeTiffBlocks` reads the first image of classic TIFF
+and BigTIFF using byte ranges. It supports tiled and stripped grayscale or interleaved RGB(A), with unsigned
+8- or 16-bit samples, and signed 16-bit grayscale. Supported compression is uncompressed, LZW, Deflate and
+PackBits. Horizontal prediction is reversed before block averaging. Other classic TIFF layouts can use UTIF
+when the original file and estimated decoded buffers total at most 64 MiB.
 
 ### 6.1 Working resolution
 Core scanner images can exceed 40 million pixels per section, which do not fit comfortably in memory (the program
-uses about 13 bytes per pixel across its layers). On import, if `width × height > M` megapixels (M = "Working resolution on
+uses about 13 bytes per pixel across its layers, plus 8 bytes for native 16-bit RGBA). On import, if `width × height > M` megapixels (M = "Working resolution on
 import", 8 MP by default), the image is reduced by an integer factor:
 
     k = ⌈ √(width · height / (M · 10⁶)) ⌉
 
 Each new pixel is the **arithmetic mean** of a `k × k` block of original pixels (in R, G and B). The last
 `width mod k` columns and `height mod k` rows are dropped, that is, fewer than `k` original pixels along the right
-and bottom edges. The image is read in strips whose height is a multiple of `k`, without loading the whole image
-into memory.
+and bottom edges. For browser-decoded formats, the canvas is read in strips whose height is a multiple of `k`. The decoder may
+retain the full raster. The range decoder reads only the TIFF strips or tiles intersecting the retained crop.
+Uncompressed blocks are read in batches of up to 4 MiB or one row when a row is wider. A compressed strip or
+tile is capped at 64 MiB in both encoded and decoded size. Averaging uses native samples and allocates a sum
+array proportional to the working image. Signed grayscale samples are offset by 32768 for enhancement.
 
 - The **original file** is stored unchanged (full resolution) in the project, together with `k` (`ds`). When the
   project is reopened the same `k` is applied, so the masks match pixel by pixel.
@@ -457,9 +464,21 @@ with rotation 0 and reduction 1, so that the stored file matches what was analys
 
 ## 7. Image enhancement
 
-Implementation: `imageproc.js::applyFilters`. **Enhancement only changes what is seen and what automatic detection
+Implementation: `imageproc.js::applyFilters, filterImageChunks`. **Enhancement only changes what is seen and what automatic detection
 uses.** It does not take part in the percentage, which depends only on the mask, nor in the colour descriptors used
 for learning, which are computed on the original image (§11).
+
+The worker handles one enhancement job at a time. It receives one transferable RGBA chunk of at most 1 MiB per request and applies the pointwise colour
+operations directly to the destination. The global histogram is computed across the working image. CLAHE caches
+two rows of tile mappings. The local contrast pass retains a rolling window of up to `2r + 2` rows of input
+luminance and horizontal means. The working source and the RGBA destination still occupy one image each.
+
+The luminance function retains native units in Float32 for unsigned 16-bit RGBA. With 16-bit TIFF, the
+application keeps those samples through working-resolution reduction, crop, rotation, automatic levels and the
+pointwise colour operations. The automatic-levels histogram has 65,536 bins. The colour lookup uses all 16 bits,
+with levels expressed on a 0–255 scale after division by 257. The enhanced image is quantized to 8 bits for the
+histogram equalisation, local contrast and display stages. Existing tools that consume the unenhanced image use
+an 8-bit proxy derived from the high byte of each working sample.
 
 ### 7.1 Operations
 Order of the operations on each pixel `(R, G, B)`, with values from 0 to 255:
@@ -1731,16 +1750,24 @@ Preferences in `localStorage['ichantool.panels']`.
 
 ## 22. Storage, automatic saving and memory
 
+The original image is streamed to the browser's origin-private file system when available. IndexedDB holds
+its reference and publishes it only after the write succeeds. Where that file system is unavailable, new
+images are saved as sequential IndexedDB records of at most 4 MiB, with a manifest published after all chunks
+are written. Existing single-record originals remain readable. The TIFF decoder can read ranges from either
+storage path. Folder backups stream the original, and ZIP packages compute each CRC in bounded reads. ZIP
+download still uses the existing non-ZIP64 format with a 4 GiB limit. A browser without private file storage
+may assemble chunked originals into blobs when preparing a ZIP download.
+
 Implementation: `storage.js` and the *projects* block of `app.js`.
 
 ### 22.1 Where projects live
-- Projects are stored in **IndexedDB** (database `ichantool`, version 5): in the browser profile, or, in the desktop
+- Projects are stored in **IndexedDB** (database `ichantool`, version 6): in the browser profile, or, in the desktop
   program, in the program's data folder on disk. Stores: `meta` (light list), `data` (the project without images),
-  `secs` (one record per section), `images` (original image files), `lite` (light copy of each project) and `prefs`
-  (preferences). The program asks the browser to mark the storage as persistent and shows whether it was granted.
-- **Images:** each original file is written **once** to `images`, and the section keeps only a reference
-  (`file.key`). Automatic saving never rewrites images. Deleting a project deletes its images; images of deleted
-  sections are cleaned up at start-up (if older than one hour).
+  `secs` (one record per section), `images` (original image references and legacy files), `imageChunks` (fallback image
+  chunks), `lite` (light copy of each project) and `prefs` (preferences). The program asks the browser to mark the storage as persistent and shows whether it was granted.
+- **Images:** the section keeps only `file.key`. Automatic saving writes each original once. Deleting a project
+  deletes its unshared images. Start-up reclaims unreferenced originals older than one hour and incomplete staged
+  writes older than 24 hours.
 - **Section-level saving:** the project record (`data`) keeps of each section only `{$sec, id, name, file}`, and the
   full section goes to `secs` with the key `<project>|<section>`. A section is written only if it changed since it was
   last written or read in the session (same RLE masks and same other fields), or if its record is missing; sections
@@ -1771,7 +1798,7 @@ Implementation: `storage.js` and the *projects* block of `app.js`.
 ### 22.3 Memory and performance
 - Opening a project decodes no image. Pixels (original and enhanced, 8 bytes/px) are read from disk when a section is
   used, and the least recently used sections are released above about 0.9 GB (the active section is always kept). The
-  pixel budget also counts U-Net probabilities and cached canvases. Masks (5 bytes/px) are kept compressed (RLE, §24)
+  pixel budget also counts native 16-bit RGBA, U-Net probabilities and cached canvases. Masks (5 bytes/px) are kept compressed (RLE, §24)
   for sections not in use and decompressed on access (limit about 0.5 GB).
 - Object statistics (`st`) and example thumbnails are stored in the project, so classification, indices and the core
   column do not need the images. Figures that need pixels read sections two at a time.
@@ -2229,7 +2256,7 @@ The percentage difference comes from the JPEG decoder (§3.4), not from the meth
 4. **Colour depends on the camera:** colour descriptors change with lighting and equipment; a model imported from
    another laboratory may perform worse.
 5. **Linear scale per section:** expansion or compression of the core within a section is not corrected.
-6. **Memory:** about 13 bytes per pixel across layers while a section is in use; images of more than about 50 million
+6. **Memory:** about 13 bytes per pixel across layers while a section is in use, plus 8 bytes for native 16-bit RGBA; images of more than about 50 million
    pixels are slow, which is why images are reduced on import (§6.1).
 7. **The Python package has no exclusion layer** (§25.5).
 8. **Local projects:** in the browser, projects live in the browser profile of each computer; clearing browser data

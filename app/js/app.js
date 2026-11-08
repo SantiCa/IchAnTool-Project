@@ -12,6 +12,7 @@ import { TaxonModel, evaluateModels, finalTestMetrics, independentExternalExampl
 import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, upgradeProject } from './edit.js';
 import { t, lang, setLang, applyI18n, fxText } from './i18n.js';
 import { zipFiles, unzipBlob } from './zip.js';
+import { decodeTiffBlocks } from './tiff.js';
 import { UNET_DEFAULTS, IGNORE, predictProb, doubtful, trainingMask, cropRGBA } from './unet.js';
 import { VISION_MODEL, visionFeatureId, traceWindow, traceInput, pickEmbedding } from './vision.js';
 import { coresFromLongTable, applyCatalogue, coreAges, intervalsOnAxis, intervalsFromTable, fitModel, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, fitBBoxAspect, validMapCoords } from './geo.js';
@@ -22,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.86';
+export const DELIVERY = 'V0.87';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -45,10 +46,10 @@ getPref('ml.excluded').then((v) => { mlExcluded = new Set(v || []); }).catch(() 
  * `full` the file size. The working image is rotate(downsample(crop(file), ds), rot); it is decoded only while needed.
  * `labels`/`exclude` are packed (RLE) when the section is not in use and unpacked on first access.
  */
-function newSection({ name, file, w, h, orig, ds = 1, labels = null, exclude = null, full = null }) {
+function newSection({ name, file, w, h, orig, orig16 = null, ds = 1, labels = null, exclude = null, full = null }) {
   if (file.bytes && !file.blob) { file = { name: file.name, type: file.type, blob: new Blob([file.bytes], { type: file.type || 'image/jpeg' }) }; }
   const s = {
-    id: uid(), name, file, rot: 0, ds, crop: null, full, logVer: 0, w, h, orig, enh: null,
+    id: uid(), name, file, rot: 0, ds, crop: null, full, logVer: 0, w, h, orig, orig16, enh: null,
     objects: new Map(), nextId: 1, stacks: [null],   // V0.20: overlapping traces (core.js)
     top: 0, bottom: 100, units: 'cm', roi: { x0: 0, y0: 0, x1: w, y1: h }, marks: [],
     filters: { ...DEFAULT_FILTERS }, preset: 'none', detect: { ...DEFAULT_DETECT }, manual: [], bins: [], view: null,
@@ -90,27 +91,27 @@ function pxTouch(s) {
   lruPush(MEM.px, s);
   // V0.41: besides original + enhanced (8 B/px) it counts the U-Net probabilities (4 B/px) and the cached pictures
   const cv = (c) => (c ? 4 * c.width * c.height : 0);
-  const one = (x) => 8 * x.w * x.h + (x._unet?.prob?.byteLength || 0) + cv(x._lc?.canvas) + cv(x._lb?.canvas) + [...(x._fc?.values() || [])].reduce((a, r) => a + cv(r.canvas), 0);
+  const one = (x) => 8 * x.w * x.h + (x.orig16?.byteLength || 0) + (x._unet?.prob?.byteLength || 0) + cv(x._lc?.canvas) + cv(x._lb?.canvas) + [...(x._fc?.values() || [])].reduce((a, r) => a + cv(r.canvas), 0);
   const bytes = () => MEM.px.reduce((a, x) => a + one(x), 0);
   for (let i = 0; i < MEM.px.length && MEM.px.length > 1 && bytes() > MEM.pxBudget;) {
     const x = MEM.px[i];
     if (x === s || keepLoaded(x)) { i++; continue; }
-    x.orig = null; x.enh = null; x._unet = null; x._fc = null; MEM.px.splice(i, 1);
+    x.orig = null; x.orig16 = null; x.enh = null; x._unet = null; x._fc = null; MEM.px.splice(i, 1);
   }
 }
 /** The original file of a section as a Blob (from memory if not yet stored, else from the image store on disk). */
 async function sectionBlob(s) {
   if (s.file.blob) return s.file.blob;
-  const b = s.file.key ? await getImage(s.file.key) : null;
+  const b = s.file.key ? await getImage(s.file.key, isTiffImage(s.file.name, s.file.type)) : null;
   if (!b) throw new Error(t('err.imgMissing', { n: s.name }));
   return b;
 }
 /** Working image of a section at factor k (crop and rotation applied). */
 async function decodeWorking(s, k) {
-  let { w, h, rgba, fw, fh } = await decodeBytes(await sectionBlob(s), s.file.name, s.file.type, { k, crop: s.crop });
-  for (let r = 0; r < ((s.rot % 4) + 4) % 4; r++) { rgba = rotate90(rgba, w, h, 4, 1); [w, h] = [h, w]; }
+  let { w, h, rgba, rgba16, fw, fh } = await decodeBytes(await sectionBlob(s), s.file.name, s.file.type, { k, crop: s.crop });
+  for (let r = 0; r < ((s.rot % 4) + 4) % 4; r++) { rgba = rotate90(rgba, w, h, 4, 1); if (rgba16) rgba16 = rotate90(rgba16, w, h, 4, 1); [w, h] = [h, w]; }
   if (!s.full) s.full = { w: fw, h: fh };
-  return { w, h, rgba };
+  return { w, h, rgba, rgba16 };
 }
 /** Decode the pixels of a section if they are not in memory. */
 function ensurePixels(s) {
@@ -120,9 +121,10 @@ function ensurePixels(s) {
     const r = await decodeWorking(s, s.ds);
     if (r.w !== s.w || r.h !== s.h) console.warn('image size differs from the stored masks', s.name, r.w, r.h, s.w, s.h);
     // V0.44: the enhancement of a section being opened is computed in the worker; orig and enh are set together
-    const f = effectiveFilters({ filters: s.filters, orig: r.rgba, w: r.w, h: r.h, roi: s.roi });
-    const enh = await offload('filters', { rgba: r.rgba, w: r.w, h: r.h, f }, () => applyFilters(r.rgba, r.w, r.h, f));
-    s.orig = r.rgba; s.enh = enh;
+    const input = r.rgba16 || r.rgba;
+    const f = effectiveFilters({ filters: s.filters, orig: input, w: r.w, h: r.h, roi: s.roi });
+    const enh = await offload('filters', { rgba: input, w: r.w, h: r.h, f }, () => applyFilters(input, r.w, r.h, f));
+    s.orig = r.rgba; s.orig16 = r.rgba16 || null; s.enh = enh;
     return s;
   })().catch((e) => { s._pxErr = e.message || String(e); toast(s._pxErr); throw e; }).finally(() => { s._loading = null; if (s.orig) pxTouch(s); });
   return s._loading;
@@ -180,40 +182,79 @@ async function internImages(p, getBlob = null) {
 
 function effectiveFilters(s) {
   const f = s.filters; if ((!f.autoLevels && !f.autoGamma) || !s.orig) return f;
-  const a = autoLevels(s.orig, s.w, s.h, s.roi), out = { ...f };
+  const a = autoLevels(s.orig16 || s.orig, s.w, s.h, s.roi), out = { ...f };
   if (f.autoLevels) { out.blackPoint = a.blackPoint; out.whitePoint = a.whitePoint; }
   if (f.autoGamma) out.gamma = +gammaForMedian(a.median, out.blackPoint, out.whitePoint).toFixed(2);
   return out;
 }
-function enhance(s) { s.enh = s.orig ? applyFilters(s.orig, s.w, s.h, effectiveFilters(s)) : null; }
+function enhance(s) { s.enh = s.orig ? applyFilters(s.orig16 || s.orig, s.w, s.h, effectiveFilters(s)) : null; }
 
 /* V0.41: background worker for enhancement and detection; without it (offline single file, file://, old browser)
  * the same functions run on the main thread. */
-let WK = null, wkSeq = 0; const wkWait = new Map();
+let WK = null, wkSeq = 0, filterQueue = Promise.resolve();
+const wkWait = new Map();
 function worker() {
   if (WK !== null) return WK || null;
   try {
     if (location.protocol === 'file:' || typeof Worker === 'undefined') throw new Error('no worker');
     WK = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-    WK.onmessage = (e) => { const q = wkWait.get(e.data.id); if (!q) return; wkWait.delete(e.data.id); e.data.err ? q.rej(new Error(e.data.err)) : q.res(e.data.r); };
+    WK.onmessage = ({ data }) => {
+      const q = wkWait.get(data.id);
+      if (!q) return;
+      if (data.more) {
+        try { q.sendChunk(); } catch (err) {
+          wkWait.delete(data.id);
+          WK.postMessage({ id: data.id, op: 'cancelFilter' });
+          q.rej(err);
+        }
+        return;
+      }
+      wkWait.delete(data.id);
+      if (data.err) q.rej(new Error(data.err)); else q.res(data.r);
+    };
     WK.onerror = (e) => { e.preventDefault?.(); for (const q of wkWait.values()) q.fallback(); wkWait.clear(); WK.terminate(); WK = false; };
   } catch { WK = false; }
   return WK || null;
 }
-/** Runs op in the worker (inputs are copied) or, if there is none or it fails to start, fallback() here. */
+/** One enhancement job at a time bounds the number of live destination rasters. */
 function offload(op, a, fallback) {
+  if (op !== 'filters') return runWorker(op, a, fallback);
+  const job = filterQueue.then(() => runWorker(op, a, fallback));
+  filterQueue = job.catch(() => {});
+  return job;
+}
+
+/** Run in the worker, sending enhancement input one transferable chunk at a time. */
+function runWorker(op, a, fallback) {
   const w = worker(); if (!w) return Promise.resolve().then(fallback);
   return new Promise((res, rej) => {
     const id = ++wkSeq;
-    wkWait.set(id, { res, rej, fallback: () => { try { res(fallback()); } catch (e) { rej(e); } } });
-    w.postMessage({ id, op, a });
+    const q = { res, rej, fallback: () => { try { res(fallback()); } catch (e) { rej(e); } } };
+    wkWait.set(id, q);
+    try {
+      if (op === 'filters') {
+        const { rgba, w: width, h, f } = a;
+        const samples = (1024 * 1024) / rgba.BYTES_PER_ELEMENT;
+        let offset = 0;
+        q.sendChunk = () => {
+          const chunk = rgba.slice(offset, Math.min(offset + samples, width * h * 4));
+          offset += chunk.length;
+          w.postMessage({ id, op: 'filterChunk', a: { rgba: chunk } }, [chunk.buffer]);
+        };
+        w.postMessage({ id, op, a: { w: width, h, f, wide: rgba instanceof Uint16Array } });
+      } else w.postMessage({ id, op, a });
+    } catch (err) {
+      wkWait.delete(id);
+      rej(err);
+    }
   });
 }
 /** Enhancement in the background; only the latest request of a section is applied. */
 function enhanceAsync(s) {
   if (!s.orig) { s.enh = null; return Promise.resolve(); }
   const f = effectiveFilters(s), gen = (s._eg = (s._eg || 0) + 1), orig = s.orig;
-  return offload('filters', { rgba: orig, w: s.w, h: s.h, f }, () => applyFilters(orig, s.w, s.h, f)).then((r) => { if (s._eg === gen && s.orig === orig) s.enh = r; return s._eg === gen; });
+  const input = s.orig16 || orig, { w, h } = s;
+  return offload('filters', { rgba: input, w, h, f }, () => applyFilters(input, w, h, f)).then((r) => { if (s._eg === gen && s.orig === orig) s.enh = r; return s._eg === gen; });
 }
 
 export function pxPerCm(s) {
@@ -249,16 +290,21 @@ function loadScript(src, integrity = null) {
  * Decode an image file (Blob or bytes) to the working image: optional crop (full-resolution pixels) and block
  * averaging by factor k (given, or chosen from maxMP). Returns { w, h, rgba, k, fw, fh } (fw × fh = file size).
  */
+const isTiffImage = (name, type) => /\.(?:tiff?|tf8|btf)$/i.test(name) || /tiff/i.test(type || '');
+
 async function decodeBytes(bytes, name, type, opt = {}) {
   const factor = (w, h) => opt.k ?? Math.max(1, Math.ceil(Math.sqrt((w * h) / ((opt.maxMP || 1e9) * 1e6))));
   const area = (fw, fh) => { const c = opt.crop; return c ? { x: Math.max(0, c.x0), y: Math.max(0, c.y0), w: Math.min(fw, c.x1) - Math.max(0, c.x0), h: Math.min(fh, c.y1) - Math.max(0, c.y0) } : { x: 0, y: 0, w: fw, h: fh }; };
-  if (/\.tiff?$/i.test(name) || /tiff/.test(type || '')) {
-    if (bytes instanceof Blob) bytes = new Uint8Array(await bytes.arrayBuffer());
+  if (isTiffImage(name, type)) {
+    const source = bytes instanceof Uint8Array ? new Blob([bytes]) : bytes;
+    const decoded = await decodeTiffBlocks(source, area, factor);
+    if (decoded.rgba) return decoded;
+    if (source.size + decoded.legacyBytes > 64 * 1024 * 1024) throw new Error(t('err.largeTiffLayout'));
     if (!window.UTIF) {
       await loadLib('pako.min.js').catch(() => {});
       await loadLib('UTIF.js');
     }
-    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const buf = await source.slice(0, source.size).arrayBuffer();
     const ifds = window.UTIF.decode(buf);
     window.UTIF.decodeImage(buf, ifds[0], ifds);
     const fw = ifds[0].width, fh = ifds[0].height, A = area(fw, fh), k = factor(A.w, A.h);
@@ -322,9 +368,9 @@ async function addFiles(files) {
   for (const file of files) {
     await busy(async () => {
       try {
-        const blob = new Blob([await file.arrayBuffer()], { type: file.type || 'image/jpeg' });
-        const { w, h, rgba, k, fw, fh } = await decodeBytes(blob, file.name, file.type, { maxMP: S.settings.maxMP });
-        const s = newSection({ name: file.name.replace(/\.[^.]+$/, ''), file: { name: file.name, type: file.type, blob }, w, h, orig: rgba, ds: k, full: { w: fw, h: fh } });
+        const blob = file;
+        const { w, h, rgba, rgba16, k, fw, fh } = await decodeBytes(blob, file.name, file.type, { maxMP: S.settings.maxMP });
+        const s = newSection({ name: file.name.replace(/\.[^.]+$/, ''), file: { name: file.name, type: file.type, blob }, w, h, orig: rgba, orig16: rgba16, ds: k, full: { w: fw, h: fh } });
         const prev = sec();
         if (prev) { s.units = prev.units; s.top = prev.bottom; s.bottom = prev.bottom + (prev.bottom - prev.top); s.filters = { ...prev.filters }; s.preset = prev.preset; s.detect = { ...prev.detect }; enhance(s); }
         S.sections.push(s);
@@ -1249,7 +1295,7 @@ async function applyCrop() {
   const crop = workToFull({ w: s.w, h: s.h, rot: s.rot, ds: s.ds, crop: s.crop }, { x0: 0, y0, x1: W, y1 });
   await busy(async () => {
     const cut = (arr, ch) => arr.slice(y0 * W * ch, y1 * W * ch);
-    s.orig = cut(s.orig, 4); s.labels = cut(s.labels, 1); s.exclude = cut(s.exclude, 1); s.h = H;
+    s.orig = cut(s.orig, 4); if (s.orig16) s.orig16 = cut(s.orig16, 4); s.labels = cut(s.labels, 1); s.exclude = cut(s.exclude, 1); s.h = H;
     s.marks = (s.marks || []).filter((m) => m.y >= y0 && m.y < y1).map((m) => ({ ...m, y: m.y - y0 }));
     s.top = r.top; s.bottom = r.bottom; s.roi = r.roi;
     s.crop = crop; s.logVer++;
@@ -2012,7 +2058,7 @@ async function changeResolution(s, k2) {
     const full = s.roi.x0 === 0 && s.roi.y0 === 0 && s.roi.x1 === s.w && s.roi.y1 === s.h;
     const roi = full ? { x0: 0, y0: 0, x1: r.w, y1: r.h } : { x0: clampR(Math.min(ax, bx), r.w), y0: clampR(Math.min(ay, by), r.h), x1: clampR(Math.max(ax, bx), r.w), y1: clampR(Math.max(ay, by), r.h) };
     s.marks = (s.marks || []).map((m) => { const [x, y] = pt(m.x + 0.5, m.y + 0.5); return { ...m, x: Math.min(r.w - 1, Math.floor(x)), y: Math.min(r.h - 1, Math.floor(y)) }; });
-    s.w = r.w; s.h = r.h; s.orig = r.rgba; s.labels = labels; s.exclude = exclude; s.roi = roi; s.ds = k2;
+    s.w = r.w; s.h = r.h; s.orig = r.rgba; s.orig16 = r.rgba16 || null; s.labels = labels; s.exclude = exclude; s.roi = roi; s.ds = k2;
     s.view = null; s._lc = null; s._lb = null; s._fc = null; s.logVer++;
     enhance(s); refreshObjects(s, new Set(s.objects.keys()), null);
     S.undo = S.undo.filter((op) => op.s !== s); $('undoBtn').disabled = !S.undo.length;
@@ -2109,7 +2155,7 @@ $('fPreset').addEventListener('change', (e) => {
  */
 function rankPresets(s) {
   const k = Math.max(1, Math.round(Math.sqrt((s.w * s.h) / 4e5)));
-  const sm = downsampleRGBA(s.orig, s.w, s.h, k);
+  const sm = downsampleRGBA(s.orig16 || s.orig, s.w, s.h, k);
   const roi = { x0: Math.floor(s.roi.x0 / k), y0: Math.floor(s.roi.y0 / k), x1: Math.max(1, Math.floor(s.roi.x1 / k)), y1: Math.max(1, Math.floor(s.roi.y1 / k)) };
   const base = [...BUILTIN_PRESETS.map((v) => ({ id: v, name: t('f.p.' + v), filters: { ...FILTER_PRESETS[v] } })),
     ...userPresets.map((u) => ({ id: 'u:' + u.id, name: u.name, filters: { ...DEFAULT_FILTERS, ...u.filters }, detect: u.detect }))];
@@ -2267,7 +2313,7 @@ $('roiReset').addEventListener('click', () => { const s = sec(); if (s) setRoi(s
 for (const [id, dir] of [['rotL', -1], ['rotR', 1]]) $(id).addEventListener('click', () => {
   const s = sec(); if (!s?.orig) return;
   busy(() => {
-    s.orig = rotate90(s.orig, s.w, s.h, 4, dir); s.labels = rotate90(s.labels, s.w, s.h, 1, dir); s.exclude = rotate90(s.exclude, s.w, s.h, 1, dir);
+    s.orig = rotate90(s.orig, s.w, s.h, 4, dir); if (s.orig16) s.orig16 = rotate90(s.orig16, s.w, s.h, 4, dir); s.labels = rotate90(s.labels, s.w, s.h, 1, dir); s.exclude = rotate90(s.exclude, s.w, s.h, 1, dir);
     s.marks = (s.marks || []).map((m) => (dir > 0 ? { ...m, x: s.h - 1 - m.y, y: m.x } : { ...m, x: m.y, y: s.w - 1 - m.x }));
     [s.w, s.h] = [s.h, s.w]; s.rot += dir; s.roi = { x0: 0, y0: 0, x1: s.w, y1: s.h };
     enhance(s);
@@ -2648,16 +2694,16 @@ function serialize() {
 async function loadSection(q) {
   const f = q.file, legacy = !f.key;
   const file = legacy ? { name: f.name, type: f.type, blob: f.blob || new Blob([f.bytes ? new Uint8Array(f.bytes) : b64decode(f.b64)], { type: f.type || 'image/jpeg' }) } : { name: f.name, type: f.type, key: f.key, size: f.size };
-  let w = q.w, h = q.h, orig = null;
+  let w = q.w, h = q.h, orig = null, orig16 = null;
   const mk = (s) => Object.assign(s, { id: q.id, rot: q.rot || 0, crop: q.crop || null, top: q.top, bottom: q.bottom, units: q.units, roi: q.roi, filters: q.filters, preset: q.preset, detect: q.detect, manual: q.manual || [], nextId: q.nextId, marks: q.marks || [] });
   if (!w || !h) {   // very old files without sizes
     const tmp = mk(newSection({ name: q.name, file, w: 1, h: 1, orig: null, ds: q.ds || 1 }));
-    const r = await decodeWorking(tmp, q.ds || 1); ({ w, h } = r); orig = r.rgba;
+    const r = await decodeWorking(tmp, q.ds || 1); ({ w, h } = r); orig = r.rgba; orig16 = r.rgba16 || null;
   }
   if (q.$missing) throw new Error(t('load.badMask', { s: q.name || '?', k: 'section' }));   // V0.44: section record missing in the library
   // V0.36: a damaged mask stops the load instead of being saved over the good copy
   for (const k of ['labels', 'exclude']) if (q[k] != null && !rleValid(q[k], w * h)) throw new Error(t('load.badMask', { s: q.name || '?', k }));
-  const s = mk(newSection({ name: q.name, file, w, h, orig, ds: q.ds || 1, full: q.full || null, labels: { rle: q.labels }, exclude: { rle: q.exclude } }));
+  const s = mk(newSection({ name: q.name, file, w, h, orig, orig16, ds: q.ds || 1, full: q.full || null, labels: { rle: q.labels }, exclude: { rle: q.exclude } }));
   if (q.stacks) { s.stacks = compactStacks(q.labels, q.stacks, 2); s._six = null; }   // V0.20: overlaps (RLE values renumbered before first unpack)
   const ppu = pxPerCm(s);
   for (const o of q.objects) {
@@ -3087,9 +3133,10 @@ async function writeProjectFolder(root, d) {
   const e = projectForExport(d);
   for (const im of e.images) {
     const name = im.path.slice('images/'.length);
-    let have = false; try { await imgs.getFileHandle(name); have = true; } catch { /* not written yet */ }
-    if (have) continue;
-    const blob = await im.get(), fh = await imgs.getFileHandle(name, { create: true }), w = await fh.createWritable(); await w.write(blob); await w.close();
+    const source = await im.get(true);
+    const fh = await imgs.getFileHandle(name, { create: true });
+    if ((await fh.getFile()).size === source.size) continue;
+    await source.stream().pipeTo(await fh.createWritable());
   }
   const text = JSON.stringify(e.json);
   await writeText(dir, 'project.json', text);
@@ -3170,7 +3217,7 @@ function projectForExport(d, prefix = '') {
   const src = new Map(); for (const c of d.cores || [{ sections: d.sections }]) for (const q of c.sections || []) src.set(q.id, q.file);
   for (const c of p.cores || [{ sections: p.sections }]) for (const q of c.sections || []) {
     const f = src.get(q.id) || q.file, path = `images/${q.id}${imgExt(f)}`;
-    images.push({ path: prefix + path, get: async () => f.blob || (f.key ? await getImage(f.key) : null) || new Blob([f.bytes ? new Uint8Array(f.bytes) : f.b64 ? b64decode(f.b64) : new Uint8Array()]) });
+    images.push({ path: prefix + path, get: async (ranged = false) => f.blob || (f.key ? await getImage(f.key, ranged) : null) || new Blob([f.bytes ? new Uint8Array(f.bytes) : f.b64 ? b64decode(f.b64) : new Uint8Array()]) });
     q.file = { name: f.name, type: f.type, path };
   }
   return { json: p, images };

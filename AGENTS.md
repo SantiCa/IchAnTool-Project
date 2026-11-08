@@ -63,10 +63,23 @@ On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Sc
   IndexedDB database `ichantool`, the desktop origin `app://corantool` or `window.corantoolDesktop`: users would lose
   their projects. Keep reading project files written as `IchAnTool` or `CorAnTool` and `.corantool` packages. Keep the
   `ichantool` Python alias.
+- **Public APIs.** Preserve existing callers. Any approved breaking change needs a documented migration path
+  and regression coverage for supported inputs.
+- **Measure performance.** Back performance claims with a reproducible benchmark. Record the inputs,
+  environment and measured quantities, and use the baseline in [M0.1](docs/roadmap.md#m01-acceptance-criteria)
+  when it covers the affected path.
+- **Safe I/O.** Handle corrupt, oversized and hostile inputs. Bound resource use when processing untrusted
+  files. For filesystem project saves, use a temporary file and atomic replacement where supported. For
+  IndexedDB, use transactions. Verify recovery and preservation of the last good save after a failed write.
+- **Incremental delivery.** Split broad changes into small, independently testable deliveries.
+- **Dependency discipline.** Prefer existing or standard-library facilities. Justify new dependencies with a
+  concrete capability or measured benefit and account for offline and desktop distribution.
 - **No private data.** Never commit unpublished data or results of the owner or anyone else. The repository and the
   downloads contain only public example data.
 - **Interface texts** go in `app/js/i18n.js`, in Spanish and English.
-- Add tests for behaviour changes, not for documentation-only changes.
+- **Regression coverage.** Add tests for new features and behaviour changes. Use property-based tests for
+  critical invariants where appropriate. Documentation-only edits require no new tests.
+- **Documentation.** Update user and technical documentation as required by [section 5](#5-delivering-a-change).
 
 ## 5. Delivering a change
 
@@ -117,8 +130,20 @@ Do not repeat content between these files; link instead. Keep the tone factual a
   A dirty tree may contain someone else's work: do not stash, reset, clean or discard it, and do not switch branches.
 - **Before committing:** fetch again; if someone else delivered meanwhile, rebase or merge and take the next free
   version number. Never force-push or overwrite others' work.
-- **Handoff** happens through the repository: the commit message and the changelog say what was done; anything left
-  for later goes to `docs/roadmap.md`. Sessions do not share memory, so do not rely on chat history.
+- **Start each iteration** by reading this file and the current [roadmap](docs/roadmap.md). Find the task
+  the maintainer authorised, its acceptance criteria and its editor and reviewer, when assigned. The roadmap
+  orders the work. Starting a task requires the maintainer's authorisation.
+- **Handoff.** Update the roadmap status when handing work over or delivering it. For an unfinished task,
+  record the next step or blocker and point to the work under review if available. Mark a task complete once
+  its criteria and required checks pass, and link its changelog entry in the same delivery. Sessions rely on
+  the repository for handoffs.
+- **GitHub handoff.** At each reviewable checkpoint, check whether the next editor or reviewer can retrieve the
+  commit from GitHub. If a push is needed, tell the maintainer promptly and provide the branch, commit SHA,
+  checks run and next step. If the work is still local and uncommitted, say what needs to be committed first.
+  Raise this at the checkpoint so the handoff can happen even if the session ends early. Push only when authorised.
+- **Explain each step to the maintainer.** After completing each step, report in Spanish what you did, how you
+  checked it and how any implementation works within SedCoreTool as a whole. Describe the affected components and
+  how data or control passes between them. Include open work and limitations in the final report.
 - **Scope:** do the task requested, one task at a time. Do not start refactors, general audits or old pending items
   without a request. Do not launch sub-agents or automations unless asked.
 - **Reporting to the owner:** briefly, in Spanish — result, how it was checked, version number, and anything that is

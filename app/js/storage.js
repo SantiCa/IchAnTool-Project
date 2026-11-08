@@ -1,7 +1,7 @@
 // SedCoreTool web — project library in the browser (IndexedDB). Each project is a "folder" holding its
 // images, depths, age model, labels and external records. Data stay on this computer and browser.
 
-const DB_NAME = 'ichantool', DB_VERSION = 5;   // V0.44: store 'secs' (one record per section)
+const DB_NAME = 'ichantool', DB_VERSION = 6;   // Add bounded image chunk storage
 let dbPromise = null;
 
 function openDB() {
@@ -15,6 +15,7 @@ function openDB() {
       if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'key' }); // V0.1: original image files, written once
       if (!db.objectStoreNames.contains('lite')) db.createObjectStore('lite', { keyPath: 'id' }); // numeric data only, for the all-projects view
       if (!db.objectStoreNames.contains('secs')) db.createObjectStore('secs', { keyPath: 'key' }); // V0.44: sections of a project, saved one by one
+      if (!db.objectStoreNames.contains('imageChunks')) db.createObjectStore('imageChunks');
     };
     req.onsuccess = () => { const d = req.result; d.onversionchange = () => { d.close(); dbPromise = null; }; resolve(d); };
     req.onblocked = () => console.warn('IndexedDB upgrade blocked by another tab');
@@ -89,26 +90,166 @@ export function imageKeys(data) {
   for (const c of data?.cores || [{ sections: data?.sections }]) for (const q of c.sections || []) if (q.file?.key) out.push(q.file.key);
   return out;
 }
-export const deleteProject = (id) => run(['meta', 'data', 'lite', 'images', 'secs'], 'readwrite', (tx) => {
-  const r = tx.objectStore('data').get(id);
-  r.onsuccess = () => { for (const k of imageKeys(r.result?.data)) tx.objectStore('images').delete(k); tx.objectStore('data').delete(id); };
-  tx.objectStore('meta').delete(id);
-  tx.objectStore('lite').delete(id);
-  tx.objectStore('secs').delete(IDBKeyRange.bound(id + '|', id + '|\uffff'));
+const IMAGE_CHUNK_BYTES = 4 * 1024 * 1024;
+const imageWrites = new Set();
+
+async function imageDirectory() {
+  try {
+    const root = await globalThis.navigator?.storage?.getDirectory?.();
+    const dir = await root?.getDirectoryHandle('sedcoretool-images', { create: true });
+    return typeof globalThis.FileSystemFileHandle?.prototype.createWritable === 'function' ? dir : null;
+  } catch { return null; }
+}
+
+const imageChunkRange = (generation) => IDBKeyRange.bound([generation, 0], [generation, Infinity]);
+
+function removeImageRecord(tx, record, files) {
+  if (record.chunks) tx.objectStore('imageChunks').delete(imageChunkRange(record.generation));
+  if (record.disk) files.push(record.generation);
+  tx.objectStore('images').delete(record.key);
+}
+
+async function removeImageFiles(files) {
+  if (!files.length) return;
+  const dir = await imageDirectory();
+  if (dir) for (const file of files) await dir.removeEntry(file).catch(() => {});
+}
+
+export async function deleteProject(id) {
+  const files = [];
+  await run(['meta', 'data', 'lite', 'images', 'secs', 'imageChunks'], 'readwrite', (tx) => {
+    const projects = tx.objectStore('data'), r = projects.getAll();
+    r.onsuccess = () => {
+      const owned = imageKeys(r.result.find((p) => p.id === id)?.data);
+      const used = new Set(r.result.filter((p) => p.id !== id).flatMap((p) => imageKeys(p.data)));
+      const store = tx.objectStore('images');
+      for (const key of owned) {
+        if (used.has(key)) continue;
+        const req = store.get(key);
+        req.onsuccess = () => { if (req.result) removeImageRecord(tx, req.result, files); };
+      }
+      projects.delete(id);
+    };
+    tx.objectStore('meta').delete(id);
+    tx.objectStore('lite').delete(id);
+    tx.objectStore('secs').delete(IDBKeyRange.bound(id + '|', id + '|\uffff'));
+  });
   for (const k of [...lastSec.keys()]) if (k.startsWith(id + '|')) lastSec.delete(k);
-});
-/** V0.1: original image files live in their own store (on disk) and are read only when a section needs its pixels. */
-// V0.2: stored as bytes (ArrayBuffer), not as Blob: Blob values in IndexedDB fail in the desktop program (app:// origin).
-export const putImage = async (key, blob) => { const bytes = await blob.arrayBuffer(); return run(['images'], 'readwrite', (tx) => tx.objectStore('images').put({ key, bytes, type: blob.type, t: Date.now() })); };
-export const getImage = (key) => run(['images'], 'readonly', (tx) => tx.objectStore('images').get(key)).then((r) => (r ? r.blob || new Blob([r.bytes], { type: r.type || 'image/jpeg' }) : null));
-/** Delete images that no project references (sections removed), if older than one hour. */
+  await removeImageFiles(files);
+}
+
+/** Publish the image reference only after its disk file or IndexedDB chunks are complete. */
+export async function putImage(key, blob) {
+  const generation = 'image-' + Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) => n.toString(16).padStart(8, '0')).join('');
+  const dir = await imageDirectory(), type = blob.type, size = blob.size;
+  const chunks = Math.ceil(size / IMAGE_CHUNK_BYTES);
+  const staged = { key: generation, generation, size, type, t: Date.now(), disk: Boolean(dir), chunks: dir ? 0 : chunks, pending: true };
+  const files = [];
+  imageWrites.add(generation);
+  try {
+    await run(['images'], 'readwrite', (tx) => tx.objectStore('images').put(staged));
+    if (dir) {
+      const handle = await dir.getFileHandle(generation, { create: true });
+      await blob.stream().pipeTo(await handle.createWritable());
+    } else {
+      for (let i = 0; i < chunks; i++) {
+        const offset = i * IMAGE_CHUNK_BYTES;
+        const bytes = await blob.slice(offset, offset + IMAGE_CHUNK_BYTES).arrayBuffer();
+        await run(['imageChunks'], 'readwrite', (tx) => tx.objectStore('imageChunks').put(bytes, [generation, i]));
+      }
+    }
+    await run(['images', 'imageChunks'], 'readwrite', (tx) => {
+      const store = tx.objectStore('images'), previous = store.get(key);
+      previous.onsuccess = () => {
+        if (previous.result) removeImageRecord(tx, previous.result, files);
+        store.put({ ...staged, key, pending: false });
+        store.delete(generation);
+      };
+    });
+  } catch (err) {
+    const abandoned = [];
+    await run(['images', 'imageChunks'], 'readwrite', (tx) => removeImageRecord(tx, staged, abandoned)).catch(() => {});
+    await removeImageFiles(abandoned);
+    throw err;
+  } finally {
+    imageWrites.delete(generation);
+  }
+  await removeImageFiles(files);
+}
+
+function chunkedImage(record) {
+  async function readPart(index) {
+    const bytes = await run(['imageChunks'], 'readonly', (tx) => tx.objectStore('imageChunks').get([record.generation, index]));
+    const length = Math.min(IMAGE_CHUNK_BYTES, record.size - index * IMAGE_CHUNK_BYTES);
+    if (!bytes || bytes.byteLength !== length) throw new Error('Missing stored image chunk');
+    return bytes;
+  }
+  return {
+    size: record.size,
+    type: record.type,
+    slice(start, end) {
+      return {
+        async arrayBuffer() {
+          const out = new Uint8Array(end - start);
+          for (let offset = start; offset < end;) {
+            const part = await readPart(Math.floor(offset / IMAGE_CHUNK_BYTES)), from = offset % IMAGE_CHUNK_BYTES;
+            const count = Math.min(part.byteLength - from, end - offset);
+            out.set(new Uint8Array(part, from, count), offset - start);
+            offset += count;
+          }
+          return out.buffer;
+        },
+      };
+    },
+    stream() {
+      let index = 0;
+      return new ReadableStream({
+        async pull(controller) {
+          if (index === record.chunks) { controller.close(); return; }
+          controller.enqueue(new Uint8Array(await readPart(index++)));
+        },
+      });
+    },
+  };
+}
+
+/** Read legacy records as before. A ranged caller can consume the fallback chunks lazily. */
+export async function getImage(key, ranged = false) {
+  const record = await run(['images'], 'readonly', (tx) => tx.objectStore('images').get(key));
+  if (!record || record.pending) return null;
+  if (record.disk) {
+    const dir = await imageDirectory();
+    if (!dir) throw new Error('Stored image directory unavailable');
+    const file = await (await dir.getFileHandle(record.generation)).getFile();
+    if (file.size !== record.size) throw new Error('Incomplete stored image');
+    return file.slice(0, file.size, record.type);
+  }
+  if (!record.generation) return record.blob || new Blob([record.bytes], { type: record.type || 'image/jpeg' });
+  const source = chunkedImage(record);
+  return ranged ? source : new Response(source.stream(), { headers: { 'Content-Type': record.type } }).blob();
+}
+
+/** Reclaim unreferenced images and abandoned staged writes after a grace period. */
 export async function gcImages() {
-  const [keys, datas] = await Promise.all([run(['images'], 'readonly', (tx) => tx.objectStore('images').getAllKeys()), run(['data'], 'readonly', (tx) => tx.objectStore('data').getAll())]);
-  const used = new Set(datas.flatMap((d) => imageKeys(d.data)));
-  const stale = keys.filter((k) => !used.has(k));
-  if (!stale.length) return 0;
-  const old = Date.now() - 3600e3;
-  return run(['images'], 'readwrite', (tx) => { const st = tx.objectStore('images'); for (const k of stale) { const g = st.get(k); g.onsuccess = () => { if ((g.result?.t || 0) < old) st.delete(k); }; } }).then(() => stale.length);
+  const files = [], now = Date.now(), hour = 3600e3;
+  await run(['images', 'imageChunks', 'data'], 'readwrite', (tx) => {
+    const projects = tx.objectStore('data').getAll(), store = tx.objectStore('images');
+    projects.onsuccess = () => {
+      const used = new Set(projects.result.flatMap((p) => imageKeys(p.data)));
+      const keys = store.getAllKeys();
+      keys.onsuccess = () => {
+        for (const key of keys.result) {
+          if (used.has(key) || imageWrites.has(key)) continue;
+          const req = store.get(key);
+          req.onsuccess = () => {
+            const record = req.result;
+            if (record && record.t < now - (record.pending ? 24 : 1) * hour) removeImageRecord(tx, record, files);
+          };
+        }
+      };
+    };
+  });
+  await removeImageFiles(files);
 }
 export const putLite = (id, lite) => run(['lite'], 'readwrite', (tx) => tx.objectStore('lite').put({ ...lite, id }));
 export const listLite = () => run(['lite'], 'readonly', (tx) => tx.objectStore('lite').getAll());

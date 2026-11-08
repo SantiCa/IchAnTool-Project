@@ -1,35 +1,67 @@
 import { hasId } from './core.js';
 // SedCoreTool web — image processing (no DOM): enhancement, detection, selection tools, shape features.
 
+function pixelLuma(rgba, j) {
+  return 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
+}
+
+/** Luminance in the original sample units, including unsigned 16-bit RGBA (0-65535). */
 export function lumaOf(rgba, n) {
   const L = new Float32Array(n);
-  for (let i = 0, j = 0; i < n; i++, j += 4) L[i] = 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
+  for (let i = 0, j = 0; i < n; i++, j += 4) L[i] = pixelLuma(rgba, j);
   return L;
+}
+
+/**
+ * Stream a separable box blur one row at a time. Only rows in the vertical window
+ * and the next entering row are retained. The callback may overwrite an emitted row.
+ */
+function blurRows(w, h, r, readRow, emitRow, keepInput = false) {
+  if (!w || !h) return;
+  const capacity = Math.min(h, 2 * r + 2);
+  const horizontal = new Float32Array(capacity * w);
+  const input = keepInput ? new Float32Array(capacity * w) : new Float64Array(w);
+  const sums = new Float64Array(w), output = new Float32Array(w);
+  function addRow(y, leaving) {
+    const offset = (y % capacity) * w, from = keepInput ? offset : 0;
+    const row = input.subarray(from, from + w);
+    readRow(y, row);
+    let sum = 0, count = 0;
+    for (let x = 0; x <= Math.min(r, w - 1); x++) { sum += row[x]; count++; }
+    for (let x = 0; x < w; x++) {
+      const value = Math.fround(sum / count);
+      horizontal[offset + x] = value;
+      sums[x] += value;
+      if (leaving >= 0) sums[x] -= horizontal[leaving + x];
+      const enter = x + r + 1, leave = x - r;
+      if (enter < w) { sum += row[enter]; count++; }
+      if (leave >= 0) { sum -= row[leave]; count--; }
+    }
+  }
+  let count = Math.min(r + 1, h);
+  for (let y = 0; y < count; y++) addRow(y, -1);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) output[x] = sums[x] / count;
+    const offset = (y % capacity) * w;
+    emitRow(y, output, keepInput ? input.subarray(offset, offset + w) : null);
+    const enter = y + r + 1, leave = y - r;
+    const leaving = leave >= 0 ? (leave % capacity) * w : -1;
+    if (enter < h) {
+      addRow(enter, leaving);
+      count++;
+    } else if (leaving >= 0) {
+      for (let x = 0; x < w; x++) sums[x] -= horizontal[leaving + x];
+    }
+    if (leaving >= 0) count--;
+  }
 }
 
 /** Separable box blur with edge normalisation, window (2r+1)². */
 export function boxBlur(src, w, h, r) {
-  const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
-  for (let y = 0; y < h; y++) {
-    const o = y * w; let s = 0, c = 0;
-    for (let x = 0; x <= Math.min(r, w - 1); x++) { s += src[o + x]; c++; }
-    for (let x = 0; x < w; x++) {
-      tmp[o + x] = s / c;
-      const a = x + r + 1, d = x - r;
-      if (a < w) { s += src[o + a]; c++; }
-      if (d >= 0) { s -= src[o + d]; c--; }
-    }
-  }
-  for (let x = 0; x < w; x++) {
-    let s = 0, c = 0;
-    for (let y = 0; y <= Math.min(r, h - 1); y++) { s += tmp[y * w + x]; c++; }
-    for (let y = 0; y < h; y++) {
-      out[y * w + x] = s / c;
-      const a = y + r + 1, d = y - r;
-      if (a < h) { s += tmp[a * w + x]; c++; }
-      if (d >= 0) { s -= tmp[d * w + x]; c--; }
-    }
-  }
+  const out = new Float32Array(w * h);
+  blurRows(w, h, r, (y, row) => {
+    for (let x = 0; x < w; x++) row[x] = src[y * w + x];
+  }, (y, row) => out.set(row, y * w));
   return out;
 }
 
@@ -61,14 +93,16 @@ export const FILTER_PRESETS = {
 
 /** Luminance percentiles inside the ROI, used as black and white points ("auto levels"). */
 export function autoLevels(rgba, w, h, roi = null, lo = 0.005, hi = 0.995) {
-  const R = roi || { x0: 0, y0: 0, x1: w, y1: h }, hist = new Uint32Array(256);
+  const R = roi || { x0: 0, y0: 0, x1: w, y1: h };
+  const wide = rgba instanceof Uint16Array, max = wide ? 65535 : 255, scale = wide ? 257 : 1;
+  const hist = new Uint32Array(max + 1);
   let n = 0;
   for (let y = R.y0; y < R.y1; y++) for (let x = R.x0; x < R.x1; x++) {
-    const j = (y * w + x) * 4; hist[Math.min(255, Math.round(0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2]))]++; n++;
+    const j = (y * w + x) * 4; hist[Math.min(max, Math.round(pixelLuma(rgba, j)))]++; n++;
   }
-  const pick = (q) => { let c = 0; for (let v = 0; v < 256; v++) { c += hist[v]; if (c >= Math.max(1, q * n)) return v; } return 255; };
+  const pick = (q) => { let c = 0; for (let v = 0; v <= max; v++) { c += hist[v]; if (c >= Math.max(1, q * n)) return v; } return max; };
   const b = pick(lo), wt = Math.max(b + 1, pick(hi));
-  return { blackPoint: b, whitePoint: wt, median: pick(0.5) };
+  return { blackPoint: b / scale, whitePoint: wt / scale, median: pick(0.5) / scale };
 }
 
 /** Gamma that maps the median to mid-grey after levels (out = in^(1/gamma)), limited to [min, max]. */
@@ -77,86 +111,140 @@ export function gammaForMedian(median, blackPoint, whitePoint, min = 0.19, max =
   return Math.min(max, Math.max(min, Math.log(m) / Math.log(0.5)));
 }
 
-/**
- * Contrast-limited adaptive histogram equalisation (Zuiderveld, 1994) of a 0-255 luminance array:
- * tiles of `block` px, clip limit = slope × mean bin count, excess redistributed uniformly, bilinear
- * interpolation between the mappings of the four nearest tile centres.
- */
-export function clahe(L, w, h, block = 127, slope = 3) {
+/** CLAHE mapping for sequential rows. Retain the two histogram rows used for interpolation. */
+function claheRows(read, w, h, block, slope) {
   const nx = Math.max(1, Math.round(w / block)), ny = Math.max(1, Math.round(h / block));
-  const tw = w / nx, th = h / ny, maps = new Float32Array(nx * ny * 256), hist = new Float64Array(256);
-  for (let ty = 0; ty < ny; ty++) {
+  const tw = w / nx, th = h / ny;
+  const maps = [new Float32Array(nx * 256), new Float32Array(nx * 256)];
+  const cached = [-1, -1], hist = new Float64Array(256);
+  const bin = (value) => Math.min(255, Math.max(0, value | 0));
+  function mapRow(ty) {
+    const slot = ty % 2, row = maps[slot];
+    if (cached[slot] === ty) return row;
+    const y0 = Math.floor(ty * th), y1 = Math.floor((ty + 1) * th);
     for (let tx = 0; tx < nx; tx++) {
       hist.fill(0);
-      const x0 = Math.floor(tx * tw), x1 = Math.floor((tx + 1) * tw), y0 = Math.floor(ty * th), y1 = Math.floor((ty + 1) * th);
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) hist[Math.min(255, Math.max(0, L[y * w + x] | 0))]++;
+      const x0 = Math.floor(tx * tw), x1 = Math.floor((tx + 1) * tw);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) hist[bin(read(y * w + x))]++;
       const n = (x1 - x0) * (y1 - y0), limit = Math.max(1, (slope * n) / 256);
       let excess = 0;
       for (let v = 0; v < 256; v++) if (hist[v] > limit) { excess += hist[v] - limit; hist[v] = limit; }
-      const add = excess / 256, m = (ty * nx + tx) * 256;
+      const add = excess / 256, offset = tx * 256;
       let c = 0;
-      for (let v = 0; v < 256; v++) { c += hist[v] + add; maps[m + v] = (c / n) * 255; }
+      for (let v = 0; v < 256; v++) { c += hist[v] + add; row[offset + v] = (c / n) * 255; }
     }
+    cached[slot] = ty;
+    return row;
   }
-  const out = new Float32Array(w * h);
-  for (let y = 0; y < h; y++) {
-    const gy = Math.min(ny - 1, Math.max(0, (y + 0.5) / th - 0.5)), y0 = Math.floor(gy), y1 = Math.min(ny - 1, y0 + 1), fy = gy - y0;
+  return (y, out) => {
+    const gy = Math.min(ny - 1, Math.max(0, (y + 0.5) / th - 0.5)), y0 = Math.floor(gy), fy = gy - y0;
+    const a = mapRow(y0), b = mapRow(Math.min(ny - 1, y0 + 1));
     for (let x = 0; x < w; x++) {
-      const gx = Math.min(nx - 1, Math.max(0, (x + 0.5) / tw - 0.5)), x0 = Math.floor(gx), x1 = Math.min(nx - 1, x0 + 1), fx = gx - x0;
-      const v = Math.min(255, Math.max(0, L[y * w + x] | 0));
-      const a = maps[(y0 * nx + x0) * 256 + v], b = maps[(y0 * nx + x1) * 256 + v];
-      const c = maps[(y1 * nx + x0) * 256 + v], d = maps[(y1 * nx + x1) * 256 + v];
-      out[y * w + x] = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+      const gx = Math.min(nx - 1, Math.max(0, (x + 0.5) / tw - 0.5)), x0 = Math.floor(gx), fx = gx - x0;
+      const v = bin(read(y * w + x)), i = x0 * 256 + v, j = Math.min(nx - 1, x0 + 1) * 256 + v;
+      out[x] = (a[i] * (1 - fx) + a[j] * fx) * (1 - fy) + (b[i] * (1 - fx) + b[j] * fx) * fy;
     }
-  }
+  };
+}
+
+/** Contrast-limited adaptive histogram equalisation (Zuiderveld, 1994) of 0-255 luminance. */
+export function clahe(L, w, h, block = 127, slope = 3) {
+  const out = new Float32Array(w * h);
+  if (!w || !h) return out;
+  const readRow = claheRows((i) => L[i], w, h, block, slope);
+  for (let y = 0; y < h; y++) readRow(y, out.subarray(y * w, (y + 1) * w));
   return out;
 }
 
-export function applyFilters(src, w, h, p) {
-  const n = w * h, dst = new Uint8ClampedArray(n * 4);
-  const bp = p.blackPoint, wp = Math.max(p.whitePoint, bp + 1);
+function colorFilter(p, wide) {
+  const scale = wide ? 257 : 1;
+  const bp = p.blackPoint, wp = Math.max(p.whitePoint, bp + 1 / scale);
   const c = p.contrast * 2.55, cf = (259 * (c + 255)) / (255 * (259 - c));
-  const lut = new Float32Array(256);
-  for (let v = 0; v < 256; v++) {
-    let x = Math.min(1, Math.max(0, (v - bp) / (wp - bp)));
+  const lut = new Float32Array(wide ? 65536 : 256);
+  for (let v = 0; v < lut.length; v++) {
+    let x = Math.min(1, Math.max(0, (v / scale - bp) / (wp - bp)));
     x = Math.pow(x, 1 / p.gamma) * 255;
     lut[v] = (x - 128) * cf + 128 + p.brightness * 2.55;
   }
   const sat = p.saturation / 100, vib = (p.vibrance || 0) / 100, ch = p.channel;
-  for (let i = 0, j = 0; i < n; i++, j += 4) {
-    let r = src[j], g = src[j + 1], b = src[j + 2];
-    if (ch === 'r') g = b = r; else if (ch === 'g') r = b = g; else if (ch === 'b') r = g = b;
-    else if (ch === 'gray') r = g = b = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-    r = lut[r]; g = lut[g]; b = lut[b];
-    if (sat !== 1) { const l = 0.299 * r + 0.587 * g + 0.114 * b; r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat; }
-    if (vib) { // vibrance: saturation change weighted towards weakly saturated pixels
-      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sv = mx > 0 ? Math.min(1, (mx - mn) / 255) : 0;
-      const f = 1 + vib * (1 - sv), l = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = l + (r - l) * f; g = l + (g - l) * f; b = l + (b - l) * f;
+  return (src, dst, offset) => {
+    for (let j = 0; j < src.length; j += 4) {
+      let r = src[j], g = src[j + 1], b = src[j + 2];
+      if (ch === 'r') g = b = r; else if (ch === 'g') r = b = g; else if (ch === 'b') r = g = b;
+      else if (ch === 'gray') r = g = b = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+      r = lut[r]; g = lut[g]; b = lut[b];
+      if (sat !== 1) { const l = 0.299 * r + 0.587 * g + 0.114 * b; r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat; }
+      if (vib) { // vibrance: saturation change weighted towards weakly saturated pixels
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sv = mx > 0 ? Math.min(1, (mx - mn) / 255) : 0;
+        const f = 1 + vib * (1 - sv), l = 0.299 * r + 0.587 * g + 0.114 * b;
+        r = l + (r - l) * f; g = l + (g - l) * f; b = l + (b - l) * f;
+      }
+      const d = offset + j;
+      dst[d] = r; dst[d + 1] = g; dst[d + 2] = b; dst[d + 3] = 255;
     }
-    dst[j] = r; dst[j + 1] = g; dst[j + 2] = b; dst[j + 3] = 255;
-  }
-  if (p.equalize || p.claheBlock > 0 || p.localAmount > 0) {
-    const L = lumaOf(dst, n);
-    let T = L;
+  };
+}
+
+/**
+ * Feed sequential RGBA chunks into the pointwise color stage. After all input
+ * arrives, the global and neighbourhood stages run on the working result.
+ */
+export function filterImageChunks(w, h, p, wide = false) {
+  const dst = new Uint8ClampedArray(w * h * 4), filter = colorFilter(p, wide);
+  let offset = 0;
+  return {
+    append(src) {
+      if (src.length % 4 || offset + src.length > dst.length) throw new Error('Invalid filter chunk length');
+      filter(src, dst, offset);
+      offset += src.length;
+      return offset === dst.length;
+    },
+    finish() {
+      if (offset !== dst.length) throw new Error('Incomplete filter input');
+      return finishFilters(dst, w, h, p);
+    },
+  };
+}
+
+export function applyFilters(src, w, h, p) {
+  const work = filterImageChunks(w, h, p, src instanceof Uint16Array);
+  work.append(src.subarray(0, w * h * 4));
+  return work.finish();
+}
+
+function finishFilters(dst, w, h, p) {
+  const n = w * h;
+  if (n && (p.equalize || p.claheBlock > 0 || p.localAmount > 0)) {
+    const luma = (i) => Math.fround(pixelLuma(dst, i * 4));
+    let read = luma;
     if (p.equalize) {
       const hist = new Uint32Array(256);
-      for (let i = 0; i < n; i++) hist[L[i] | 0]++;
+      for (let i = 0; i < n; i++) hist[luma(i) | 0]++;
       const map = new Float32Array(256); let cum = 0, cmin = -1;
       for (let v = 0; v < 256; v++) { cum += hist[v]; if (cmin < 0 && cum) cmin = cum; map[v] = cum; }
       const den = Math.max(1, n - cmin);
-      T = new Float32Array(n);
-      for (let i = 0; i < n; i++) T[i] = ((map[L[i] | 0] - cmin) / den) * 255;
+      read = (i) => Math.fround(((map[luma(i) | 0] - cmin) / den) * 255);
     }
-    if (p.claheBlock > 0) T = clahe(T, w, h, p.claheBlock, p.claheSlope);
+    const readRow = p.claheBlock > 0 ? claheRows(read, w, h, p.claheBlock, p.claheSlope) : (y, row) => {
+      for (let x = 0; x < w; x++) row[x] = read(y * w + x);
+    };
+    const adjustRow = (y, row, original) => {
+      const amount = p.localAmount / 25;
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x, j = i * 4;
+        const target = original ? Math.fround(original[x] + amount * (original[x] - row[x])) : row[x];
+        const d = target - luma(i);
+        dst[j] += d; dst[j + 1] += d; dst[j + 2] += d;
+      }
+    };
     if (p.localAmount > 0) {
-      const bl = boxBlur(T, w, h, p.localRadius), a = p.localAmount / 25, U = new Float32Array(n);
-      for (let i = 0; i < n; i++) U[i] = T[i] + a * (T[i] - bl[i]);
-      T = U;
-    }
-    for (let i = 0, j = 0; i < n; i++, j += 4) {
-      const d = T[i] - L[i];
-      dst[j] += d; dst[j + 1] += d; dst[j + 2] += d;
+      blurRows(w, h, p.localRadius, readRow, adjustRow, true);
+    } else {
+      const row = new Float32Array(w);
+      for (let y = 0; y < h; y++) {
+        readRow(y, row);
+        adjustRow(y, row, null);
+      }
     }
   }
   if (p.invert) for (let j = 0; j < n * 4; j += 4) { dst[j] = 255 - dst[j]; dst[j + 1] = 255 - dst[j + 1]; dst[j + 2] = 255 - dst[j + 2]; }
@@ -404,7 +492,9 @@ export function features(a, ppu) {
 /** Box-average downsampling of an RGBA raster by an integer factor k (remainder rows/columns dropped). */
 export function downsampleRGBA(src, w, h, k) {
   if (k <= 1) return { rgba: src, w, h };
-  const W = Math.floor(w / k), H = Math.floor(h / k), out = new Uint8ClampedArray(W * H * 4), n = k * k;
+  const W = Math.floor(w / k), H = Math.floor(h / k), n = k * k;
+  const wide = src instanceof Uint16Array;
+  const out = wide ? new Uint16Array(W * H * 4) : new Uint8ClampedArray(W * H * 4);
   for (let Y = 0; Y < H; Y++) {
     for (let X = 0; X < W; X++) {
       let r = 0, g = 0, b = 0;
@@ -413,7 +503,10 @@ export function downsampleRGBA(src, w, h, k) {
         for (let dx = 0; dx < k; dx++, j += 4) { r += src[j]; g += src[j + 1]; b += src[j + 2]; }
       }
       const o = (Y * W + X) * 4;
-      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = 255;
+      out[o] = wide ? Math.round(r / n) : r / n;
+      out[o + 1] = wide ? Math.round(g / n) : g / n;
+      out[o + 2] = wide ? Math.round(b / n) : b / n;
+      out[o + 3] = wide ? 65535 : 255;
     }
   }
   return { rgba: out, w: W, h: H };

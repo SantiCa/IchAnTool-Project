@@ -2,7 +2,8 @@
 // puppeteer-core (npm i --no-save puppeteer-core@23). CHROME = path of Chrome (default /usr/bin/google-chrome).
 // Opens the IODP test core, detects, undoes, saves, reloads and compares; fails on any page error.
 // V0.49: also compares the web analysis of the idealized core (browser JPEG decoder) with the V2.1 reference CSV.
-import puppeteer from 'puppeteer-core';
+import assert from 'node:assert/strict';
+const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 
 const URL = process.env.APP_URL || 'http://localhost:8765/app/index.html';
 const b = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox'], defaultViewport: { width: 1440, height: 900 } });
@@ -174,6 +175,82 @@ try {
   await p.click(nameHandle, { clickCount: 2 });
   const resetWidth = await p.$eval(nameHandle, (handle) => handle.previousElementSibling.offsetWidth);
   if (resetWidth !== beforeDrag.width) fail(`name column reset: ${resetWidth} instead of ${beforeDrag.width}`);
+  // Import a native 16-bit TIFF through the file input and reopen it from the project library.
+  await p.evaluate(() => {
+    const w = 3, h = 12, start = 512, data = new DataView(new ArrayBuffer(9 * 1024 * 1024));
+    const tags = [[256, 4, w], [257, 4, h], [258, 3, 16], [259, 3, 1], [262, 3, 1],
+      [273, 4, start], [277, 3, 1], [278, 4, h], [279, 4, w * h * 2]];
+    data.setUint16(0, 0x4949);
+    data.setUint16(2, 42, true); data.setUint32(4, 8, true); data.setUint16(8, tags.length, true);
+    tags.forEach(([tag, type, value], i) => {
+      const offset = 10 + 12 * i;
+      data.setUint16(offset, tag, true); data.setUint16(offset + 2, type, true);
+      data.setUint32(offset + 4, 1, true); data.setUint32(offset + 8, value, true);
+    });
+    for (let i = 0; i < w * h; i++) data.setUint16(start + 2 * i, 32768 + i, true);
+    const file = new File([data.buffer], 'Native 16 bit.tif', { type: 'image/tiff' });
+    const transfer = new DataTransfer(); transfer.items.add(file);
+    const input = document.getElementById('addImg2');
+    input.files = transfer.files; input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await until(() => document.querySelector('#pcSel'));
+  await p.evaluate(() => document.querySelector('#pcSel').form.querySelector('[value=ok]').click());
+  await until(() => window.ichantool.S.sections.some((s) => s.name === 'Native 16 bit' && s.orig16?.[4] === 32769));
+  const reopenedTiff = await p.evaluate(async () => {
+    const I = window.ichantool, { getImage, getProject } = await import('./js/storage.js');
+    document.getElementById('cropCancel').click();
+    const s = I.S.sections.find((q) => q.name === 'Native 16 bit');
+    const { DEFAULT_FILTERS } = await import('./js/imageproc.js');
+    s.filters = { ...DEFAULT_FILTERS, autoLevels: true };
+    s.preset = 'custom';
+    await I.saveToDB();
+    const original = await getImage(s.file.key, true);
+    const first = new DataView(await original.slice(512, 516).arrayBuffer());
+    await I.loadProject(await getProject(I.S.id));
+    return [original.size, first.getUint16(0, true), first.getUint16(2, true)];
+  });
+  assert.deepEqual(reopenedTiff, [9 * 1024 * 1024, 32768, 32769]);
+  await until(() => window.ichantool.S.sections.some((s) => s.name === 'Native 16 bit' && s.orig16?.[4] === 32769));
+  const enhancedTiff = await p.evaluate(() => {
+    const s = window.ichantool.S.sections.find((q) => q.name === 'Native 16 bit');
+    return { orig: [s.orig[0], s.orig[4]], enh: [s.enh[0], s.enh[4]] };
+  });
+  assert.ok(enhancedTiff.orig[0] === enhancedTiff.orig[1] && enhancedTiff.enh[0] < enhancedTiff.enh[1],
+    'worker enhancement uses low bits after reopening the TIFF: ' + JSON.stringify(enhancedTiff));
+
+  // Force the IndexedDB fallback, verify cross-chunk reads and fail a replacement mid-write.
+  const fallback = await p.evaluate(async () => {
+    const { putImage, getImage } = await import('./js/storage.js');
+    Object.defineProperty(navigator.storage, 'getDirectory', { configurable: true, value: undefined });
+    const boundary = 4 * 1024 * 1024, key = 'e2e-image-fallback';
+    const source = new Blob([new Uint8Array(boundary - 1), new Uint8Array([14, 27, 42])]);
+    try {
+      await putImage(key, source);
+      let failed = false;
+      await putImage(key, {
+        size: source.size, type: source.type,
+        slice(start, end) {
+          if (start > 0) throw new Error('simulated chunk write failure');
+          return source.slice(start, end);
+        },
+      }).catch(() => { failed = true; });
+      const stored = await getImage(key, true);
+      const sample = new Uint8Array(await stored.slice(boundary - 1, boundary + 2).arrayBuffer());
+      const legacy = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('ichantool');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result, tx = db.transaction('images', 'readwrite');
+          tx.objectStore('images').put({ key: 'e2e-legacy-image', bytes: new Uint8Array([81]).buffer, type: 'image/tiff' });
+          tx.oncomplete = () => { db.close(); resolve(); };
+          tx.onabort = () => { db.close(); reject(tx.error); };
+        };
+      }).then(() => getImage('e2e-legacy-image'));
+      return [failed, ...sample, ...new Uint8Array(await legacy.arrayBuffer())];
+    } finally { delete navigator.storage.getDirectory; }
+  });
+  assert.deepEqual(fallback, [true, 14, 27, 42, 81]);
+
   const across = await p.evaluate(async () => {
     const { putLite } = await import('./js/storage.js');
     const id = 'smoke-marker-project';

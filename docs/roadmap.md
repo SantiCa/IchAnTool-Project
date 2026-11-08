@@ -1,6 +1,88 @@
 # Roadmap
 
-Planned work, grouped by area. Completed work is listed in the [changelog](../CHANGELOG.md).
+## Status and handoff
+
+Use the [shared working rules](../AGENTS.md#7-working-with-several-people-or-assistants) for each iteration.
+Keep task IDs stable. The changelog records what shipped.
+
+| Marker | Meaning |
+|---|---|
+| `[ ]` | Pending. The task is in the backlog. |
+| `[ ]` **Ready** | The scope and acceptance criteria are defined. This is the next candidate for authorisation. |
+| `[ ]` **In progress** | An editor is assigned. Record the next step at handoff. |
+| `[ ]` **In review** | The reviewer can inspect the diff or commit. Include its reference and the checks still due. |
+| `[ ]` **Blocked** | Record the blocker and what is needed to resume. |
+| `[x]` | Complete. For new deliveries, link the matching changelog entry. |
+
+## Milestones toward 1.0
+
+### M0 - Baseline and project safety
+
+- [ ] **M0.1 - Reproducible performance baseline.** **Ready.** First task. Codex edits and delivers.
+      Claude reviews in read-only mode and independently reruns both benchmark cases.
+- [ ] **M0.2 - Import and export safety.** Bound ZIP expansion during decompression and test malformed packages
+      alongside valid legacy projects. Prevent formula interpretation in exported user-entered CSV text while
+      preserving numeric values, including negative measurements.
+- [ ] **M0.3 - Project validation.** Identify the supported formats and migration paths. Start with diagnostic
+      warnings and cover current and legacy projects before considering rejection rules.
+
+#### M0.1 acceptance criteria
+
+- Document one command through `tools/benchmark.py` that exercises the application's normal browser paths
+  and the Python package's public analysis API. Use the public U1385I-1H example and one larger deterministic
+  synthetic case. Record the fixture inputs, including the seed, image dimensions, section count and analysis settings.
+- For both cases, report elapsed times for opening a prepared project, persisting a defined edit through normal
+  saving and calculating interval results. Report Python analysis time separately on matching inputs. Report peak
+  process memory and identify the processes counted, the sampling method and the units.
+- Use at least one warm-up and five measured repetitions per case. Record the commit, runtime versions, operating
+  system, hardware, per-run results, median and range. State the timing boundaries and how the fixture is reset
+  between repetitions.
+- Verify that the saved edit survives reopening and that JavaScript and Python agree on shared interval results
+  under the same analysis settings. Document the tolerance for floating-point results and check categorical results
+  for exact agreement.
+- Claude reruns both cases independently and checks the measurement boundaries, memory accounting and result parity.
+  Codex addresses review findings before marking the task complete. Collect an informational baseline before
+  proposing CI regression thresholds.
+
+### M1 - Editing and recovery
+
+- [ ] **M1.1 - Editing history.** Measure long editing sessions and use overlap, undo and reload tests to guide
+      any change to editing history or stack compaction.
+- [ ] **M1.2 - Interrupted saves.** Exercise recovery through IndexedDB and file backup paths. Preserve the
+      last successful save and verify that failures are visible to the user.
+
+### M2 - Large projects and responsive display
+
+- [ ] **M2.1 - Large tables.** Profile large table operations and evaluate rendering only visible rows where
+      measurements show a benefit. Verify selection and exports.
+- [ ] **M2.2 - Large images.** Profile opening and navigation on large cores. Evaluate tiled loading if justified.
+      Verify depth mapping, editing and exported images.
+  - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain
+        native 16-bit samples for enhancement and save originals in bounded writes.
+        [V0.87](../CHANGELOG.md#v087--2026-11-09)
+
+### M3 - Analysis and learned segmentation
+
+- [ ] **M3.1 - Analysis performance.** Profile Python and JavaScript before optimising shared algorithms.
+      Preserve configurable interval boundaries and regression results.
+- [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
+      memory failures, and record model identity and checksums for reproducible inference.
+
+### M4 - Optional acceleration
+
+- [ ] **M4.1 - Targeted experiments.** Evaluate WebAssembly, GPU rendering or alternative tabular storage when
+      a measured bottleneck justifies it. Compare performance, compatibility and maintenance costs.
+
+### M5 - Release readiness
+
+- [ ] **M5.1 - Compatibility and reproducibility.** Verify that representative legacy projects open and can be
+      recovered, that shared analysis agrees between JavaScript and Python, and that exported tables and figures
+      include the information needed to reproduce them.
+- [ ] **M5.2 - Scientific validation and documentation.** Complete the release requirements in
+      [Validation](#validation) and the relevant user guidance. The maintainer decides when to declare 1.0
+      and publish it.
+
+## Existing backlog
 
 ## Distribution and publication
 - [x] Desktop installers for Windows, macOS and Linux, and an offline single-file version

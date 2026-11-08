@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clahe, autoLevels, kmeansThreshold, fillHoles, applyFilters, detectMask, DEFAULT_FILTERS, FILTER_PRESETS } from '../../app/js/imageproc.js';
+import { createHash } from 'node:crypto';
+import { lumaOf, clahe, autoLevels, filterImageChunks, kmeansThreshold, fillHoles, applyFilters, detectMask, DEFAULT_FILTERS, FILTER_PRESETS } from '../../app/js/imageproc.js';
 
 test('CLAHE stays in range and stretches a low-contrast image', () => {
   const w = 64, h = 64, L = new Float32Array(w * h);
@@ -71,4 +72,34 @@ test('V0.28: trace separation and local separability', async () => {
   assert.equal(traceSeparation(rgba, w, h, roi, cls, { local: false, polarity: 'dark' }).score, 1);
   assert.equal(traceSeparation(rgba, w, h, roi, cls, { local: false, polarity: 'light' }).score, 0);
   assert.ok(localSeparability(rgba, w, h, roi, 20) > 0.9);
+});
+
+test('unsigned 16-bit RGBA preserves native luminance and low bits through levels', () => {
+  const src = new Uint16Array([
+    0, 0, 0, 65535,
+    32768, 32768, 32768, 65535,
+    32769, 32769, 32769, 65535,
+    32895, 32895, 32895, 65535,
+    65535, 65535, 65535, 65535,
+  ]);
+  assert.deepEqual(lumaOf(src, 5), new Float32Array([0, 32768, 32769, 32895, 65535]));
+  const levels = { ...DEFAULT_FILTERS, blackPoint: 127, whitePoint: 128 };
+  const out = applyFilters(src, 5, 1, levels);
+  assert.deepEqual([out[0], out[4], out[8], out[12], out[16]], [0, 128, 129, 254, 255]);
+});
+
+test('sequential chunks preserve global filters, neighbourhoods and image edges', () => {
+  const w = 37, h = 71;
+  const src = Uint8ClampedArray.from({ length: w * h * 4 }, (_, i) => (i * 43 + (i >>> 5) * 19) % 256);
+  const p = { ...DEFAULT_FILTERS, contrast: 15, equalize: true, claheBlock: 9, localAmount: 60, localRadius: 4, invert: true };
+  const work = filterImageChunks(w, h, p);
+  // Deliberately split inside rows and at boundaries unrelated to CLAHE tiles.
+  for (let i = 0; i < src.length; i += 84) {
+    const end = Math.min(i + 84, src.length);
+    assert.equal(work.append(src.subarray(i, end)), end === src.length);
+  }
+  const out = work.finish();
+  assert.deepEqual(out, applyFilters(src, w, h, p));
+  const expected = '5743774ab97ca35a13cf1a4dbecea983a7b1f307b4ff1352d4c0e65f23c1d749';
+  assert.equal(createHash('sha256').update(out).digest('hex'), expected);
 });

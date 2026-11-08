@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.87 — 2026-11-09
+- Open supported large TIFF and BigTIFF images by strip or tile, and retain 16-bit samples for levels and gamma.
+- Save original images in bounded writes so project saving does not require loading each entire file into memory.
+
 ## V0.86 — 2026-11-08
 - Verify both architectures of the universal macOS package when their application archives are separate.
 

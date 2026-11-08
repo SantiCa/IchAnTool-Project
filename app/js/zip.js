@@ -20,8 +20,13 @@ export async function zipFiles(files) {
   const parts = [], central = []; let offset = 0;
   for (const f of files) {
     const data = typeof f.data === 'string' ? new Blob([enc.encode(f.data)]) : f.data instanceof Blob ? f.data : new Blob([f.data]);
-    const bytes = new Uint8Array(await data.arrayBuffer()), crc = crc32(bytes), name = enc.encode(f.name), size = bytes.length;
-    if (offset + size > 0xffffffff) throw new Error('ZIP > 4 GB');
+    const name = enc.encode(f.name), size = data.size;
+    if (offset + size + 30 + name.length > 0xffffffff) throw new Error('ZIP > 4 GB');
+    let crc = 0;
+    for (let start = 0; start < size; start += 4 * 1024 * 1024) {
+      const bytes = new Uint8Array(await data.slice(start, start + 4 * 1024 * 1024).arrayBuffer());
+      crc = crc32(bytes, crc);
+    }
     const h = new DataView(new ArrayBuffer(30));
     h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
     h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true); h.setUint16(26, name.length, true);
@@ -33,6 +38,7 @@ export async function zipFiles(files) {
     offset += 30 + name.length + size;
   }
   const cdSize = central.reduce((a, p) => a + (p.byteLength ?? p.length), 0), e = new DataView(new ArrayBuffer(22));
+  if (files.length > 65535 || offset + cdSize + 22 > 0xffffffff) throw new Error('ZIP > 4 GB or too many entries');
   e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
   e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
   return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
