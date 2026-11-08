@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.86 — 2026-11-08
+- Verify both architectures of the universal macOS package when their application archives are separate.
+
 ## V0.85 — 2026-11-08
 - Desktop builds load the sample core for Electron testing and verify that installers contain only the coastline from the examples directory.
 
