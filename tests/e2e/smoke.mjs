@@ -65,6 +65,25 @@ try {
   await p.evaluate(() => document.getElementById('undoBtn').click()); await W(500);
   const undone = await p.evaluate((id) => window.ichantool.S.sections[window.ichantool.S.cur].objects.has(id), del[2]);
   if (!undone) fail('undo did not restore the trace');
+  // Fill the stack table, then delete a trace whose overlap will only be needed by undo.
+  const compacted = await p.evaluate(async () => {
+    const { idsAt } = await import('./js/core.js');
+    const I = window.ichantool, s = I.S.sections[I.S.cur], [firstId, secondId] = s.objects.keys();
+    const pixel = s.labels.indexOf(firstId);
+    const shared = [secondId, firstId];
+    for (let i = 0; i < 64; i++) s.stacks.push([s.nextId + 2 * i, s.nextId + 2 * i + 1]);
+    s.stacks.push(shared);
+    s.labels[pixel] = 1 - s.stacks.length;
+    s._six = null;
+    I.S.selected = firstId;
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+    const reclaimed = s.labels[pixel] === secondId && s.stacks.length < 64 && !s.stacks.includes(shared);
+    document.getElementById('undoBtn').click();
+    const restored = JSON.stringify(idsAt(s.labels[pixel], s.stacks)) === JSON.stringify(shared);
+    s.labels[pixel] = firstId;
+    return [reclaimed, restored];
+  });
+  assert.deepEqual(compacted, [true, true], 'active stack compaction and undo preserve overlap order');
   await p.evaluate(() => window.ichantool.saveToDB()); await W(1500);
   const sig = () => window.ichantool.S.sections.map((s) => `${s.objects.size}:${s.labels.reduce((a, v) => a + (v ? 1 : 0), 0)}`).join(',');
   const before = await p.evaluate(sig);

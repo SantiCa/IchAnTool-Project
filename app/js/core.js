@@ -19,7 +19,7 @@ export function classify(scheme, pct) {
 
 /* ───────── V0.20: overlapping traces ─────────
  * labels[i] > 0: one object id; 0: matrix; < 0: stack −labels[i] in `stacks` (list of ids, bottom → top).
- * stacks[0] is unused. A stack table only grows during a session (undo keeps old codes) and is compacted on load.
+ * stacks[0] is unused. Treat stack entries as immutable so undo can share them independently of their codes.
  */
 const NO_IDS = [];
 export const idsAt = (v, stacks) => (v > 0 ? [v] : v < 0 ? stacks[-v] : NO_IDS);

@@ -48,6 +48,10 @@ Keep task IDs stable. The changelog records what shipped.
 
 - [ ] **M1.1 - Editing history.** Measure long editing sessions and use overlap, undo and reload tests to guide
       any change to editing history or stack compaction.
+  - [x] **M1.1.1 - Reclaim unused overlap stacks during editing.** Share stack entries with undo and rebuild
+        active pixel codes independently. [V0.88](../CHANGELOG.md#v088--2026-11-09)
+  - [ ] **M1.1.2 - Measure object history costs.** If shallow snapshots dominate, record changed objects only
+        and share immutable descriptors. Keep typed image and mask buffers outside immutable state.
 - [ ] **M1.2 - Interrupted saves.** Exercise recovery through IndexedDB and file backup paths. Preserve the
       last successful save and verify that failures are visible to the user.
 

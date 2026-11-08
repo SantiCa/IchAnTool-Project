@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.88 — 2026-11-09
+- Reclaim unused overlap stacks during long editing sessions while preserving undo and trace order.
+
 ## V0.87 — 2026-11-09
 - Open supported large TIFF and BigTIFF images by strip or tile, and retain 16-bit samples for levels and gamma.
 - Save original images in bounded writes so project saving does not require loading each entire file into memory.

@@ -275,8 +275,11 @@ Implementation: `core.js::rowCounts` (parameter `stacks`); in Python, `analyze_m
 
 **How overlaps are stored.** In the label array, `labels[i] > 0` is an object, `0` is matrix and `labels[i] < 0`
 points to the stack `stacks[−labels[i]]`, the list of objects in that pixel from bottom to top
-(`core.js::idsAt, withId, withoutId, renameId`). The stack table only grows during a session (undo keeps the old
-codes) and is compacted when the project is opened and when it is saved (`compactStacks`). Object descriptors
+(`core.js::idsAt, withId, withoutId, renameId`). The stack table is compacted when the project opens, on a copy when saved, and between overlap-changing edits.
+During editing, a pass runs when the table reaches 64 entries or twice its size after the previous pass, whichever
+is larger, or after 32 overlap-changing edits or undo steps. Cropping and resolution changes also run a pass.
+Compaction rewrites negative pixel codes in place and invalidates the stack index. Undo keeps references to ordered
+object lists, so the active table only needs entries used by the current mask after compaction. Object descriptors
 (§11) use all the pixels of the object, including overlapped ones. Whatever needs a single object per pixel (the
 PNG mask, U-Net training data, trace figures, clicking on a trace) uses the uppermost trace.
 
@@ -769,8 +772,10 @@ zoom. The view is moved with the hand tool, the space bar or the middle mouse bu
 meant for cracks, voids, sampled zones, labels or drilling disturbance, so that "no bioturbation" is never confused
 with "no data".
 
-**Undo.** Each operation stores the list of changed pixels with their previous values and a copy of the object list.
-The history keeps up to 30 steps and about 200 MB of changed pixels.
+**Undo.** Each operation stores the list of changed pixels with their previous values and shallow copies of the
+object records. When a previous label is an overlap, the history shares its ordered list of object ids. Undo
+reuses or interns that list in the current stack table before restoring the pixel. The history keeps up to 30
+steps and about 200 MB of changed pixels.
 
 After each edit, descriptors (§11) are recomputed only for the affected objects, inside the rectangle that contains
 them. Deleting traces only scans the union of their bounding rectangles (the whole image if one has no rectangle).
@@ -1804,8 +1809,7 @@ Implementation: `storage.js` and the *projects* block of `app.js`.
   column do not need the images. Figures that need pixels read sections two at a time.
 - Enhancement and detection run in a background worker (§7.1). The side column and section figures are reduced
   directly to their output size (`reduceRGBA`: box filter with premultiplied alpha, as canvas scaling) without
-  full-resolution canvases. Detection morphology reuses three buffers. Overlap stacks are compacted on a copy when
-  saving (memory and undo keep theirs). Side-column series are cached per section.
+  full-resolution canvases. Detection morphology reuses three buffers. Overlap stacks are compacted on a copy when saving. Side-column series are cached per section.
 
 ---
 

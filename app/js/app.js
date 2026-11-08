@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.87';
+export const DELIVERY = 'V0.88';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -438,9 +438,27 @@ function beginOp(s) {
   s._mv = (s._mv || 0) + 1;   // V0.2: invalidates cached row counts and packed masks
   return { s, lm: [], ex: [], objs: [...s.objects.values()].map((o) => ({ ...o })), nextId: s.nextId, sel: S.selected, ext: { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }, touched: new Set() };
 }
-function setLabel(op, i, v) { const L = op.s.labels, o = L[i]; if (o !== v) { for (const id of idsAt(o, op.s.stacks)) op.touched.add(id); op.lm.push(i, o); L[i] = v; } }
+function setLabel(op, i, v) {
+  const L = op.s.labels, old = L[i];
+  if (old === v) return;
+  const ids = idsAt(old, op.s.stacks);
+  for (const id of ids) op.touched.add(id);
+  op.lm.push(i, old < 0 ? ids : old);
+  if (old < 0 || v < 0) op.stackChanged = true;
+  L[i] = v;
+}
 /* V0.20: overlapping traces. With «Superponer» a new trace keeps what is underneath; without it, it replaces it (as before). */
 const six = (s) => s._six || (s._six = stackIndex(s.stacks));
+/** Reclaim unused stacks between edits, without scanning the mask on every stroke. */
+function compactSectionStacks(s, force = false) {
+  if (s.stacks.length < 2) return;
+  s._stackEdits = (s._stackEdits || 0) + 1;
+  if (!force && s._stackEdits < 32 && s.stacks.length < (s._stackLimit || 64)) return;
+  s.stacks = compactStacks(s.labels, s.stacks);
+  s._six = null;
+  s._stackEdits = 0;
+  s._stackLimit = Math.max(64, 2 * s.stacks.length);
+}
 const topLab = (s, i) => topAt(s.labels[i], s.stacks);
 /** V0.30: traces only overlap when their ichnotaxa differ; a trace of the same ichnotaxon underneath gives way to the new one. */
 const clsKey = (s, id) => s.objects.get(id)?.cls ?? null;
@@ -495,6 +513,7 @@ function commitOp(op, force = false) {
   const ub = (o) => 8 * ((o.lm?.length || 0) + (o.ex?.length || 0));
   let tot = S.undo.reduce((a, o) => a + ub(o), 0);
   while (S.undo.length > 1 && tot > 2e8) tot -= ub(S.undo.shift());
+  if (op.stackChanged) compactSectionStacks(op.s);
   $('undoBtn').disabled = false;
 }
 
@@ -506,7 +525,8 @@ function undo() {
 }
 function undoOne(op) {
   const s = op.s;
-  undoPixels(s.labels, s.exclude, op.lm, op.ex);   // V0.42: edit.js
+  undoPixels(s.labels, s.exclude, op.lm, op.ex, s.stacks, op.stackChanged ? six(s) : null);
+  if (op.stackChanged) compactSectionStacks(s);
   s.objects = new Map(op.objs.map((o) => [o.id, o])); s.nextId = op.nextId; S.selected = op.sel;
   $('undoBtn').disabled = !S.undo.length;
   if (s !== sec()) selectSection(S.sections.indexOf(s));
@@ -1296,6 +1316,7 @@ async function applyCrop() {
   await busy(async () => {
     const cut = (arr, ch) => arr.slice(y0 * W * ch, y1 * W * ch);
     s.orig = cut(s.orig, 4); if (s.orig16) s.orig16 = cut(s.orig16, 4); s.labels = cut(s.labels, 1); s.exclude = cut(s.exclude, 1); s.h = H;
+    compactSectionStacks(s, true);
     s.marks = (s.marks || []).filter((m) => m.y >= y0 && m.y < y1).map((m) => ({ ...m, y: m.y - y0 }));
     s.top = r.top; s.bottom = r.bottom; s.roi = r.roi;
     s.crop = crop; s.logVer++;
@@ -2059,6 +2080,7 @@ async function changeResolution(s, k2) {
     const roi = full ? { x0: 0, y0: 0, x1: r.w, y1: r.h } : { x0: clampR(Math.min(ax, bx), r.w), y0: clampR(Math.min(ay, by), r.h), x1: clampR(Math.max(ax, bx), r.w), y1: clampR(Math.max(ay, by), r.h) };
     s.marks = (s.marks || []).map((m) => { const [x, y] = pt(m.x + 0.5, m.y + 0.5); return { ...m, x: Math.min(r.w - 1, Math.floor(x)), y: Math.min(r.h - 1, Math.floor(y)) }; });
     s.w = r.w; s.h = r.h; s.orig = r.rgba; s.orig16 = r.rgba16 || null; s.labels = labels; s.exclude = exclude; s.roi = roi; s.ds = k2;
+    compactSectionStacks(s, true);
     s.view = null; s._lc = null; s._lb = null; s._fc = null; s.logVer++;
     enhance(s); refreshObjects(s, new Set(s.objects.keys()), null);
     S.undo = S.undo.filter((op) => op.s !== s); $('undoBtn').disabled = !S.undo.length;
@@ -2662,7 +2684,7 @@ $('cdDel').addEventListener('click', () => {
  */
 function serSection(s) {
   const o2 = (o) => ({ id: o.id, cls: o.cls, src: o.src, ...(o.nt ? { nt: 1 } : {}), ...(o.stats ? { st: o.stats } : {}), ...(o.cls && o._thumb ? { th: o._thumb } : {}), ...(o.emb ? { em: o.emb } : {}) });
-  // V0.41: the file keeps only the overlap stacks still in use (renumbered on a copy; memory and undo keep theirs)
+  // V0.41: the file keeps only the overlap stacks still in use (renumbered on a copy)
   let lab = s._mk.labels.rle(), stacks;
   if (s.stacks.length > 1) { lab = Array.from(lab); stacks = compactStacks(lab, s.stacks, 2); if (stacks.length < 2) stacks = undefined; }
   return {

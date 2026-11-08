@@ -1,6 +1,6 @@
 // SedCoreTool web — V0.42: pure editing algorithms (no DOM, no global state), taken out of app.js so they can be tested
 // with synthetic masks. Labels: Int32Array, > 0 one object id, 0 matrix, < 0 stack −v in `stacks` (core.js).
-import { hasId, idsAt } from './core.js';
+import { codeFor, hasId, idsAt } from './core.js';
 
 /**
  * Scissors: pieces of object `id` inside its bbox [x0, y0, x1, y1] once the pixels in `cut` (Set of indices) are
@@ -51,9 +51,19 @@ export function sameTaxonGroups(L, w, stacks, objects, ids) {
   return groups;
 }
 
-/** Undo the pixel changes of one step: lm/ex = [index, previous value, …] in the order they were made. */
-export function undoPixels(labels, exclude, lm, ex) {
-  for (let k = lm.length - 2; k >= 0; k -= 2) labels[lm[k]] = lm[k + 1];
+/** Replay previous values in reverse order. A saved overlap is an ordered list of ids. */
+export function undoPixels(labels, exclude, lm, ex, stacks, index) {
+  let restored;
+  for (let k = lm.length - 2; k >= 0; k -= 2) {
+    const previous = lm[k + 1];
+    if (!Array.isArray(previous)) {
+      labels[lm[k]] = previous;
+      continue;
+    }
+    restored ||= new Map();
+    if (!restored.has(previous)) restored.set(previous, codeFor(previous, stacks, index));
+    labels[lm[k]] = restored.get(previous);
+  }
   for (let k = ex.length - 2; k >= 0; k -= 2) exclude[ex[k]] = ex[k + 1];
 }
 
