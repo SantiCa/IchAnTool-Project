@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.85 — 2026-11-08
+- Desktop builds load the sample core for Electron testing and verify that installers contain only the coastline from the examples directory.
+
 ## V0.84 — 2026-11-08
 - Drag the name column edge in Multiproxy interval families to resize it within the side panel.
 

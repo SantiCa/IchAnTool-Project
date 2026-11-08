@@ -2095,7 +2095,9 @@ separate windows where needed.
   publishes a GitHub Release. Before packaging, `tests/e2e/desktop.mjs` starts the real Electron entry point with a
   temporary profile and hidden windows and checks `app://`, the content security policy, the local ONNX Runtime, the
   trainer's status call, detection on the public example and that a pending deletion survives closing and restarting
-  the process (with Xvfb on Linux). Optional checks: `SEDCORETOOL_VISION_MODEL` (real DINOv2 inference) and
+  the process (with Xvfb on Linux). The workflow prepares the examples for the test. The installer build then
+  recreates the web directory without them, and checks that the packaged application archives contain only the
+  coastline under `web/examples` before uploading installers. Optional checks: `SEDCORETOOL_VISION_MODEL` (real DINOv2 inference) and
   `SEDCORETOOL_NETWORK_SMOKE=1` (six Esri backgrounds for a fixed public extent, 0°–5° E / 35°–40° N). A manual run
   on `master` (`workflow_dispatch`) builds test artefacts (`sedcoretool-windows-latest`, `sedcoretool-macos-latest`,
   `sedcoretool-ubuntu-latest`) and, with `draft_release`, prepares an unpublished release draft:
