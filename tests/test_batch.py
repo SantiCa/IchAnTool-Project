@@ -108,6 +108,21 @@ def test_cli_batch_manifest_and_bin_cm(core, tmp_path, capsys):
     assert r["bioturbation_pct"] == 100 and r["valid_pct"] == 50
 
 
+def test_cli_rejects_extreme_label_unless_explicitly_excluded(tmp_path):
+    label = np.iinfo(np.int32).max
+    mask = tmp_path / "labels.tif"
+    Image.fromarray(np.array([[1, label]], dtype=np.int32)).save(mask)
+    out = tmp_path / "analysis.csv"
+    args = ["analyze", str(mask), "--top", "0", "--bottom", "1", "--label-mask", "-o", str(out)]
+    with pytest.raises(ValueError, match=r"maximum label 2147483647 exceeds the limit of 255"):
+        main(args)
+    assert not out.exists()
+
+    assert main([*args, "--exclude-value", str(label)]) == 0
+    result = pd.read_csv(out).iloc[0]
+    assert result[["valid_pct", "bioturbation_pct", "BI", "ii"]].tolist() == [50, 100, 6, 6]
+
+
 def test_manifest_template(core):
     f = write_manifest_template(core, core / "t.csv")
     t = pd.read_csv(f)

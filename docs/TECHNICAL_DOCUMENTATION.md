@@ -2024,8 +2024,15 @@ From a copy of the repository: `pip install -e ".[dev]"`. Installing gives the m
 which takes several GB; running an already trained model only needs `onnxruntime`.
 
 ### 25.2 Library (API)
-Masks follow one contract: a 2-D integer array where `0` = matrix and `1…n` = classes, plus the list of class names
-(`(mask, class_names)`). Overlapping traces can be given as a 3-D boolean array `(classes, rows, columns)` (§3.2).
+Python analysis takes a 2-D integer or boolean mask, with `0` for matrix and IDs `1…255` for classes. The
+class name at position `i - 1` corresponds to label `i`. Gaps between IDs retain their positions and
+columns. Overlapping traces can be given as a 3-D boolean array `(classes, rows, columns)` (§3.2).
+The analysis checks label values, the number of class names and the number of overlap layers before
+allocating per-class results, with a limit of 255 classes. This covers the full positive label range of
+the 8-bit masks used by the training export (§9.2) and bounds the raw per-class percentage values to
+2,040 bytes per interval (255 float64 values). The analysis applies the label range independently
+of the file's sample depth. The CLI replaces an explicitly selected `--exclude-value` with background
+and marks those pixels as excluded before analysis.
 
 | Function or object | Module | What it does |
 |--------------------|--------|--------------|

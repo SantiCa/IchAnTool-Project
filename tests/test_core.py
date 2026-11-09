@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 from PIL import Image
 
@@ -13,6 +14,7 @@ from sedcoretool import (
     analyze_mask,
     mask_from_palette,
     mask_from_threshold,
+    pipeline,
 )
 from sedcoretool.cli import main
 from sedcoretool.depth import depth_to_age, pixel_depths
@@ -60,6 +62,59 @@ def test_percentage_and_bins():
     assert s.data["bioturbation_pct"].tolist() == [40.0, 0.0]
     assert s.data["depth"].tolist() == [2.5, 7.5]
     assert s.data["BI"].tolist() == [3, 0]
+
+
+def test_extreme_mask_label_is_rejected_before_expanding_classes(monkeypatch):
+    def unexpected_range(*args):
+        pytest.fail("class expansion was attempted before validating the mask")
+
+    monkeypatch.setattr(pipeline, "range", unexpected_range, raising=False)
+    mask = np.array([[0, np.iinfo(np.uint64).max]], dtype=np.uint64)
+    with pytest.raises(ValueError, match=r"maximum label 18446744073709551615 exceeds the limit of 255"):
+        analyze_mask(mask, 0, 1)
+
+
+@pytest.mark.parametrize(
+    ("mask", "names", "error"),
+    [
+        (np.array([[-1, 0]], dtype=np.int32), None, "non-negative"),
+        (np.array([[0.5, 1.0]]), None, "integer or boolean labels"),
+        (np.zeros((256, 1, 1), dtype=bool), None, "exceeds the limit of 255"),
+        (np.array([[0, 1]]), ("Class",) * 256, "exceeds the limit of 255"),
+        (np.array([[0, 3]]), ("A", "B"), "fewer class_names"),
+    ],
+)
+def test_mask_class_limits_and_validation(mask, names, error):
+    with pytest.raises(ValueError, match=error):
+        analyze_mask(mask, 0, 1, class_names=names)
+
+
+@pytest.mark.parametrize("names", [None, ("A", "B", "C", "D")])
+def test_sparse_mask_preserves_exact_interval_results(names):
+    mask = np.array([[0, 1, 3, 3], [0, 3, 0, 1], [0, 0, 0, 0]], dtype=np.uint16)
+    exclude = np.array([[0, 0, 0, 1], [1, 1, 1, 1], [0, 0, 0, 0]], dtype=bool)
+    result = analyze_mask(mask, 0, 3, class_names=names, exclude=exclude)
+    class_names = list(names or ("class_1", "class_2", "class_3"))
+    percentages = [100 / 3, 0.0, 100 / 3, 0.0]
+    expected = pd.DataFrame({
+        "section": ["section_1"] * 3,
+        "depth_top": [0.0, 1.0, 2.0],
+        "depth_bottom": [1.0, 2.0, 3.0],
+        "depth": [0.5, 1.5, 2.5],
+        "valid_pct": [75.0, 0.0, 100.0],
+        "bioturbation_pct": [200 / 3, np.nan, 0.0],
+        **{f"{name}_pct": [pct, np.nan, 0.0] for name, pct in zip(class_names, percentages)},
+        "BI": pd.array([4, None, 0], dtype="Int64"),
+        "ii": pd.array([5, None, 1], dtype="Int64"),
+    })
+    assert result.class_names == class_names
+    pd.testing.assert_frame_equal(result.data, expected, check_exact=True)
+
+
+def test_maximum_supported_mask_label_preserves_its_column():
+    result = analyze_mask(np.array([[0, 255]], dtype=np.uint8), 0, 1)
+    assert len(result.class_names) == 255
+    assert result.data[["bioturbation_pct", "class_1_pct", "class_255_pct", "BI", "ii"]].iloc[0].tolist() == [50, 0, 50, 3, 4]
 
 
 def test_partial_last_bin_is_kept_or_dropped():

@@ -57,6 +57,7 @@ def _bin_sums(values: np.ndarray, rng: list[tuple[int, int]]) -> np.ndarray:
 
 
 UNIT_TO_CM = {"mm": 0.1, "cm": 1.0, "m": 100.0}
+_MAX_MASK_CLASSES = 255  # All positive IDs in an 8-bit label mask.
 
 
 def _unit_factor(units: str) -> float:
@@ -72,7 +73,8 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
                  min_valid: float = 0.2, keep_partial: bool = True, name: str = "section_1") -> CoreSection:
     """Compute bioturbation percentage (total and per class) along depth.
 
-    mask: 2-D int array, 0 = matrix, 1..n = bioturbation classes; row 0 = top.
+    mask: 2-D integer or boolean array, 0 = matrix, 1..255 = bioturbation classes; row 0 = top.
+    Missing class IDs retain their positions. Class names and overlap layers are limited to 255.
     bin_px: number of pixel rows averaged into each data point (may be fractional).
     bin_cm: interval thickness in cm; if given, bin_px = bin_cm × pixel rows per cm (as in the web app).
     exclude: optional 2-D boolean array of the same size; True = excluded pixel (crack, gap, sample), as the
@@ -84,12 +86,27 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
     counts for every class whose layer is set, so the class percentages may add up to more than the total.
     """
     mask = np.asarray(mask)
+    if mask.ndim == 3:
+        n_classes = mask.shape[0]
+    elif mask.ndim == 2:
+        if mask.dtype.kind not in "biu":
+            raise ValueError("a 2-D mask must contain integer or boolean labels")
+        if mask.size and mask.dtype.kind == "i" and mask.min() < 0:
+            raise ValueError("mask labels must be non-negative")
+        n_classes = int(mask.max()) if mask.size else 0
+    else:
+        raise ValueError("mask must be 2-D, or 3-D (classes, rows, cols) for overlapping traces")
+    n_names = len(class_names) if class_names is not None else 0
+    class_count = max(n_classes, n_names)
+    if class_count > _MAX_MASK_CLASSES:
+        raise ValueError(f"mask class count or maximum label {class_count} exceeds the limit of {_MAX_MASK_CLASSES}")
+    if 0 < n_names < n_classes:
+        raise ValueError("fewer class_names than classes present in the mask")
+
     layers = None
     if mask.ndim == 3:
         layers = mask.astype(bool)
         mask = layers.any(axis=0).astype(np.int32)
-    elif mask.ndim != 2:
-        raise ValueError("mask must be 2-D, or 3-D (classes, rows, cols) for overlapping traces")
     if bottom <= top:
         raise ValueError("bottom depth must be greater than top depth")
     if bin_cm is not None:
@@ -105,10 +122,7 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
         if exclude.shape != mask.shape:
             raise ValueError(f"exclusion layer {exclude.shape} does not match the mask {mask.shape}")
         valid = ~exclude
-    n_classes = layers.shape[0] if layers is not None else (int(mask.max()) if mask.size else 0)
-    names = list(class_names) if class_names else [f"class_{i}" for i in range(1, n_classes + 1)]
-    if len(names) < n_classes:
-        raise ValueError("fewer class_names than classes present in the mask")
+    names = list(class_names) if n_names else [f"class_{i}" for i in range(1, n_classes + 1)]
 
     rng = bin_edges(n_rows, bin_px, keep_partial)
     r0 = np.array([a for a, _ in rng], dtype=float)

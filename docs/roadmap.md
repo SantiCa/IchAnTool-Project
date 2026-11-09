@@ -30,18 +30,9 @@ Keep task IDs stable. The changelog records what shipped.
   - [x] **M0.2.2 - Budget Python image and mask loading.** Apply a documented per-load estimate before
         pixel decoding, including conversion and mask copies. Verify rejection through both loaders
         and the label-mask CLI. [V0.99](../CHANGELOG.md#v099--2026-11-09)
-  - [ ] **M0.2.3 - Bound Python mask label expansion.** A single large label can make the analysis
-        allocate class names and result columns based on the maximum pixel value.
-    - **Approach.** Validate label values before allocating per-class data. Bound the class count and
-      preserve the mapping between supported labels and their class names.
-    - **Acceptance.** A tiny mask with an extreme label fails with a clear error in the public API and
-      through `--label-mask`. Use a test guard to verify the error occurs before creating per-class
-      data. Preserve exact interval percentages, BI and ii for supported masks and cover declared
-      classes, background and the CLI's exclusion value.
-    - **Likely touchpoints.** `src/sedcoretool/pipeline.py`, the label-mask path in
-      `src/sedcoretool/cli.py`, `tests/test_core.py` and `tests/test_batch.py`.
-    - **Decision before implementation.** Define how to handle nonconsecutive IDs and choose a
-      class limit justified by the supported workflows and their output cost.
+  - [x] **M0.2.3 - Bound Python mask label expansion.** Validate label IDs and class counts before
+        allocating class results. Preserve exact interval results, sparse IDs and CLI exclusions.
+        [V0.100](../CHANGELOG.md#v0100--2026-11-09)
   - [ ] **M0.2.4 - Prevent batch LAS filename collisions.** Different core names can normalise to
         the same output filename and silently overwrite earlier results.
     - **Approach.** Resolve all destination names before writing any LAS file.

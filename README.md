@@ -135,6 +135,8 @@ Use lossless formats (PNG, TIFF) for masks. The complete API, command line and U
 [technical documentation](docs/TECHNICAL_DOCUMENTATION.md#25-the-sedcoretool-python-package).
 Python image and mask loading reports an error before decoding if a file exceeds its estimated 768 MiB
 [per-load memory budget](docs/TECHNICAL_DOCUMENTATION.md#image-loading-budget).
+Python analysis accepts integer label IDs from 0 to 255 and up to 255 classes. Use `--exclude-value` to
+mark an ignore value in a CLI label mask.
 
 **Learned segmentation (experimental).** A U-Net can be trained on the traces reviewed in the program — from the
 desktop program (*Detection → U-Net → Train on this computer…*) or with `sedcoretool unet` — and then used as a

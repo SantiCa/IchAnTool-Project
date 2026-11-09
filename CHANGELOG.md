@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.100 — 2026-11-09
+- Reject out-of-range Python mask labels before allocating class results. Supported labels retain their class names and interval values.
+
 ## V0.99 — 2026-11-09
 - Reject Python image and mask loads that exceed the estimated memory budget before decoding their pixels.
 
