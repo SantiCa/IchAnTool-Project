@@ -1819,6 +1819,14 @@ Implementation: `storage.js` and the *projects* block of `app.js`.
 ### 22.2 Automatic saving and its safety
 - Saving runs **1.5 s after any change**; the state is shown next to the project name. When the program opens, the
   last project used is opened.
+- Project metadata, project data and section updates/deletions share one IndexedDB read-write transaction.
+  `storage.js::run` explicitly aborts it if queuing a request throws synchronously, including a structured-clone
+  error after earlier requests were queued. Request failures and transaction aborts also reject the save; the
+  section comparison cache advances only after the transaction completes successfully.
+- A failed save leaves the last complete project available for reopening and keeps live edits pending. The
+  **Retry save** button appears beside the save status. Actions that replace the open project first flush its
+  pending save and stop if changes remain unsaved (`app.js::canLeaveProject`). Exporting the current project
+  remains available during a storage failure. A failed replacement import also leaves live edits pending.
 - Saving never runs during a load or on a read-only project, and opening another project cancels the pending save of
   the previous one. If loading fails halfway, the state is cleared, nothing is saved and the user is warned. The
   initial state (before any project) is never saved.
@@ -1867,7 +1875,7 @@ The automatic copy writes, in a folder chosen by the user (ideally synchronised 
 Dropbox; Chrome and Edge, and the desktop program), one folder per project:
 
 - `<name>__<id>/project.json` — current state of the project;
-- `<name>__<id>/images/` — original images, each written once;
+- `<name>__<id>/images/` — original images, each stored image key written once;
 - `<name>__<id>/historial/<YYYY-MM-DD>.json` — the last version of each day. The 30 most recent daily copies are kept
   and, of older ones, the first of each month for 12 months; the rest are deleted;
 - `sedcoretool_ajustes.json` — the user settings.
@@ -1876,6 +1884,30 @@ A copy is made 20 s after each change and when switching projects; each copy als
 modified since the previous copy. If it fails it is retried after 1, 2 and 3 minutes. At start-up the program warns if
 there are changes and the copy has not run for more than 7 days or needs reactivating. The folder handle is stored in
 IndexedDB; the browser asks to confirm permission in each session (**Reactivate automatic backup**).
+
+Folder images use `<section id>__<image key><ext>` names. When an original image is replaced, the new stored key
+gets a different file; earlier manifests and daily history keep referencing the previous image. Originals still
+only in memory get a fresh identifier for each backup attempt. Existing folder copies with `<section id><ext>`
+image names remain readable. Old image files are retained because daily history may reference them. Project ZIP
+exports continue to use `images/<section id><ext>`.
+
+File System Access `createWritable()` stages a replacement and publishes it when `close()` succeeds; the existing
+file remains readable before that commit. `app.js::writeText` aborts the writable on a write or close failure and
+reports the original error. Original images are streamed before `project.json` is written. Each JSON file is
+committed separately: an error writing daily history or settings after the project commits can leave a newer,
+complete `project.json` alongside an older history or settings file. The backup status is then an error, its last
+successful completion time is unchanged, and work remains pending for retry. **Reactivate automatic backup** is
+available after an error as well as after a permission lapse; further successful library saves also schedule a
+new attempt.
+
+The browser smoke test includes `tests/e2e/interrupted-saves.mjs`. It uses an 8 × 8 synthetic PNG and real
+IndexedDB/OPFS handles, injecting synchronous clone errors, aborts after a section request succeeds, an interrupted
+image stream, replacement of an original before a manifest failure, and failures opening, writing and closing
+the backup manifest. It checks exact preservation of the previous project and metadata, error indicators,
+pending edits, blocked project switching, failed import
+replacement, user-triggered retries, and reopening the previous and retried saves in a separate page with their
+images. OPFS exercises the native writable commit contract without requiring an interactive folder picker;
+these checks do not simulate physical power loss or synchronisation-provider behaviour.
 
 **Open project folder…** opens a project folder (or a parent folder with several projects), so another computer can
 work on a project kept in a shared folder.

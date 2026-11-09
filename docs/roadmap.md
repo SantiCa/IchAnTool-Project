@@ -85,8 +85,17 @@ Keep task IDs stable. The changelog records what shipped.
     - Recorded native Undo and Redo latency and combined retained heap at both densities in the
       [editing-history benchmark](benchmarks/M1.1.2.md#m114-native-redo).
       [V0.104](../CHANGELOG.md#v0104--2026-11-09)
-- [ ] **M1.2 - Interrupted saves.** Exercise recovery through IndexedDB and file backup paths. Preserve the
-      last successful save and verify that failures are visible to the user.
+- [x] **M1.2 - Interrupted saves.** Preserve the last successful save through IndexedDB and file backup failures.
+      [V0.105](../CHANGELOG.md#v0105--2026-11-10). Delivered on `codex/m1-2-interrupted-saves` for owner review.
+  - Verified with synthetic data: synchronous clone failure after queuing metadata/data, transaction abort after
+    a section write, interrupted image streaming, image replacement before manifest failure, and backup manifest
+    open/write/close failures on real OPFS files.
+    Prior metadata, sections, masks and image bytes remain intact; previous and retried saves reopen in a separate page.
+  - Verified visible failure states, pending live edits, blocked project switching after a failed save, pending edits
+    after a failed replacement import, and user-triggered retry for both storage paths.
+  - Required Python, Node, type, version, Ruff and browser checks pass (82 Python tests; two optional U-Net tests
+    skipped without ONNX/Torch; 124 Node tests). File tests cover the browser's staged-write contract; physical
+    power loss and external folder synchronisation are outside the automated simulation.
 
 ### M2 - Large projects and responsive display
 
