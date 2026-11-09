@@ -217,9 +217,10 @@ def git(*args):
     return subprocess.check_output(["git", *args], cwd=ROOT)
 
 
-def source_metadata():
+def source_metadata(extra_files=()):
     files = set(git("ls-files", "-z", "--", "app", "src/sedcoretool", "examples/U1385I-1H").decode().split("\0")) - {""}
     files.update(["tools/benchmark.py", "tools/benchmark_browser.mjs"])
+    files.update(extra_files)
     hashes = hashlib.sha256()
     for name in sorted(files):
         data = (ROOT / name).read_bytes()
