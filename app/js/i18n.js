@@ -1841,6 +1841,9 @@ Object.assign(D.en, { 'ds.interp': 'Interpolate the columns used to the depth of
 Object.assign(D.es, {
   'fig.keepRatio': 'Mantener las proporciones de la foto', 'fig.ratioNote': 'Alto/ancho del testigo: {r}', 'geo.cancel': 'Cancelar',
   'sec.depthWarning': 'Revisa la profundidad de esta sección antes de usar sus resultados. Introduce valores numéricos, con la base por debajo del techo, y selecciona mm, cm o m.',
+  'load.validationPreview': 'Proyecto abierto en modo consulta por problemas de región o máscara. Los cambios son temporales. La exportación conserva los datos originales.',
+  'load.regionWarning': 'La región de análisis guardada no es válida. Se muestra la imagen completa y se omiten los resultados de esta sección.',
+  'load.maskWarning': 'La máscara hace referencia a trazas o solapamientos no válidos. Se omiten las trazas y los resultados de esta sección.',
   'load.failed': 'No se ha podido abrir el proyecto: {e}. No se ha guardado nada encima de la copia guardada.',
   'load.badMask': 'la máscara «{k}» de la sección «{s}» está dañada',
   'load.newer': 'Este proyecto se guardó con una versión más nueva ({v}). Se abre solo para consultar: los cambios no se guardarán. Actualiza SedCoreTool para editarlo.',
@@ -1850,6 +1853,9 @@ Object.assign(D.es, {
 Object.assign(D.en, {
   'fig.keepRatio': 'Keep the photo proportions', 'fig.ratioNote': 'Core height/width: {r}', 'geo.cancel': 'Cancel',
   'sec.depthWarning': 'Check this section’s depths before using its results. Enter numeric depths with the bottom greater than the top, and select mm, cm or m.',
+  'load.validationPreview': 'Project opened for inspection because of region or mask issues. Changes are temporary. Export keeps the original data.',
+  'load.regionWarning': 'The saved analysis region is invalid. The full image is shown and this section’s results are omitted.',
+  'load.maskWarning': 'The mask refers to invalid traces or overlaps. This section’s traces and results are omitted.',
   'load.failed': 'The project could not be opened: {e}. Nothing was saved over the stored copy.',
   'load.badMask': 'the «{k}» mask of section «{s}» is damaged',
   'load.newer': 'This project was saved with a newer version ({v}). It opens read-only: changes will not be saved. Update SedCoreTool to edit it.',

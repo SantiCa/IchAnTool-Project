@@ -96,6 +96,8 @@ U-Net on the computer.
    site map colours and symbols by project or core.
 6. **Save and share:** projects are saved automatically on your computer. *Export this project (with images)* creates
    a `.sedcoretool` file that opens on any system; an automatic copy can be kept in a synchronised folder.
+   A project with an invalid analysis region or broken mask references opens for inspection, with a warning in
+   the affected section. Edits are temporary and a project export keeps the original data.
 
 The built-in help and guided tour explain each step. The downloads contain no sample data.
 

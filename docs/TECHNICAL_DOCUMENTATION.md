@@ -1984,6 +1984,19 @@ non-blocking warning when the selected section has a non-finite or non-numeric d
 than its top, or its unit is outside `mm`, `cm` and `m`. The warning is recalculated when selecting a section or
 editing the depths and units. Opening the project leaves those values as stored.
 
+#### Region and mask diagnostics
+
+After resolving the working image dimensions and validating RLE lengths, the section loader checks the saved
+analysis region. Its edges must be integers and satisfy `0 ≤ x0 < x1 ≤ w` and `0 ≤ y0 < y1 ≤ h`. It also checks
+occupied label runs directly in the compressed mask. A positive code must resolve to a trace. A negative code
+must resolve to a nonempty overlap stack whose members all resolve to traces. Label codes must fit signed
+32-bit integers. The check reads only occupied runs and referenced stack entries.
+
+A project with either diagnostic opens for inspection. The section editor identifies the issue, shows the full
+working image when the region is invalid, and omits trace overlays and interval results for affected sections. The
+application suspends project autosave and the active project's automatic folder backup during inspection.
+Project export uses the original project data captured on opening.
+
 ---
 
 # Part VII — The Python package

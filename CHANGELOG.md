@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.96 — 2026-11-09
+- Flag invalid analysis regions and broken mask references when opening a project, with an inspection mode that preserves the original data.
+
 ## V0.95 — 2026-11-09
 - Warn in the section editor when an opened project has invalid depths or units.
 

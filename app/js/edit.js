@@ -70,6 +70,44 @@ export function undoPixels(labels, exclude, lm, ex, stacks, index) {
 /** Ids present in a label array (for checks): every object id seen in any pixel, overlaps included. */
 export function idsInLabels(L, stacks) { const out = new Set(); for (const v of L) if (v) for (const id of idsAt(v, stacks)) out.add(id); return out; }
 
+/** A saved analysis region uses integer pixel edges within the working image.
+ * @param {import('./core.js').Roi | null | undefined} roi
+ * @param {number} width
+ * @param {number} height
+ */
+export function validSavedRegion(roi, width, height) {
+  if (!roi) return false;
+  const { x0, y0, x1, y1 } = roi;
+  return [x0, y0, x1, y1].every(Number.isSafeInteger)
+    && 0 <= x0 && x0 < x1 && x1 <= width
+    && 0 <= y0 && y0 < y1 && y1 <= height;
+}
+
+/** Check referenced codes directly in a structurally valid RLE mask, without expanding it.
+ * @param {ArrayLike<number> | null | undefined} labels
+ * @param {unknown} stacks
+ * @param {readonly {id: number}[]} objects
+ */
+export function hasBrokenMaskRefs(labels, stacks, objects) {
+  if (!labels) return false;
+  const ids = new Set(objects.map((object) => object.id));
+  const checkedStacks = new Set();
+  for (let i = 0; i < labels.length; i += 2) {
+    const code = labels[i];
+    if (labels[i + 1] === 0 || code === 0) continue;
+    if ((code | 0) !== code) return true;
+    if (code > 0) {
+      if (!ids.has(code)) return true;
+    } else if (!checkedStacks.has(code)) {
+      const members = Array.isArray(stacks) ? stacks[-code] : null;
+      if (!Array.isArray(members) || !members.length) return true;
+      for (const id of members) if ((id | 0) !== id || id <= 0 || !ids.has(id)) return true;
+      checkedStacks.add(code);
+    }
+  }
+  return false;
+}
+
 /** v1/v2 project files → v3 structure: the images become one core; the geochemistry cores become further cores. */
 export function upgradeProject(p) {
   if (p.version >= 3) return p;

@@ -27,6 +27,7 @@
  *   filters: import('./imageproc.js').FilterSettings, _lc?: SectionCanvasCache | null,
  *   _lb?: SectionCanvasCache | null, file: SectionFile, objects: Map<number, TraceObject>, nextId: number,
  *   marks: TraceMark[], manual: ManualIndex[], detect: import('./imageproc.js').DetectionSettings, preset: string,
+ *   loadWarnings?: {region: boolean, mask: boolean},
  *   lutFill?: Uint8ClampedArray, lutLine?: Uint8ClampedArray, lutStyle?: Uint8Array, _pxErr?: string,
  *   _unet?: {key: string, prob: Float32Array} | null}} SectionState
  * @typedef {{id: string, name: string, units: import('./core.js').DepthUnit, sections: SectionState[],

@@ -364,6 +364,42 @@ try {
     bottom.value = '2'; bottom.dispatchEvent(new Event('change', { bubbles: true }));
     const corrected = warning.hidden && S.sections[0].bottom === 2;
 
+    const visible = (id) => !document.getElementById(id).hidden;
+    const originalRegion = { ...section.roi, y0: 3 };
+    const originalLabels = [9, 1, 0, 3];
+    await importProject({
+      app: 'IchAnTool', version: 2, id: 'bad-legacy-mask-smoke',
+      sections: [{ ...section, roi: originalRegion, labels: originalLabels }],
+    });
+    const legacyPreview = visible('projectValidation') && visible('secRegionWarning') && visible('secMaskWarning')
+      && S.sections[0].roi.y0 === 0 && S.sections[0].roi.y1 === 2 && S.sections[0].bins.length === 0;
+    // Edits in the preview must neither overwrite the saved project nor leak into its exported source.
+    S.sections[0].top = 1;
+    S.sections[0].filters.gamma = 2;
+    await window.ichantool.saveToDB();
+    const storedLegacy = (await getProject(S.id)).sections[0];
+    const exportedLegacy = window.ichantool.serialize().sections[0];
+    const sourcePreserved = [storedLegacy, exportedLegacy].every((s) =>
+      s.top === 0 && s.roi.y0 === 3 && s.labels[0] === 9 && s.filters.gamma === DEFAULT_FILTERS.gamma);
+
+    await importProject({ ...valid, id: 'bad-current-stack-smoke', cores: [{ id: 'c', sections: [{
+      ...section, labels: [-3, 1, 0, 3], stacks: [null, [1, 2]],
+    }] }] });
+    const currentPreview = visible('projectValidation') && !visible('secRegionWarning') && visible('secMaskWarning')
+      && S.sections[0].bins.length === 0 && S.sections[0].labels[0] === 0
+      && window.ichantool.serialize().cores[0].sections[0].labels[0] === -3;
+
+    await importProject({ ...valid, id: 'valid-overlap-smoke', cores: [{ id: 'c', sections: [{
+      ...section, labels: [1, 1, -1, 1, 0, 2], stacks: [null, [1, 2]], nextId: 3,
+      objects: [{ id: 1, cls: null, src: 'draw' }, { id: 2, cls: null, src: 'draw' }],
+    }] }] });
+    const healthyOverlap = !visible('projectValidation') && !visible('secRegionWarning') && !visible('secMaskWarning')
+      && JSON.stringify(S.sections[0].bins.map((b) => [b.pct, b.BI, b.ii])) === '[[100,6,6],[0,0,1]]';
+    const top = document.getElementById('secTop');
+    top.value = '1'; top.dispatchEvent(new Event('change', { bubbles: true }));
+    await window.ichantool.saveToDB();
+    const healthySave = (await getProject(S.id)).cores[0].sections[0].top === 1;
+
     const log = console.error;
     let rejected = false;
     console.error = (error, ...args) => {
@@ -374,11 +410,13 @@ try {
       await send('../project.json', 'hostile-zip-smoke');
       await waitFor(() => rejected);
       return { opened, saved, rejected, notStored: !(await getProject('hostile-zip-smoke')),
-        validQuiet, validBins, currentWarns, legacyWarns, corrected };
+        validQuiet, validBins, currentWarns, legacyWarns, corrected,
+        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, healthySave };
     } finally { console.error = log; }
   });
   assert.deepEqual(importZip, { opened: true, saved: true, rejected: true, notStored: true,
-    validQuiet: true, validBins: [[0, 1, 0, 0, 1], [1, 2, 0, 0, 1]], currentWarns: true, legacyWarns: true, corrected: true });
+    validQuiet: true, validBins: [[0, 1, 0, 0, 1], [1, 2, 0, 0, 1]], currentWarns: true, legacyWarns: true, corrected: true,
+    legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true, healthySave: true });
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);
 } catch (e) { fail(e.message); } finally { await b.close(); }

@@ -1,8 +1,8 @@
 // V0.42: editing algorithms (edit.js) with synthetic overlapping masks.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, idsInLabels, upgradeProject } from '../../app/js/edit.js';
-import { codeFor, stackIndex, renameId } from '../../app/js/core.js';
+import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, idsInLabels, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from '../../app/js/edit.js';
+import { codeFor, stackIndex, renameId, compactStacks } from '../../app/js/core.js';
 
 // 10 × 6 image: trace 1 is a horizontal bar (rows 2–3, x 1–8); trace 2 a vertical bar (x 4–5, rows 0–5) that overlaps it
 function scene() {
@@ -48,4 +48,30 @@ test('V0.42: v2 project files are upgraded to cores', () => {
   assert.equal(p.version, 3); assert.equal(p.cores.length, 2); assert.equal(p.cores[0].name, 'Main'); assert.equal(p.cores[0].units, 'cm');
   assert.deepEqual(p.cores[1].imp.proxies, { Ca: [1, 2] }); assert.equal(p.geo.cores, undefined); assert.equal(p.curCore, 'main');
   assert.equal(upgradeProject(p), p);
+});
+
+test('saved analysis regions require nonempty integer bounds within the working image', () => {
+  const full = { x0: 0, y0: 0, x1: 10, y1: 6 };
+  assert.equal(validSavedRegion(full, 10, 6), true);
+  assert.equal(validSavedRegion({ x0: 2, y0: 3, x1: 3, y1: 4 }, 10, 6), true);
+  for (const invalid of [null, undefined, { ...full, x0: -1 }, { ...full, y0: 7 },
+    { ...full, x1: 0 }, { ...full, x1: 11 }, { ...full, y1: 5.5 }]) {
+    assert.equal(validSavedRegion(invalid, 10, 6), false);
+  }
+});
+
+test('saved mask diagnostics check occupied runs and overlap members', () => {
+  const objects = [{ id: 1 }, { id: 2 }];
+  const stacks = [null, [2, 1], [99]];
+  const labels = [-4, 0, 1, 2, -1, 1, 0, 3];
+  assert.equal(hasBrokenMaskRefs(labels, stacks, objects), false);
+  assert.equal(hasBrokenMaskRefs(null, null, objects), false);
+  for (const code of [3, -2, -3, 1.5, 2 ** 32 + 1]) {
+    assert.equal(hasBrokenMaskRefs([code, 1], stacks, objects), true);
+  }
+  assert.equal(hasBrokenMaskRefs([-1, 1], null, objects), true);
+  assert.equal(hasBrokenMaskRefs([-1, 1], [null, []], objects), true);
+  const sparse = Array(2); sparse[0] = 1;
+  assert.equal(hasBrokenMaskRefs([-1, 1], [null, sparse], objects), true);
+  assert.deepEqual(compactStacks(labels, stacks, 2), [null, [2, 1]]);
 });

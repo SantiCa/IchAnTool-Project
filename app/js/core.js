@@ -129,7 +129,7 @@ export function compactStacks(labels, stacks, step = 1) {
   /** @type {StackTable} */
   const out = [null];
   for (let i = 0; i < labels.length; i += step) {
-    const v = labels[i]; if (v >= 0) continue;
+    const v = labels[i]; if (v >= 0 || (step === 2 && labels[i + 1] === 0)) continue;
     let k = map[-v]; if (!k) { k = map[-v] = out.length; out.push(stacks[-v]); }
     labels[i] = -k;
   }

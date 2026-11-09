@@ -24,12 +24,12 @@ Keep task IDs stable. The changelog records what shipped.
       [benchmark instructions and recorded run](benchmarks/M0.1.md). Codex addresses any findings before closure.
 - [x] **M0.2 - Import and export safety.** Bound ZIP expansion and escape formula-like spreadsheet text
       while preserving numeric measurements. [V0.91](../CHANGELOG.md#v091--2026-11-09)
-- [ ] **M0.3 - Project validation.** **In progress.** Start with diagnostic warnings and cover current and legacy
-      projects before considering rejection rules.
+- [x] **M0.3 - Project validation.** Cover current and legacy projects with diagnostic warnings.
+      [V0.96](../CHANGELOG.md#v096--2026-11-09)
   - [x] **M0.3.1 - Format inventory and depth diagnostics.** Document the import and migration paths and warn
         about suspect depth metadata. [V0.95](../CHANGELOG.md#v095--2026-11-09)
-  - [ ] **M0.3.2 - Mask and region diagnostics.** Characterise invalid regions and unresolved trace or overlap
-        references using current and legacy fixtures, then define advisory checks.
+  - [x] **M0.3.2 - Mask and region diagnostics.** Flag invalid regions and unresolved trace or overlap
+        references, and preserve the original project when opening for inspection. [V0.96](../CHANGELOG.md#v096--2026-11-09)
 
 #### M0.1 acceptance criteria
 

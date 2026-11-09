@@ -9,7 +9,7 @@ import { INTERP_DEFAULT } from './interp.js';
 
 import { evalColumn, formulaRefs, fillLinear } from './sheet.js';
 import { TaxonModel, evaluateModels, finalTestMetrics, independentExternalExamples, descriptorSig, vec, FEATURES } from './learn.js';
-import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, upgradeProject } from './edit.js';
+import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from './edit.js';
 import { t, lang, setLang, applyI18n, fxText } from './i18n.js';
 import { zipFiles, unzipBlob } from './zip.js';
 import { decodeTiffBlocks } from './tiff.js';
@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.95';
+export const DELIVERY = 'V0.96';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -1012,6 +1012,7 @@ export function effClassArray(s) {
 
 export function analyze(s) {
   if (!s) return;
+  if (s.loadWarnings) { s.bins = []; return; }
   const eff = effClassArray(s);
   let h = 2166136261; for (let i = 0; i < eff.length; i++) h = Math.imul(h ^ (eff[i] + 2), 16777619);   // signature of the class of each object
   const key = `${s._mv || 0}|${s.w}x${s.h}|${s.roi.x0},${s.roi.y0},${s.roi.x1},${s.roi.y1}|${S.classes.length}|${eff.length}|${h}`;
@@ -2029,6 +2030,8 @@ $('resTable').addEventListener('change', (e) => {
 /* section form */
 function renderSectionForm() {
   const s = sec();
+  $('secRegionWarning').hidden = !s?.loadWarnings?.region;
+  $('secMaskWarning').hidden = !s?.loadWarnings?.mask;
   $('secDepthWarning').hidden = !s || (Number.isFinite(s.top) && Number.isFinite(s.bottom)
     && s.bottom > s.top && Object.hasOwn(UNIT_TO_CM, s.units));
   $('secSel').innerHTML = S.sections.map((x, k) => `<option value="${k}" ${k === S.cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
@@ -2701,6 +2704,7 @@ function serSection(s) {
 
 /** Project file, format v3: project → cores (images, imported data, records, age model, intervals by core id). */
 function serialize() {
+  if (projectPreview) return projectPreview;
   const { cores: _c, ...geo } = S.geo;
   return {
     app: APP, kind: 'project', version: FORMAT_VERSION, appVersion: VERSION, delivery: DELIVERY, saved: new Date().toISOString(),
@@ -2728,8 +2732,17 @@ async function loadSection(q) {
   if (q.$missing) throw new Error(t('load.badMask', { s: q.name || '?', k: 'section' }));   // V0.44: section record missing in the library
   // V0.36: a damaged mask stops the load instead of being saved over the good copy
   for (const k of ['labels', 'exclude']) if (q[k] != null && !rleValid(q[k], w * h)) throw new Error(t('load.badMask', { s: q.name || '?', k }));
-  const s = mk(newSection({ name: q.name, file, w, h, orig, orig16, ds: q.ds || 1, full: q.full || null, labels: { rle: q.labels }, exclude: { rle: q.exclude } }));
-  if (q.stacks) { s.stacks = compactStacks(q.labels, q.stacks, 2); s._six = null; }   // V0.20: overlaps (RLE values renumbered before first unpack)
+  const region = !validSavedRegion(q.roi, w, h), mask = hasBrokenMaskRefs(q.labels, q.stacks, q.objects);
+  const preview = region || mask, hasStacks = Array.isArray(q.stacks) && q.labels != null;
+  const labels = preview ? [0, w * h] : hasStacks ? q.labels.slice() : q.labels;
+  const s = mk(newSection({ name: q.name, file, w, h, orig, orig16, ds: q.ds || 1, full: q.full || null, labels: { rle: labels }, exclude: { rle: q.exclude } }));
+  if (preview) {
+    if (region) s.roi = { x0: 0, y0: 0, x1: w, y1: h };
+    s.nextId = 1;
+    s.loadWarnings = { region, mask };
+    return s;
+  }
+  if (hasStacks) { s.stacks = compactStacks(labels, q.stacks, 2); s._six = null; }   // Renumber a working copy before the first unpack.
   const ppu = pxPerCm(s);
   for (const o of q.objects) {
     const st = o.st || null;
@@ -2747,8 +2760,10 @@ let loadMigrated = false;
 /* V0.36: version 5 = trace overlaps (stacks, V0.20), cell edits (V0.35). A newer file opens read-only. */
 const FORMAT_VERSION = 5;
 let readOnlyProject = false;
+let projectPreview = null;
 
 async function loadProject(p) {
+  const source = p;
   blankStart = false;
   resetState(); loading = true; loadMigrated = false; clearTimeout(saveTimer);
   readOnlyProject = (p?.version || 0) > FORMAT_VERSION;   // V0.36: written by a newer SedCoreTool
@@ -2773,6 +2788,11 @@ async function loadProject(p) {
       if (p.settings?.binCm == null) S.settings.binCm = s0 ? S.settings.binPx / pxPerCm(s0) : 1;
       delete S.settings.binPx;
     }
+    if (S.cores.some((c) => c.sections.some((s) => s.loadWarnings))) {
+      // Keep the original package data separate from the temporary editing state.
+      projectPreview = structuredClone(source);
+      $('projectValidation').hidden = false;
+    }
   } catch (err) {
     // V0.36: a failed load never leaves a half-built project that the autosave would write over the stored one
     console.error(err); loading = false; clearTimeout(saveTimer);
@@ -2781,19 +2801,21 @@ async function loadProject(p) {
     return false;
   } finally { loading = false; }
   if (readOnlyProject) setTimeout(() => { setSaveState('off'); toast(t('load.newer', { v: p.delivery || p.version }), 10000); }, 300);
+  if (projectPreview) readOnlyProject = true;
   const cur = S.cores.find((c) => c.id === p.curCore) || S.cores[0];
   activateCore(cur.id, true);
   syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0);
   refreshAllCores();
   if (S.geo.trained) setTimeout(() => { geoTrain(true).catch(() => { /* retrained on demand */ }); }, 0); else scheduleGeo(0);
   try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
-  dirty = false; setSaveState(storageOK ? 'saved' : 'off');
+  dirty = false; setSaveState(storageOK && !projectPreview ? 'saved' : 'off');
   if (loadMigrated) markDirty();   // V0.1: move images of older projects to the image store
   renderComments();
 }
 
 function resetState() {
   blankStart = false; clearTimeout(saveTimer);   // V0.36: a pending save of the previous project must not run afterwards
+  readOnlyProject = false; projectPreview = null; $('projectValidation').hidden = true;
   const maxMP = S.settings.maxMP || 8;
   S.id = uid(); S.name = t('proj.untitled'); S.notes = ''; S.comments = []; S.finalTests = [];
   MEM.px.length = 0; MEM.mask.length = 0; pxWanted.clear();   // V0.1: pictures of the previous project can be freed
@@ -3198,7 +3220,7 @@ async function backupNow() {
   if ((backupState !== 'ok' && backupState !== 'error') || !backupDir) return;
   try {
     const since = lastBackup;
-    if (S.sections.length || S.records.length) await writeProjectFolder(backupDir, serialize());
+    if (!projectPreview && (S.sections.length || S.records.length)) await writeProjectFolder(backupDir, serialize());
     // V0.38: every other project changed since the last copy is copied too (not only the open one)
     if (storageOK) for (const m of await listProjects().catch(() => [])) {
       if (m.id === S.id || !(m.updated > since)) continue;
