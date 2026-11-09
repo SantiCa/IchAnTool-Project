@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.93 — 2026-11-09
+- Clarify contributor rules for scoped performance work, incremental rollouts, dependency review and numerical regression tests.
+
 ## V0.92 — 2026-11-09
 - Check JavaScript type regressions in CI, with strict JSDoc contracts for analysis, image processing and shared state.
 

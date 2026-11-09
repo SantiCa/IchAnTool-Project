@@ -72,14 +72,21 @@ On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Sc
 - **Safe I/O.** Handle corrupt, oversized and hostile inputs. Bound resource use when processing untrusted
   files. For filesystem project saves, use a temporary file and atomic replacement where supported. For
   IndexedDB, use transactions. Verify recovery and preservation of the last good save after a failed write.
-- **Incremental delivery.** Split broad changes into small, independently testable deliveries.
+- **Incremental delivery.** Split broad changes into small, independently testable deliveries. Gate major refactors
+  behind a feature flag and keep the current path as the default until the new path passes its acceptance criteria.
+  Define how to roll back and when to remove the flag.
 - **Dependency discipline.** Prefer existing or standard-library facilities. Justify new dependencies with a
-  concrete capability or measured benefit and account for offline and desktop distribution.
+  concrete capability or measured benefit. Before adding a heavy dependency, compare it with the smallest viable
+  alternative and document the maintenance, runtime and distribution costs, including offline and desktop use.
 - **No private data.** Never commit unpublished data or results of the owner or anyone else. The repository and the
   downloads contain only public example data.
 - **Interface texts** go in `app/js/i18n.js`, in Spanish and English.
 - **Regression coverage.** Add tests for new features and behaviour changes. Use property-based tests for
-  critical invariants where appropriate. Documentation-only edits require no new tests.
+  critical invariants where appropriate. When changing scientific code, test numerical equivalence against
+  reference results on representative inputs and relevant edge cases. Use exact equality where required and
+  define and justify any tolerances before validation. Test an explicitly requested scientific change against
+  its new expected results and verify that unaffected outputs remain equivalent. Documentation-only edits
+  require no new tests.
 - **Documentation.** Update user and technical documentation as required by [section 5](#5-delivering-a-change).
 
 ## 5. Delivering a change
@@ -145,7 +152,14 @@ Do not repeat content between these files; link instead. Keep the tone factual a
 - **Explain each step to the maintainer.** After completing each step, report in Spanish what you did, how you
   checked it and how any implementation works within SedCoreTool as a whole. Describe the affected components and
   how data or control passes between them. Include open work and limitations in the final report.
-- **Scope:** do the task requested, one task at a time. Do not start refactors, general audits or old pending items
-  without a request. Do not launch sub-agents or automations unless asked.
+- **Interpret requests by intent.** If the maintainer gives a broad instruction, infer the smallest concrete scope
+  from the request, the repository and the roadmap. Identify the affected workflow and acceptance criteria before
+  editing. For performance work, choose the specific path, representative inputs and a reproducible benchmark for
+  before-and-after comparison. State material assumptions and ask only when the goal or a consequential choice
+  cannot be inferred.
+- **One phase at a time.** Split requests that combine independent workstreams, such as UI, GPU, WASM and DuckDB,
+  into ordered, independently verifiable phases. Work on the first authorised phase and record the others in the
+  roadmap. Do not start unrelated refactors, audits or backlog work. Do not launch sub-agents or automations unless
+  asked.
 - **Reporting to the owner:** briefly, in Spanish — result, how it was checked, version number, and anything that is
   genuinely pending.
