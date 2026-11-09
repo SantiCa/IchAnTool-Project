@@ -1,8 +1,8 @@
 // V0.42: editing algorithms (edit.js) with synthetic overlapping masks.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, idsInLabels, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from '../../app/js/edit.js';
-import { codeFor, stackIndex, renameId, compactStacks } from '../../app/js/core.js';
+import { splitPieces, mergeKeeper, sameTaxonGroups, swapHistoryPixels, trimEditHistory, idsInLabels, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from '../../app/js/edit.js';
+import { codeFor, idsAt, stackIndex, renameId, compactStacks } from '../../app/js/core.js';
 
 // 10 × 6 image: trace 1 is a horizontal bar (rows 2–3, x 1–8); trace 2 a vertical bar (x 4–5, rows 0–5) that overlaps it
 function scene() {
@@ -34,11 +34,37 @@ test('V0.42: same-ichnotaxon overlaps are grouped; different ichnotaxa stay apar
 
 test('V0.42: merge by renaming, then undo restores every pixel', () => {
   const { w, L, stacks, ix } = scene(), before = L.slice(), ex = new Uint8Array(L.length), lm = [], exl = [];
-  for (let i = 0; i < L.length; i++) if (L[i]) { const v = renameId(L[i], 2, 1, stacks, ix); if (v !== L[i]) { lm.push(i, L[i]); L[i] = v; } }
+  for (let i = 0; i < L.length; i++) if (L[i]) { const v = renameId(L[i], 2, 1, stacks, ix); if (v !== L[i]) { lm.push(i, L[i] < 0 ? idsAt(L[i], stacks) : L[i]); L[i] = v; } }
   assert.deepEqual([...idsInLabels(L, stacks)], [1]);
   ex[5] = 1; exl.push(5, 0);
-  undoPixels(L, ex, lm, exl);
+  swapHistoryPixels(L, ex, lm, exl, stacks, ix);
   assert.deepEqual([...L], [...before]); assert.equal(ex[5], 0);
+});
+
+test('history reverses repeated writes and restores ordered overlaps after compaction', () => {
+  let stacks = [null, [1, 2], [2, 1]];
+  const labels = Int32Array.of(-2), exclude = Uint8Array.of(1);
+  const maskLog = [0, 1, 0, stacks[1], 0, 2], exclusionLog = [0, 0, 0, 1, 0, 0];
+  for (const forward of [false, true, false]) {
+    stacks = compactStacks(labels, stacks);
+    swapHistoryPixels(labels, exclude, maskLog, exclusionLog, stacks, stackIndex(stacks), forward);
+    assert.deepEqual(idsAt(labels[0], stacks), forward ? [2, 1] : [1]);
+    assert.equal(exclude[0], forward ? 1 : 0);
+  }
+});
+
+test('history limits evict complete groups and preserve an oversized latest action', () => {
+  const step = (group, entries = 2) => ({ group, lm: Array(entries), ex: [] });
+  const oldest = [step('assign'), step('assign')], latest = step('');
+  const byCount = [...oldest, latest], byBytes = [...oldest, latest];
+  trimEditHistory(byCount, 2);
+  trimEditHistory(byBytes, 30, 32);
+  assert.deepEqual(byCount, [latest]);
+  assert.deepEqual(byBytes, [latest]);
+  const largeGroup = [step('merge', 4), step('merge', 4)];
+  const overBudget = [latest, ...largeGroup];
+  trimEditHistory(overBudget, 30, 16);
+  assert.deepEqual(overBudget, largeGroup);
 });
 
 test('V0.42: v2 project files are upgraded to cores', () => {

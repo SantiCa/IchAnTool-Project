@@ -85,6 +85,8 @@ U-Net on the computer.
    warning, correct its depth values or unit before using its interval results.
 2. **Mark the bioturbation:** enhance the image, detect candidate traces or draw them, and exclude zones that must not
    be counted. Intervals with too few valid pixels are reported as *no data*, never as 0.
+   Use **Undo** (Ctrl+Z or ⌘Z) and **Redo** (Ctrl+Y, Ctrl+Shift+Z or ⌘Shift+Z) in the image toolbar.
+   Making a new edit after undoing clears Redo. Reopening a project starts with an empty editing history.
 3. **Assign ichnotaxa** to some traces; the program suggests the rest, and you accept or correct the suggestions.
 4. **Read the results** per interval (thickness in cm): bioturbation %, % per ichnotaxon, BI and ii. Add an age model
    to work in age.

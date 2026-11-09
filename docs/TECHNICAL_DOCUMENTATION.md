@@ -791,14 +791,21 @@ zoom. The view is moved with the hand tool, the space bar or the middle mouse bu
 meant for cracks, voids, sampled zones, labels or drilling disturbance, so that "no bioturbation" is never confused
 with "no data".
 
-**Undo.** Each operation stores changed pixels with their previous values and a delta keyed by trace ID.
-The delta holds the first previous record of each modified or deleted trace and a marker for each new trace
-that remains after the edit. Shallow copies share geometry and descriptor values that the editor replaces
-on change. Undo removes new traces, restores prior records in their section order and keeps untouched
-records in place. Trace order is assigned in memory when a section opens and as new traces are added.
-When a previous pixel label is an overlap, the history shares its ordered list of trace IDs. Undo reuses
-or interns that list in the current stack table before restoring the pixel. The history keeps up to 30 steps
-and about 200 MB of changed pixels.
+**Undo and Redo.** Each operation stores changed label and exclusion pixels with their previous values and a
+delta keyed by trace ID. The delta holds the first previous record of each modified or deleted trace and a
+marker for each new trace that remains after the edit. Shallow copies share geometry and descriptor values
+that the editor replaces on change. Undo swaps the saved and live values and moves the step to Redo.
+Redo swaps them back and returns the step to Undo. Undo walks repeated pixel writes in reverse order and
+Redo walks them in edit order. A saved overlap holds its ordered list of trace IDs and is interned in the
+current stack table when restored. Trace order is assigned in memory when a section opens and as traces
+are added, so restored records rejoin the section at their previous positions.
+
+Both directions share a limit of 30 steps and an estimated 200 MB of changed pixel entries. Related steps
+such as a class assignment and its automatic merges replay and expire together. The latest action stays
+intact if it alone exceeds a limit. A new recorded edit discards Redo. Cropping, rotation, changing working
+resolution and deleting a section discard its history in both directions. Deleting a class clears both
+directions for the active core because saved trace records may refer to that class. The history is kept
+in the active core session and never written to the project file.
 
 After each edit, descriptors (§11) are recomputed only for the affected objects, inside the rectangle that contains
 them. Deleting traces only scans the union of their bounding rectangles (the whole image if one has no rectangle).

@@ -112,6 +112,7 @@ export const S = {
   tool: 'select', prevTool: 'select', brushSize: 10, wandTol: 30,
   selected: 0, view: { x: 0, y: 0, zoom: 1 }, showOrig: false, ovAlpha: 0.5,
   undo: /** @type {UndoStep[]} */ ([]),
+  redo: /** @type {UndoStep[]} */ ([]),
 };
 /** Three ichnotaxon models (V16): trained on the open core, on every core of the project, or on every project. */
 export const CLF_SCOPES = ['core', 'project', 'all'];

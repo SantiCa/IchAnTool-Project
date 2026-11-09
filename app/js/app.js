@@ -9,7 +9,7 @@ import { INTERP_DEFAULT } from './interp.js';
 
 import { evalColumn, formulaRefs, fillLinear } from './sheet.js';
 import { TaxonModel, evaluateModels, finalTestMetrics, independentExternalExamples, descriptorSig, vec, FEATURES } from './learn.js';
-import { splitPieces, mergeKeeper, sameTaxonGroups, undoPixels, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from './edit.js';
+import { splitPieces, mergeKeeper, sameTaxonGroups, swapHistoryPixels, trimEditHistory, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from './edit.js';
 import { t, lang, setLang, applyI18n, fxText } from './i18n.js';
 import { zipFiles, unzipBlob } from './zip.js';
 import { decodeTiffBlocks } from './tiff.js';
@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.103';
+export const DELIVERY = 'V0.104';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -430,13 +430,18 @@ function removeTrace(op, id) {
 }
 
 /** @param {import('./state.js').UndoStep} op */
-function undoTraces(op) {
+function swapHistoryTraces(op) {
   const { s, objs } = op;
   const removed = [];
   for (const [id, previous] of objs) {
+    const current = s.objects.get(id);
+    objs.set(id, current ? { ...current } : null);
     if (!previous) s.objects.delete(id);
-    else if (s.objects.has(id)) s.objects.set(id, previous);
-    else removed.push(previous);
+    else if (current?.order === previous.order) s.objects.set(id, previous);
+    else {
+      s.objects.delete(id);
+      removed.push(previous);
+    }
   }
   if (!removed.length) return;
 
@@ -482,9 +487,9 @@ function refreshObjects(s, ids, region) {
 
 function recomputeFeatures(s) { const ppu = pxPerCm(s); for (const o of s.objects.values()) if (o.stats) o.feat = features(o.stats, ppu); }
 
-function beginOp(s) {
+function beginOp(s, group = '') {
   s._mv = (s._mv || 0) + 1;   // V0.2: invalidates cached row counts and packed masks
-  return { s, lm: [], ex: [], objs: new Map(), nextId: s.nextId, sel: S.selected, ext: { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }, touched: new Set() };
+  return { s, group, lm: [], ex: [], objs: new Map(), nextId: s.nextId, sel: S.selected, ext: { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }, touched: new Set() };
 }
 function setLabel(op, i, v) {
   const L = op.s.labels, old = L[i];
@@ -518,8 +523,8 @@ const addPx = (op, i, id) => {
   setLabel(op, i, codeFor([...keep, id], s.stacks, six(s)));
 };
 /** V0.30: after a class change, traces of the same ichnotaxon that overlap are merged into one. */
-function mergeSameTaxon(s, ids) {
-  for (const g of sameTaxonGroups(s.labels, s.w, s.stacks, s.objects, ids)) if (g.every((id) => s.objects.has(id))) mergeObjects(g);   // V0.42: edit.js
+function mergeSameTaxon(s, ids, group) {
+  for (const g of sameTaxonGroups(s.labels, s.w, s.stacks, s.objects, ids)) if (g.every((id) => s.objects.has(id))) mergeObjects(g, group);   // V0.42: edit.js
 }
 const subPx = (op, i, id) => setLabel(op, i, withoutId(op.s.labels[i], id, op.s.stacks, six(op.s)));
 /** Remove a set of ids from every pixel. */
@@ -561,32 +566,59 @@ function finishPixelOp(op, target = 0) {
   afterChange(s);
 }
 
-function commitOp(op, force = false) {
-  if (!force && !op.lm.length && !op.ex.length) return;
+function commitOp(op) {
   for (const [id, previous] of op.objs) if (!previous && !op.s.objects.has(id)) op.objs.delete(id);
-  S.undo.push(op); if (S.undo.length > 30) S.undo.shift();
-  // V0.41: the undo history also has a memory budget (~200 MB of changed pixels); the oldest steps go first
-  const ub = (o) => 8 * ((o.lm?.length || 0) + (o.ex?.length || 0));
-  let tot = S.undo.reduce((a, o) => a + ub(o), 0);
-  while (S.undo.length > 1 && tot > 2e8) tot -= ub(S.undo.shift());
+  if (!op.lm.length && !op.ex.length && !op.objs.size) return;
+  S.redo.length = 0;
+  S.undo.push(op);
+  trimEditHistory(S.undo);
   if (op.stackChanged) compactSectionStacks(op.s);
-  $('undoBtn').disabled = false;
+  updateHistoryButtons();
 }
 
-function undo() {
-  const op = S.undo.pop(); if (!op) return;
-  // V0.36: steps made together (e.g. assigning a class that joins traces of the same ichnotaxon) are undone together
-  if (op.group && S.undo[S.undo.length - 1]?.group === op.group) { undoOne(op); undo(); return; }
-  undoOne(op);
+function updateHistoryButtons() {
+  $('undoBtn').toggleAttribute('disabled', !S.undo.length);
+  $('redoBtn').toggleAttribute('disabled', !S.redo.length);
 }
-function undoOne(op) {
-  const s = op.s;
-  undoPixels(s.labels, s.exclude, op.lm, op.ex, s.stacks, op.stackChanged ? six(s) : null);
-  if (op.stackChanged) compactSectionStacks(s);
-  undoTraces(op); s.nextId = op.nextId; S.selected = op.sel;
-  $('undoBtn').disabled = !S.undo.length;
+
+function discardEditHistory(section) {
+  S.undo = section ? S.undo.filter((op) => op.s !== section) : [];
+  S.redo = section ? S.redo.filter((op) => op.s !== section) : [];
+  updateHistoryButtons();
+}
+
+function undo() { replayEditHistory(S.undo, S.redo, false); }
+function redo() { replayEditHistory(S.redo, S.undo, true); }
+
+/** @param {import('./state.js').UndoStep[]} from
+ * @param {import('./state.js').UndoStep[]} to
+ * @param {boolean} forward
+ */
+function replayEditHistory(from, to, forward) {
+  const last = from.at(-1);
+  if (!last || drag?.type === 'paint') return;
+  const { s, group } = last;
   if (s !== sec()) selectSection(S.sections.indexOf(s));
+  S.multi.clear();
+  do {
+    const op = from.pop();
+    swapEditStep(op, forward);
+    to.push(op);
+  } while (group && from.at(-1)?.group === group);
+  updateHistoryButtons();
   afterChange(s);
+}
+
+/** @param {import('./state.js').UndoStep} op
+ * @param {boolean} forward
+ */
+function swapEditStep(op, forward) {
+  const s = op.s;
+  swapHistoryPixels(s.labels, s.exclude, op.lm, op.ex, s.stacks, op.stackChanged ? six(s) : null, forward);
+  if (op.stackChanged) compactSectionStacks(s);
+  swapHistoryTraces(op);
+  [s.nextId, op.nextId] = [op.nextId, s.nextId];
+  [S.selected, op.sel] = [op.sel, S.selected];
 }
 
 function afterChange(s) { s._mv = (s._mv || 0) + 1; s.logVer = (s.logVer || 0) + 1; markDirty(); scheduleLog(); rebuildLUT(s); scheduleLearn(); scheduleAnalysis(); renderClasses(); renderObject(); requestRender(); scheduleEmbed(s); }
@@ -620,7 +652,7 @@ function deleteObjects(ids) {
     removeTrace(op, o.id);
   }
   S.selected = 0; S.multi.clear();
-  commitOp(op, true); afterChange(s);
+  commitOp(op); afterChange(s);
 }
 
 function assignClass(id, clsId) { assignClassMany([id], clsId); }
@@ -628,16 +660,14 @@ function assignClass(id, clsId) { assignClassMany([id], clsId); }
 function assignClassMany(ids, clsId) {
   const s = sec(); if (!s) return;
   const objs = ids.map((id) => s.objects.get(id)).filter(Boolean); if (!objs.length) return;
-  const op = beginOp(s);
+  const group = uid(), op = beginOp(s, group);
   for (const o of objs) {
     if (o.cls === clsId && o.pred === null && o.conf === 0) continue;
     rememberTrace(op, o.id);
     o.cls = clsId; o.pred = null; o.conf = 0;
   }
-  const grp = op.group = uid();   // V0.36
-  commitOp(op, true); afterChange(s);
-  const n0 = S.undo.length; mergeSameTaxon(s, objs.map((o) => o.id));   // V0.30
-  for (let k = n0; k < S.undo.length; k++) S.undo[k].group = grp;
+  commitOp(op); afterChange(s);
+  mergeSameTaxon(s, objs.map((o) => o.id), group);
   if (objs.length === 1 && $('autoNext').checked) nextReview();
 }
 /** Objects selected now: the multi-selection if any, else the single selected object. */
@@ -681,11 +711,11 @@ function splitAlong(pts) {
   toast(t('cut.done', { n }));
 }
 /** Merge the selected traces into one (the largest with a class given by hand, else the largest, keeps its id and class). */
-function mergeObjects(list) {
+function mergeObjects(list, group = '') {
   const s = sec(); if (!s) return;
   const objs = list.map((id) => s.objects.get(id)).filter((o) => o?.bbox); if (objs.length < 2) return;
   const keep = mergeKeeper(objs), L = s.labels, st = s.stacks;   // V0.42: edit.js
-  const op = beginOp(s);
+  const op = beginOp(s, group);
   for (const o of objs) {
     if (o === keep) continue;
     const [x0, y0, x1, y1] = o.bbox; grow(op, x0, y0); grow(op, x1, y1);
@@ -901,7 +931,7 @@ async function detectSection(s) {
       }
       o.area = a.n; o.bbox = [a.x0, a.y0, a.x1, a.y1]; o.stats = a; o.feat = features(a, ppu); kept++;
     }
-    commitOp(op, true);
+    commitOp(op);
     $('detectStatus').textContent = t('d.result', { n: kept });
     afterChange(s);
   }
@@ -913,7 +943,7 @@ function clearCandidates() {
   dropIds(op, cand);
   for (const id of cand) removeTrace(op, id);
   if (cand.has(S.selected)) S.selected = 0;
-  commitOp(op, true); $('detectStatus').textContent = ''; afterChange(s);
+  commitOp(op); $('detectStatus').textContent = ''; afterChange(s);
 }
 
 /* ───────────── learning ───────────── */
@@ -1383,7 +1413,7 @@ async function applyCrop() {
     s.crop = crop; s.logVer++;
     s.view = null;
     enhance(s); refreshObjects(s, new Set(s.objects.keys()), null);
-    S.undo = S.undo.filter((op) => op.s !== s); $('undoBtn').disabled = !S.undo.length;
+    discardEditHistory(s);
     endCrop(); selectSection(S.cur, true); afterChange(s);
     toast(t('crop.done', { a: fmt(s.top, 3), b: fmt(s.bottom, 3), u: s.units }));
   });
@@ -1787,11 +1817,20 @@ function setRoi(s, roi) {
 /* ───────────── keyboard ───────────── */
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.closest('input, textarea, select, dialog')) return;
+  const target = e.target;
+  if (!(target instanceof Element) || target.closest('input, textarea, select, dialog')
+    || (target instanceof HTMLElement && target.isContentEditable)) return;
   // shortcuts belong to the Bioturbation image only: not on the start screen, not in other modes, and a focused button keeps Space/Enter
-  if (mode !== 'section' || !$('home').hidden || tourStep >= 0 || (e.target.closest('button, a, summary, [role=tab], label') && (e.key === ' ' || e.key === 'Enter'))) return;
+  if (mode !== 'section' || !$('home').hidden || tourStep >= 0 || (target.closest('button, a, summary, [role=tab], label') && (e.key === ' ' || e.key === 'Enter'))) return;
   const k = e.key, s = sec();
-  if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+  if (!e.altKey && (e.ctrlKey || e.metaKey) && k.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+    return;
+  }
+  if (!e.altKey && e.ctrlKey && !e.metaKey && !e.shiftKey && k.toLowerCase() === 'y') {
+    e.preventDefault(); redo(); return;
+  }
   if (!singleKeys && k.length === 1 && k !== ' ' && !e.ctrlKey && !e.metaKey) return;   // V0.39: single-character shortcuts can be turned off (WCAG 2.1.4)
   if (k === ' ') { spaceDown = true; view.classList.add('pan'); e.preventDefault(); return; }
   const tools = { v: 'select', w: 'wand', b: 'brush', l: 'lasso', c: 'cut', e: 'erase', x: 'exclude', h: 'pan', m: 'mark' };
@@ -1914,6 +1953,7 @@ $('classList').addEventListener('click', (e) => {
   if (e.target.classList.contains('eye')) { S.settings.solo = false; const h = hiddenCls(), id = li.dataset.id; if (h.has(id)) h.delete(id); else h.add(id); setHidden(h); return; }
   if (e.target.classList.contains('del')) {
     const id = li.dataset.id;
+    discardEditHistory();
     for (const s of S.sections) for (const o of s.objects.values()) { if (o.cls === id) o.cls = null; if (o.pred === id) o.pred = null; }
     S.classes = S.classes.filter((c) => c.id !== id);
     if (S.active === id) S.active = 'undet';
@@ -1941,7 +1981,7 @@ function acceptSuggestions(ids) {
   const objs = ids.map((id) => s.objects.get(id)).filter((o) => o?.pred && !o.cls); if (!objs.length) return;
   const op = beginOp(s);
   for (const o of objs) { rememberTrace(op, o.id); o.cls = o.pred; o.pred = null; o.conf = 0; }
-  commitOp(op, true); afterChange(s);
+  commitOp(op); afterChange(s);
 }
 
 function renderSelTools(s) {
@@ -2024,7 +2064,7 @@ function renderObject() {
     if (classSelect.value) { assignClass(o.id, classSelect.value); return; }
     const op = beginOp(s);
     if (o.cls !== null) rememberTrace(op, o.id);
-    o.cls = null; commitOp(op, true); afterChange(s);
+    o.cls = null; commitOp(op); afterChange(s);
   };
   $('objDel').onclick = () => deleteObject(o.id);
   if ($('objAccept')) $('objAccept').onclick = () => assignClass(o.id, o.pred);
@@ -2154,7 +2194,7 @@ async function changeResolution(s, k2) {
     compactSectionStacks(s, true);
     s.view = null; s._lc = null; s._lb = null; s._fc = null; s.logVer++;
     enhance(s); refreshObjects(s, new Set(s.objects.keys()), null);
-    S.undo = S.undo.filter((op) => op.s !== s); $('undoBtn').disabled = !S.undo.length;
+    discardEditHistory(s);
   });
   pxTouch(s);
   if (s === sec()) selectSection(S.cur, true);
@@ -2383,7 +2423,7 @@ $('novelty').addEventListener('input', (e) => { S.settings.novelty = +e.target.v
 $('acceptPred').addEventListener('click', () => {
   const s = sec(); if (!s) return; const op = beginOp(s);
   for (const o of s.objects.values()) if (status(o) === 'predicted') { rememberTrace(op, o.id); o.cls = o.pred; o.pred = null; o.conf = 0; }
-  commitOp(op, true); afterChange(s);
+  commitOp(op); afterChange(s);
 });
 
 $('secSel').addEventListener('change', (e) => selectSection(+e.target.value));
@@ -2398,7 +2438,7 @@ for (const id of ['secTop', 'secBottom', 'secUnits']) $(id).addEventListener('ch
 $('secDel').addEventListener('click', (e) => {
   if (!sec()) return;
   if (!armed(e.currentTarget, t('confirm.secDel', { n: [...sec().objects.values()].filter((o) => o.cls).length }))) return;
-  S.sections.splice(S.cur, 1); S.undo = S.undo.filter((op) => S.sections.includes(op.s)); $('undoBtn').disabled = !S.undo.length;
+  const [removed] = S.sections.splice(S.cur, 1); discardEditHistory(removed);
   selectSection(Math.min(S.cur, S.sections.length - 1)); scheduleLearn();
 });
 $('roiBtn').addEventListener('click', () => setTool('roi'));
@@ -2411,7 +2451,7 @@ for (const [id, dir] of [['rotL', -1], ['rotR', 1]]) $(id).addEventListener('cli
     [s.w, s.h] = [s.h, s.w]; s.rot += dir; s.roi = { x0: 0, y0: 0, x1: s.w, y1: s.h };
     enhance(s);
     refreshObjects(s, new Set(s.objects.keys()), null);
-    S.undo = S.undo.filter((op) => op.s !== s); $('undoBtn').disabled = !S.undo.length;
+    discardEditHistory(s);
     selectSection(S.cur, true); afterChange(s);
   });
 });
@@ -2457,6 +2497,7 @@ $('zoomIn').addEventListener('click', () => zoomAt(view.width / 2, view.height /
 $('zoomOut').addEventListener('click', () => zoomAt(view.width / 2, view.height / 2, 0.8));
 $('zoomFit').addEventListener('click', fitView);
 $('undoBtn').addEventListener('click', undo);
+$('redoBtn').addEventListener('click', redo);
 $('nextReview').addEventListener('click', () => nextReview());
 try { $('autoNext').checked = localStorage.getItem('ichantool.autoNext') === '1'; } catch { $('autoNext').checked = false; }
 $('autoNext').addEventListener('change', (e) => { try { localStorage.setItem('ichantool.autoNext', e.target.checked ? '1' : '0'); } catch { /* storage blocked */ } });
@@ -2606,7 +2647,7 @@ function activateCore(id, silent = false) {
   const c = S.cores.find((x) => x.id === id) || S.cores[0]; if (!c) return;
   S.curCore = c.id;
   S.sections = c.sections; S.records = c.records; S.age = c.ageModel; S.logView = c.logView;
-  S.undo = []; S.selected = 0; S.multi.clear(); $('undoBtn').disabled = true;
+  discardEditHistory(); S.selected = 0; S.multi.clear();
   $('ageText').value = S.age.text; $('ageUnits').value = S.age.units; renderAgeCenter?.();
   const keep = loading; loading = true; setAge(); loading = keep;
   selectSection(S.sections.length ? 0 : -1, true);
@@ -2885,11 +2926,11 @@ function resetState() {
   const maxMP = S.settings.maxMP || 8;
   S.id = uid(); S.name = t('proj.untitled'); S.notes = ''; S.comments = []; S.finalTests = [];
   MEM.px.length = 0; MEM.mask.length = 0; pxWanted.clear();   // V0.1: pictures of the previous project can be freed
-  S.undo = []; S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; resetFigTabs(); S.kind = 'normal'; S.multiSource = null; S.plots = []; S.plotCur = 0; S.coreModels = {};
+  S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; resetFigTabs(); S.kind = 'normal'; S.multiSource = null; S.plots = []; S.plotCur = 0; S.coreModels = {};
   S.geo = defaultGeo(); geoReset();
   S.classes = defaultClasses(); S.active = 'undet';
   S.settings = { binCm: 1, minValid: 20, noDataPad: 0, includePred: true, predThr: 0.7, countCandidates: true, novelty: 3, maxMP, clfScope: 'project', ml: { ...ML_DEFAULT } };
-  $('undoBtn').disabled = true; $('detectStatus').textContent = '';
+  $('detectStatus').textContent = '';
   S.cores = [makeCore({ name: t('core.first') })];
   activateCore(S.cores[0].id, true);
 }

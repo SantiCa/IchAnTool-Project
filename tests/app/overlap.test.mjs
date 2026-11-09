@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rowCounts, stackIndex, codeFor, withId, withoutId, renameId, idsAt, topAt, compactStacks, rleEncode } from '../../app/js/core.js';
-import { undoPixels } from '../../app/js/edit.js';
+import { swapHistoryPixels } from '../../app/js/edit.js';
 import { objectStats } from '../../app/js/imageproc.js';
 
 test('V0.20: stack helpers add, remove, rename and merge ids', () => {
@@ -43,7 +43,7 @@ test('undo restores shared overlap lists after their old codes have been reclaim
   assert.deepEqual([...labels], [-1, 5, 0]);
 
   const index = stackIndex(stacks);
-  undoPixels(labels, exclude, history, [2, 0], stacks, index);
+  swapHistoryPixels(labels, exclude, history, [2, 0], stacks, index);
   assert.deepEqual(Array.from(labels, (code) => idsAt(code, stacks)), [[8, 9], [3, 5], [3, 5]]);
   assert.equal(topAt(labels[1], stacks), 5);
   assert.equal(labels[1], labels[2], 'both pixels reuse the same interned stack');

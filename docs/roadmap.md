@@ -66,8 +66,8 @@ Keep task IDs stable. The changelog records what shipped.
 
 ### M1 - Editing and recovery
 
-- [ ] **M1.1 - Editing history.** Measure long editing sessions and use overlap, undo and reload tests to guide
-      any change to editing history or stack compaction.
+- [x] **M1.1 - Editing history.** Measure long editing sessions and use overlap, undo and reload tests to guide
+      changes to editing history and stack compaction. [V0.104](../CHANGELOG.md#v0104--2026-11-09)
   - [x] **M1.1.1 - Reclaim unused overlap stacks during editing.** Share stack entries with undo and rebuild
         active pixel codes independently. [V0.88](../CHANGELOG.md#v088--2026-11-09)
   - [x] **M1.1.2 - Measure object history costs.** Reproduce long sessions at two trace densities and measure
@@ -77,20 +77,14 @@ Keep task IDs stable. The changelog records what shipped.
         reload results, then compare retained heap and action latency with the [M1.1.2 benchmark](benchmarks/M1.1.2.md).
         [Comparison and raw measurements](benchmarks/M1.1.2.md#m113-trace-deltas).
         [V0.103](../CHANGELOG.md#v0103--2026-11-09)
-  - [ ] **M1.1.4 - Native redo.** The editor only keeps inverse edits. The history benchmark measures
-        reapplying a new edit after Undo because there is no Redo command.
-    - **Approach.** Build Redo on the result of M1.1.3. Keep a session-only forward history within a
-      shared budget with Undo. Provide a localised action and keyboard shortcut.
-    - **Acceptance.** Verify that edit, Undo, Redo and Undo again restore the expected masks, exclusions
-      and trace metadata exactly. Exercise grouped edits and overlap order across stack compaction. A
-      new committed edit after Undo clears the forward branch. Verify the control and shortcut states,
-      preserve native shortcuts in text fields, and confirm that save and reload preserve the current
-      project state with empty session history. Extend the M1.1.2 benchmark to record native Redo latency,
-      Undo latency and combined retained heap on both trace densities.
-    - **Likely touchpoints.** `app/js/app.js`, `app/js/state.js`, `app/js/edit.js`, `app/index.html`,
-      `app/js/i18n.js`, `tests/app/edit.test.mjs`, `tests/e2e/smoke.mjs` and the history benchmark.
-    - **Decision before implementation.** Confirm the forward-delta representation, group eviction under
-      the shared budget and platform shortcut bindings after M1.1.3.
+  - [x] **M1.1.4 - Native redo.** Replay the same trace and pixel records in both directions within a
+        shared session budget. Evict complete groups and expose Redo through the localised toolbar and shortcuts.
+    - Verified trace records, masks, exclusions, interval results and overlap order across Undo, Redo and
+      compaction. Verified shortcut isolation in text fields, invalidation after a new edit and reload
+      with empty history.
+    - Recorded native Undo and Redo latency and combined retained heap at both densities in the
+      [editing-history benchmark](benchmarks/M1.1.2.md#m114-native-redo).
+      [V0.104](../CHANGELOG.md#v0104--2026-11-09)
 - [ ] **M1.2 - Interrupted saves.** Exercise recovery through IndexedDB and file backup paths. Preserve the
       last successful save and verify that failures are visible to the user.
 

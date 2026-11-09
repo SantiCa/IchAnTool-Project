@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.104 — 2026-11-09
+
+- Redo trace and exclusion edits from the image toolbar or with Ctrl+Y, Ctrl+Shift+Z or ⌘Shift+Z.
+- Undo and Redo keep a class assignment and the merges it triggers together, including when the history reaches its limit.
+
 ## V0.103 — 2026-11-09
 
 - Undo now stores only changed traces, reducing memory use when editing densely annotated sections.

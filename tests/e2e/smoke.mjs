@@ -66,8 +66,11 @@ try {
   await p.evaluate(() => window.ichantool.runDetection()); await W(3000);
   const again = await p.evaluate(() => window.ichantool.S.sections[window.ichantool.S.cur].objects.size);
   if (again !== first) fail(`detection is not repeatable: ${first} → ${again}`);
+  const detected = await p.evaluate(sectionMask);
   await p.evaluate(() => document.getElementById('undoBtn').click());
   assert.deepEqual(await p.evaluate(sectionMask), beforeDetection, 'undo restores detection masks, IDs and statistics');
+  await p.evaluate(() => document.getElementById('redoBtn').click());
+  assert.deepEqual(await p.evaluate(sectionMask), detected, 'redo restores detection masks, IDs and statistics');
   // one undoable edit: delete a trace, then undo
   const del = await p.evaluate(() => { const I = window.ichantool, s = I.S.sections[I.S.cur], id = [...s.objects.keys()][0]; I.S.selected = id; document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true })); return [s.objects.size, s.objects.has(id), id]; });
   if (del[1]) fail('delete did not remove the trace');
@@ -89,10 +92,40 @@ try {
     const reclaimed = s.labels[pixel] === secondId && s.stacks.length < 64 && !s.stacks.includes(shared);
     document.getElementById('undoBtn').click();
     const restored = JSON.stringify(idsAt(s.labels[pixel], s.stacks)) === JSON.stringify(shared);
+    document.getElementById('redoBtn').click();
+    const deletedAgain = s.labels[pixel] === secondId && !s.objects.has(firstId);
+    document.getElementById('undoBtn').click();
+    const restoredAgain = JSON.stringify(idsAt(s.labels[pixel], s.stacks)) === JSON.stringify(shared);
     s.labels[pixel] = firstId;
-    return [reclaimed, restored];
+    return [reclaimed, restored, deletedAgain, restoredAgain];
   });
-  assert.deepEqual(compacted, [true, true], 'active stack compaction and undo preserve overlap order');
+  assert.deepEqual(compacted, [true, true, true, true], 'undo and redo preserve overlap order across compaction');
+
+  const exclusion = () => {
+    const { S, serialize } = window.ichantool;
+    return serialize().cores.find((core) => core.id === S.curCore).sections[S.cur].exclude;
+  };
+  const beforeExclude = await p.evaluate(exclusion);
+  await until(() => !!window.ichantool.S.sections[window.ichantool.S.cur].orig);
+  const point = await p.evaluate(async () => {
+    const { S, setTool } = window.ichantool, s = S.sections[S.cur];
+    setTool('exclude'); S.exShape = 'brush';
+    await new Promise(requestAnimationFrame);
+    const canvas = document.getElementById('view');
+    const { left, top, width, height } = canvas.getBoundingClientRect();
+    const x = left + width / 2, y = top + height / 2;
+    const hit = document.elementFromPoint(x, y);
+    if (hit !== canvas) throw new Error(`Exclusion brush target covered by ${hit?.id || hit?.tagName}`);
+    S.view = { zoom: 1, x: s.roi.x0 + 5.5 - width / 2, y: s.roi.y0 + 5.5 - height / 2 };
+    return { x, y };
+  });
+  await p.mouse.click(point.x, point.y);
+  const afterExclude = await p.evaluate(exclusion);
+  assert.notDeepEqual(afterExclude, beforeExclude, 'exclusion brush changes the mask');
+  await p.evaluate(() => document.getElementById('undoBtn').click());
+  assert.deepEqual(await p.evaluate(exclusion), beforeExclude, 'undo restores the previous exclusion mask');
+  await p.evaluate(() => document.getElementById('redoBtn').click());
+  assert.deepEqual(await p.evaluate(exclusion), afterExclude, 'redo restores the edited exclusion mask');
   await p.evaluate(() => window.ichantool.saveToDB()); await W(1500);
   const sig = () => window.ichantool.S.sections.map((s) => `${s.objects.size}:${s.labels.reduce((a, v) => a + (v ? 1 : 0), 0)}`).join(',');
   const before = await p.evaluate(sig);
@@ -101,6 +134,11 @@ try {
   await p.evaluate(async () => { for (const s of window.ichantool.S.sections) void s.labels; });
   const after = await p.evaluate(sig);
   if (before !== after) fail(`saved and reloaded project differs:\n${before}\n${after}`);
+  assert.deepEqual(await p.evaluate(exclusion), afterExclude, 'the redone exclusion survives reload');
+  assert.equal(await p.evaluate(() => {
+    const { undo, redo } = window.ichantool.S;
+    return !undo.length && !redo.length && document.getElementById('undoBtn').disabled && document.getElementById('redoBtn').disabled;
+  }), true, 'history is empty on reload');
   // V0.49: web–V2 comparison with the browser's own JPEG decoder (L < 6, rowCounts, binRows of 150 px). The decoder
   // differs from Pillow's at the edges of the painted traces, so percentages may differ slightly; BI and ii must not.
   const v2 = await p.evaluate(async () => {
@@ -402,10 +440,14 @@ try {
       ...section, labels: [1, 1, -1, 1, 0, 2], stacks: [null, [1, 2]], nextId: 3,
       objects: [{ id: 2, cls: null, src: 'draw' }, { id: 1, cls: null, src: 'draw' }],
     }] }] });
+    window.ichantool.setMode('section');
     const healthyOverlap = !visible('projectValidation') && !visible('secRegionWarning') && !visible('secMaskWarning')
       && JSON.stringify(S.sections[0].bins.map((b) => [b.pct, b.BI, b.ii])) === '[[100,6,6],[0,0,1]]';
     const { analyze, assignClass, serialize } = window.ichantool, overlapSection = S.sections[0];
     const undo = () => document.getElementById('undoBtn').click();
+    const redo = document.getElementById('redoBtn');
+    const shortcut = (key, modifiers, target = document.body) =>
+      !target.dispatchEvent(new KeyboardEvent('keydown', { key, ...modifiers, bubbles: true, cancelable: true }));
     const snapshot = () => {
       analyze(overlapSection);
       const { labels, stacks, exclude, nextId, objects } = serialize().cores[0].sections[0];
@@ -427,11 +469,27 @@ try {
     const classified = snapshot();
     assignClass(2, cls);
     const merged = overlapSection.objects.size === 1;
+    const mergedState = snapshot();
     undo();
     const undoMerge = merged && snapshot() === classified;
+    const editable = document.createElement('div');
+    editable.contentEditable = 'true'; document.body.append(editable);
+    const nativeShortcuts = [document.getElementById('secName'), editable].every((target) =>
+      !shortcut('z', { ctrlKey: true }, target) && !shortcut('y', { ctrlKey: true }, target)
+      && !shortcut('Z', { metaKey: true, shiftKey: true }, target));
+    editable.remove();
+    const redoMerge = !redo.disabled && snapshot() === classified
+      && [{ ctrlKey: true, key: 'y' }, { ctrlKey: true, shiftKey: true, key: 'Z' }, { metaKey: true, shiftKey: true, key: 'Z' }]
+        .every(({ key, ...modifiers }) => {
+          const redone = shortcut(key, modifiers) && redo.disabled && snapshot() === mergedState;
+          return redone && shortcut('z', { metaKey: true }) && snapshot() === classified;
+        });
     const restoredUntouched = overlapSection.objects.get(2);
     undo();
     const undoClass = classDelta && snapshot() === unclassified && overlapSection.objects.get(2) === restoredUntouched;
+    assignClass(2, cls);
+    const invalidatedRedo = redo.disabled && S.redo.length === 0;
+    undo();
     const top = document.getElementById('secTop');
     top.value = '1'; top.dispatchEvent(new Event('change', { bubbles: true }));
     await window.ichantool.saveToDB();
@@ -479,14 +537,15 @@ try {
       await waitFor(() => rejected);
       return { opened, saved, rejected, notStored: !(await getProject('hostile-zip-smoke')),
         validQuiet, validBins, currentWarns, legacyWarns, corrected,
-        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, undoClear, undoMerge, undoClass, healthySave,
+        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, undoClear, undoMerge, redoMerge, nativeShortcuts,
+        undoClass, invalidatedRedo, healthySave,
         intactZipOpened, crcChecks, replacePrompts };
     } finally { console.error = log; window.confirm = confirmReplace; }
   });
   assert.deepEqual(importZip, { opened: true, saved: true, rejected: true, notStored: true,
     validQuiet: true, validBins: [[0, 1, 0, 0, 1], [1, 2, 0, 0, 1]], currentWarns: true, legacyWarns: true, corrected: true,
     legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true,
-    undoClear: true, undoMerge: true, undoClass: true, healthySave: true,
+    undoClear: true, undoMerge: true, redoMerge: true, nativeShortcuts: true, undoClass: true, invalidatedRedo: true, healthySave: true,
     intactZipOpened: true, crcChecks: [true, true], replacePrompts: 0 });
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);

@@ -51,20 +51,44 @@ export function sameTaxonGroups(L, w, stacks, objects, ids) {
   return groups;
 }
 
-/** Replay previous values in reverse order. A saved overlap is an ordered list of ids. */
-export function undoPixels(labels, exclude, lm, ex, stacks, index) {
+/** Swap pixel values with the log. Undo walks backward, Redo forward, including repeated writes to one pixel. */
+export function swapHistoryPixels(labels, exclude, lm, ex, stacks, index, forward = false) {
   let restored;
-  for (let k = lm.length - 2; k >= 0; k -= 2) {
-    const previous = lm[k + 1];
+  for (let offset = 0; offset < lm.length; offset += 2) {
+    const k = forward ? offset : lm.length - 2 - offset;
+    const pixel = lm[k], previous = lm[k + 1], current = labels[pixel];
+    lm[k + 1] = current < 0 ? stacks[-current] : current;
     if (!Array.isArray(previous)) {
-      labels[lm[k]] = previous;
+      labels[pixel] = previous;
       continue;
     }
     restored ||= new Map();
     if (!restored.has(previous)) restored.set(previous, codeFor(previous, stacks, index));
-    labels[lm[k]] = restored.get(previous);
+    labels[pixel] = restored.get(previous);
   }
-  for (let k = ex.length - 2; k >= 0; k -= 2) exclude[ex[k]] = ex[k + 1];
+  for (let offset = 0; offset < ex.length; offset += 2) {
+    const k = forward ? offset : ex.length - 2 - offset;
+    const pixel = ex[k], previous = ex[k + 1];
+    ex[k + 1] = exclude[pixel];
+    exclude[pixel] = previous;
+  }
+}
+
+/** Evict complete oldest actions, keeping the newest action intact even when it exceeds a limit.
+ * @param {import('./state.js').UndoStep[]} steps
+ */
+export function trimEditHistory(steps, maxSteps = 30, maxPixelBytes = 2e8) {
+  const pixelBytes = (step) => 8 * (step.lm.length + step.ex.length);
+  let bytes = steps.reduce((total, step) => total + pixelBytes(step), 0);
+  let first = 0;
+  while (steps.length - first > maxSteps || bytes > maxPixelBytes) {
+    const group = steps[first].group;
+    let end = first + 1;
+    while (group && steps[end]?.group === group) end++;
+    if (end === steps.length) break;
+    for (; first < end; first++) bytes -= pixelBytes(steps[first]);
+  }
+  steps.splice(0, first);
 }
 
 /** Ids present in a label array (for checks): every object id seen in any pixel, overlaps included. */

@@ -27,7 +27,8 @@ const D = {
     'tool.select': 'Seleccionar y mover (V)', 'tool.wand': 'Varita: seleccionar por color (W)', 'tool.brush': 'Pincel (B)',
     'tool.lasso': 'Lazo (L)', 'tool.erase': 'Borrador (E)', 'tool.exclude': 'Excluir zona: grietas, huecos, muestras (X). Mayús + arrastrar = rectángulo',
     'tool.include': 'Recuperar zona excluida', 'tool.pan': 'Mano (H o espacio)', 'tool.size': 'Tamaño', 'tool.tol': 'Tolerancia',
-    'view.fit': 'Ajustar', 'view.orig': 'Original', 'view.overlay': 'Capa', 'undo': 'Deshacer (Ctrl+Z)',
+    'view.fit': 'Ajustar', 'view.orig': 'Original', 'view.overlay': 'Capa', 'undo': 'Deshacer (Ctrl+Z / ⌘Z)',
+    'redo': 'Rehacer (Ctrl+Y / Ctrl+Mayús+Z / ⌘Mayús+Z)',
     'empty.title': 'Añade una imagen de sondeo', 'empty.body': 'JPG, PNG o TIFF. Las imágenes se procesan en tu navegador y no se envían a ningún sitio.',
     'empty.example': 'Abrir ejemplo',
     'tab.classes': 'Icnotaxones', 'tab.object': 'Objeto', 'tab.learn': 'Aprendizaje', 'tab.results': 'Resultados',
@@ -54,7 +55,7 @@ const D = {
     'err.project': 'Ese archivo no es un proyecto de SedCoreTool.', 'confirm.new': '¿Empezar un proyecto nuevo? Se perderá lo que no hayas guardado.',
     'confirm.yes': 'Sí, empezar de nuevo', 'confirm.no': 'Cancelar', 'example.name': 'Ejemplo idealizado (V2.1)',
     'status.depth': 'Prof. {d} {u}', 'help.title': 'Cómo funciona', 'help.close': 'Cerrar',
-    'help.body': '<ol><li><b>Sondeo e imagen.</b> Añade una o varias imágenes (una por sección), indica techo y muro y, si quieres, un modelo de edad. Dibuja la zona de análisis para dejar fuera la escala y los bordes.</li><li><b>Realce.</b> Ajusta niveles, contraste o contraste local hasta que las trazas se vean bien.</li><li><b>Detección.</b> Detecta candidatos automáticamente. Completa o corrige con la varita, el pincel, el lazo y el borrador. Excluye grietas, huecos y zonas muestreadas.</li><li><b>Identificación.</b> Selecciona un objeto y pulsa 1–9 para asignar el icnotaxón (0 = artefacto). El programa aprende y propone la clase del resto.</li><li><b>Resultados.</b> Porcentaje de bioturbación, BI, ii y porcentaje por icnotaxón por intervalo, junto a la imagen. Exporta CSV, máscara y proyecto.</li></ol><p><b>Atajos:</b> V seleccionar · W varita · B pincel · L lazo · E borrador · X excluir · H mano · O original · F ajustar · N siguiente · Enter aceptar · Supr eliminar · [ ] tamaño · Ctrl+rueda zoom · Ctrl+Z deshacer. Mayús añade al objeto seleccionado; Alt resta.</p>',
+    'help.body': '<ol><li><b>Sondeo e imagen.</b> Añade una o varias imágenes (una por sección), indica techo y muro y, si quieres, un modelo de edad. Dibuja la zona de análisis para dejar fuera la escala y los bordes.</li><li><b>Realce.</b> Ajusta niveles, contraste o contraste local hasta que las trazas se vean bien.</li><li><b>Detección.</b> Detecta candidatos automáticamente. Completa o corrige con la varita, el pincel, el lazo y el borrador. Excluye grietas, huecos y zonas muestreadas.</li><li><b>Identificación.</b> Selecciona un objeto y pulsa 1–9 para asignar el icnotaxón (0 = artefacto). El programa aprende y propone la clase del resto.</li><li><b>Resultados.</b> Porcentaje de bioturbación, BI, ii y porcentaje por icnotaxón por intervalo, junto a la imagen. Exporta CSV, máscara y proyecto.</li></ol><p><b>Atajos:</b> V seleccionar · W varita · B pincel · L lazo · E borrador · X excluir · H mano · O original · F ajustar · N siguiente · Enter aceptar · Supr eliminar · [ ] tamaño · Ctrl+rueda zoom · Ctrl+Z o ⌘Z deshacer · Ctrl+Y, Ctrl+Mayús+Z o ⌘Mayús+Z rehacer. Mayús añade al objeto seleccionado; Alt resta.</p>',
   },
   en: {
     'app.tagline': 'Ichnological analysis of core images',
@@ -82,7 +83,8 @@ const D = {
     'tool.select': 'Select and move (V)', 'tool.wand': 'Wand: select by colour (W)', 'tool.brush': 'Brush (B)',
     'tool.lasso': 'Lasso (L)', 'tool.erase': 'Eraser (E)', 'tool.exclude': 'Exclude area: cracks, voids, samples (X). Shift + drag = rectangle',
     'tool.include': 'Restore excluded area', 'tool.pan': 'Hand (H or space)', 'tool.size': 'Size', 'tool.tol': 'Tolerance',
-    'view.fit': 'Fit', 'view.orig': 'Original', 'view.overlay': 'Overlay', 'undo': 'Undo (Ctrl+Z)',
+    'view.fit': 'Fit', 'view.orig': 'Original', 'view.overlay': 'Overlay', 'undo': 'Undo (Ctrl+Z / ⌘Z)',
+    'redo': 'Redo (Ctrl+Y / Ctrl+Shift+Z / ⌘Shift+Z)',
     'empty.title': 'Add a core image', 'empty.body': 'JPG, PNG or TIFF. Images are processed in your browser and never uploaded.',
     'empty.example': 'Open example',
     'tab.classes': 'Ichnotaxa', 'tab.object': 'Object', 'tab.learn': 'Learning', 'tab.results': 'Results',
@@ -109,7 +111,7 @@ const D = {
     'err.project': 'That file is not a SedCoreTool project.', 'confirm.new': 'Start a new project? Anything unsaved will be lost.',
     'confirm.yes': 'Yes, start over', 'confirm.no': 'Cancel', 'example.name': 'Idealised example (V2.1)',
     'status.depth': 'Depth {d} {u}', 'help.title': 'How it works', 'help.close': 'Close',
-    'help.body': '<ol><li><b>Core and image.</b> Add one or more images (one per section), set top and bottom depths and, optionally, an age model. Draw the analysis area to leave out the scale bar and core edges.</li><li><b>Enhancement.</b> Adjust levels, contrast or local contrast until traces stand out.</li><li><b>Detection.</b> Detect candidates automatically. Complete or correct them with the wand, brush, lasso and eraser. Exclude cracks, voids and sampled areas.</li><li><b>Identification.</b> Select an object and press 1–9 to assign the ichnotaxon (0 = artefact). The program learns and suggests the class of the rest.</li><li><b>Results.</b> Bioturbation percentage, BI, ii and percentage per ichnotaxon per interval, beside the image. Export CSV, mask and project.</li></ol><p><b>Shortcuts:</b> V select · W wand · B brush · L lasso · E eraser · X exclude · H hand · O original · F fit · N next · Enter accept · Del delete · [ ] size · Ctrl+wheel zoom · Ctrl+Z undo. Shift adds to the selected object; Alt subtracts.</p>',
+    'help.body': '<ol><li><b>Core and image.</b> Add one or more images (one per section), set top and bottom depths and, optionally, an age model. Draw the analysis area to leave out the scale bar and core edges.</li><li><b>Enhancement.</b> Adjust levels, contrast or local contrast until traces stand out.</li><li><b>Detection.</b> Detect candidates automatically. Complete or correct them with the wand, brush, lasso and eraser. Exclude cracks, voids and sampled areas.</li><li><b>Identification.</b> Select an object and press 1–9 to assign the ichnotaxon (0 = artefact). The program learns and suggests the class of the rest.</li><li><b>Results.</b> Bioturbation percentage, BI, ii and percentage per ichnotaxon per interval, beside the image. Export CSV, mask and project.</li></ol><p><b>Shortcuts:</b> V select · W wand · B brush · L lasso · E eraser · X exclude · H hand · O original · F fit · N next · Enter accept · Del delete · [ ] size · Ctrl+wheel zoom · Ctrl+Z or ⌘Z undo · Ctrl+Y, Ctrl+Shift+Z or ⌘Shift+Z redo. Shift adds to the selected object; Alt subtracts.</p>',
   },
 };
 

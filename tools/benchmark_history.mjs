@@ -42,7 +42,7 @@ try {
     const { profile } = await client.send('Profiler.stop');
     result.cpu = attributeHistoryCpu(profile);
   }
-  await waitForHistoryProject(page, traceCount - 35);
+  await waitForHistoryProject(page, traceCount - 20);
   if (!profileCpu) {
     result.latency_ms = latency;
     result.heap_bytes = await historyHeap(page, client);
@@ -50,11 +50,13 @@ try {
   await client.detach();
 
   await page.reload({ waitUntil: 'domcontentloaded', timeout });
-  await waitForHistoryProject(page, traceCount - 35);
-  result.reload_verified = await page.evaluate((count) => {
+  await waitForHistoryProject(page, traceCount - 20);
+  result.reload_verified = await page.evaluate(async (count) => {
+    const { idsAt } = await import('./js/core.js');
     const { S } = window.ichantool, s = S.sections[0];
-    return S.undo.length === 0 && !s.objects.has(36) && s.labels[350] === count + 1
-      && s.labels[351] === 0 && s.objects.has(count);
+    return S.undo.length === 0 && S.redo.length === 0 && !s.objects.has(21) && s.objects.has(22)
+      && s.labels[201] === 0 && s.labels[211] === 22
+      && idsAt(s.labels[350], s.stacks).join() === `${count + 1},36`;
   }, traceCount);
   assert.equal(result.reload_verified, true);
   assert.deepEqual(errors, [], 'Application errors');
@@ -118,22 +120,23 @@ async function exerciseHistory(count, repeats) {
   const { idsAt } = await import('./js/core.js');
   const { S } = window.ichantool, s = S.sections[0];
   const undoButton = document.querySelector('#undoBtn');
-  if (!document.querySelector('#home').hidden || S.undo.length) throw new Error('Unexpected initial history');
-  const latency = { delete: [], undo: [], reapply: [] };
+  const redoButton = document.querySelector('#redoBtn');
+  if (!document.querySelector('#home').hidden || !undoButton.disabled || !redoButton.disabled) throw new Error('Unexpected initial history');
+  const latency = { delete: [], undo: [], redo: [] };
   const renderFrame = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
-  function remove(id, series) {
+  function remove(id) {
     S.selected = id;  // Selection uses the existing test hook. The app handles Delete normally.
     const event = new KeyboardEvent('keydown', { key: 'Delete', bubbles: true });
     const start = performance.now();
     document.body.dispatchEvent(event);
-    latency[series].push(performance.now() - start);
+    latency.delete.push(performance.now() - start);
     if (s.objects.has(id)) throw new Error('Delete did not remove trace ' + id);
   }
 
-  function checkTargets(restore) {
+  function checkTargets(deletedThrough) {
     for (let id = 1; id <= 36; id++) {
-      const restored = restore && id > 6, x0 = (id - 1) * 10;
+      const restored = id > deletedThrough, x0 = (id - 1) * 10;
       if (s.objects.has(id) !== restored) throw new Error('Unexpected trace ' + id);
       for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) {
         const label = s.labels[y * s.w + x0 + x];
@@ -147,7 +150,7 @@ async function exerciseHistory(count, repeats) {
     }
   }
 
-  for (let id = 1; id <= 36; id++) remove(id, 'delete');
+  for (let id = 1; id <= 36; id++) remove(id);
   if (S.undo.length !== 30) throw new Error('Expected the 30-step history limit');
   const initial = historyShape(S.undo);
   await renderFrame();
@@ -158,21 +161,30 @@ async function exerciseHistory(count, repeats) {
       latency.undo.push(performance.now() - start);
       if (!s.objects.has(id)) throw new Error('Undo did not restore trace ' + id);
     }
-    if (S.undo.length) throw new Error('History did not drain');
-    checkTargets(true);
+    if (S.undo.length || S.redo.length !== 30 || !undoButton.disabled || redoButton.disabled) throw new Error('History did not move to Redo');
+    checkTargets(6);
     await renderFrame();
-    for (let id = 7; id <= 36; id++) remove(id, 'reapply');
-    if (S.undo.length !== 30) throw new Error('Reapplied history did not fill');
-    checkTargets(false);
+    for (let id = 7; id <= 36; id++) {
+      const start = performance.now();
+      redoButton.click();
+      latency.redo.push(performance.now() - start);
+      if (s.objects.has(id)) throw new Error('Redo did not delete trace ' + id);
+    }
+    if (S.undo.length !== 30 || S.redo.length || undoButton.disabled || !redoButton.disabled) throw new Error('History did not return to Undo');
+    checkTargets(36);
     await renderFrame();
   }
   const final = historyShape(S.undo);
   if (JSON.stringify(initial) !== JSON.stringify(final)) throw new Error('History payload grew across cycles');
-  return { latency, history: { initial_full: initial, final_full: final } };
+  for (let i = 0; i < 15; i++) undoButton.click();
+  checkTargets(21);
+  if (S.undo.length !== 15 || S.redo.length !== 15) throw new Error('Unexpected mixed history');
+  const mixed = historyShape([...S.undo, ...S.redo]);
+  return { latency, history: { initial_full: initial, final_full: final, mixed } };
 
   function historyShape(steps) {
     return {
-      steps: steps.length, object_records: steps.reduce((n, step) => n + (step.objs.size ?? step.objs.length), 0),
+      steps: steps.length, object_records: steps.reduce((n, step) => n + step.objs.size, 0),
       label_pixel_changes: steps.reduce((n, step) => n + step.lm.length / 2, 0),
       exclusion_pixel_changes: steps.reduce((n, step) => n + step.ex.length / 2, 0),
       overlap_lists: new Set(steps.flatMap((step) => step.lm.filter(Array.isArray))).size,
@@ -186,14 +198,17 @@ async function historyHeap(page, client) {
     return (await client.send('Runtime.getHeapUsage')).usedSize;
   }
   const full = await used();
-  await page.evaluate(() => { for (const step of window.ichantool.S.undo) step.objs = null; });
+  await page.evaluate(() => {
+    const { undo, redo } = window.ichantool.S;
+    for (const step of [...undo, ...redo]) step.objs = null;
+  });
   const withoutObjects = await used();
-  await page.evaluate(() => { window.ichantool.S.undo.length = 0; });
+  await page.evaluate(() => { const { undo, redo } = window.ichantool.S; undo.length = redo.length = 0; });
   return { full, without_objects: withoutObjects, without_history: await used() };
 }
 
 function attributeHistoryCpu(profile) {
-  const functions = new Set(['deleteObjects', 'beginOp', 'undoOne']);
+  const functions = new Set(['deleteObjects', 'beginOp', 'undo', 'redo', 'swapEditStep']);
   const parents = new Map(), nodes = new Map(), totals = {};
   for (const name of functions) totals[name] = { sample_count: 0, sampled_ms: 0 };
   for (const node of profile.nodes) {

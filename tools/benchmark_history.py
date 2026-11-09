@@ -89,7 +89,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chrome", default=os.getenv("CHROME"), help="Chrome or Chromium executable (or set CHROME)")
     parser.add_argument("--case", choices=("all", *CASES), default="all")
-    parser.add_argument("--cycles", type=int, default=8, help="Batches of 30 Undo and 30 reapplied edits")
+    parser.add_argument("--cycles", type=int, default=8, help="Batches of 30 Undo and 30 Redo actions")
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--output", type=Path, help="Write the JSON report here instead of stdout")
