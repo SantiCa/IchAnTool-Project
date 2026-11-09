@@ -1,0 +1,850 @@
+{
+  "started_utc": "2026-11-09T23:51:59.562229+00:00",
+  "source": {
+    "commit": "debf2d60a6d4f12059048da69606d82f0f76e8c5",
+    "dirty": false,
+    "input_files_sha256": "17f8eb8d1ac305a654e11fa9a427d4e6618ddb0b36a97b03da092b75d18025d7"
+  },
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "architecture": "AMD64",
+    "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+    "logical_cpus": 16,
+    "physical_cores": 8,
+    "ram_mib": 31850,
+    "python": "3.14.2",
+    "sedcoretool": "0.94.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pillow": "13.0.0",
+    "psutil": "7.2.2"
+  },
+  "warmups": 1,
+  "repetitions": 5,
+  "absolute_tolerance": 1e-09,
+  "rss_poll_target_ms": 25.0,
+  "cases": [
+    {
+      "case": "u1385",
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "seed": null,
+      "synthetic_package_sha256": null,
+      "analysis_input_sha256": "ab61a88b0e133b078aa42d0d8ee9dd1d5c29887ddc9e7fd4a20ff80bfb2edee4",
+      "browser_intervals_sha256": "32cd677f867a70e31bf2b22d1c2102672d23d0ed2a5b22e47785b9b21605ab6c",
+      "classes": [
+        "undet",
+        "chondrites",
+        "planolites",
+        "thalassinoides",
+        "zoophycos",
+        "palaeophycus",
+        "teichichnus",
+        "scolicia",
+        "mottled",
+        "trichichnus",
+        "phycosiphon",
+        "artifact"
+      ],
+      "settings": {
+        "binCm": 2,
+        "minValid": 0.2,
+        "noDataPad": 0
+      },
+      "sections": [
+        {
+          "name": "U1385I-1H-1",
+          "w": 346,
+          "h": 7500,
+          "top": 0,
+          "bottom": 1.5,
+          "units": "m",
+          "roi": {
+            "x0": 35,
+            "y0": 0,
+            "x1": 311,
+            "y1": 7500
+          },
+          "filters": {
+            "channel": "rgb",
+            "autoLevels": false,
+            "autoGamma": false,
+            "blackPoint": 40,
+            "whitePoint": 215,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 25,
+            "saturation": 140,
+            "vibrance": 0,
+            "equalize": false,
+            "claheBlock": 0,
+            "claheSlope": 3,
+            "localAmount": 0,
+            "localRadius": 30,
+            "invert": false
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark",
+            "offset": 14,
+            "radius": 50,
+            "threshold": 80,
+            "minArea": 20,
+            "smooth": 2,
+            "fillHoles": false,
+            "pThr": 0.5
+          },
+          "objectCount": 355
+        },
+        {
+          "name": "U1385I-1H-2",
+          "w": 351,
+          "h": 7450,
+          "top": 1.5,
+          "bottom": 2.99,
+          "units": "m",
+          "roi": {
+            "x0": 35,
+            "y0": 0,
+            "x1": 316,
+            "y1": 7450
+          },
+          "filters": {
+            "channel": "rgb",
+            "autoLevels": false,
+            "autoGamma": false,
+            "blackPoint": 40,
+            "whitePoint": 215,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 25,
+            "saturation": 140,
+            "vibrance": 0,
+            "equalize": false,
+            "claheBlock": 0,
+            "claheSlope": 3,
+            "localAmount": 0,
+            "localRadius": 30,
+            "invert": false
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark",
+            "offset": 14,
+            "radius": 50,
+            "threshold": 80,
+            "minArea": 20,
+            "smooth": 2,
+            "fillHoles": false,
+            "pThr": 0.5
+          },
+          "objectCount": 374
+        },
+        {
+          "name": "U1385I-1H-3",
+          "w": 347,
+          "h": 7500,
+          "top": 2.99,
+          "bottom": 4.49,
+          "units": "m",
+          "roi": {
+            "x0": 35,
+            "y0": 0,
+            "x1": 312,
+            "y1": 7500
+          },
+          "filters": {
+            "channel": "rgb",
+            "autoLevels": false,
+            "autoGamma": false,
+            "blackPoint": 40,
+            "whitePoint": 215,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 25,
+            "saturation": 140,
+            "vibrance": 0,
+            "equalize": false,
+            "claheBlock": 0,
+            "claheSlope": 3,
+            "localAmount": 0,
+            "localRadius": 30,
+            "invert": false
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark",
+            "offset": 14,
+            "radius": 50,
+            "threshold": 80,
+            "minArea": 20,
+            "smooth": 2,
+            "fillHoles": false,
+            "pThr": 0.5
+          },
+          "objectCount": 349
+        },
+        {
+          "name": "U1385I-1H-4",
+          "w": 349,
+          "h": 7450,
+          "top": 4.49,
+          "bottom": 5.98,
+          "units": "m",
+          "roi": {
+            "x0": 35,
+            "y0": 0,
+            "x1": 314,
+            "y1": 7450
+          },
+          "filters": {
+            "channel": "rgb",
+            "autoLevels": false,
+            "autoGamma": false,
+            "blackPoint": 40,
+            "whitePoint": 215,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 25,
+            "saturation": 140,
+            "vibrance": 0,
+            "equalize": false,
+            "claheBlock": 0,
+            "claheSlope": 3,
+            "localAmount": 0,
+            "localRadius": 30,
+            "invert": false
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark",
+            "offset": 14,
+            "radius": 50,
+            "threshold": 80,
+            "minArea": 20,
+            "smooth": 2,
+            "fillHoles": false,
+            "pThr": 0.5
+          },
+          "objectCount": 237
+        },
+        {
+          "name": "U1385I-1H-5",
+          "w": 344,
+          "h": 7500,
+          "top": 5.98,
+          "bottom": 7.48,
+          "units": "m",
+          "roi": {
+            "x0": 34,
+            "y0": 0,
+            "x1": 310,
+            "y1": 7500
+          },
+          "filters": {
+            "channel": "rgb",
+            "autoLevels": false,
+            "autoGamma": false,
+            "blackPoint": 40,
+            "whitePoint": 215,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 25,
+            "saturation": 140,
+            "vibrance": 0,
+            "equalize": false,
+            "claheBlock": 0,
+            "claheSlope": 3,
+            "localAmount": 0,
+            "localRadius": 30,
+            "invert": false
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark",
+            "offset": 14,
+            "radius": 50,
+            "threshold": 80,
+            "minArea": 20,
+            "smooth": 2,
+            "fillHoles": false,
+            "pThr": 0.5
+          },
+          "objectCount": 475
+        },
+        {
+          "name": "U1385I-1H-6",
+          "w": 344,
+          "h": 6500,
+          "top": 7.48,
+          "bottom": 8.78,
+          "units": "m",
+          "roi": {
+            "x0": 34,
+            "y0": 0,
+            "x1": 310,
+            "y1": 6500
+          },
+          "filters": {
+            "channel": "rgb",
+            "autoLevels": false,
+            "autoGamma": false,
+            "blackPoint": 40,
+            "whitePoint": 215,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 25,
+            "saturation": 140,
+            "vibrance": 0,
+            "equalize": false,
+            "claheBlock": 0,
+            "claheSlope": 3,
+            "localAmount": 0,
+            "localRadius": 30,
+            "invert": false
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark",
+            "offset": 14,
+            "radius": 50,
+            "threshold": 80,
+            "minArea": 20,
+            "smooth": 2,
+            "fillHoles": false,
+            "pThr": 0.5
+          },
+          "objectCount": 377
+        }
+      ],
+      "pixels": 15228500,
+      "intervals": 440,
+      "no_data_intervals": 0,
+      "deleted_trace": {
+        "id": 1,
+        "bbox": [
+          54,
+          0,
+          235,
+          6
+        ],
+        "count": 355
+      },
+      "reload_verified_runs": 6,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 177,
+          "autosave_ms": 1563.800000011921,
+          "javascript_analysis_ms": 28.19999998807907,
+          "python_analysis_ms": 154.48060000198893,
+          "browser_peak_rss_mib": 945.296875,
+          "python_peak_rss_mib": 156.62109375,
+          "browser_rss_samples": 55,
+          "python_rss_samples": 12,
+          "parity": {
+            "max_depth_error": 8.881784197001252e-16,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 163.2999999821186,
+          "autosave_ms": 1573.699999988079,
+          "javascript_analysis_ms": 29.19999998807907,
+          "python_analysis_ms": 145.90520001365803,
+          "browser_peak_rss_mib": 1020.60546875,
+          "python_peak_rss_mib": 154.41015625,
+          "browser_rss_samples": 50,
+          "python_rss_samples": 12,
+          "parity": {
+            "max_depth_error": 8.881784197001252e-16,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 184.2999999821186,
+          "autosave_ms": 1561.800000011921,
+          "javascript_analysis_ms": 27.80000001192093,
+          "python_analysis_ms": 144.8001000098884,
+          "browser_peak_rss_mib": 963.99609375,
+          "python_peak_rss_mib": 156.55859375,
+          "browser_rss_samples": 52,
+          "python_rss_samples": 12,
+          "parity": {
+            "max_depth_error": 8.881784197001252e-16,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 186.09999999403954,
+          "autosave_ms": 1558,
+          "javascript_analysis_ms": 28.899999976158142,
+          "python_analysis_ms": 149.4863000116311,
+          "browser_peak_rss_mib": 949.03125,
+          "python_peak_rss_mib": 154.39453125,
+          "browser_rss_samples": 50,
+          "python_rss_samples": 12,
+          "parity": {
+            "max_depth_error": 8.881784197001252e-16,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 181.10000002384186,
+          "autosave_ms": 1557.9000000059605,
+          "javascript_analysis_ms": 28,
+          "python_analysis_ms": 147.71550000295974,
+          "browser_peak_rss_mib": 977.98046875,
+          "python_peak_rss_mib": 156.40234375,
+          "browser_rss_samples": 52,
+          "python_rss_samples": 13,
+          "parity": {
+            "max_depth_error": 8.881784197001252e-16,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 168.59999999403954,
+          "autosave_ms": 1579.5,
+          "javascript_analysis_ms": 34.69999998807907,
+          "python_analysis_ms": 144.92880000034347,
+          "browser_peak_rss_mib": 923.70703125,
+          "python_peak_rss_mib": 156.6015625,
+          "browser_rss_samples": 57,
+          "python_rss_samples": 13,
+          "parity": {
+            "max_depth_error": 8.881784197001252e-16,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        }
+      ],
+      "summary": {
+        "open_ms": {
+          "median": 181.10000002384186,
+          "min": 163.2999999821186,
+          "max": 186.09999999403954
+        },
+        "autosave_ms": {
+          "median": 1561.800000011921,
+          "min": 1557.9000000059605,
+          "max": 1579.5
+        },
+        "javascript_analysis_ms": {
+          "median": 28.899999976158142,
+          "min": 27.80000001192093,
+          "max": 34.69999998807907
+        },
+        "python_analysis_ms": {
+          "median": 145.90520001365803,
+          "min": 144.8001000098884,
+          "max": 149.4863000116311
+        },
+        "browser_peak_rss_mib": {
+          "median": 963.99609375,
+          "min": 923.70703125,
+          "max": 1020.60546875
+        },
+        "python_peak_rss_mib": {
+          "median": 156.40234375,
+          "min": 154.39453125,
+          "max": 156.6015625
+        }
+      }
+    },
+    {
+      "case": "synthetic",
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "seed": 138501,
+      "synthetic_package_sha256": "444b024b68f3d3e4970e6457eeca8c98ed51fbb93d21e1ed0a7708afb02cd88f",
+      "analysis_input_sha256": "fde76e9b55ebc275e50484c5db57177bff015a31944e90e13c9745875e021e89",
+      "browser_intervals_sha256": "8478569174481456796bf9d6aaa947f43a89d261f02472f0166927fdb3def1f5",
+      "classes": [
+        "undet",
+        "chondrites",
+        "planolites",
+        "artifact"
+      ],
+      "settings": {
+        "binCm": 2,
+        "minValid": 0.2,
+        "noDataPad": 0
+      },
+      "sections": [
+        {
+          "name": "synthetic-01",
+          "w": 960,
+          "h": 6400,
+          "top": 0,
+          "bottom": 128,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 99
+        },
+        {
+          "name": "synthetic-02",
+          "w": 960,
+          "h": 6400,
+          "top": 128,
+          "bottom": 256,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        },
+        {
+          "name": "synthetic-03",
+          "w": 960,
+          "h": 6400,
+          "top": 256,
+          "bottom": 384,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        },
+        {
+          "name": "synthetic-04",
+          "w": 960,
+          "h": 6400,
+          "top": 384,
+          "bottom": 512,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        },
+        {
+          "name": "synthetic-05",
+          "w": 960,
+          "h": 6400,
+          "top": 512,
+          "bottom": 640,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        },
+        {
+          "name": "synthetic-06",
+          "w": 960,
+          "h": 6400,
+          "top": 640,
+          "bottom": 768,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        },
+        {
+          "name": "synthetic-07",
+          "w": 960,
+          "h": 6400,
+          "top": 768,
+          "bottom": 896,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        },
+        {
+          "name": "synthetic-08",
+          "w": 960,
+          "h": 6400,
+          "top": 896,
+          "bottom": 1024,
+          "units": "cm",
+          "roi": {
+            "x0": 20,
+            "x1": 940,
+            "y0": 0,
+            "y1": 6400
+          },
+          "filters": {
+            "channel": "rgb",
+            "blackPoint": 0,
+            "whitePoint": 255,
+            "gamma": 1,
+            "brightness": 0,
+            "contrast": 0,
+            "saturation": 100
+          },
+          "detect": {
+            "method": "adaptive",
+            "polarity": "dark"
+          },
+          "objectCount": 100
+        }
+      ],
+      "pixels": 49152000,
+      "intervals": 512,
+      "no_data_intervals": 8,
+      "deleted_trace": {
+        "id": 1,
+        "bbox": [
+          32,
+          16,
+          434,
+          93
+        ],
+        "count": 99
+      },
+      "reload_verified_runs": 6,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 333.69999998807907,
+          "autosave_ms": 1858.5999999940395,
+          "javascript_analysis_ms": 115.40000000596046,
+          "python_analysis_ms": 265.1729000208434,
+          "browser_peak_rss_mib": 1320.75,
+          "python_peak_rss_mib": 350.8125,
+          "browser_rss_samples": 66,
+          "python_rss_samples": 18,
+          "parity": {
+            "max_depth_error": 0.0,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 336.69999998807907,
+          "autosave_ms": 1876.300000011921,
+          "javascript_analysis_ms": 121.09999999403954,
+          "python_analysis_ms": 262.87270002649166,
+          "browser_peak_rss_mib": 1192.48828125,
+          "python_peak_rss_mib": 345.20703125,
+          "browser_rss_samples": 64,
+          "python_rss_samples": 18,
+          "parity": {
+            "max_depth_error": 0.0,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 335.69999998807907,
+          "autosave_ms": 1860.4000000059605,
+          "javascript_analysis_ms": 112.40000000596046,
+          "python_analysis_ms": 265.6808999890927,
+          "browser_peak_rss_mib": 1256.8125,
+          "python_peak_rss_mib": 350.84375,
+          "browser_rss_samples": 62,
+          "python_rss_samples": 18,
+          "parity": {
+            "max_depth_error": 0.0,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 339.59999999403954,
+          "autosave_ms": 1860.5999999940395,
+          "javascript_analysis_ms": 114,
+          "python_analysis_ms": 262.5531000085175,
+          "browser_peak_rss_mib": 1234.28125,
+          "python_peak_rss_mib": 351.07421875,
+          "browser_rss_samples": 65,
+          "python_rss_samples": 19,
+          "parity": {
+            "max_depth_error": 0.0,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 331.30000001192093,
+          "autosave_ms": 1868.3999999761581,
+          "javascript_analysis_ms": 112.7000000178814,
+          "python_analysis_ms": 265.390100015793,
+          "browser_peak_rss_mib": 1282.71484375,
+          "python_peak_rss_mib": 350.76171875,
+          "browser_rss_samples": 63,
+          "python_rss_samples": 18,
+          "parity": {
+            "max_depth_error": 0.0,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 336.59999999403954,
+          "autosave_ms": 1861.800000011921,
+          "javascript_analysis_ms": 113.7000000178814,
+          "python_analysis_ms": 263.23240000056103,
+          "browser_peak_rss_mib": 1390.93359375,
+          "python_peak_rss_mib": 351.16796875,
+          "browser_rss_samples": 66,
+          "python_rss_samples": 17,
+          "parity": {
+            "max_depth_error": 0.0,
+            "max_percentage_point_error": 7.105427357601002e-15
+          }
+        }
+      ],
+      "summary": {
+        "open_ms": {
+          "median": 336.59999999403954,
+          "min": 331.30000001192093,
+          "max": 339.59999999403954
+        },
+        "autosave_ms": {
+          "median": 1861.800000011921,
+          "min": 1860.4000000059605,
+          "max": 1876.300000011921
+        },
+        "javascript_analysis_ms": {
+          "median": 113.7000000178814,
+          "min": 112.40000000596046,
+          "max": 121.09999999403954
+        },
+        "python_analysis_ms": {
+          "median": 263.23240000056103,
+          "min": 262.5531000085175,
+          "max": 265.6808999890927
+        },
+        "browser_peak_rss_mib": {
+          "median": 1256.8125,
+          "min": 1192.48828125,
+          "max": 1390.93359375
+        },
+        "python_peak_rss_mib": {
+          "median": 350.84375,
+          "min": 345.20703125,
+          "max": 351.16796875
+        }
+      }
+    }
+  ]
+}

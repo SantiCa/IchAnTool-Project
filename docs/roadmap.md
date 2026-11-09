@@ -22,6 +22,14 @@ Keep task IDs stable. The changelog records what shipped.
       measured cases in [V0.94](../CHANGELOG.md#v094--2026-11-09). Claude independently reruns both cases in
       read-only mode and reviews the boundaries, memory accounting and result parity using the
       [benchmark instructions and recorded run](benchmarks/M0.1.md). Codex addresses any findings before closure.
+  - Codex verified a source-fingerprint mismatch between the original report and clean V0.94, then repeated both
+    cases from the clean delivery with one warm-up and five measurements each. Inputs, interval results and
+    the synthetic ZIP fingerprints match the original; all reload and parity checks pass.
+    [Clean-checkout evidence and provenance](benchmarks/M0.1.md#clean-checkout-repetition),
+    [V0.106](../CHANGELOG.md#v0106--2026-11-10).
+  - Next step: Claude independently repeats both cases and records the boundaries, memory-accounting and parity
+    review. Claude is unavailable in the current Codex session; the maintainer must arrange that review or explicitly
+    authorise a different independent reviewer. M0.1 remains in review until this criterion is met.
 - [x] **M0.2 - Import and export safety.** Bound ZIP expansion and escape formula-like spreadsheet text
       while preserving numeric measurements. [V0.91](../CHANGELOG.md#v091--2026-11-09)
   - [x] **M0.2.1 - Verify stored ZIP member integrity.** Check the CRC in bounded blocks before delivering
@@ -86,7 +94,7 @@ Keep task IDs stable. The changelog records what shipped.
       [editing-history benchmark](benchmarks/M1.1.2.md#m114-native-redo).
       [V0.104](../CHANGELOG.md#v0104--2026-11-09)
 - [x] **M1.2 - Interrupted saves.** Preserve the last successful save through IndexedDB and file backup failures.
-      [V0.105](../CHANGELOG.md#v0105--2026-11-10). Delivered on `codex/m1-2-interrupted-saves` for owner review.
+      [V0.105](../CHANGELOG.md#v0105--2026-11-10). Integrated into `master` through [PR #23](https://github.com/SantiCa/SedCoreTool/pull/23).
   - Verified with synthetic data: synchronous clone failure after queuing metadata/data, transaction abort after
     a section write, interrupted image streaming, image replacement before manifest failure, and backup manifest
     open/write/close failures on real OPFS files.

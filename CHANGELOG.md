@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.106 — 2026-11-10
+
+- Document a complete performance benchmark repetition from a clean V0.94 checkout, with matching input and result fingerprints.
+- Clarify the original baseline's source provenance and the independent review still required before its acceptance.
+
 ## V0.105 — 2026-11-10
 
 - Preserve the last complete project when a save fails while queuing section data.
