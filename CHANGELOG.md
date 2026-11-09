@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.102 — 2026-11-09
+- Reject invalid Python valid-area thresholds and report the actual dimensions of mismatched exclusion images.
+
 ## V0.101 — 2026-11-09
 - Reject conflicting filenames and existing destinations before exporting a multi-core LAS batch.
 

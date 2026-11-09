@@ -67,6 +67,12 @@ def _unit_factor(units: str) -> float:
         raise ValueError(f"units must be one of {sorted(UNIT_TO_CM)}, not {units!r}") from None
 
 
+def _validate_min_valid(min_valid: float) -> float:
+    if not 0 <= min_valid <= 1:
+        raise ValueError("min_valid must be a finite fraction between 0 and 1 inclusive")
+    return min_valid
+
+
 def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "cm",
                  bin_px: float = 1, bin_cm: float | None = None, class_names: Sequence[str] | None = None,
                  schemes: Sequence[IndexScheme] = DEFAULT_SCHEMES, exclude: np.ndarray | None = None,
@@ -79,12 +85,14 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
     bin_cm: interval thickness in cm; if given, bin_px = bin_cm × pixel rows per cm (as in the web app).
     exclude: optional 2-D boolean array of the same size; True = excluded pixel (crack, gap, sample), as the
     program's exclusion layer. Percentages are 100 · Σ bioturbated / Σ valid pixels of each interval.
-    min_valid: an interval with less than this fraction of valid pixels has no data (NaN, indices empty).
+    min_valid: finite fraction in [0, 1]. An interval below this fraction of valid pixels has no data
+    (NaN percentages and empty indices).
 
     Overlapping traces (V0.20, as in the web app): mask may instead be a 3-D boolean stack
     (n_classes, rows, cols), one layer per class. A pixel is bioturbated once if any layer is set, and
     counts for every class whose layer is set, so the class percentages may add up to more than the total.
     """
+    _validate_min_valid(min_valid)
     mask = np.asarray(mask)
     if mask.ndim == 3:
         n_classes = mask.shape[0]

@@ -42,16 +42,9 @@ Keep task IDs stable. The changelog records what shipped.
         about suspect depth metadata. [V0.95](../CHANGELOG.md#v095--2026-11-09)
   - [x] **M0.3.2 - Mask and region diagnostics.** Flag invalid regions and unresolved trace or overlap
         references, and preserve the original project when opening for inspection. [V0.96](../CHANGELOG.md#v096--2026-11-09)
-  - [ ] **M0.3.3 - Validate Python analysis inputs.** An invalid minimum valid-area fraction can change
-        the reported no-data intervals. A mismatched manifest exclusion image can raise an attribute
-        error while formatting the diagnostic.
-    - **Approach.** Require a finite `min_valid` in the inclusive range 0–1 in the API and CLI,
-      and report the dimensions of the exclusion image that was actually read.
-    - **Acceptance.** Reject negative, above-range and nonfinite values in API and CLI tests. Accept
-      0 and 1 and check their interval results. With the default batch mask reader and a mismatched
-      exclusion image, raise a value error that identifies the files and both dimensions.
-    - **Likely touchpoints.** `src/sedcoretool/pipeline.py`, `src/sedcoretool/cli.py`,
-      `src/sedcoretool/batch.py`, `tests/test_core.py` and `tests/test_batch.py`.
+  - [x] **M0.3.3 - Validate Python analysis inputs.** Validate finite thresholds from 0 to 1 in the API
+        and CLI. Report both filenames and dimensions for mismatched exclusion images.
+        [V0.102](../CHANGELOG.md#v0102--2026-11-09)
 
 #### M0.1 acceptance criteria
 

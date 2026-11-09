@@ -2034,6 +2034,9 @@ the 8-bit masks used by the training export (§9.2) and bounds the raw per-class
 of the file's sample depth. The CLI replaces an explicitly selected `--exclude-value` with background
 and marks those pixels as excluded before analysis.
 
+The Python analysis API requires `min_valid` to be a finite fraction in the inclusive range 0–1. At 0,
+any interval with at least one valid pixel is eligible. At 1, every pixel in the interval must be valid.
+
 | Function or object | Module | What it does |
 |--------------------|--------|--------------|
 | `load_image(path, mode=None)` | `io.py` | Reads PNG, TIFF, JPEG or BMP as a NumPy array (`mode` "L" grey or "RGB"). JPEG is accepted but discouraged for masks, because compression changes pixel values. |
@@ -2115,7 +2118,8 @@ sedcoretool analyze IMAGE --top 0 --bottom 500 [--units cm|mm|m] [--bin-cm 1 | -
 - `--bin-cm`: interval thickness in cm, as in the program; or `--bin-px`: pixel rows per interval (default 1).
 - `--exclude`: exclusion image of the same size, white (grey > 127) = excluded. `--exclude-value`: with
   `--label-mask`, pixels with this value are excluded (255 in the U-Net datasets of §9.2). Both can be combined.
-- `--min-valid` (default 0.2): intervals with less valid pixels have no data (§3.2).
+- `--min-valid` (default 0.2): minimum fraction of valid pixels per interval (§3.2). Both `analyze`
+  and `batch` check the inclusive range 0–1 and finiteness while parsing arguments.
 - Output: CSV, Excel if the name ends in `.xlsx`, LAS 2.0 if it ends in `.las` (§25.6); by default
   `<image>_sedcoretool.csv`.
 
@@ -2160,6 +2164,9 @@ sedcoretool batch sections.csv [--bin-cm 1 | --bin-px N] [--threshold 5 | --pale
 
 Every section is analysed as in §3 with the same options. CSV and Excel hold all cores and sections (Excel adds one
 sheet per section); with `.las`, one file per core (`<name>_<core>.las` when there are several).
+An exclusion image supplied with `--exclude` or in a manifest must match the analysed section's
+width and height. If the sizes differ, the diagnostic identifies both files and their dimensions
+before the file's exclusion mask is combined with other exclusions.
 For a multi-core LAS batch, the filename component for each core retains alphanumeric characters, hyphens
 and underscores, and replaces other characters with underscores. Before writing, the CLI compares all
 proposed filenames and existing directory entries using Unicode NFC and case folding. A collision within

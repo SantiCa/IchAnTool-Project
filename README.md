@@ -116,7 +116,7 @@ sedcoretool batch scans/sections.csv --palette palette.json --bin-cm 1 -o result
 ```
 
 An exclusion image of the same size (white = excluded: cracks, gaps, samples) can be given with `--exclude`, or as
-the `exclude` column of the manifest.
+the `exclude` column of the manifest. The CLI accepts finite `--min-valid` fractions from 0 to 1, inclusive.
 Multi-core LAS exports require distinct filenames and unused destinations. If core names collide after
 normalisation, rename the cores or export them separately. Use a different output prefix if a destination exists.
 

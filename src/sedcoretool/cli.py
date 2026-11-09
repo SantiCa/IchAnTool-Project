@@ -11,10 +11,10 @@ from unicodedata import normalize
 import numpy as np
 
 from . import __version__
-from .batch import load_exclusion, run_manifest, write_manifest_template
+from .batch import _read_matching_exclusion, run_manifest, write_manifest_template
 from .export import join_sections, to_csv, to_excel, to_las, write_csv_table, write_excel_table
 from .io import load_image, load_mask
-from .pipeline import analyze_mask
+from .pipeline import _validate_min_valid, analyze_mask
 from .segmentation import mask_from_palette, mask_from_threshold
 
 
@@ -38,6 +38,13 @@ def _batch_las_paths(out: Path, cores: Iterable[str]) -> dict[str, Path]:
     return paths
 
 
+def _parse_min_valid(text: str) -> float:
+    try:
+        return _validate_min_valid(float(text))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+
+
 def _mask_args(a: argparse.ArgumentParser) -> None:
     bins = a.add_mutually_exclusive_group()
     bins.add_argument("--bin-cm", type=float, default=None, help="interval thickness in cm (as in the program)")
@@ -50,8 +57,8 @@ def _mask_args(a: argparse.ArgumentParser) -> None:
     a.add_argument("--tolerance", type=int, default=10, help="colour tolerance for --palette")
     a.add_argument("--exclude-value", type=int, default=None,
                    help="with --label-mask: pixels with this value are excluded (e.g. 255 in U-Net datasets)")
-    a.add_argument("--min-valid", type=float, default=0.2,
-                   help="intervals with less than this fraction of valid pixels have no data (default 0.2)")
+    a.add_argument("--min-valid", type=_parse_min_valid, default=0.2,
+                   help="minimum valid pixel fraction between 0 and 1 (default 0.2)")
 
 
 def _mask_reader(args):
@@ -165,7 +172,7 @@ def main(argv=None) -> int:
     if args.command == "analyze":
         mask, names, ex = _mask_reader(args)(args.image)
         if args.exclude:
-            ex2 = load_exclusion(args.exclude)
+            ex2 = _read_matching_exclusion(args.exclude, args.image, mask.shape[-2:])
             ex = ex2 if ex is None else (ex | ex2)
         section = analyze_mask(mask, args.top, args.bottom, units=args.units, class_names=names, exclude=ex,
                                name=args.name or args.image.stem, **_bins(args))

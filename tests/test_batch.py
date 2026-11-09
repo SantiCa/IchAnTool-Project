@@ -160,6 +160,46 @@ def test_cli_rejects_extreme_label_unless_explicitly_excluded(tmp_path):
     assert result[["valid_pct", "bioturbation_pct", "BI", "ii"]].tolist() == [50, 100, 6, 6]
 
 
+@pytest.mark.parametrize("value", ["-0.01", "1.01", "nan", "inf", "-inf"])
+@pytest.mark.parametrize("command", ["analyze", "batch"])
+def test_cli_rejects_invalid_min_valid_before_reading_inputs(tmp_path, capsys, command, value):
+    source = tmp_path / ("missing.png" if command == "analyze" else "missing.csv")
+    out = tmp_path / "analysis.csv"
+    args = [command, str(source), f"--min-valid={value}", "-o", str(out)]
+    if command == "analyze":
+        args += ["--top", "0", "--bottom", "1"]
+    with pytest.raises(SystemExit) as error:
+        main(args)
+    assert error.value.code == 2
+    diagnostic = capsys.readouterr().err
+    assert "--min-valid" in diagnostic and "finite fraction between 0 and 1 inclusive" in diagnostic
+    assert not out.exists()
+
+
+@pytest.mark.parametrize(("value", "expected"), [("0", 100), ("1", np.nan)])
+def test_cli_accepts_min_valid_endpoints(tmp_path, value, expected):
+    image, out = tmp_path / "labels.png", tmp_path / "analysis.csv"
+    _write(image, np.array([[1, 255], [1, 1]]))
+    assert main(["analyze", str(image), "--top", "0", "--bottom", "2", "--label-mask",
+                 "--exclude-value", "255", "--min-valid", value, "-o", str(out)]) == 0
+    np.testing.assert_array_equal(pd.read_csv(out)["bioturbation_pct"], [expected, 100])
+
+
+def test_exclusion_file_size_error_reports_both_actual_dimensions(tmp_path):
+    image, exclude = tmp_path / "section.png", tmp_path / "exclusion.png"
+    _write(image, np.array([[1, 255, 0], [1, 0, 0]]))
+    _write(exclude, np.array([[0, 255, 0]]))
+    manifest, out = tmp_path / "sections.csv", tmp_path / "analysis.csv"
+    manifest.write_text("image,exclude,top,bottom\nsection.png,exclusion.png,0,2\n", encoding="utf-8")
+    message = r"exclusion\.png: size \(3, 1\) differs from section\.png \(3, 2\) \(width, height\)"
+    with pytest.raises(ValueError, match=message):
+        run_manifest(manifest)
+    with pytest.raises(ValueError, match=message):
+        main(["analyze", str(image), "--top", "0", "--bottom", "2", "--label-mask",
+              "--exclude-value", "255", "--exclude", str(exclude), "-o", str(out)])
+    assert not out.exists()
+
+
 def test_manifest_template(core):
     f = write_manifest_template(core, core / "t.csv")
     t = pd.read_csv(f)

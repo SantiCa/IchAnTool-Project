@@ -64,6 +64,23 @@ def test_percentage_and_bins():
     assert s.data["BI"].tolist() == [3, 0]
 
 
+@pytest.mark.parametrize("min_valid", [-0.01, 1.01, np.nan, np.inf, -np.inf])
+def test_analyze_mask_rejects_invalid_min_valid(min_valid):
+    with pytest.raises(ValueError, match=r"min_valid.*finite.*0.*1"):
+        analyze_mask(np.ones((1, 2), dtype=int), 0, 1, min_valid=min_valid)
+
+
+def test_analyze_mask_accepts_min_valid_endpoints():
+    mask = np.ones((3, 2), dtype=int)
+    exclude = np.array([[0, 1], [1, 1], [0, 0]], dtype=bool)
+    zero = analyze_mask(mask, 0, 3, min_valid=0, exclude=exclude).data
+    one = analyze_mask(mask, 0, 3, min_valid=1, exclude=exclude).data
+    np.testing.assert_array_equal(zero["bioturbation_pct"], [100, np.nan, 100])
+    np.testing.assert_array_equal(one["bioturbation_pct"], [np.nan, np.nan, 100])
+    assert zero["BI"].tolist() == [6, pd.NA, 6]
+    assert one["ii"].tolist() == [pd.NA, pd.NA, 6]
+
+
 def test_extreme_mask_label_is_rejected_before_expanding_classes(monkeypatch):
     def unexpected_range(*args):
         pytest.fail("class expansion was attempted before validating the mask")

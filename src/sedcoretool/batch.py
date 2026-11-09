@@ -36,6 +36,14 @@ def load_exclusion(path: str | Path) -> np.ndarray:
     return img > 127
 
 
+def _read_matching_exclusion(path: str | Path, image_path: str | Path, image_shape: tuple[int, ...]) -> np.ndarray:
+    exclusion = load_exclusion(path)
+    if exclusion.shape != image_shape:
+        raise ValueError(f"{Path(path).name}: size {exclusion.shape[::-1]} differs from "
+                         f"{Path(image_path).name} {image_shape[::-1]} (width, height)")
+    return exclusion
+
+
 def read_manifest(path: str | Path) -> pd.DataFrame:
     path = Path(path)
     headers = pd.read_csv(path, nrows=0, compression=None).columns
@@ -101,10 +109,7 @@ def run_manifest(manifest: str | Path, to_mask: Callable[[Path], tuple] | None =
         mask, names, *rest = to_mask(Path(r.image))
         exclude = rest[0] if rest else None
         if isinstance(r.exclude, str):
-            ex = load_exclusion(r.exclude)
-            if ex.shape != mask.shape[-2:]:
-                raise ValueError(f"{Path(r.exclude).name}: size {exclude.shape[::-1]} differs from "
-                                 f"{Path(r.image).name} {mask.shape[-2:][::-1]} (width, height)")
+            ex = _read_matching_exclusion(r.exclude, r.image, mask.shape[-2:])
             exclude = ex if exclude is None else (exclude | ex)
         s = analyze_mask(mask, float(r.top), float(r.bottom), units=r.units, class_names=names,
                          exclude=exclude, name=r.name, **analysis)
