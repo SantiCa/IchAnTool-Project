@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "checkJs": false
+  },
+  "include": [
+    "app/js/core.js",
+    "app/js/state.js",
+    "app/js/imageproc.js",
+    "tools/browser-globals.d.ts"
+  ]
+}

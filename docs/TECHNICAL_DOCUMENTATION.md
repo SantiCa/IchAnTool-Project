@@ -2147,6 +2147,17 @@ separate windows where needed.
 
 ## 28. Repository engineering and security
 
+**JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
+in strict mode on `core.js`, `state.js` and `imageproc.js`. JSDoc describes the shared contracts, and consumers
+such as `columns.js` use those types through ordinary JavaScript imports. The second pass checks all application
+modules with ES2022, `allowJs`, `checkJs` and `noEmit`. The `checks` CI job runs both passes on pushes and
+pull requests.
+
+The second pass compares diagnostics against `tools/typecheck-baseline.json`. Entries are keyed by file,
+diagnostic code, source line and message fingerprint. A new diagnostic fails the check even in a file with
+existing entries. After fixing existing diagnostics, `npm run typecheck -- --prune-baseline` removes only
+entries that no longer occur. TypeScript is a pinned development dependency and the application ships JavaScript.
+
 - **Single version:** `DELIVERY = 'V0.<n>'` in `app/js/app.js` is shown in the program (header, start screen, help and
   window title), stored in every project (`delivery`) and used for file names. `tools/sync_version.py` writes
   `0.<n>.0` to `pyproject.toml`, `src/sedcoretool/__init__.py` (`__version__`), `CITATION.cff` and

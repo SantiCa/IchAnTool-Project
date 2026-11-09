@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.92 — 2026-11-09
+- Check JavaScript type regressions in CI, with strict JSDoc contracts for analysis, image processing and shared state.
+
 ## V0.91 — 2026-11-09
 - Escape formula-like text in CSV and Excel exports while preserving numeric measurements.
 - Reject oversized or malformed ZIP project and U-Net training imports before unsafe expansion.

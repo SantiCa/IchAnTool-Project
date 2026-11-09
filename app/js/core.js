@@ -1,16 +1,36 @@
+// @ts-check
+/**
+ * @typedef {{name: string, tiers: readonly (readonly [number, number, number])[], ref?: string}} IndexScheme
+ * @typedef {{x0: number, y0: number, x1: number, y1: number}} Roi
+ * @typedef {keyof typeof UNIT_TO_CM} DepthUnit
+ * @typedef {(number[] | null)[]} StackTable
+ * @typedef {{nRows: number, valid: ArrayLike<number>, bio: ArrayLike<number>, cls: ArrayLike<number>, nClasses: number, nCols?: number}} RowCounts
+ * @typedef {{index: number, r0: number, r1: number, depth: number, dTop: number, dBottom: number,
+ *   valid: number, pct: number | null, noData?: boolean, classPct: (number | null)[], BI: number | null, ii: number | null}} Bin
+ * @typedef {{depth: number[], age: number[], min?: number[], max?: number[], rangeIgnored?: number, bacon?: boolean, reversals?: number}} AgeModel
+ * @typedef {{model: AgeModel | null, issue: {kind: 'dupDepth', depth: number} | null}} AgeParseResult
+ * @typedef {string | number | boolean | null | undefined} CsvCell
+ */
 // SedCoreTool web — analysis core (no DOM). Mirrors src/sedcoretool/pipeline.py and indices.py.
 
+/** @type {IndexScheme} */
 export const BI = {
   name: 'BI',
   tiers: [[0, 1, 0], [1, 5, 1], [5, 31, 2], [31, 61, 3], [61, 91, 4], [91, 100, 5], [100, 101, 6]],
   ref: 'Reineck (1963); Taylor & Goldring (1993)',
 };
+/** @type {IndexScheme} */
 export const II = {
   name: 'ii',
   tiers: [[0, 1, 1], [1, 10, 2], [10, 40, 3], [40, 60, 4], [60, 100, 5], [100, 101, 6]],
   ref: 'Droser & Bottjer (1986)',
 };
 
+/**
+ * @param {IndexScheme} scheme
+ * @param {number | null | undefined} pct
+ * @returns {number | null}
+ */
 export function classify(scheme, pct) {
   if (pct == null || Number.isNaN(pct)) return null;
   for (const [lo, hi, v] of scheme.tiers) if (pct >= lo && pct < hi) return v;
@@ -21,13 +41,44 @@ export function classify(scheme, pct) {
  * labels[i] > 0: one object id; 0: matrix; < 0: stack −labels[i] in `stacks` (list of ids, bottom → top).
  * stacks[0] is unused. Treat stack entries as immutable so undo can share them independently of their codes.
  */
+/** @type {number[]} */
 const NO_IDS = [];
-export const idsAt = (v, stacks) => (v > 0 ? [v] : v < 0 ? stacks[-v] : NO_IDS);
-export const topAt = (v, stacks) => (v >= 0 ? v : stacks[-v][stacks[-v].length - 1]);
-export const hasId = (v, id, stacks) => v === id || (v < 0 && stacks[-v].includes(id));
-/** Index key → code of a stack table (rebuilt when a table is loaded). */
-export function stackIndex(stacks) { const m = new Map(); for (let k = 1; k < stacks.length; k++) m.set(stacks[k].join(','), k); return m; }
-/** Pixel value for an ordered list of ids (0, the id itself, or a negative stack code; new stacks are appended). */
+/**
+ * @param {number} v
+ * @param {StackTable} stacks
+ * @returns {number[]}
+ */
+export const idsAt = (v, stacks) => (v > 0 ? [v] : v < 0 ? /** @type {number[]} */ (stacks[-v]) : NO_IDS);
+/**
+ * @param {number} v
+ * @param {StackTable} stacks
+ * @returns {number}
+ */
+export const topAt = (v, stacks) => {
+  if (v >= 0) return v;
+  const ids = /** @type {number[]} */ (stacks[-v]);
+  return ids[ids.length - 1];
+};
+/**
+ * @param {number} v
+ * @param {number} id
+ * @param {StackTable} stacks
+ * @returns {boolean}
+ */
+export const hasId = (v, id, stacks) => v === id || (v < 0 && (/** @type {number[]} */ (stacks[-v])).includes(id));
+/** Index key → code of a stack table (rebuilt when a table is loaded).
+ *
+ * @param {StackTable} stacks
+ * @returns {Map<string, number>}
+ */
+export function stackIndex(stacks) { const m = new Map(); for (let k = 1; k < stacks.length; k++) m.set((/** @type {number[]} */ (stacks[k])).join(','), k); return m; }
+/** Pixel value for an ordered list of ids (0, the id itself, or a negative stack code; new stacks are appended).
+ *
+ * @param {readonly number[]} ids
+ * @param {StackTable} stacks
+ * @param {Map<string, number>} index
+ * @returns {number}
+ */
 export function codeFor(ids, stacks, index) {
   if (!ids.length) return 0;
   if (ids.length === 1) return ids[0];
@@ -36,20 +87,47 @@ export function codeFor(ids, stacks, index) {
   if (k == null) { k = stacks.length; stacks.push(ids.slice()); index.set(key, k); }
   return -k;
 }
-/** Value with id on top (moved to the top if already present). */
+/** Value with id on top (moved to the top if already present).
+ *
+ * @param {number} v
+ * @param {number} id
+ * @param {StackTable} stacks
+ * @param {Map<string, number>} index
+ */
 export function withId(v, id, stacks, index) { if (v === 0 || v === id) return id; return codeFor([...idsAt(v, stacks).filter((x) => x !== id), id], stacks, index); }
-/** Value without id. */
-export function withoutId(v, id, stacks, index) { if (v === id) return 0; if (v >= 0) return v; return codeFor(stacks[-v].filter((x) => x !== id), stacks, index); }
-/** Value with id `a` renamed to `b` (used to split and to merge; if b is already in the stack, a is just dropped). */
+/** Value without id.
+ *
+ * @param {number} v
+ * @param {number} id
+ * @param {StackTable} stacks
+ * @param {Map<string, number>} index
+ */
+export function withoutId(v, id, stacks, index) { if (v === id) return 0; if (v >= 0) return v; return codeFor((/** @type {number[]} */ (stacks[-v])).filter((x) => x !== id), stacks, index); }
+/** Value with id `a` renamed to `b` (used to split and to merge; if b is already in the stack, a is just dropped).
+ *
+ * @param {number} v
+ * @param {number} a
+ * @param {number} b
+ * @param {StackTable} stacks
+ * @param {Map<string, number>} index
+ */
 export function renameId(v, a, b, stacks, index) {
   if (v === a) return b; if (v >= 0) return v;
-  const ids = stacks[-v]; if (!ids.includes(a)) return v;
+  const ids = /** @type {number[]} */ (stacks[-v]); if (!ids.includes(a)) return v;
   return codeFor(ids.includes(b) ? ids.filter((x) => x !== a) : ids.map((x) => (x === a ? b : x)), stacks, index);
 }
-/** Drop unused stacks and renumber the codes in labels (in place; step = 2 for an RLE array). Returns the new table. */
+/** Drop unused stacks and renumber the codes in labels (in place; step = 2 for an RLE array). Returns the new table.
+ *
+ * @param {number[] | Int32Array} labels
+ * @param {StackTable | null | undefined} stacks
+ * @param {number} [step]
+ * @returns {StackTable}
+ */
 export function compactStacks(labels, stacks, step = 1) {
   if (!stacks || stacks.length < 2) return [null];
-  const map = new Int32Array(stacks.length), out = [null];
+  const map = new Int32Array(stacks.length);
+  /** @type {StackTable} */
+  const out = [null];
   for (let i = 0; i < labels.length; i += step) {
     const v = labels[i]; if (v >= 0) continue;
     let k = map[-v]; if (!k) { k = map[-v] = out.length; out.push(stacks[-v]); }
@@ -63,6 +141,10 @@ export const UNIT_TO_CM = { mm: 0.1, cm: 1, m: 100 };
 /**
  * Per-row pixel counts inside the ROI.
  * effClass[id] = class index counted as bioturbation, or -1 (not counted).
+ *
+ * @param {{labels: ArrayLike<number>, width: number, roi: Roi, exclude?: ArrayLike<number> | null,
+ *   effClass: ArrayLike<number>, nClasses: number, stacks?: StackTable | null}} options
+ * @returns {RowCounts}
  */
 export function rowCounts({ labels, width, roi, exclude, effClass, nClasses, stacks = null }) {
   // V0.20: in an overlap (stack) the pixel is bioturbated once, and once for each distinct class present,
@@ -86,7 +168,7 @@ export function rowCounts({ labels, width, roi, exclude, effClass, nClasses, sta
         if (c >= 0) { b++; cls[r * nClasses + c]++; }
       } else if (id < 0) {
         stamp++; let any = false;
-        for (const o of stacks[-id]) { const c = effClass[o]; if (c >= 0 && seen[c] !== stamp) { seen[c] = stamp; any = true; cls[r * nClasses + c]++; } }
+        for (const o of /** @type {number[]} */ ((/** @type {StackTable} */ (stacks))[-id])) { const c = effClass[o]; if (c >= 0 && seen[c] !== stamp) { seen[c] = stamp; any = true; cls[r * nClasses + c]++; } }
         if (any) b++;
       }
     }
@@ -99,8 +181,16 @@ export function rowCounts({ labels, width, roi, exclude, effClass, nClasses, sta
  * Aggregate rows into bins of binPx rows (last partial bin kept, as in the Python package).
  * V0.1: binPx may be fractional (an interval given in cm × px/cm); bin j spans rows
  * [⌊j·binPx + ½⌋, ⌊(j+1)·binPx + ½⌋), so the boundaries never drift. Integer binPx gives the old bins.
+ *
+ * @param {number} j
+ * @param {number} binPx
  */
 export const binEdge = (j, binPx) => Math.floor(j * binPx + 0.5);
+/**
+ * @param {RowCounts} counts
+ * @param {{top: number, bottom: number, binPx: number, minValid?: number}} options
+ * @returns {Bin[]}
+ */
 export function binRows(counts, { top, bottom, binPx, minValid = 0 }) {
   const { nRows, valid, bio, cls, nClasses, nCols = 0 } = counts;
   const step = (bottom - top) / nRows;
@@ -109,7 +199,7 @@ export function binRows(counts, { top, bottom, binPx, minValid = 0 }) {
   for (let j = 0, r0 = 0; r0 < nRows; j++, r0 = binEdge(j, binPx)) {
     const r1 = Math.min(nRows, binEdge(j + 1, binPx));
     let v = 0, b = 0;
-    const c = new Array(nClasses).fill(0);
+    const c = /** @type {number[]} */ (new Array(nClasses).fill(0));
     for (let r = r0; r < r1; r++) {
       v += valid[r]; b += bio[r];
       for (let k = 0; k < nClasses; k++) c[k] += cls[r * nClasses + k];
@@ -134,19 +224,27 @@ export function binRows(counts, { top, bottom, binPx, minValid = 0 }) {
  * V0.37: decimal comma when the separator is ";" or tab ("10,5;3,2"); a header line picks the columns by name
  * (depth/prof…, age/edad/median/mean, min/lower, max/upper); without a header the 3rd and 4th columns are an age
  * range only if every row has min ≤ age ≤ max. m.bacon flags a pasted Bacon table (depth, min, max, median, mean).
+ *
+ * @param {string | null | undefined} text
+ * @returns {AgeModel | null}
  */
 export function parseAgeModel(text) { return parseAgeModelDetailed(text).model; }
 /**
  * Same as parseAgeModel, also returning why a text was rejected: {model, issue}. issue = {kind: 'dupDepth', depth}
  * when one depth has two different ages (repeated identical rows are merged). A hiatus must be written as two
  * depths a small distance apart.
+ *
+ * @param {string | null | undefined} text
+ * @returns {AgeParseResult}
  */
 export function parseAgeModelDetailed(text) {
   const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+  /** @param {string} l */
   const split = (l) => (/[;\t]/.test(l) ? l.split(/\s*[;\t]\s*/).map((x) => x.replace(/\s+/g, '').replace(',', '.')) : l.includes(',') ? l.split(/\s*,\s*/) : l.split(/\s+/));
   let iD = 0, iA = 1, iMin = 2, iMax = 3, named = false, bacon = false;
   const first = lines.length ? split(lines[0]).map((x) => x.replace(/"/g, '').toLowerCase()) : [];
   if (first.length >= 2 && first.some((x) => x && !Number.isFinite(Number(x)))) {   // header line
+    /** @param {RegExp} re */
     const find = (re) => first.findIndex((x) => re.test(x));
     bacon = ['depth', 'min', 'max', 'median', 'mean'].every((k) => first.includes(k));
     const d = find(/^(depth|prof|mcd|mbsf|cmcd|ccsf|z)/), a = find(/^(age|edad|median|mean|cal)/);
@@ -160,15 +258,20 @@ export function parseAgeModelDetailed(text) {
     if (Number.isFinite(p[iD]) && Number.isFinite(p[iA])) pts.push([p[iD], p[iA], iMin >= 0 ? p[iMin] : NaN, iMax >= 0 ? p[iMax] : NaN]);
   }
   pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  /** @param {number[]} p @param {number[]} q */
   const same = (p, q) => p.every((v, k) => v === q[k] || (Number.isNaN(v) && Number.isNaN(q[k])));
   for (let i = pts.length - 1; i > 0; i--) if (pts[i][0] === pts[i - 1][0]) {
     if (same(pts[i], pts[i - 1])) pts.splice(i, 1);
     else return { model: null, issue: { kind: 'dupDepth', depth: pts[i][0] } };
   }
   if (pts.length < 2) return { model: null, issue: null };
+  /** @type {AgeModel} */
   const m = { depth: pts.map((p) => p[0]), age: pts.map((p) => p[1]) };
   // V0.28: age range (e.g. the 95 % interval of a Bacon model), only if every row has one that contains the age
-  const lo = (p) => Math.min(p[2], p[3]), hi = (p) => Math.max(p[2], p[3]);
+  /** @param {number[]} p */
+  const lo = (p) => Math.min(p[2], p[3]);
+  /** @param {number[]} p */
+  const hi = (p) => Math.max(p[2], p[3]);
   // a named range column with blank or inconsistent cells is ignored (the model is kept without range) and reported
   const badRange = pts.filter((p) => !Number.isFinite(p[2]) || !Number.isFinite(p[3]) || p[1] < lo(p) || p[1] > hi(p)).length;
   if (!badRange) { m.min = pts.map(lo); m.max = pts.map(hi); }
@@ -179,7 +282,12 @@ export function parseAgeModelDetailed(text) {
   return { model: m, issue: null };
 }
 
-/** Linear interpolation; null outside the model (no extrapolation). */
+/** Linear interpolation; null outside the model (no extrapolation).
+ *
+ * @param {AgeModel | null | undefined} model
+ * @param {number | null | undefined} d
+ * @returns {number | null}
+ */
 export function interpAge(model, d) {
   if (!model || d == null) return null;
   const { depth, age } = model;
@@ -190,10 +298,14 @@ export function interpAge(model, d) {
   return span ? age[lo] + ((d - depth[lo]) / span) * (age[hi] - age[lo]) : age[lo];
 }
 
-/** V0.28: age range at depth d, linearly interpolated like the central age; null without a range or outside the model. */
+/** V0.28: age range at depth d, linearly interpolated like the central age; null without a range or outside the model.
+ *
+ * @param {AgeModel | null | undefined} model
+ * @param {number | null | undefined} d
+ */
 export function interpAgeRange(model, d) {
   if (!model?.min || d == null) return null;
-  const lo = interpAge({ depth: model.depth, age: model.min }, d), hi = interpAge({ depth: model.depth, age: model.max }, d);
+  const lo = interpAge({ depth: model.depth, age: model.min }, d), hi = interpAge({ depth: model.depth, age: /** @type {number[]} */ (model.max) }, d);
   return lo == null ? null : { min: lo, max: hi };
 }
 
@@ -201,14 +313,22 @@ export function interpAgeRange(model, d) {
  * V0.28: age–depth table written by Bacon (rbacon, *_ages.txt: depth, min, max, median, mean; depth in cm,
  * ages in cal yr BP, min–max = 95 % interval). Returns age-model text in the core units: "depth, age, min, max".
  * center: 'median' (default) or 'mean'; depthUnit: unit of the core depths; ageDiv: years per age unit (ka = 1000).
+ *
+ * @param {string | null | undefined} text
+ * @param {{center?: string, depthUnit?: DepthUnit, ageDiv?: number}} [options]
+ * @returns {string[] | null}
  */
 export function baconToAgeText(text, { center = 'median', depthUnit = 'cm', ageDiv = 1000 } = {}) {
   const lines = String(text || '').split(/\r?\n/).filter((l) => l.trim());
   if (!lines.length) return null;
   const head = lines[0].trim().replace(/"/g, '').toLowerCase().split(/[,;\t ]+/);
-  const col = (k) => head.indexOf(k), iD = col('depth'), iMin = col('min'), iMax = col('max'), iC = col(center) >= 0 ? col(center) : col('median') >= 0 ? col('median') : col('mean');
+  /** @param {string} k */
+  const col = (k) => head.indexOf(k);
+  const iD = col('depth'), iMin = col('min'), iMax = col('max'), iC = col(center) >= 0 ? col(center) : col('median') >= 0 ? col('median') : col('mean');
   if (iD < 0 || iMin < 0 || iMax < 0 || iC < 0) return null;
-  const f = 1 / UNIT_TO_CM[depthUnit], r = (v) => +(+v).toPrecision(8), out = [];
+  const f = 1 / UNIT_TO_CM[depthUnit], out = [];
+  /** @param {number} v */
+  const r = (v) => +(+v).toPrecision(8);
   for (const l of lines.slice(1)) {
     const p = l.trim().split(/[,;\t ]+/).map(Number);
     if ([iD, iMin, iMax, iC].some((i) => !Number.isFinite(p[i]))) continue;
@@ -217,7 +337,12 @@ export function baconToAgeText(text, { center = 'median', depthUnit = 'cm', ageD
   return out.length >= 2 ? out : null;
 }
 
+/**
+ * @param {readonly (readonly CsvCell[])[]} rows
+ * @returns {string}
+ */
 export function toCSV(rows) {
+  /** @param {CsvCell} v */
   const q = (v) => {
     if (v == null) return '';
     let s = typeof v === 'number' ? String(+v.toFixed(6)) : String(v);
@@ -227,8 +352,13 @@ export function toCSV(rows) {
   return rows.map((r) => r.map(q).join(',')).join('\n') + '\n';
 }
 
-/** Run-length encoding for label/exclusion layers in project files: [value, run, value, run, ...]. */
+/** Run-length encoding for label/exclusion layers in project files: [value, run, value, run, ...].
+ *
+ * @param {ArrayLike<number>} arr
+ * @returns {number[]}
+ */
 export function rleEncode(arr) {
+  /** @type {number[]} */
   const out = [];
   if (!arr.length) return out;
   let prev = arr[0], run = 1;
@@ -240,14 +370,39 @@ export function rleEncode(arr) {
   return out;
 }
 
-/** V0.36: an RLE mask is valid when its runs are non-negative integers that add up to exactly n pixels. */
+/** V0.36: an RLE mask is valid when its runs are non-negative integers that add up to exactly n pixels.
+ *
+ * @param {unknown} rle
+ * @param {number} n
+ * @returns {boolean}
+ */
 export function rleValid(rle, n) {
   if (!Array.isArray(rle) && !ArrayBuffer.isView(rle)) return false;
-  if (rle.length % 2) return false;
-  let p = 0; for (let k = 1; k < rle.length; k += 2) { const r = rle[k]; if (!(r >= 0) || r !== Math.floor(r)) return false; p += r; }
+  const values = /** @type {ArrayLike<number>} */ (rle);
+  if (values.length % 2) return false;
+  let p = 0; for (let k = 1; k < values.length; k += 2) { const r = values[k]; if (!(r >= 0) || r !== Math.floor(r)) return false; p += r; }
   return p === n;
 }
 
+/**
+ * @overload
+ * @param {ArrayLike<number>} rle
+ * @param {number} n
+ * @returns {Int32Array}
+ */
+/**
+ * @template {{fill(value: number, start?: number, end?: number): unknown}} T
+ * @overload
+ * @param {ArrayLike<number>} rle
+ * @param {number} n
+ * @param {new (length: number) => T} Type
+ * @returns {T}
+ */
+/**
+ * @param {ArrayLike<number>} rle
+ * @param {number} n
+ * @param {new (length: number) => {fill(value: number, start?: number, end?: number): unknown}} [Type]
+ */
 export function rleDecode(rle, n, Type = Int32Array) {
   const out = new Type(n);
   let p = 0;

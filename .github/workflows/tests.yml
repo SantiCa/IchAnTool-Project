@@ -54,6 +54,8 @@ jobs:
           node-version: "22"
       - run: python tools/sync_version.py --check
       - run: pip install ruff && ruff check src tests tools
+      - run: npm ci
+      - run: npm run typecheck
       - run: npx --yes eslint@9 app/js tests/app
       - run: python tools/build_standalone.py && ls -l dist/SedCoreTool_V*.html
 

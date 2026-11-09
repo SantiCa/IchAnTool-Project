@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.91';
+export const DELIVERY = 'V0.92';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -57,7 +57,8 @@ function newSection({ name, file, w, h, orig, orig16 = null, ds = 1, labels = nu
   lazyMask(s, 'labels', Int32Array, labels); lazyMask(s, 'exclude', Uint8Array, exclude);
   enhance(s);
   if (orig) pxTouch(s);
-  return s;
+  // lazyMask installs the labels and exclude accessors before the section is exposed.
+  return /** @type {typeof s & import('./state.js').SectionState} */ (s);
 }
 
 /* ───────────── V0.1: images on disk, pixels in memory only while a section is in use ───────────── */

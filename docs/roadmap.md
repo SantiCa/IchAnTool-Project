@@ -88,6 +88,10 @@ Keep task IDs stable. The changelog records what shipped.
 - [ ] **M5.2 - Scientific validation and documentation.** Complete the release requirements in
       [Validation](#validation) and the relevant user guidance. The maintainer decides when to declare 1.0
       and publish it.
+- [x] **M5.3 - JavaScript type checking.** Check critical modules strictly and detect new diagnostics across
+      the application. [V0.92](../CHANGELOG.md#v092--2026-11-09)
+- [ ] **M5.4 - Reduce legacy JavaScript type diagnostics.** Replace the baseline entries with checked contracts
+      as the corresponding modules are changed.
 
 ## Existing backlog
 

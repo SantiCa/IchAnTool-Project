@@ -1,11 +1,33 @@
+// @ts-check
+/**
+ * @typedef {import('./core.js').Roi} Roi
+ * @typedef {import('./core.js').StackTable} StackTable
+ * @typedef {Uint8ClampedArray | Uint8Array | Uint16Array} RgbaRaster
+ * @typedef {RgbaRaster | Int32Array | Float32Array} RasterArray
+ * @typedef {Float32Array | Float64Array} LumaRow
+ * @typedef {typeof DEFAULT_FILTERS} FilterSettings
+ * @typedef {Omit<typeof DEFAULT_DETECT, 'pThr'> & {pThr?: number}} DetectionSettings
+ * @typedef {{n: number, sx: number, sy: number, sxx: number, syy: number, sxy: number,
+ *   x0: number, x1: number, y0: number, y1: number, per: number, sL: number,
+ *   sLL: number, sA: number, sB: number, rL: number, rN: number}} TraceStats
+ */
 import { hasId } from './core.js';
 // SedCoreTool web — image processing (no DOM): enhancement, detection, selection tools, shape features.
 
+/**
+ * @param {ArrayLike<number>} rgba
+ * @param {number} j
+ */
 function pixelLuma(rgba, j) {
   return 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2];
 }
 
-/** Luminance in the original sample units, including unsigned 16-bit RGBA (0-65535). */
+/** Luminance in the original sample units, including unsigned 16-bit RGBA (0-65535).
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} n
+ * @returns {Float32Array}
+ */
 export function lumaOf(rgba, n) {
   const L = new Float32Array(n);
   for (let i = 0, j = 0; i < n; i++, j += 4) L[i] = pixelLuma(rgba, j);
@@ -15,6 +37,13 @@ export function lumaOf(rgba, n) {
 /**
  * Stream a separable box blur one row at a time. Only rows in the vertical window
  * and the next entering row are retained. The callback may overwrite an emitted row.
+ *
+ * @param {number} w
+ * @param {number} h
+ * @param {number} r
+ * @param {(y: number, row: LumaRow) => void} readRow
+ * @param {(y: number, blurred: Float32Array, source: LumaRow | null) => void} emitRow
+ * @param {boolean} [keepInput]
  */
 function blurRows(w, h, r, readRow, emitRow, keepInput = false) {
   if (!w || !h) return;
@@ -22,6 +51,7 @@ function blurRows(w, h, r, readRow, emitRow, keepInput = false) {
   const horizontal = new Float32Array(capacity * w);
   const input = keepInput ? new Float32Array(capacity * w) : new Float64Array(w);
   const sums = new Float64Array(w), output = new Float32Array(w);
+  /** @param {number} y @param {number} leaving */
   function addRow(y, leaving) {
     const offset = (y % capacity) * w, from = keepInput ? offset : 0;
     const row = input.subarray(from, from + w);
@@ -56,7 +86,14 @@ function blurRows(w, h, r, readRow, emitRow, keepInput = false) {
   }
 }
 
-/** Separable box blur with edge normalisation, window (2r+1)². */
+/** Separable box blur with edge normalisation, window (2r+1)².
+ *
+ * @param {ArrayLike<number>} src
+ * @param {number} w
+ * @param {number} h
+ * @param {number} r
+ * @returns {Float32Array}
+ */
 export function boxBlur(src, w, h, r) {
   const out = new Float32Array(w * h);
   blurRows(w, h, r, (y, row) => {
@@ -91,7 +128,15 @@ export const FILTER_PRESETS = {
   strong: { ...DEFAULT_FILTERS, equalize: true, localAmount: 40, localRadius: 20, channel: 'gray' },
 };
 
-/** Luminance percentiles inside the ROI, used as black and white points ("auto levels"). */
+/** Luminance percentiles inside the ROI, used as black and white points ("auto levels").
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi | null} [roi]
+ * @param {number} [lo]
+ * @param {number} [hi]
+ */
 export function autoLevels(rgba, w, h, roi = null, lo = 0.005, hi = 0.995) {
   const R = roi || { x0: 0, y0: 0, x1: w, y1: h };
   const wide = rgba instanceof Uint16Array, max = wide ? 65535 : 255, scale = wide ? 257 : 1;
@@ -100,24 +145,42 @@ export function autoLevels(rgba, w, h, roi = null, lo = 0.005, hi = 0.995) {
   for (let y = R.y0; y < R.y1; y++) for (let x = R.x0; x < R.x1; x++) {
     const j = (y * w + x) * 4; hist[Math.min(max, Math.round(pixelLuma(rgba, j)))]++; n++;
   }
+  /** @param {number} q */
   const pick = (q) => { let c = 0; for (let v = 0; v <= max; v++) { c += hist[v]; if (c >= Math.max(1, q * n)) return v; } return max; };
   const b = pick(lo), wt = Math.max(b + 1, pick(hi));
   return { blackPoint: b / scale, whitePoint: wt / scale, median: pick(0.5) / scale };
 }
 
-/** Gamma that maps the median to mid-grey after levels (out = in^(1/gamma)), limited to [min, max]. */
+/** Gamma that maps the median to mid-grey after levels (out = in^(1/gamma)), limited to [min, max].
+ *
+ * @param {number} median
+ * @param {number} blackPoint
+ * @param {number} whitePoint
+ * @param {number} [min]
+ * @param {number} [max]
+ */
 export function gammaForMedian(median, blackPoint, whitePoint, min = 0.19, max = 1) {
   const m = Math.min(0.99, Math.max(0.01, (median - blackPoint) / (whitePoint - blackPoint)));
   return Math.min(max, Math.max(min, Math.log(m) / Math.log(0.5)));
 }
 
-/** CLAHE mapping for sequential rows. Retain the two histogram rows used for interpolation. */
+/** CLAHE mapping for sequential rows. Retain the two histogram rows used for interpolation.
+ *
+ * @param {(index: number) => number} read
+ * @param {number} w
+ * @param {number} h
+ * @param {number} block
+ * @param {number} slope
+ * @returns {(y: number, out: LumaRow) => void}
+ */
 function claheRows(read, w, h, block, slope) {
   const nx = Math.max(1, Math.round(w / block)), ny = Math.max(1, Math.round(h / block));
   const tw = w / nx, th = h / ny;
   const maps = [new Float32Array(nx * 256), new Float32Array(nx * 256)];
   const cached = [-1, -1], hist = new Float64Array(256);
+  /** @param {number} value */
   const bin = (value) => Math.min(255, Math.max(0, value | 0));
+  /** @param {number} ty */
   function mapRow(ty) {
     const slot = ty % 2, row = maps[slot];
     if (cached[slot] === ty) return row;
@@ -147,7 +210,15 @@ function claheRows(read, w, h, block, slope) {
   };
 }
 
-/** Contrast-limited adaptive histogram equalisation (Zuiderveld, 1994) of 0-255 luminance. */
+/** Contrast-limited adaptive histogram equalisation (Zuiderveld, 1994) of 0-255 luminance.
+ *
+ * @param {ArrayLike<number>} L
+ * @param {number} w
+ * @param {number} h
+ * @param {number} [block]
+ * @param {number} [slope]
+ * @returns {Float32Array}
+ */
 export function clahe(L, w, h, block = 127, slope = 3) {
   const out = new Float32Array(w * h);
   if (!w || !h) return out;
@@ -156,6 +227,11 @@ export function clahe(L, w, h, block = 127, slope = 3) {
   return out;
 }
 
+/**
+ * @param {FilterSettings} p
+ * @param {boolean} wide
+ * @returns {(src: ArrayLike<number>, dst: Uint8ClampedArray, offset: number) => void}
+ */
 function colorFilter(p, wide) {
   const scale = wide ? 257 : 1;
   const bp = p.blackPoint, wp = Math.max(p.whitePoint, bp + 1 / scale);
@@ -188,11 +264,17 @@ function colorFilter(p, wide) {
 /**
  * Feed sequential RGBA chunks into the pointwise color stage. After all input
  * arrives, the global and neighbourhood stages run on the working result.
+ *
+ * @param {number} w
+ * @param {number} h
+ * @param {FilterSettings} p
+ * @param {boolean} [wide]
  */
 export function filterImageChunks(w, h, p, wide = false) {
   const dst = new Uint8ClampedArray(w * h * 4), filter = colorFilter(p, wide);
   let offset = 0;
   return {
+    /** @param {ArrayLike<number>} src */
     append(src) {
       if (src.length % 4 || offset + src.length > dst.length) throw new Error('Invalid filter chunk length');
       filter(src, dst, offset);
@@ -206,15 +288,29 @@ export function filterImageChunks(w, h, p, wide = false) {
   };
 }
 
+/**
+ * @param {RgbaRaster} src
+ * @param {number} w
+ * @param {number} h
+ * @param {FilterSettings} p
+ * @returns {Uint8ClampedArray}
+ */
 export function applyFilters(src, w, h, p) {
   const work = filterImageChunks(w, h, p, src instanceof Uint16Array);
   work.append(src.subarray(0, w * h * 4));
   return work.finish();
 }
 
+/**
+ * @param {Uint8ClampedArray} dst
+ * @param {number} w
+ * @param {number} h
+ * @param {FilterSettings} p
+ */
 function finishFilters(dst, w, h, p) {
   const n = w * h;
   if (n && (p.equalize || p.claheBlock > 0 || p.localAmount > 0)) {
+    /** @param {number} i */
     const luma = (i) => Math.fround(pixelLuma(dst, i * 4));
     let read = luma;
     if (p.equalize) {
@@ -225,9 +321,11 @@ function finishFilters(dst, w, h, p) {
       const den = Math.max(1, n - cmin);
       read = (i) => Math.fround(((map[luma(i) | 0] - cmin) / den) * 255);
     }
+    /** @type {(y: number, row: LumaRow) => void} */
     const readRow = p.claheBlock > 0 ? claheRows(read, w, h, p.claheBlock, p.claheSlope) : (y, row) => {
       for (let x = 0; x < w; x++) row[x] = read(y * w + x);
     };
+    /** @param {number} y @param {Float32Array} row @param {LumaRow | null} original */
     const adjustRow = (y, row, original) => {
       const amount = p.localAmount / 25;
       for (let x = 0; x < w; x++) {
@@ -251,6 +349,14 @@ function finishFilters(dst, w, h, p) {
   return dst;
 }
 
+/**
+ * @param {Uint8Array} m
+ * @param {number} w
+ * @param {number} h
+ * @param {boolean} dilate
+ * @param {Uint8Array} [t]
+ * @param {Uint8Array} [o]
+ */
 function morph(m, w, h, dilate, t = new Uint8Array(m.length), o = new Uint8Array(m.length)) {   // V0.41: t, o reusable
   for (let y = 0; y < h; y++) {
     const r = y * w;
@@ -271,13 +377,20 @@ function morph(m, w, h, dilate, t = new Uint8Array(m.length), o = new Uint8Array
 
 export const DEFAULT_DETECT = { method: 'adaptive', polarity: 'dark', offset: 12, radius: 40, threshold: 80, minArea: 40, smooth: 1, fillHoles: false, pThr: 0.5 };
 
-/** Two-class k-means on luminance inside the ROI (as the ICY K-Means option); returns the threshold between the centres. */
+/** Two-class k-means on luminance inside the ROI (as the ICY K-Means option); returns the threshold between the centres.
+ *
+ * @param {ArrayLike<number>} L
+ * @param {number} w
+ * @param {Roi} roi
+ * @param {ArrayLike<number> | null} exclude
+ */
 export function kmeansThreshold(L, w, roi, exclude) {
   const hist = new Float64Array(256);
   for (let y = roi.y0; y < roi.y1; y++) for (let x = roi.x0; x < roi.x1; x++) {
     const i = y * w + x; if (exclude && exclude[i]) continue; hist[Math.min(255, Math.max(0, L[i] | 0))]++;
   }
   const n = hist.reduce((a, b) => a + b, 0); if (!n) return 128;
+  /** @param {number} f */
   const q = (f) => { let c = 0; for (let v = 0; v < 256; v++) { c += hist[v]; if (c >= f * n) return v; } return 255; };
   let c1 = q(0.1), c2 = q(0.9);
   for (let it = 0; it < 50; it++) {
@@ -290,14 +403,23 @@ export function kmeansThreshold(L, w, roi, exclude) {
   return (c1 + c2) / 2;
 }
 
-/** Fill holes: background regions (4-connected) not reached from the ROI border become foreground. */
+/** Fill holes: background regions (4-connected) not reached from the ROI border become foreground.
+ *
+ * @param {Uint8Array} mask
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi} roi
+ */
 export function fillHoles(mask, w, h, roi) {
-  const seen = new Uint8Array(w * h), stack = [];
+  const seen = new Uint8Array(w * h);
+  /** @type {number[]} */
+  const stack = [];
+  /** @param {number} x @param {number} y */
   const push = (x, y) => { const i = y * w + x; if (!mask[i] && !seen[i]) { seen[i] = 1; stack.push(i); } };
   for (let x = roi.x0; x < roi.x1; x++) { push(x, roi.y0); push(x, roi.y1 - 1); }
   for (let y = roi.y0; y < roi.y1; y++) { push(roi.x0, y); push(roi.x1 - 1, y); }
   while (stack.length) {
-    const i = stack.pop(), x = i % w, y = (i - x) / w;
+    const i = /** @type {number} */ (stack.pop()), x = i % w, y = (i - x) / w;
     if (x > roi.x0) push(x - 1, y); if (x < roi.x1 - 1) push(x + 1, y);
     if (y > roi.y0) push(x, y - 1); if (y < roi.y1 - 1) push(x, y + 1);
   }
@@ -309,15 +431,25 @@ export function fillHoles(mask, w, h, roi) {
 /**
  * Binary candidate mask from the enhanced image, restricted to the ROI and non-excluded pixels.
  * V0.15: method 'unet' thresholds a U-Net probability map (`prob`, one value per pixel) at p.pThr instead.
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi} roi
+ * @param {ArrayLike<number> | null} exclude
+ * @param {DetectionSettings} p
+ * @param {ArrayLike<number> | null} [prob]
+ * @returns {Uint8Array}
  */
 export function detectMask(rgba, w, h, roi, exclude, p, prob = null) {
-  const n = w * h, L = p.method === 'unet' ? null : lumaOf(rgba, n);
+  const n = w * h;
   let m = new Uint8Array(n);
   if (p.method === 'unet') {
     const thr = p.pThr ?? 0.5;
     if (prob) for (let y = roi.y0; y < roi.y1; y++) for (let x = roi.x0; x < roi.x1; x++) { const i = y * w + x; if (!(exclude && exclude[i]) && prob[i] >= thr) m[i] = 1; }
     return postMask(m, w, h, roi, p);
   }
+  const L = lumaOf(rgba, n);
   const mean = p.method === 'adaptive' ? boxBlur(L, w, h, p.radius) : null;
   const off = p.offset, t = p.method === 'kmeans' ? kmeansThreshold(L, w, roi, exclude) : p.threshold, pol = p.polarity;
   for (let y = roi.y0; y < roi.y1; y++) {
@@ -335,11 +467,22 @@ export function detectMask(rgba, w, h, roi, exclude, p, prob = null) {
   return postMask(m, w, h, roi, p);
 }
 
-/** Opening and closing `p.smooth` times with a 3 × 3 square (separable), then optional hole filling. */
+/** Opening and closing `p.smooth` times with a 3 × 3 square (separable), then optional hole filling.
+ *
+ * @param {Uint8Array} m
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi} roi
+ * @param {Pick<DetectionSettings, 'smooth' | 'fillHoles'>} p
+ */
 function postMask(m, w, h, roi, p) {
   // V0.41: three buffers reused in turn instead of two new arrays per pass (same result)
   if (p.smooth > 0) {
-    const t = new Uint8Array(m.length); let a = m, b = new Uint8Array(m.length);
+    const t = new Uint8Array(m.length);
+    let a = m;
+    /** @type {Uint8Array} */
+    let b = new Uint8Array(m.length);
+    /** @param {boolean} dil */
     const step = (dil) => { morph(a, w, h, dil, t, b); [a, b] = [b, a]; };
     for (let k = 0; k < p.smooth; k++) { step(false); step(true); } // opening
     for (let k = 0; k < p.smooth; k++) { step(true); step(false); } // closing
@@ -349,7 +492,13 @@ function postMask(m, w, h, roi, p) {
   return m;
 }
 
-/** 8-connected components; components smaller than minArea are dropped. */
+/** 8-connected components; components smaller than minArea are dropped.
+ *
+ * @param {ArrayLike<number>} mask
+ * @param {number} w
+ * @param {number} h
+ * @param {number} [minArea]
+ */
 export function components(mask, w, h, minArea = 1) {
   const n = w * h, lab = new Int32Array(n), q = new Int32Array(n), areas = [0];
   let next = 0;
@@ -375,13 +524,24 @@ export function components(mask, w, h, minArea = 1) {
   return { labels: lab, count };
 }
 
-/** Magic wand: 4-connected flood fill by RGB distance to the seed colour. */
+/** Magic wand: 4-connected flood fill by RGB distance to the seed colour.
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} w
+ * @param {number} h
+ * @param {number} seed
+ * @param {number} tol
+ * @param {Roi} roi
+ * @param {ArrayLike<number> | null} exclude
+ * @param {number} [maxPx]
+ * @returns {number[]}
+ */
 export function regionGrow(rgba, w, h, seed, tol, roi, exclude, maxPx = 4e6) {
   const n = w * h, seen = new Uint8Array(n), out = [];
   const sr = rgba[seed * 4], sg = rgba[seed * 4 + 1], sb = rgba[seed * 4 + 2], t2 = tol * tol;
   const stack = [seed]; seen[seed] = 1;
   while (stack.length && out.length < maxPx) {
-    const p = stack.pop();
+    const p = /** @type {number} */ (stack.pop());
     const j = p * 4, dr = rgba[j] - sr, dg = rgba[j + 1] - sg, db = rgba[j + 2] - sb;
     if (dr * dr + dg * dg + db * db > t2) continue;
     out.push(p);
@@ -397,7 +557,13 @@ export function regionGrow(rgba, w, h, seed, tol, roi, exclude, maxPx = 4e6) {
   return out;
 }
 
-/** Pixels inside a polygon (even-odd rule, pixel centres), clipped to the ROI. */
+/** Pixels inside a polygon (even-odd rule, pixel centres), clipped to the ROI.
+ *
+ * @param {readonly (readonly [number, number])[]} pts
+ * @param {number} w
+ * @param {Roi} roi
+ * @returns {number[]}
+ */
 export function polygonPixels(pts, w, roi) {
   if (pts.length < 3) return [];
   let ymin = Infinity, ymax = -Infinity;
@@ -422,13 +588,26 @@ export function polygonPixels(pts, w, roi) {
 /**
  * Accumulate per-object statistics over a region. ids: Set of ids to include, or null for all.
  * Colour statistics use the original (unfiltered) image so learning is independent of the display filters.
+ *
+ * @param {ArrayLike<number>} labels
+ * @param {number} w
+ * @param {number} h
+ * @param {ArrayLike<number>} rgba
+ * @param {ReadonlySet<number> | null} [ids]
+ * @param {Roi | null} [region]
+ * @param {StackTable | null} [stacks]
+ * @returns {Map<number, TraceStats>}
  */
 export function objectStats(labels, w, h, rgba, ids = null, region = null, stacks = null) {
   // V0.20: with `stacks`, a pixel in an overlap counts for every object of its stack.
   const R = region || { x0: 0, y0: 0, x1: w, y1: h };
+  /** @type {Map<number, TraceStats>} */
   const acc = new Map();
+  /** @param {number} i */
   const lum = (i) => 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
+  /** @type {(k: number, id: number) => boolean} */
   const own = stacks ? (k, id) => hasId(labels[k], id, stacks) : (k, id) => labels[k] === id;
+  /** @param {number} x @param {number} y @param {number} i @param {number} id */
   const add = (x, y, i, id) => {
     if (ids && !ids.has(id)) return;
     let a = acc.get(id);
@@ -456,13 +635,17 @@ export function objectStats(labels, w, h, rgba, ids = null, region = null, stack
     for (let x = R.x0; x < R.x1; x++) {
       const i = y * w + x, v = labels[i];
       if (v > 0) add(x, y, i, v);
-      else if (v < 0) for (const id of stacks[-v]) add(x, y, i, id);
+      else if (v < 0) for (const id of /** @type {number[]} */ ((/** @type {StackTable} */ (stacks))[-v])) add(x, y, i, id);
     }
   }
   return acc;
 }
 
-/** Shape and colour descriptors from accumulated statistics. ppu = pixels per cm. */
+/** Shape and colour descriptors from accumulated statistics. ppu = pixels per cm.
+ *
+ * @param {TraceStats} a
+ * @param {number} ppu
+ */
 export function features(a, ppu) {
   const n = a.n, mx = a.sx / n, my = a.sy / n;
   const cxx = a.sxx / n - mx * mx + 1 / 12, cyy = a.syy / n - my * my + 1 / 12, cxy = a.sxy / n - mx * my;
@@ -489,7 +672,13 @@ export function features(a, ppu) {
   };
 }
 
-/** Box-average downsampling of an RGBA raster by an integer factor k (remainder rows/columns dropped). */
+/** Box-average downsampling of an RGBA raster by an integer factor k (remainder rows/columns dropped).
+ *
+ * @param {RgbaRaster} src
+ * @param {number} w
+ * @param {number} h
+ * @param {number} k
+ */
 export function downsampleRGBA(src, w, h, k) {
   if (k <= 1) return { rgba: src, w, h };
   const W = Math.floor(w / k), H = Math.floor(h / k), n = k * k;
@@ -512,9 +701,19 @@ export function downsampleRGBA(src, w, h, k) {
   return { rgba: out, w: W, h: H };
 }
 
-/** Rotate a w×h raster with `ch` channels by 90° (dir = 1 clockwise, -1 counter-clockwise). */
+/** Rotate a w×h raster with `ch` channels by 90° (dir = 1 clockwise, -1 counter-clockwise).
+ *
+ * @template {RasterArray} T
+ * @param {T} src
+ * @param {number} w
+ * @param {number} h
+ * @param {number} ch
+ * @param {number} dir
+ * @returns {T}
+ */
 export function rotate90(src, w, h, ch, dir) {
-  const out = new src.constructor(src.length);
+  const Type = /** @type {new (length: number) => T} */ (src.constructor);
+  const out = new Type(src.length);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const nx = dir > 0 ? h - 1 - y : y, ny = dir > 0 ? x : w - 1 - x;
@@ -529,6 +728,11 @@ export function rotate90(src, w, h, ch, dir) {
  * Separability of the luminance histogram inside the ROI: Otsu's between-class variance divided by the
  * total variance (η, 0–1; Otsu, 1979). High η = two well separated groups of grey levels (e.g. trace
  * infill vs host sediment). Used to rank enhancement settings on one image.
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi} [roi]
  */
 export function separability(rgba, w, h, roi = { x0: 0, y0: 0, x1: w, y1: h }) {
   const hist = new Float64Array(256); let n = 0;
@@ -554,6 +758,13 @@ export function separability(rgba, w, h, roi = { x0: 0, y0: 0, x1: w, y1: h }) {
  * cls[i] (same size as the image): 1 = trace, 2 = matrix, 0 = not used. The feature is the luminance (global
  * threshold) or the luminance minus its local mean over `radius` px (adaptive threshold), as the detection uses it.
  * Score = 2·AUC − 1 in the expected direction (polarity 'dark': traces darker; 'light'; 'both' = either), 0–1.
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi} roi
+ * @param {ArrayLike<number>} cls
+ * @param {{local?: boolean, radius?: number, polarity?: string}} [options]
  */
 export function traceSeparation(rgba, w, h, roi, cls, { local = true, radius = 40, polarity = 'dark' } = {}) {
   const L = lumaOf(rgba, w * h), M = local ? boxBlur(L, w, h, Math.max(1, Math.round(radius))) : null;
@@ -580,6 +791,12 @@ export function traceSeparation(rgba, w, h, roi, cls, { local = true, radius = 4
  * horizontal and vertical neighbour pairs on the same side of the threshold and E = p₀² + p₁² the share expected if
  * the pixels were scattered at random (κ ≤ 0 → 0). Noise gives κ ≈ 0 whatever the enhancement; compact traces give κ
  * near 1. Result: mean over the tiles (0–1).
+ *
+ * @param {ArrayLike<number>} rgba
+ * @param {number} w
+ * @param {number} h
+ * @param {Roi} roi
+ * @param {number} [tile]
  */
 export function localSeparability(rgba, w, h, roi, tile = 48) {
   let sum = 0, n = 0;
@@ -596,6 +813,7 @@ export function localSeparability(rgba, w, h, roi, tile = 48) {
     if (!n0 || !n1) continue;
     const m0 = a0 / n0, m1 = a1 / n1, v0 = b0 / n0 - m0 * m0, v1 = b1 / n1 - m1 * m1, J = (m1 - m0) ** 2 / Math.max(1e-6, v0 + v1);
     let agree = 0, pairs = 0;
+    /** @param {number} x @param {number} y */
     const g = (x, y) => { const j = (y * w + x) * 4; return 0.299 * rgba[j] + 0.587 * rgba[j + 1] + 0.114 * rgba[j + 2] > thr + 0.5; };
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const c = g(x, y);

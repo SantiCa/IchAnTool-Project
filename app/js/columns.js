@@ -73,6 +73,8 @@ export function reduceRGBA(w, h, sw, sh, pix) {
 /**
  * Column strip of a section (≤ 512 px wide). V0.1: the reduced picture (original or treated) is cached apart from the
  * coloured traces, so changing overlay settings only needs the masks, not the picture on disk.
+ *
+ * @param {import('./state.js').SectionState} s
  */
 export function sectionCanvas(s) {
   const lv = S.logView, key = `${s.logVer}|${lv.imgMode}|${lv.overlay}|${lv.hideExcl}|${S.ovAlpha}|${S.settings.predThr}|${S.settings.includePred}|${S.settings.countCandidates}|${s.w}x${s.h}`;

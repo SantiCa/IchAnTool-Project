@@ -41,6 +41,7 @@ legacy/         original version 2.1, unchanged
 pip install -e ".[dev]"                 # Python package with test dependencies
 pytest -q                               # Python tests
 npm test                                # program tests (Node 22; same as: node --test tests/app/*.test.mjs)
+npm ci && npm run typecheck             # JavaScript type checks (Node 22)
 python3 -m http.server 8765             # then open http://localhost:8765/app/
 python3 tools/build_standalone.py       # offline file -> dist/SedCoreTool_V0.<n>.html (dist/ is not committed)
 cd desktop && npm ci && npm start       # desktop program; npm run dist builds installers for the current system
@@ -94,7 +95,7 @@ Every delivery that changes code, algorithms, defaults or files includes, in the
    changes. Formulas there must match the code exactly. It describes current behaviour for any reader: no history, no
    notes addressed to reviewers.
 4. **README** if what users see or do changes.
-5. **Tests pass:** `pytest -q`, `npm test`, `python3 tools/sync_version.py --check`, `ruff check src tests tools`;
+5. **Tests pass:** `pytest -q`, `npm test`, `npm run typecheck`, `python3 tools/sync_version.py --check`, `ruff check src tests tools`;
    run the end-to-end test when the interface or saving changes. Do not re-run them on an unchanged, already verified
    state.
 6. **Commit** on `master` with the message `V0.<n>: <summary>` and a short body. Select files explicitly.

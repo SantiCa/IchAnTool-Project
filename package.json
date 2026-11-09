@@ -1,1 +1,13 @@
-{"type": "module", "private": true, "scripts": {"test": "node --test tests/app/*.test.mjs", "e2e": "node tests/e2e/smoke.mjs"}}
+{
+  "name": "sedcoretool-web",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/app/*.test.mjs",
+    "e2e": "node tests/e2e/smoke.mjs",
+    "typecheck": "tsc --project tsconfig.strict.json && node tools/typecheck.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
