@@ -10,6 +10,13 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.105 — 2026-11-10
+
+- Preserve the last complete project when a save fails while queuing section data.
+- Keep unsaved changes open when switching projects fails, and offer a Retry save button.
+- Allow folder backups to be reactivated after a failure and release failed file writers before retrying.
+- Keep the previous folder copy's original images intact if a replacement image is saved before a later failure.
+
 ## V0.104 — 2026-11-09
 
 - Redo trace and exclusion edits from the image toolbar or with Ctrl+Y, Ctrl+Shift+Z or ⌘Shift+Z.

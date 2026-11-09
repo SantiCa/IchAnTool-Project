@@ -27,10 +27,15 @@ const db = () => (dbPromise ||= openDB());
 function run(stores, mode, fn) {
   return db().then((d) => new Promise((resolve, reject) => {
     const tx = d.transaction(stores, mode);
-    const req = fn(tx);
+    let req;
     tx.oncomplete = () => resolve(req && 'result' in req ? req.result : undefined);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
+    try { req = fn(tx); }
+    catch (error) {
+      // A synchronous clone/queue error must also roll back requests already queued by fn.
+      tx.abort(); reject(error);
+    }
   }));
 }
 

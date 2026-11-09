@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.104';
+export const DELIVERY = 'V0.105';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -386,7 +386,8 @@ async function loadExample() {
   for (const url of ['data/idealized_core_0-500cm.jpg']) {
     try {
       const bytes = new Uint8Array(await (await fetchAsset(url)).arrayBuffer());
-      await flushSave(); resetState(); S.name = t('example.name');
+      if (!(await canLeaveProject())) return false;
+      resetState(); S.name = t('example.name');
       const { w, h, rgba } = await decodeBytes(bytes, url, 'image/jpeg', { k: 1 });
       const s = newSection({ name: t('example.name'), file: { name: 'idealized_core_0-500cm.jpg', type: 'image/jpeg', bytes }, w, h, orig: rgba, full: { w, h } });
       s.top = 0; s.bottom = 500; s.units = 'cm';
@@ -2947,7 +2948,9 @@ function setSaveState(st) {
   const key = local ? (backupState === 'none' ? 'save.local' : 'save.localPending') : 'save.' + st;
   const el = $('saveState'); el.textContent = t(key); el.dataset.state = st; el.title = local ? t('save.localTip') : '';
   if (local) el.dataset.backup = backupState; else delete el.dataset.backup;   // warning colour only; data-state stays 'saved'
+  $('saveRetry').hidden = st !== 'error';
 }
+$('saveRetry').addEventListener('click', () => saveToDB());
 
 export function markDirty() {
   if (loading || VIEW_ONLY) return;
@@ -2975,6 +2978,7 @@ async function saveToDB() {
       broadcast({ type: 'saved', id: S.id });
       if (saveCount++ % 10 === 0) checkQuota();   // V0.36
       try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
+      lastSaveError = null;
       setSaveState(dirty ? 'dirty' : 'saved'); scheduleBackup();
     } catch (e) {
       dirty = true; lastSaveError = e; setSaveState('error'); console.error(e);
@@ -3003,6 +3007,13 @@ async function checkQuota() {
 }
 let saveCount = 0;
 async function flushSave() { if (savePromise) await savePromise; if (dirty) await saveToDB(); if (backupPending) await backupNow(); }
+/** Do not replace live state when the last save failed or newer edits are still pending. */
+async function canLeaveProject() {
+  await flushSave();
+  if (!dirty) return true;
+  toast(t('save.pending'), 8000);
+  return false;
+}
 /* V0.36: do not lose the last changes when the page or the program is closed */
 let closeOK = false;
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && dirty) saveToDB(); });
@@ -3111,7 +3122,8 @@ async function onProjectListClick(e) {
   if (act === 'mpupdate') { await updateMultiProject(id); return; }
   if (act === 'open') {
     if (id === S.id) { hideHome(); return; }
-    await flushSave(); hideHome();
+    if (!(await canLeaveProject())) return;
+    hideHome();
     await busy(async () => { const data = await getProject(id); if (data) await loadProject(data); });
   } else if (act === 'del') {
     if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = t('proj.delConfirm'); btn.classList.add('danger'); return; }
@@ -3143,7 +3155,7 @@ $('newProjForm').addEventListener('submit', (e) => e.preventDefault());
 $('newProjBtn').addEventListener('click', async () => {
   if (!$('newProjName').value.trim()) { $('newProjName').focus(); return; }
   $('newProjForm').hidden = true;
-  await flushSave();
+  if (!(await canLeaveProject())) return;
   resetState(); S.name = $('newProjName').value.trim() || t('proj.untitled'); $('newProjName').value = '';
   syncSettingsForm(); learnNow(); updateProjHeader(); refreshOtherExamples(); setTimeout(updateTip, 0);
   await saveToDB(); renderProjects(); hideHome();
@@ -3187,7 +3199,7 @@ const TEST_CORE = {
 };
 
 async function openTestProject() {
-  await flushSave();
+  if (!(await canLeaveProject())) return;
   await busy(async () => {
     resetState(); loading = true;
     try {
@@ -3273,8 +3285,8 @@ function renderBackupState() {
   $('bkPersist').textContent = t(persisted ? 'bk.persistOn' : 'bk.persistOff');
   $('bkChoose').hidden = !fsSupported();
   $('bkNoFs').hidden = fsSupported();
-  $('bkReactivate').hidden = backupState !== 'needs';
-  $('bkReactivateTop').hidden = backupState !== 'needs';
+  $('bkReactivate').hidden = !['needs', 'error'].includes(backupState);
+  $('bkReactivateTop').hidden = !['needs', 'error'].includes(backupState);
   if (saveSt === 'saved') setSaveState('saved');
 }
 
@@ -3284,7 +3296,7 @@ function renderBackupState() {
  */
 async function writeProjectFolder(root, d) {
   const dir = await root.getDirectoryHandle(`${safe(d.name)}__${d.id}`, { create: true }), imgs = await dir.getDirectoryHandle('images', { create: true });
-  const e = projectForExport(d);
+  const e = projectForExport(d, '', true);
   for (const im of e.images) {
     const name = im.path.slice('images/'.length);
     const source = await im.get(true);
@@ -3313,11 +3325,16 @@ async function openProjectFolder() {
 }
 async function writeText(dir, name, text) {
   const fh = await dir.getFileHandle(name, { create: true });
-  const w = await fh.createWritable(); await w.write(text); await w.close();
+  const w = await fh.createWritable();
+  try { await w.write(text); await w.close(); }
+  catch (error) {
+    await w.abort().catch(() => {});
+    throw error;
+  }
 }
 
 function scheduleBackup() {
-  if (backupState !== 'ok') return;
+  if (backupState !== 'ok' && backupState !== 'error') return;
   backupPending = true; clearTimeout(backupTimer); backupTimer = setTimeout(backupNow, 20000);
 }
 
@@ -3336,7 +3353,7 @@ async function backupNow() {
     await writeText(backupDir, 'sedcoretool_ajustes.json', JSON.stringify(settingsBundle(), null, 1));
     lastBackup = Date.now(); backupPending = false; backupRetries = 0; backupState = 'ok'; setPref('lastBackup', lastBackup).catch(() => {});
   } catch (e) {
-    backupState = 'error'; console.error(e);
+    backupPending = true; backupState = 'error'; console.error(e);
     if (backupRetries++ < 3) backupTimer = setTimeout(backupNow, 60000 * backupRetries);   // V0.38: retried after 1, 2 and 3 min
   }
   renderBackupState();
@@ -3365,12 +3382,14 @@ for (const id of ['bkReactivate', 'bkReactivateTop']) $(id).addEventListener('cl
 
 /* ── V0.8: shareable package (.sedcoretool, before V0.52 .corantool = ZIP with project.json and the original images at full resolution) ── */
 const imgExt = (f) => (/\.[a-z0-9]{2,5}$/i.exec(f.name || '')?.[0] || (/png/.test(f.type) ? '.png' : /tif/.test(f.type) ? '.tif' : '.jpg'));
-/** Project data → { json, images:[{path, get()}] } with every image referenced as images/<section id><ext>. */
-function projectForExport(d, prefix = '') {
+/** Folder copies use immutable image names so a failed manifest write cannot change the previous save's images. */
+function projectForExport(d, prefix = '', immutableImages = false) {
   const p = JSON.parse(JSON.stringify(d, (k, v) => (v instanceof Blob ? undefined : v))), images = [];
   const src = new Map(); for (const c of d.cores || [{ sections: d.sections }]) for (const q of c.sections || []) src.set(q.id, q.file);
   for (const c of p.cores || [{ sections: p.sections }]) for (const q of c.sections || []) {
-    const f = src.get(q.id) || q.file, path = `images/${q.id}${imgExt(f)}`;
+    const f = src.get(q.id) || q.file;
+    const imageId = immutableImages ? `${q.id}__${f.key || uid()}` : q.id;
+    const path = `images/${imageId}${imgExt(f)}`;
     images.push({ path: prefix + path, get: async (ranged = false) => f.blob || (f.key ? await getImage(f.key, ranged) : null) || new Blob([f.bytes ? new Uint8Array(f.bytes) : f.b64 ? b64decode(f.b64) : new Uint8Array()]) });
     q.file = { name: f.name, type: f.type, path };
   }
@@ -3399,7 +3418,9 @@ async function restoreFolders(list) {
   return restoreFiles(files);
 }
 async function restoreFiles(files) {
-  let nProj = 0, nPre = 0, lastLoaded = null, rejected = 0;
+  let nProj = 0, nPre = 0, rejected = 0;
+  /** @type {any} Last project accepted by the asynchronous import callback. */
+  let lastLoaded = null;
   const existing = storageOK ? new Set((await listProjects()).map((m) => m.id)) : new Set();
   const addProject = async (p, getBlob = null) => {
     for (const c of p.cores || [{ sections: p.sections }]) for (const q of c.sections || [])   // V0.36: a damaged file is not stored
@@ -3409,7 +3430,7 @@ async function restoreFiles(files) {
     if (p.id && existing.has(p.id)) {   // V0.8: the same project (work by turns): replace the local version or keep both
       const m = await getMeta(p.id).catch(() => null);
       if (confirm(t('bk.replaceAsk', { n: p.name || APP, a: m?.updated ? new Date(m.updated).toLocaleString() : '?', b: p.saved ? new Date(p.saved).toLocaleString() : '?' }))) {
-        if (p.id === S.id) { clearTimeout(saveTimer); dirty = false; }
+        if (p.id === S.id) { clearTimeout(saveTimer); if (savePromise) await savePromise; }
         const old = await getProject(p.id).catch(() => null);
         if (old && storageOK) {   // V0.36: the local version is kept as a copy before it is replaced
           const id2 = uid(), name2 = `${old.name || APP} (${t('bk.previous')} ${new Date(m?.updated || Date.now()).toLocaleDateString()})`;
@@ -3423,6 +3444,7 @@ async function restoreFiles(files) {
     existing.add(p.id);
     const nSec = p.cores ? p.cores.reduce((n, c) => n + (c.sections || []).length, 0) : (p.sections || []).length;
     if (storageOK) await putProject({ id: p.id, name: p.name, updated: Date.now(), sections: nSec, cores: p.cores?.length || 1, coreNames: p.cores?.map((c) => c.name) }, p);
+    if (p.id === S.id) dirty = false;   // Clear pending edits only after the replacement succeeds.
     lastLoaded = p; nProj++;
   };
   for (const f of files) {
@@ -3449,7 +3471,7 @@ async function restoreFiles(files) {
       else if (p.kind === 'settings') nPre += mergePresets(p.presets);
     } catch (e) { console.error(e); toast(t('err.import', { f: f.name, m: e?.message || e?.name || String(e) })); continue; }
   }
-  if (lastLoaded) { if (lastLoaded.id !== S.id) await flushSave(); if ((await loadProject(lastLoaded)) === false) return; if (!storageOK) dirty = true; }   // V0.36: keep the load error visible
+  if (lastLoaded) { if (lastLoaded.id !== S.id && !(await canLeaveProject())) return; if ((await loadProject(lastLoaded)) === false) return; if (!storageOK) dirty = true; }   // V0.36: keep the load error visible
   if (nProj || nPre || !rejected) toast(t('bk.restoredN', { p: nProj, s: nPre }));
 }
 
@@ -3666,7 +3688,7 @@ $('allTable').addEventListener('click', async (e) => {
   const tr = e.target.closest('tr[data-p]'); if (!tr) return;
   const { p, c } = tr.dataset;
   if (e.target.classList.contains('mpchk')) { const k = `${p}|${c}`; if (e.target.checked) mpSel.add(k); else mpSel.delete(k); renderMpCount(); return; }
-  if (p !== S.id) { await flushSave(); await busy(async () => { const d = await getProject(p); if (d) await loadProject(d); }); }
+  if (p !== S.id) { if (!(await canLeaveProject())) return; await busy(async () => { const d = await getProject(p); if (d) await loadProject(d); }); }
   activateCore(c, true); hideHome();
 });
 
@@ -3675,7 +3697,8 @@ const TUTORIAL_ID = 'tutorial-corantool';
 /** Builds the synthetic training project (examples/tutorial, tools/make_tutorial.py): 7 fictitious cores, intervals and one core image with half of its traces labelled. */
 async function buildTutorialProject() {
   const txt = async (f) => (await fetchAsset('tutorial/' + f)).text();
-  await flushSave(); resetState();
+  if (!(await canLeaveProject())) return;
+  resetState();
   S.id = TUTORIAL_ID; S.name = t('tut.name'); S.kind = 'tutorial'; S.notes = t('tut.notes'); S.settings.tips = true;
   const tab = parseTable(await txt('cores.csv')), H = tab.headers, ix = (n) => H.indexOf(n), P = H.slice(5);
   const cores = coresFromLongTable(tab, { core: ix('core'), lat: ix('lat'), lon: ix('lon'), depth: ix('depth_cm'), age: ix('age_ka'), proxies: P.map(ix) });
@@ -3991,7 +4014,7 @@ async function buildMultiProject(name, keys, keepId = null) {
   const chosen = [];
   for (const l of lites) for (const c of l.cores) if (keys.includes(`${l.id}|${c.id}`)) chosen.push({ l, c });
   if (chosen.length < 2) { toast(t('mp.need')); return false; }
-  await flushSave();
+  if (!(await canLeaveProject())) return false;
   const prev = keepId ? await getProject(keepId) : null;
   if (prev) await loadProject(prev); else { resetState(); S.id = 'mp' + uid(); }
   S.name = name; S.kind = 'multi'; S.multiSource = { keys: [...keys], built: new Date().toISOString() };
@@ -4091,7 +4114,7 @@ document.addEventListener('click', (e) => {
   const f = e.target.closest('[data-float]'); if (f) openFloat(f.dataset.float);
 });
 async function openWindow(kind) {
-  await flushSave();
+  if (!(await canLeaveProject())) return;
   if (location.protocol === 'file:') toast(t('win.fileNote'));
   window.open(`${location.href.split('#')[0]}#win=${kind}&project=${encodeURIComponent(S.id)}&core=${encodeURIComponent(S.curCore)}`, '_blank', 'width=1200,height=850');
 }
