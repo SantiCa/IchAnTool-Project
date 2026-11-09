@@ -56,9 +56,18 @@ try {
   });
   if (!figureFailure.hadFigure || !figureFailure.errorShown || figureFailure.exports) fail(`stale figure export: ${JSON.stringify(figureFailure)}`);
   const first = await p.evaluate(() => window.ichantool.S.sections[window.ichantool.S.cur].objects.size);
+  const sectionMask = () => {
+    const { S, serialize } = window.ichantool;
+    const section = serialize().cores.find((core) => core.id === S.curCore).sections[S.cur];
+    return { nextId: section.nextId, labels: section.labels, stacks: section.stacks,
+      objects: section.objects.map(({ id, cls, src, st }) => ({ id, cls, src, st })) };
+  };
+  const beforeDetection = await p.evaluate(sectionMask);
   await p.evaluate(() => window.ichantool.runDetection()); await W(3000);
   const again = await p.evaluate(() => window.ichantool.S.sections[window.ichantool.S.cur].objects.size);
   if (again !== first) fail(`detection is not repeatable: ${first} → ${again}`);
+  await p.evaluate(() => document.getElementById('undoBtn').click());
+  assert.deepEqual(await p.evaluate(sectionMask), beforeDetection, 'undo restores detection masks, IDs and statistics');
   // one undoable edit: delete a trace, then undo
   const del = await p.evaluate(() => { const I = window.ichantool, s = I.S.sections[I.S.cur], id = [...s.objects.keys()][0]; I.S.selected = id; document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true })); return [s.objects.size, s.objects.has(id), id]; });
   if (del[1]) fail('delete did not remove the trace');
@@ -391,10 +400,38 @@ try {
 
     await importProject({ ...valid, id: 'valid-overlap-smoke', cores: [{ id: 'c', sections: [{
       ...section, labels: [1, 1, -1, 1, 0, 2], stacks: [null, [1, 2]], nextId: 3,
-      objects: [{ id: 1, cls: null, src: 'draw' }, { id: 2, cls: null, src: 'draw' }],
+      objects: [{ id: 2, cls: null, src: 'draw' }, { id: 1, cls: null, src: 'draw' }],
     }] }] });
     const healthyOverlap = !visible('projectValidation') && !visible('secRegionWarning') && !visible('secMaskWarning')
       && JSON.stringify(S.sections[0].bins.map((b) => [b.pct, b.BI, b.ii])) === '[[100,6,6],[0,0,1]]';
+    const { analyze, assignClass, serialize } = window.ichantool, overlapSection = S.sections[0];
+    const undo = () => document.getElementById('undoBtn').click();
+    const snapshot = () => {
+      analyze(overlapSection);
+      const { labels, stacks, exclude, nextId, objects } = serialize().cores[0].sections[0];
+      return JSON.stringify({ labels, stacks, exclude, nextId, objects: objects.map(({ id, cls, src, st }) => ({ id, cls, src, st })),
+        bins: overlapSection.bins });
+    };
+    const unclassified = snapshot();
+    document.getElementById('clearCand').click();
+    const deleted = overlapSection.objects.size === 0 && S.undo.at(-1).objs.size === 2;
+    undo();
+    const undoClear = deleted && snapshot() === unclassified && [...overlapSection.objects.keys()].join() === '2,1';
+
+    const cls = S.classes.find((entry) => entry.counts).id;
+    const untouched = overlapSection.objects.get(2);
+    const stats = overlapSection.objects.get(1).stats;
+    assignClass(1, cls);
+    const classDelta = S.undo.at(-1).objs.size === 1 && S.undo.at(-1).objs.get(1).stats === stats
+      && overlapSection.objects.get(2) === untouched;
+    const classified = snapshot();
+    assignClass(2, cls);
+    const merged = overlapSection.objects.size === 1;
+    undo();
+    const undoMerge = merged && snapshot() === classified;
+    const restoredUntouched = overlapSection.objects.get(2);
+    undo();
+    const undoClass = classDelta && snapshot() === unclassified && overlapSection.objects.get(2) === restoredUntouched;
     const top = document.getElementById('secTop');
     top.value = '1'; top.dispatchEvent(new Event('change', { bubbles: true }));
     await window.ichantool.saveToDB();
@@ -442,13 +479,14 @@ try {
       await waitFor(() => rejected);
       return { opened, saved, rejected, notStored: !(await getProject('hostile-zip-smoke')),
         validQuiet, validBins, currentWarns, legacyWarns, corrected,
-        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, healthySave,
+        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, undoClear, undoMerge, undoClass, healthySave,
         intactZipOpened, crcChecks, replacePrompts };
     } finally { console.error = log; window.confirm = confirmReplace; }
   });
   assert.deepEqual(importZip, { opened: true, saved: true, rejected: true, notStored: true,
     validQuiet: true, validBins: [[0, 1, 0, 0, 1], [1, 2, 0, 0, 1]], currentWarns: true, legacyWarns: true, corrected: true,
-    legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true, healthySave: true,
+    legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true,
+    undoClear: true, undoMerge: true, undoClass: true, healthySave: true,
     intactZipOpened: true, crcChecks: [true, true], replacePrompts: 0 });
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);

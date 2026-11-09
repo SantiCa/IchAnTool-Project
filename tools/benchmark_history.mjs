@@ -172,7 +172,7 @@ async function exerciseHistory(count, repeats) {
 
   function historyShape(steps) {
     return {
-      steps: steps.length, object_records: steps.reduce((n, step) => n + step.objs.length, 0),
+      steps: steps.length, object_records: steps.reduce((n, step) => n + (step.objs.size ?? step.objs.length), 0),
       label_pixel_changes: steps.reduce((n, step) => n + step.lm.length / 2, 0),
       exclusion_pixel_changes: steps.reduce((n, step) => n + step.ex.length / 2, 0),
       overlap_lists: new Set(steps.flatMap((step) => step.lm.filter(Array.isArray))).size,

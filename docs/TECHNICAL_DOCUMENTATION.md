@@ -791,10 +791,14 @@ zoom. The view is moved with the hand tool, the space bar or the middle mouse bu
 meant for cracks, voids, sampled zones, labels or drilling disturbance, so that "no bioturbation" is never confused
 with "no data".
 
-**Undo.** Each operation stores the list of changed pixels with their previous values and shallow copies of the
-object records. When a previous label is an overlap, the history shares its ordered list of object ids. Undo
-reuses or interns that list in the current stack table before restoring the pixel. The history keeps up to 30
-steps and about 200 MB of changed pixels.
+**Undo.** Each operation stores changed pixels with their previous values and a delta keyed by trace ID.
+The delta holds the first previous record of each modified or deleted trace and a marker for each new trace
+that remains after the edit. Shallow copies share geometry and descriptor values that the editor replaces
+on change. Undo removes new traces, restores prior records in their section order and keeps untouched
+records in place. Trace order is assigned in memory when a section opens and as new traces are added.
+When a previous pixel label is an overlap, the history shares its ordered list of trace IDs. Undo reuses
+or interns that list in the current stack table before restoring the pixel. The history keeps up to 30 steps
+and about 200 MB of changed pixels.
 
 After each edit, descriptors (§11) are recomputed only for the affected objects, inside the rectangle that contains
 them. Deleting traces only scans the union of their bounding rectangles (the whole image if one has no rectangle).

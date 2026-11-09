@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.103 — 2026-11-09
+
+- Undo now stores only changed traces, reducing memory use when editing densely annotated sections.
+
 ## V0.102 — 2026-11-09
 - Reject invalid Python valid-area thresholds and report the actual dimensions of mismatched exclusion images.
 

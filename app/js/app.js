@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.102';
+export const DELIVERY = 'V0.103';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -50,7 +50,7 @@ function newSection({ name, file, w, h, orig, orig16 = null, ds = 1, labels = nu
   if (file.bytes && !file.blob) { file = { name: file.name, type: file.type, blob: new Blob([file.bytes], { type: file.type || 'image/jpeg' }) }; }
   const s = {
     id: uid(), name, file, rot: 0, ds, crop: null, full, logVer: 0, w, h, orig, orig16, enh: null,
-    objects: new Map(), nextId: 1, stacks: [null],   // V0.20: overlapping traces (core.js)
+    objects: new Map(), nextId: 1, nextTraceOrder: 0, stacks: [null],   // V0.20: overlapping traces (core.js)
     top: 0, bottom: 100, units: 'cm', roi: { x0: 0, y0: 0, x1: w, y1: h }, marks: [],
     filters: { ...DEFAULT_FILTERS }, preset: 'none', detect: { ...DEFAULT_DETECT }, manual: [], bins: [], view: null,
   };
@@ -402,10 +402,57 @@ async function loadExample() {
 
 /* ───────────── objects, undo ───────────── */
 
-function newObject(s, cls, src) {
-  const o = { id: s.nextId++, cls: cls || null, pred: null, conf: 0, src, area: 0, bbox: null, stats: null, feat: null };
+function newObject(op, cls, src) {
+  const s = op.s;
+  rememberTrace(op, s.nextId);
+  const order = s.objects.get(s.nextId)?.order ?? s.nextTraceOrder++;
+  const o = { id: s.nextId++, order, cls: cls || null, pred: null, conf: 0, src, area: 0, bbox: null, stats: null, feat: null };
   s.objects.set(o.id, o);
   return o;
+}
+
+/** Save the first value only. Geometry and descriptor data are replaced by edits and can be shared.
+ * @param {import('./state.js').UndoStep} op
+ * @param {number} id
+ */
+function rememberTrace(op, id) {
+  if (op.objs.has(id)) return;
+  const trace = op.s.objects.get(id);
+  op.objs.set(id, trace ? { ...trace } : null);
+}
+
+/** @param {import('./state.js').UndoStep} op
+ * @param {number} id
+ */
+function removeTrace(op, id) {
+  rememberTrace(op, id);
+  op.s.objects.delete(id);
+}
+
+/** @param {import('./state.js').UndoStep} op */
+function undoTraces(op) {
+  const { s, objs } = op;
+  const removed = [];
+  for (const [id, previous] of objs) {
+    if (!previous) s.objects.delete(id);
+    else if (s.objects.has(id)) s.objects.set(id, previous);
+    else removed.push(previous);
+  }
+  if (!removed.length) return;
+
+  // Restore removed traces at their original positions, including in projects saved out of ID order.
+  removed.sort((a, b) => a.order - b.order);
+  const restored = new Map();
+  let next = 0;
+  for (const [id, trace] of s.objects) {
+    while (next < removed.length && removed[next].order < trace.order) {
+      const previous = removed[next++];
+      restored.set(previous.id, previous);
+    }
+    restored.set(id, trace);
+  }
+  for (; next < removed.length; next++) restored.set(removed[next].id, removed[next]);
+  s.objects = restored;
 }
 
 function status(o) {
@@ -437,7 +484,7 @@ function recomputeFeatures(s) { const ppu = pxPerCm(s); for (const o of s.object
 
 function beginOp(s) {
   s._mv = (s._mv || 0) + 1;   // V0.2: invalidates cached row counts and packed masks
-  return { s, lm: [], ex: [], objs: [...s.objects.values()].map((o) => ({ ...o })), nextId: s.nextId, sel: S.selected, ext: { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }, touched: new Set() };
+  return { s, lm: [], ex: [], objs: new Map(), nextId: s.nextId, sel: S.selected, ext: { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }, touched: new Set() };
 }
 function setLabel(op, i, v) {
   const L = op.s.labels, old = L[i];
@@ -499,16 +546,24 @@ function finishPixelOp(op, target = 0) {
   if (target) op.touched.add(target);
   if (op.touched.size) {
     const R = { ...op.ext };
-    for (const o of op.objs) if (op.touched.has(o.id) && o.bbox) { R.x0 = Math.min(R.x0, o.bbox[0]); R.y0 = Math.min(R.y0, o.bbox[1]); R.x1 = Math.max(R.x1, o.bbox[2]); R.y1 = Math.max(R.y1, o.bbox[3]); }
+    for (const id of op.touched) {
+      const trace = s.objects.get(id);
+      if (!trace) continue;
+      rememberTrace(op, id);
+      const { bbox } = trace;
+      if (!bbox) continue;
+      R.x0 = Math.min(R.x0, bbox[0]); R.y0 = Math.min(R.y0, bbox[1]); R.x1 = Math.max(R.x1, bbox[2]); R.y1 = Math.max(R.y1, bbox[3]);
+    }
     refreshObjects(s, op.touched, { x0: R.x0, y0: R.y0, x1: R.x1 + 1, y1: R.y1 + 1 });
   }
-  for (const o of [...s.objects.values()]) if (!o.area) s.objects.delete(o.id); // created but empty
+  for (const o of s.objects.values()) if (!o.area) removeTrace(op, o.id);
   commitOp(op);
   afterChange(s);
 }
 
 function commitOp(op, force = false) {
   if (!force && !op.lm.length && !op.ex.length) return;
+  for (const [id, previous] of op.objs) if (!previous && !op.s.objects.has(id)) op.objs.delete(id);
   S.undo.push(op); if (S.undo.length > 30) S.undo.shift();
   // V0.41: the undo history also has a memory budget (~200 MB of changed pixels); the oldest steps go first
   const ub = (o) => 8 * ((o.lm?.length || 0) + (o.ex?.length || 0));
@@ -528,7 +583,7 @@ function undoOne(op) {
   const s = op.s;
   undoPixels(s.labels, s.exclude, op.lm, op.ex, s.stacks, op.stackChanged ? six(s) : null);
   if (op.stackChanged) compactSectionStacks(s);
-  s.objects = new Map(op.objs.map((o) => [o.id, o])); s.nextId = op.nextId; S.selected = op.sel;
+  undoTraces(op); s.nextId = op.nextId; S.selected = op.sel;
   $('undoBtn').disabled = !S.undo.length;
   if (s !== sec()) selectSection(S.sections.indexOf(s));
   afterChange(s);
@@ -543,7 +598,7 @@ function applyPixels(pixels, mode) {
   let target = 0;
   if (mode === 'sub') target = 0;
   else if (mode === 'add' && S.selected && s.objects.has(S.selected)) target = S.selected;
-  else target = newObject(s, S.active, S.tool).id;
+  else target = newObject(op, S.active, S.tool).id;
   for (const i of pixels) {
     grow(op, i % s.w, (i / s.w) | 0);
     const old = s.labels[i];
@@ -562,7 +617,7 @@ function deleteObjects(ids) {
   for (const o of objs) {
     const [x0, y0, x1, y1] = o.bbox;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * s.w + x; if (hasId(s.labels[i], o.id, s.stacks)) subPx(op, i, o.id); }
-    s.objects.delete(o.id);
+    removeTrace(op, o.id);
   }
   S.selected = 0; S.multi.clear();
   commitOp(op, true); afterChange(s);
@@ -574,7 +629,11 @@ function assignClassMany(ids, clsId) {
   const s = sec(); if (!s) return;
   const objs = ids.map((id) => s.objects.get(id)).filter(Boolean); if (!objs.length) return;
   const op = beginOp(s);
-  for (const o of objs) { o.cls = clsId; o.pred = null; o.conf = 0; }
+  for (const o of objs) {
+    if (o.cls === clsId && o.pred === null && o.conf === 0) continue;
+    rememberTrace(op, o.id);
+    o.cls = clsId; o.pred = null; o.conf = 0;
+  }
   const grp = op.group = uid();   // V0.36
   commitOp(op, true); afterChange(s);
   const n0 = S.undo.length; mergeSameTaxon(s, objs.map((o) => o.id));   // V0.30
@@ -611,7 +670,7 @@ function splitAlong(pts) {
   const [x0, y0] = o.bbox, { comp, bw, n, main } = splitPieces(L, s.w, st, o.bbox, id, cut);   // V0.42: edit.js
   if (n < 2) { toast(t('cut.noSplit')); return; }
   const op = beginOp(s), ids = [0];
-  for (let k = 1; k <= n; k++) ids.push(k === main ? id : newObject(s, o.cls, o.src).id);
+  for (let k = 1; k <= n; k++) ids.push(k === main ? id : newObject(op, o.cls, o.src).id);
   for (let k = 1; k <= n; k++) if (k !== main) { const c = s.objects.get(ids[k]); c.pred = o.pred; c.conf = o.conf; c.nt = o.nt; op.touched.add(ids[k]); }
   for (let j = 0; j < comp.length; j++) {
     const k = comp[j]; if (k <= 0 || k === main) continue;
@@ -825,13 +884,13 @@ async function detectSection(s) {
     for (const o of s.objects.values()) if (!o.cls && o.src === 'auto') cand.add(o.id);
     if (cand.size) {
       dropIds(op, cand);
-      for (const id of cand) s.objects.delete(id);
+      for (const id of cand) removeTrace(op, id);
       if (cand.has(S.selected)) S.selected = 0;
     }
     const base = s.nextId;
     for (let i = 0; i < L.length; i++) { const k = cl[i]; if (k && !L[i]) { op.lm.push(i, 0); L[i] = base + k - 1; } }
     const ids = new Set();
-    for (let k = 0; k < count; k++) { const o = newObject(s, null, 'auto'); ids.add(o.id); }
+    for (let k = 0; k < count; k++) { const o = newObject(op, null, 'auto'); ids.add(o.id); }
     const acc = objectStats(L, s.w, s.h, s.orig, ids, null, s.stacks), ppu = pxPerCm(s);
     let kept = 0;
     for (const id of ids) {
@@ -852,7 +911,7 @@ function clearCandidates() {
   const s = sec(); if (!s) return;
   const op = beginOp(s), cand = new Set([...s.objects.values()].filter((o) => !o.cls).map((o) => o.id));
   dropIds(op, cand);
-  for (const id of cand) s.objects.delete(id);
+  for (const id of cand) removeTrace(op, id);
   if (cand.has(S.selected)) S.selected = 0;
   commitOp(op, true); $('detectStatus').textContent = ''; afterChange(s);
 }
@@ -1633,7 +1692,7 @@ view.addEventListener('pointerdown', (e) => {
     const op = beginOp(s); op.mode = tool;
     if (tool === 'brush') {
       const under = inImg(s, p) ? topLab(s, Math.floor(p.y) * s.w + Math.floor(p.x)) : 0;
-      op.target = e.shiftKey && S.selected ? S.selected : ((!S.overlap || s.objects.get(under)?.cls === S.active) && under) || newObject(s, S.active, 'brush').id;   // V0.30: over a trace of the active ichnotaxon the brush extends it   // V0.20: with «Superponer», a new trace
+      op.target = e.shiftKey && S.selected ? S.selected : ((!S.overlap || s.objects.get(under)?.cls === S.active) && under) || newObject(op, S.active, 'brush').id;   // V0.30: over a trace of the active ichnotaxon the brush extends it   // V0.20: with «Superponer», a new trace
       rebuildLUT(s);
     }
     if (tool === 'erase' && e.shiftKey && S.selected) op.only = S.selected;
@@ -1881,7 +1940,7 @@ function acceptSuggestions(ids) {
   const s = sec(); if (!s) return;
   const objs = ids.map((id) => s.objects.get(id)).filter((o) => o?.pred && !o.cls); if (!objs.length) return;
   const op = beginOp(s);
-  for (const o of objs) { o.cls = o.pred; o.pred = null; o.conf = 0; }
+  for (const o of objs) { rememberTrace(op, o.id); o.cls = o.pred; o.pred = null; o.conf = 0; }
   commitOp(op, true); afterChange(s);
 }
 
@@ -1960,7 +2019,13 @@ function renderObject() {
     </dl>
     <div class="row">${o.pred && !o.cls ? `<button class="btn small primary" id="objAccept">${t('obj.accept')}</button>` : ''}<button class="btn small" id="objDel">${t('obj.delete')}</button></div>
     <p class="note">${t('obj.multiHint')}</p>`;
-  $('objCls').onchange = (e) => { const v = e.target.value || null; if (v) assignClass(o.id, v); else { const op = beginOp(s); o.cls = null; commitOp(op, true); afterChange(s); } };
+  const classSelect = /** @type {HTMLSelectElement} */ ($('objCls'));
+  classSelect.onchange = () => {
+    if (classSelect.value) { assignClass(o.id, classSelect.value); return; }
+    const op = beginOp(s);
+    if (o.cls !== null) rememberTrace(op, o.id);
+    o.cls = null; commitOp(op, true); afterChange(s);
+  };
   $('objDel').onclick = () => deleteObject(o.id);
   if ($('objAccept')) $('objAccept').onclick = () => assignClass(o.id, o.pred);
 }
@@ -2317,7 +2382,7 @@ $('predThr').addEventListener('input', (e) => { S.settings.predThr = +e.target.v
 $('novelty').addEventListener('input', (e) => { S.settings.novelty = +e.target.value; $('novOut').textContent = '×' + S.settings.novelty; scheduleLearn(); });
 $('acceptPred').addEventListener('click', () => {
   const s = sec(); if (!s) return; const op = beginOp(s);
-  for (const o of s.objects.values()) if (status(o) === 'predicted') { o.cls = o.pred; o.pred = null; o.conf = 0; }
+  for (const o of s.objects.values()) if (status(o) === 'predicted') { rememberTrace(op, o.id); o.cls = o.pred; o.pred = null; o.conf = 0; }
   commitOp(op, true); afterChange(s);
 });
 
@@ -2746,7 +2811,8 @@ async function loadSection(q) {
   const ppu = pxPerCm(s);
   for (const o of q.objects) {
     const st = o.st || null;
-    s.objects.set(o.id, { id: o.id, cls: o.cls, src: o.src, nt: !!o.nt, pred: null, conf: 0, area: st?.n || 0, bbox: st ? [st.x0, st.y0, st.x1, st.y1] : null, stats: st, feat: st ? features(st, ppu) : null, ...(o.th ? { _thumb: o.th } : {}), ...(o.em ? { emb: o.em } : {}) });
+    const order = s.objects.get(o.id)?.order ?? s.nextTraceOrder++;
+    s.objects.set(o.id, { id: o.id, order, cls: o.cls, src: o.src, nt: !!o.nt, pred: null, conf: 0, area: st?.n || 0, bbox: st ? [st.x0, st.y0, st.x1, st.y1] : null, stats: st, feat: st ? features(st, ppu) : null, ...(o.th ? { _thumb: o.th } : {}), ...(o.em ? { emb: o.em } : {}) });
   }
   if (q.objects.some((o) => !o.st)) {   // older files: object statistics need the pixels once
     await withPixels(s, (x) => refreshObjects(x, new Set(x.objects.keys()), null));

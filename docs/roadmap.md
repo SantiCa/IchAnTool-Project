@@ -72,9 +72,11 @@ Keep task IDs stable. The changelog records what shipped.
         active pixel codes independently. [V0.88](../CHANGELOG.md#v088--2026-11-09)
   - [x] **M1.1.2 - Measure object history costs.** Reproduce long sessions at two trace densities and measure
         retained snapshots, action latency and sampled CPU. [V0.97](../CHANGELOG.md#v097--2026-11-09)
-  - [ ] **M1.1.3 - Prototype object deltas for undo.** Record changed objects and share immutable descriptors.
+  - [x] **M1.1.3 - Prototype object deltas for undo.** Record changed objects and share immutable descriptors.
         Keep typed image and mask buffers outside immutable state. Check equivalent undo, overlap order and
         reload results, then compare retained heap and action latency with the [M1.1.2 benchmark](benchmarks/M1.1.2.md).
+        [Comparison and raw measurements](benchmarks/M1.1.2.md#m113-trace-deltas).
+        [V0.103](../CHANGELOG.md#v0103--2026-11-09)
   - [ ] **M1.1.4 - Native redo.** The editor only keeps inverse edits. The history benchmark measures
         reapplying a new edit after Undo because there is no Redo command.
     - **Approach.** Build Redo on the result of M1.1.3. Keep a session-only forward history within a

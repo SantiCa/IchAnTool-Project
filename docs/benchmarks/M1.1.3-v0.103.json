@@ -1,0 +1,702 @@
+{
+  "started_utc": "2026-11-09T18:21:32.575994+00:00",
+  "source": {
+    "commit": "324ff1f67d30674ad166c8eb8521fd9970f685b4",
+    "dirty": true,
+    "input_files_sha256": "8b1f7251ae360a46ab6ef194b2d4032ee7dccfbc1e42b340b6a90cb083189cce"
+  },
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "architecture": "AMD64",
+    "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+    "logical_cpus": 16,
+    "physical_cores": 8,
+    "ram_mib": 31850,
+    "python": "3.14.2",
+    "sedcoretool": "0.103.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pillow": "13.0.0",
+    "psutil": "7.2.2"
+  },
+  "cycles": 8,
+  "warmups": 1,
+  "repetitions": 5,
+  "rss_poll_target_ms": 25.0,
+  "cases": [
+    {
+      "case": "sparse",
+      "fixture": {
+        "width": 1024,
+        "height": 1024,
+        "trace_count": 257,
+        "tile_size_px": 6,
+        "stride_px": 10,
+        "columns": 96,
+        "deletion_targets": 36,
+        "overlaps_per_target": 1,
+        "depth_cm": 100
+      },
+      "history": {
+        "initial_full": {
+          "steps": 30,
+          "object_records": 30,
+          "label_pixel_changes": 1080,
+          "exclusion_pixel_changes": 0,
+          "overlap_lists": 30
+        },
+        "final_full": {
+          "steps": 30,
+          "object_records": 30,
+          "label_pixel_changes": 1080,
+          "exclusion_pixel_changes": 0,
+          "overlap_lists": 30
+        }
+      },
+      "runtimes": {
+        "chrome": "Chrome/156.0.8078.80",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "runs": [
+        {
+          "kind": "warmup",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.30000001192092896,
+              "min": 0.09999999403953552,
+              "max": 3.0999999940395355,
+              "p95": 1.4000000059604645
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.29999998211860657,
+              "min": 0.09999999403953552,
+              "max": 2.399999976158142,
+              "p95": 0.699999988079071
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.19999998807907104,
+              "min": 0,
+              "max": 2.2000000178813934,
+              "p95": 0.5
+            }
+          },
+          "heap_bytes": {
+            "full": 4212056,
+            "without_objects": 4154888,
+            "without_history": 4125328
+          },
+          "history_heap_mib": 0.08271026611328125,
+          "snapshot_heap_mib": 0.0545196533203125,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 635.203125,
+          "browser_rss_samples": 40,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.20000001788139343,
+              "min": 0.09999999403953552,
+              "max": 2.5,
+              "p95": 1
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.20000001788139343,
+              "min": 0.09999999403953552,
+              "max": 2,
+              "p95": 0.5
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.19999998807907104,
+              "min": 0,
+              "max": 2.7000000178813934,
+              "p95": 0.4000000059604645
+            }
+          },
+          "heap_bytes": {
+            "full": 4217544,
+            "without_objects": 4160236,
+            "without_history": 4130676
+          },
+          "history_heap_mib": 0.08284378051757812,
+          "snapshot_heap_mib": 0.054653167724609375,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 638.875,
+          "browser_rss_samples": 40,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.29999998211860657,
+              "min": 0.09999999403953552,
+              "max": 3.0999999940395355,
+              "p95": 1.4000000059604645
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.29999998211860657,
+              "min": 0.09999999403953552,
+              "max": 2.300000011920929,
+              "p95": 0.5999999940395355
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.19999998807907104,
+              "min": 0,
+              "max": 3.199999988079071,
+              "p95": 0.5
+            }
+          },
+          "heap_bytes": {
+            "full": 4212968,
+            "without_objects": 4164368,
+            "without_history": 4131252
+          },
+          "history_heap_mib": 0.07793045043945312,
+          "snapshot_heap_mib": 0.04634857177734375,
+          "other_history_heap_mib": 0.031581878662109375,
+          "browser_peak_rss_mib": 633.56640625,
+          "browser_rss_samples": 38,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.29999999701976776,
+              "min": 0.09999999403953552,
+              "max": 3.4000000059604645,
+              "p95": 1.7000000178813934
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.20000001788139343,
+              "min": 0.09999999403953552,
+              "max": 1.9000000059604645,
+              "p95": 0.5
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.19999998807907104,
+              "min": 0,
+              "max": 2.199999988079071,
+              "p95": 0.4000000059604645
+            }
+          },
+          "heap_bytes": {
+            "full": 4215524,
+            "without_objects": 4158356,
+            "without_history": 4128796
+          },
+          "history_heap_mib": 0.08271026611328125,
+          "snapshot_heap_mib": 0.0545196533203125,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 637.23046875,
+          "browser_rss_samples": 37,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.30000001192092896,
+              "min": 0.09999999403953552,
+              "max": 2.5999999940395355,
+              "p95": 1.2999999821186066
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.20000001788139343,
+              "min": 0.09999999403953552,
+              "max": 2.100000023841858,
+              "p95": 0.5999999940395355
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.19999998807907104,
+              "min": 0,
+              "max": 2.9000000059604645,
+              "p95": 0.5
+            }
+          },
+          "heap_bytes": {
+            "full": 4214708,
+            "without_objects": 4157540,
+            "without_history": 4127980
+          },
+          "history_heap_mib": 0.08271026611328125,
+          "snapshot_heap_mib": 0.0545196533203125,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 632.375,
+          "browser_rss_samples": 37,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.30000001192092896,
+              "min": 0.09999999403953552,
+              "max": 2.899999976158142,
+              "p95": 1.199999988079071
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.20000001788139343,
+              "min": 0.09999999403953552,
+              "max": 3.4000000059604645,
+              "p95": 0.5
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.19999998807907104,
+              "min": 0,
+              "max": 1.899999976158142,
+              "p95": 0.4000000059604645
+            }
+          },
+          "heap_bytes": {
+            "full": 4216384,
+            "without_objects": 4159216,
+            "without_history": 4129656
+          },
+          "history_heap_mib": 0.08271026611328125,
+          "snapshot_heap_mib": 0.0545196533203125,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 632.94921875,
+          "browser_rss_samples": 42,
+          "reload_verified": true
+        }
+      ],
+      "latency_ms": {
+        "delete": {
+          "median": {
+            "median": 0.29999999701976776,
+            "min": 0.20000001788139343,
+            "max": 0.30000001192092896
+          },
+          "p95": {
+            "median": 1.2999999821186066,
+            "min": 1,
+            "max": 1.7000000178813934
+          }
+        },
+        "undo": {
+          "median": {
+            "median": 0.20000001788139343,
+            "min": 0.20000001788139343,
+            "max": 0.29999998211860657
+          },
+          "p95": {
+            "median": 0.5,
+            "min": 0.5,
+            "max": 0.5999999940395355
+          }
+        },
+        "reapply": {
+          "median": {
+            "median": 0.19999998807907104,
+            "min": 0.19999998807907104,
+            "max": 0.19999998807907104
+          },
+          "p95": {
+            "median": 0.4000000059604645,
+            "min": 0.4000000059604645,
+            "max": 0.5
+          }
+        }
+      },
+      "memory_mib": {
+        "history_heap_mib": {
+          "median": 0.08271026611328125,
+          "min": 0.07793045043945312,
+          "max": 0.08284378051757812
+        },
+        "snapshot_heap_mib": {
+          "median": 0.0545196533203125,
+          "min": 0.04634857177734375,
+          "max": 0.054653167724609375
+        },
+        "other_history_heap_mib": {
+          "median": 0.02819061279296875,
+          "min": 0.02819061279296875,
+          "max": 0.031581878662109375
+        },
+        "browser_peak_rss_mib": {
+          "median": 633.56640625,
+          "min": 632.375,
+          "max": 638.875
+        }
+      },
+      "cpu_profile": {
+        "requested_interval_us": 100,
+        "profile_sample_count": 856,
+        "functions": {
+          "deleteObjects": {
+            "sample_count": 122,
+            "sampled_ms": 63.193000000000026
+          },
+          "beginOp": {
+            "sample_count": 0,
+            "sampled_ms": 0
+          },
+          "undoOne": {
+            "sample_count": 148,
+            "sampled_ms": 77.35000000000002
+          }
+        }
+      }
+    },
+    {
+      "case": "dense",
+      "fixture": {
+        "width": 1024,
+        "height": 1024,
+        "trace_count": 8193,
+        "tile_size_px": 6,
+        "stride_px": 10,
+        "columns": 96,
+        "deletion_targets": 36,
+        "overlaps_per_target": 1,
+        "depth_cm": 100
+      },
+      "history": {
+        "initial_full": {
+          "steps": 30,
+          "object_records": 30,
+          "label_pixel_changes": 1080,
+          "exclusion_pixel_changes": 0,
+          "overlap_lists": 30
+        },
+        "final_full": {
+          "steps": 30,
+          "object_records": 30,
+          "label_pixel_changes": 1080,
+          "exclusion_pixel_changes": 0,
+          "overlap_lists": 30
+        }
+      },
+      "runtimes": {
+        "chrome": "Chrome/156.0.8078.80",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "runs": [
+        {
+          "kind": "warmup",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.5999999940395355,
+              "min": 0.29999998211860657,
+              "max": 3.5,
+              "p95": 3.399999976158142
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.5999999940395355,
+              "min": 0.3999999761581421,
+              "max": 3.300000011920929,
+              "p95": 1.199999988079071
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.5,
+              "min": 0.29999998211860657,
+              "max": 2.300000011920929,
+              "p95": 0.8999999761581421
+            }
+          },
+          "heap_bytes": {
+            "full": 11871076,
+            "without_objects": 11822200,
+            "without_history": 11792640
+          },
+          "history_heap_mib": 0.07480239868164062,
+          "snapshot_heap_mib": 0.046611785888671875,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 670.13671875,
+          "browser_rss_samples": 44,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.6000000089406967,
+              "min": 0.4000000059604645,
+              "max": 4.199999988079071,
+              "p95": 2.9000000059604645
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.5999999940395355,
+              "min": 0.3999999761581421,
+              "max": 3,
+              "p95": 1.100000023841858
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.5,
+              "min": 0.29999998211860657,
+              "max": 2.4000000059604645,
+              "p95": 0.9000000059604645
+            }
+          },
+          "heap_bytes": {
+            "full": 11912392,
+            "without_objects": 11868608,
+            "without_history": 11836832
+          },
+          "history_heap_mib": 0.07205963134765625,
+          "snapshot_heap_mib": 0.04175567626953125,
+          "other_history_heap_mib": 0.030303955078125,
+          "browser_peak_rss_mib": 666.015625,
+          "browser_rss_samples": 43,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.5999999940395355,
+              "min": 0.4000000059604645,
+              "max": 3.800000011920929,
+              "p95": 2.800000011920929
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.699999988079071,
+              "min": 0.4000000059604645,
+              "max": 4.299999982118607,
+              "p95": 1.0999999940395355
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.5,
+              "min": 0.30000001192092896,
+              "max": 2.7000000178813934,
+              "p95": 1
+            }
+          },
+          "heap_bytes": {
+            "full": 11897892,
+            "without_objects": 11849016,
+            "without_history": 11819456
+          },
+          "history_heap_mib": 0.07480239868164062,
+          "snapshot_heap_mib": 0.046611785888671875,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 655.0859375,
+          "browser_rss_samples": 45,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.5999999940395355,
+              "min": 0.3999999761581421,
+              "max": 4.300000011920929,
+              "p95": 3.899999976158142
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.6000000238418579,
+              "min": 0.4000000059604645,
+              "max": 2.9000000059604645,
+              "p95": 1.199999988079071
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.5,
+              "min": 0.29999998211860657,
+              "max": 2.300000011920929,
+              "p95": 0.8999999761581421
+            }
+          },
+          "heap_bytes": {
+            "full": 11894548,
+            "without_objects": 11845672,
+            "without_history": 11816112
+          },
+          "history_heap_mib": 0.07480239868164062,
+          "snapshot_heap_mib": 0.046611785888671875,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 672.0546875,
+          "browser_rss_samples": 46,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.5,
+              "min": 0.3999999761581421,
+              "max": 5.0999999940395355,
+              "p95": 3.600000023841858
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.5999999940395355,
+              "min": 0.4000000059604645,
+              "max": 2.5,
+              "p95": 1
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.5,
+              "min": 0.29999998211860657,
+              "max": 2.9000000059604645,
+              "p95": 0.7999999821186066
+            }
+          },
+          "heap_bytes": {
+            "full": 11827064,
+            "without_objects": 11778188,
+            "without_history": 11748628
+          },
+          "history_heap_mib": 0.07480239868164062,
+          "snapshot_heap_mib": 0.046611785888671875,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 653.70703125,
+          "browser_rss_samples": 44,
+          "reload_verified": true
+        },
+        {
+          "kind": "measurement",
+          "latency_ms": {
+            "delete": {
+              "count": 36,
+              "median": 0.5999999940395355,
+              "min": 0.4000000059604645,
+              "max": 3.9000000059604645,
+              "p95": 1.7000000178813934
+            },
+            "undo": {
+              "count": 240,
+              "median": 0.5,
+              "min": 0.3999999761581421,
+              "max": 2.4000000059604645,
+              "p95": 0.9000000059604645
+            },
+            "reapply": {
+              "count": 240,
+              "median": 0.4000000059604645,
+              "min": 0.29999998211860657,
+              "max": 2.300000011920929,
+              "p95": 0.7000000178813934
+            }
+          },
+          "heap_bytes": {
+            "full": 11894496,
+            "without_objects": 11845620,
+            "without_history": 11816060
+          },
+          "history_heap_mib": 0.07480239868164062,
+          "snapshot_heap_mib": 0.046611785888671875,
+          "other_history_heap_mib": 0.02819061279296875,
+          "browser_peak_rss_mib": 671.3046875,
+          "browser_rss_samples": 44,
+          "reload_verified": true
+        }
+      ],
+      "latency_ms": {
+        "delete": {
+          "median": {
+            "median": 0.5999999940395355,
+            "min": 0.5,
+            "max": 0.6000000089406967
+          },
+          "p95": {
+            "median": 2.9000000059604645,
+            "min": 1.7000000178813934,
+            "max": 3.899999976158142
+          }
+        },
+        "undo": {
+          "median": {
+            "median": 0.5999999940395355,
+            "min": 0.5,
+            "max": 0.699999988079071
+          },
+          "p95": {
+            "median": 1.0999999940395355,
+            "min": 0.9000000059604645,
+            "max": 1.199999988079071
+          }
+        },
+        "reapply": {
+          "median": {
+            "median": 0.5,
+            "min": 0.4000000059604645,
+            "max": 0.5
+          },
+          "p95": {
+            "median": 0.8999999761581421,
+            "min": 0.7000000178813934,
+            "max": 1
+          }
+        }
+      },
+      "memory_mib": {
+        "history_heap_mib": {
+          "median": 0.07480239868164062,
+          "min": 0.07205963134765625,
+          "max": 0.07480239868164062
+        },
+        "snapshot_heap_mib": {
+          "median": 0.046611785888671875,
+          "min": 0.04175567626953125,
+          "max": 0.046611785888671875
+        },
+        "other_history_heap_mib": {
+          "median": 0.02819061279296875,
+          "min": 0.02819061279296875,
+          "max": 0.030303955078125
+        },
+        "browser_peak_rss_mib": {
+          "median": 666.015625,
+          "min": 653.70703125,
+          "max": 672.0546875
+        }
+      },
+      "cpu_profile": {
+        "requested_interval_us": 100,
+        "profile_sample_count": 1472,
+        "functions": {
+          "deleteObjects": {
+            "sample_count": 368,
+            "sampled_ms": 150.087
+          },
+          "beginOp": {
+            "sample_count": 0,
+            "sampled_ms": 0
+          },
+          "undoOne": {
+            "sample_count": 400,
+            "sampled_ms": 158.82100000000005
+          }
+        }
+      }
+    }
+  ]
+}

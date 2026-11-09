@@ -10,7 +10,7 @@
  * @typedef {{key: string, canvas: HTMLCanvasElement, k?: number}} SectionCanvasCache
  * @typedef {{name: string, type: string, key?: string, blob?: Blob, size?: number, bytes?: Uint8Array<ArrayBuffer>}} SectionFile
  * @typedef {{id: string, x: number, y: number, cls: string}} TraceMark
- * @typedef {{id: number, cls: string | null, pred: string | null, conf: number, src: string,
+ * @typedef {{id: number, order: number, cls: string | null, pred: string | null, conf: number, src: string,
  *   area: number, bbox: number[] | null, nt?: boolean, stats?: import('./imageproc.js').TraceStats | null,
  *   feat?: ReturnType<typeof import('./imageproc.js').features> | null}} TraceObject
  * @typedef {{from: number, to: number, BI: number | null, ii: number | null}} ManualIndex
@@ -25,7 +25,7 @@
  *   orig16?: Uint16Array | null, enh: Uint8ClampedArray | null, ds: number, rot: number,
  *   logVer: number, view: SectionView | null, crop: import('./core.js').Roi | null,
  *   filters: import('./imageproc.js').FilterSettings, _lc?: SectionCanvasCache | null,
- *   _lb?: SectionCanvasCache | null, file: SectionFile, objects: Map<number, TraceObject>, nextId: number,
+ *   _lb?: SectionCanvasCache | null, file: SectionFile, objects: Map<number, TraceObject>, nextId: number, nextTraceOrder: number,
  *   marks: TraceMark[], manual: ManualIndex[], detect: import('./imageproc.js').DetectionSettings, preset: string,
  *   loadWarnings?: {region: boolean, mask: boolean},
  *   lutFill?: Uint8ClampedArray, lutLine?: Uint8ClampedArray, lutStyle?: Uint8Array, _pxErr?: string,
@@ -37,7 +37,7 @@
  *   src: Record<string, string>, ageText: string, user: Record<string, {d: number[], v: (number | null)[]}>,
  *   edits: Record<string, Record<string, CellEdit>>}} CoreState
  * @typedef {{s: SectionState, lm: (number | number[])[], ex: number[], nextId: number, sel: number,
- *   objs: TraceObject[], group?: string, stackChanged?: boolean}} UndoStep
+ *   objs: Map<number, TraceObject | null>, group?: string, stackChanged?: boolean}} UndoStep
  */
 /* Shared application state and small helpers (no DOM work at load time). */
 import { t } from './i18n.js';
