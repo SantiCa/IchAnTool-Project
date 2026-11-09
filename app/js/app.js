@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.97';
+export const DELIVERY = 'V0.98';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -3297,6 +3297,8 @@ async function restoreFiles(files) {
   const addProject = async (p, getBlob = null) => {
     for (const c of p.cores || [{ sections: p.sections }]) for (const q of c.sections || [])   // V0.36: a damaged file is not stored
       for (const k of ['labels', 'exclude']) if (q.w && q.h && q[k] != null && !rleValid(q[k], q.w * q.h)) { rejected++; toast(t('load.failed', { e: t('load.badMask', { s: q.name || '?', k }) }), 9000); return; }
+    // Verify and ingest the images before changing any existing project or its pending save.
+    await internImages(p, getBlob);
     if (p.id && existing.has(p.id)) {   // V0.8: the same project (work by turns): replace the local version or keep both
       const m = await getMeta(p.id).catch(() => null);
       if (confirm(t('bk.replaceAsk', { n: p.name || APP, a: m?.updated ? new Date(m.updated).toLocaleString() : '?', b: p.saved ? new Date(p.saved).toLocaleString() : '?' }))) {
@@ -3313,7 +3315,6 @@ async function restoreFiles(files) {
     } else if (!p.id) p.id = uid();
     existing.add(p.id);
     const nSec = p.cores ? p.cores.reduce((n, c) => n + (c.sections || []).length, 0) : (p.sections || []).length;
-    await internImages(p, getBlob);
     if (storageOK) await putProject({ id: p.id, name: p.name, updated: Date.now(), sections: nSec, cores: p.cores?.length || 1, coreNames: p.cores?.map((c) => c.name) }, p);
     lastLoaded = p; nProj++;
   };

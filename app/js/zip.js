@@ -14,6 +14,16 @@ export function crc32(bytes, crc = 0) {
   return ~c >>> 0;
 }
 const enc = new TextEncoder();
+const ZIP_CRC_BLOCK_SIZE = 4 * 1024 ** 2;
+
+async function storedZipCRC(blob) {
+  let crc = 0;
+  for (let start = 0; start < blob.size; start += ZIP_CRC_BLOCK_SIZE) {
+    const bytes = new Uint8Array(await blob.slice(start, start + ZIP_CRC_BLOCK_SIZE).arrayBuffer());
+    crc = crc32(bytes, crc);
+  }
+  return crc;
+}
 
 /** files: [{ name, data: Blob | Uint8Array | string }] → Blob (application/zip). */
 export async function zipFiles(files) {
@@ -22,11 +32,7 @@ export async function zipFiles(files) {
     const data = typeof f.data === 'string' ? new Blob([enc.encode(f.data)]) : f.data instanceof Blob ? f.data : new Blob([f.data]);
     const name = enc.encode(f.name), size = data.size;
     if (offset + size + 30 + name.length > 0xffffffff) throw new Error('ZIP > 4 GB');
-    let crc = 0;
-    for (let start = 0; start < size; start += 4 * 1024 * 1024) {
-      const bytes = new Uint8Array(await data.slice(start, start + 4 * 1024 * 1024).arrayBuffer());
-      crc = crc32(bytes, crc);
-    }
+    const crc = await storedZipCRC(data);
     const h = new DataView(new ArrayBuffer(30));
     h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
     h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true); h.setUint16(26, name.length, true);
@@ -130,7 +136,9 @@ export async function unzipBlob(blob) {
           throw new Error('Invalid or overlapping ZIP member');
         }
         const raw = blob.slice(start, start + csize);
-        return method === 0 ? raw : inflateZipMember(raw, size, crc);
+        if (method === 8) return inflateZipMember(raw, size, crc);
+        if (await storedZipCRC(raw) !== crc) throw new Error(`ZIP CRC mismatch for ${name}`);
+        return raw;
       },
     });
     p = next;

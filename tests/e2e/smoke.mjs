@@ -320,7 +320,7 @@ try {
       const blob = await zipFiles([{ name: path, data }]);
       sendFile(new File([blob], id + '.corantool', { type: 'application/zip' }));
     };
-    const { getProject } = await import('./js/storage.js');
+    const { getProject, listProjects } = await import('./js/storage.js');
     const waitFor = async (predicate) => {
       for (let i = 0; i < 300; i++) {
         if (await predicate()) return true;
@@ -400,23 +400,56 @@ try {
     await window.ichantool.saveToDB();
     const healthySave = (await getProject(S.id)).cores[0].sections[0].top === 1;
 
+    const crcId = 'crc-zip-smoke', crcName = 'CRC sample', imagePath = 'images/section.png';
+    const crcProject = JSON.stringify({ ...valid, id: crcId, name: crcName, kind: 'project', cores: [{
+      id: 'c', sections: [{ ...section, file: { name: 'section.png', type: 'image/png', path: imagePath } }],
+    }] });
+    const image = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const crcZip = await zipFiles([{ name: 'project.json', data: crcProject }, { name: imagePath, data: image }]);
+    sendFile(new File([crcZip], crcId + '.sedcoretool'));
+    const intactZipOpened = await waitFor(() => S.id === crcId && S.sections[0]?.enh
+      && document.getElementById('busy').hidden);
+    const beforeCrc = JSON.stringify(await getProject(crcId));
+    const projectsBeforeCrc = (await listProjects()).length;
+    const bytes = new Uint8Array(await crcZip.arrayBuffer()), headers = new DataView(bytes.buffer);
+    const payloadAt = (local) => local + 30 + headers.getUint16(local + 26, true) + headers.getUint16(local + 28, true);
+    const encoder = new TextEncoder(), jsonStart = payloadAt(0);
+    const nameOffset = encoder.encode(crcProject.slice(0, crcProject.indexOf(crcName))).length;
+    const imageStart = payloadAt(jsonStart + encoder.encode(crcProject).length);
+
     const log = console.error;
+    const confirmReplace = window.confirm;
     let rejected = false;
+    let replacePrompts = 0;
+    const crcErrors = [], crcChecks = [];
     console.error = (error, ...args) => {
       if (String(error).includes('ZIP member name')) rejected = true;
+      else if (String(error).includes('ZIP CRC mismatch')) crcErrors.push(String(error));
       else log(error, ...args);
     };
+    window.confirm = () => { replacePrompts++; return true; };
     try {
+      for (const [name, offset] of [['project.json', jsonStart + nameOffset], [imagePath, imageStart + image.size - 1]]) {
+        const changed = bytes.slice(); changed[offset] ^= 1;
+        sendFile(new File([changed], 'altered.sedcoretool'));
+        const message = 'ZIP CRC mismatch for ' + name;
+        const warned = await waitFor(() => crcErrors.some((error) => error.includes(message))
+          && document.getElementById('toast').textContent.includes(message));
+        crcChecks.push(warned && S.id === crcId && S.name === crcName
+          && JSON.stringify(await getProject(crcId)) === beforeCrc && (await listProjects()).length === projectsBeforeCrc);
+      }
       await send('../project.json', 'hostile-zip-smoke');
       await waitFor(() => rejected);
       return { opened, saved, rejected, notStored: !(await getProject('hostile-zip-smoke')),
         validQuiet, validBins, currentWarns, legacyWarns, corrected,
-        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, healthySave };
-    } finally { console.error = log; }
+        legacyPreview, sourcePreserved, currentPreview, healthyOverlap, healthySave,
+        intactZipOpened, crcChecks, replacePrompts };
+    } finally { console.error = log; window.confirm = confirmReplace; }
   });
   assert.deepEqual(importZip, { opened: true, saved: true, rejected: true, notStored: true,
     validQuiet: true, validBins: [[0, 1, 0, 0, 1], [1, 2, 0, 0, 1]], currentWarns: true, legacyWarns: true, corrected: true,
-    legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true, healthySave: true });
+    legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true, healthySave: true,
+    intactZipOpened: true, crcChecks: [true, true], replacePrompts: 0 });
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);
 } catch (e) { fail(e.message); } finally { await b.close(); }

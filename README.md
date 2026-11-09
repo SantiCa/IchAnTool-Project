@@ -129,6 +129,7 @@ section.data.to_csv("core.csv", index=False)                     # depth, biotur
 
 CSV and Excel results escape text that spreadsheet programs could interpret as formulas. Project and U-Net ZIP
 imports apply the [project ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#231-project-packages-sedcoretool) and [U-Net ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#92-training-data-and-training-python-package).
+If a project package reports a CRC mismatch, use an intact copy of the package.
 
 Use lossless formats (PNG, TIFF) for masks. The complete API, command line and U-Net commands are described in the
 [technical documentation](docs/TECHNICAL_DOCUMENTATION.md#25-the-sedcoretool-python-package).

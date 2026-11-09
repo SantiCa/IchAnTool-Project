@@ -1845,8 +1845,11 @@ to restore a separate copy after an identifier conflict (§23.3). The library st
 Project ZIP import accepts classic stored and Deflate archives. It checks paths, directory and local headers,
 and declared uncompressed sizes before reading entries. Limits are 16 MiB for the central directory, 128 MiB
 per project or settings JSON, 256 MiB per Deflate member, 1 GiB for Deflate data and less than 4 GiB for all
-members. The same aggregate limits apply to repeated reads. Deflate output is checked against the declared size
-and CRC during extraction. Stored original images are accessed by range.
+members. Each member read is charged to the aggregate limits. Deflate output is checked against the declared size
+and CRC during extraction. For a stored member, the reader computes CRC-32 in blocks of at most 4 MiB on each
+read and compares it with the directory before returning the original Blob slice. Stored images retain range
+access. The importer reads the project JSON and ingests its referenced images before entering the replacement
+flow for an existing project, so a CRC failure surfaces as an import error before the existing project is changed.
 
 ### 23.2 Project folder and automatic copy
 The automatic copy writes, in a folder chosen by the user (ideally synchronised with OneDrive, Google Drive or

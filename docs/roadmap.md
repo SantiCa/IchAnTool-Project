@@ -24,6 +24,28 @@ Keep task IDs stable. The changelog records what shipped.
       [benchmark instructions and recorded run](benchmarks/M0.1.md). Codex addresses any findings before closure.
 - [x] **M0.2 - Import and export safety.** Bound ZIP expansion and escape formula-like spreadsheet text
       while preserving numeric measurements. [V0.91](../CHANGELOG.md#v091--2026-11-09)
+  - [x] **M0.2.1 - Verify stored ZIP member integrity.** Check the CRC in bounded blocks before delivering
+        stored members. Verify corruption in project JSON and images and preserve existing projects.
+        [V0.98](../CHANGELOG.md#v098--2026-11-09)
+  - [ ] **M0.2.2 - Budget Python image and mask loading.** `load_image()` converts or materialises images
+        without an application-defined budget. `load_mask()` can also allocate an `int32` copy. Pillow's
+        configurable pixel checks provide a separate safeguard.
+    - **Approach.** Check image dimensions and estimated decode and conversion memory from metadata before
+      loading pixels. Include concurrent decode buffers and conversion copies, including the mask's
+      `int32` output. Justify the default using documented large-image workloads and a memory budget.
+    - **Acceptance.** Using small generated files and a reduced test budget, verify that both loaders
+      accept inputs within the limit with the expected shape, dtype and pixel values, including 16-bit
+      samples where supported. For each loader, verify that over-budget input raises a clear error before
+      pixel decoding, conversion or array creation. Use sentinels for these calls so the tests can establish
+      the order without allocating a large image. Verify an existing analysis or batch entry point
+      propagates the limit error and retain the numerical regression on supported inputs.
+    - **Likely touchpoints.** `src/sedcoretool/io.py`, `tests/test_io_security.py`,
+      `tests/test_batch.py` and `tests/test_core.py`. Document the user-visible limit and error in
+      `README.md` and the memory estimate and supported modes in the
+      [technical documentation](TECHNICAL_DOCUMENTATION.md).
+    - **Decision before implementation.** Establish the supported large-image envelope, the per-mode
+      memory estimate, and whether callers need a bounded override. Define how the application limit
+      interacts with Pillow's safeguard. Direct image reads in U-Net training are a separate path.
 - [x] **M0.3 - Project validation.** Cover current and legacy projects with diagnostic warnings.
       [V0.96](../CHANGELOG.md#v096--2026-11-09)
   - [x] **M0.3.1 - Format inventory and depth diagnostics.** Document the import and migration paths and warn
@@ -60,6 +82,20 @@ Keep task IDs stable. The changelog records what shipped.
   - [ ] **M1.1.3 - Prototype object deltas for undo.** Record changed objects and share immutable descriptors.
         Keep typed image and mask buffers outside immutable state. Check equivalent undo, overlap order and
         reload results, then compare retained heap and action latency with the [M1.1.2 benchmark](benchmarks/M1.1.2.md).
+  - [ ] **M1.1.4 - Native redo.** The editor only keeps inverse edits. The history benchmark measures
+        reapplying a new edit after Undo because there is no Redo command.
+    - **Approach.** Build Redo on the result of M1.1.3. Keep a session-only forward history within a
+      shared budget with Undo. Provide a localised action and keyboard shortcut.
+    - **Acceptance.** Verify that edit, Undo, Redo and Undo again restore the expected masks, exclusions
+      and trace metadata exactly. Exercise grouped edits and overlap order across stack compaction. A
+      new committed edit after Undo clears the forward branch. Verify the control and shortcut states,
+      preserve native shortcuts in text fields, and confirm that save and reload preserve the current
+      project state with empty session history. Extend the M1.1.2 benchmark to record native Redo latency,
+      Undo latency and combined retained heap on both trace densities.
+    - **Likely touchpoints.** `app/js/app.js`, `app/js/state.js`, `app/js/edit.js`, `app/index.html`,
+      `app/js/i18n.js`, `tests/app/edit.test.mjs`, `tests/e2e/smoke.mjs` and the history benchmark.
+    - **Decision before implementation.** Confirm the forward-delta representation, group eviction under
+      the shared budget and platform shortcut bindings after M1.1.3.
 - [ ] **M1.2 - Interrupted saves.** Exercise recovery through IndexedDB and file backup paths. Preserve the
       last successful save and verify that failures are visible to the user.
 

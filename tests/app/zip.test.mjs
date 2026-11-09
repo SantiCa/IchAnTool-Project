@@ -26,6 +26,42 @@ test('ZIP computes the CRC across bounded slices without reading the original as
   assert.deepEqual(new Uint8Array(await result.slice(-25, -21).arrayBuffer()), new Uint8Array([12, 34, 56, 78]));
 });
 
+test('ZIP checks stored payloads in bounded reads and returns a sliceable Blob', async () => {
+  const blockSize = 4 * 1024 ** 2, reads = [];
+  class BoundedBlob extends Blob {
+    slice(...args) { return new BoundedBlob([super.slice(...args)]); }
+    arrayBuffer() {
+      assert.ok(this.size <= blockSize, 'read exceeds the CRC block size');
+      reads.push(this.size);
+      return super.arrayBuffer();
+    }
+  }
+  const payload = new Uint8Array(blockSize + 23);
+  payload.set([12, 34, 56, 78], blockSize - 2);
+  const name = 'images/core.tif';
+  const zip = await zipFiles([{ name, data: payload }]);
+  const entries = await unzipBlob(new BoundedBlob([zip]));
+  reads.length = 0;
+  const member = await entries.get(name).get();
+  assert.deepEqual(reads.slice(-2), [blockSize, 23]);
+  assert.equal(member.size, payload.length);
+  assert.deepEqual(new Uint8Array(await member.slice(blockSize - 2, blockSize + 2).arrayBuffer()), new Uint8Array([12, 34, 56, 78]));
+});
+
+for (const [name, data, offset] of [
+  ['project.json', '{"name":"Core"}', 9],
+  ['images/core.png', new Uint8Array([0x89, 0x50, 0x4e, 0x47]), 1],
+]) {
+  test(`ZIP rejects a stored ${name} with one altered payload byte`, async () => {
+    const zip = await zipFiles([{ name, data }]);
+    const bytes = new Uint8Array(await zip.arrayBuffer()), header = new DataView(bytes.buffer);
+    const start = 30 + header.getUint16(26, true) + header.getUint16(28, true);
+    bytes[start + offset] ^= 1;
+    const entries = await unzipBlob(new Blob([bytes]));
+    await assert.rejects(entries.get(name).get(), /CRC mismatch/);
+  });
+}
+
 async function deflatedMember(data, size = data.length) {
   const blob = await zipFiles([{ name: 'project.json', data: deflateRawSync(data) }]);
   const view = new DataView(await blob.arrayBuffer()), cd = view.getUint32(view.byteLength - 6, true);
