@@ -117,6 +117,8 @@ sedcoretool batch scans/sections.csv --palette palette.json --bin-cm 1 -o result
 
 An exclusion image of the same size (white = excluded: cracks, gaps, samples) can be given with `--exclude`, or as
 the `exclude` column of the manifest.
+Multi-core LAS exports require distinct filenames and unused destinations. If core names collide after
+normalisation, rename the cores or export them separately. Use a different output prefix if a destination exists.
 
 ```python
 from sedcoretool import analyze_mask, load_image, mask_from_palette

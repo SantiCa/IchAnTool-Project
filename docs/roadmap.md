@@ -33,15 +33,9 @@ Keep task IDs stable. The changelog records what shipped.
   - [x] **M0.2.3 - Bound Python mask label expansion.** Validate label IDs and class counts before
         allocating class results. Preserve exact interval results, sparse IDs and CLI exclusions.
         [V0.100](../CHANGELOG.md#v0100--2026-11-09)
-  - [ ] **M0.2.4 - Prevent batch LAS filename collisions.** Different core names can normalise to
-        the same output filename and silently overwrite earlier results.
-    - **Approach.** Resolve all destination names before writing any LAS file.
-    - **Acceptance.** Cores with colliding normalised names and case-only differences on
-      case-insensitive filesystems either produce distinct files with their own data or receive a
-      clear error before any write. Preserve existing names for noncolliding exports.
-    - **Likely touchpoints.** The batch LAS branch in `src/sedcoretool/cli.py` and `tests/test_batch.py`.
-    - **Decision before implementation.** Choose deterministic disambiguation or explicit rejection,
-      and define the policy for destinations already present on disk.
+  - [x] **M0.2.4 - Prevent batch LAS filename collisions.** Check all multi-core destinations before writing
+        and create each output exclusively. Verify collisions, existing files and valid exports.
+        [V0.101](../CHANGELOG.md#v0101--2026-11-09)
 - [x] **M0.3 - Project validation.** Cover current and legacy projects with diagnostic warnings.
       [V0.96](../CHANGELOG.md#v096--2026-11-09)
   - [x] **M0.3.1 - Format inventory and depth diagnostics.** Document the import and migration paths and warn

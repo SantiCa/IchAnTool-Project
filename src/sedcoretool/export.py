@@ -129,11 +129,12 @@ def _mnemonic(name: str, used: set[str]) -> str:
 
 
 def to_las(sections: Iterable[CoreSection], path: str | Path, well: str = "", units: str | None = None,
-           overlap: str = "upper") -> Path:
+           overlap: str = "upper", *, overwrite: bool = True) -> Path:
     """LAS 2.0 file (one core) for well-log software. Depth = interval centre; no data = -999.25.
 
     The sections are joined with :func:`join_sections` (default ``overlap="upper"``, because depth must increase).
     STEP is the interval spacing when it is regular and 0 otherwise (gaps, mixed interval thickness).
+    Set ``overwrite=False`` to create the destination exclusively.
     """
     from . import __version__
     sections = list(sections)
@@ -193,5 +194,6 @@ def to_las(sections: Iterable[CoreSection], path: str | Path, well: str = "", un
     out.append("~A " + " ".join(m for m, *_ in cols))
     out += [" ".join(f"{v:12.4f}" for v in row) for row in data]
     path = Path(path)
-    path.write_text("\n".join(out) + "\n", encoding="ascii", errors="replace")
+    with path.open("w" if overwrite else "x", encoding="ascii", errors="replace") as file:
+        file.write("\n".join(out) + "\n")
     return path

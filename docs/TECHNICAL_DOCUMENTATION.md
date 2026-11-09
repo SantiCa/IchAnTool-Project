@@ -2049,7 +2049,7 @@ and marks those pixels as excluded before analysis.
 | `pixel_depths(n_rows, top, bottom)`, `depth_to_age(depth, model_depth, model_age, extrapolate=False)` | `depth.py` | Depth of each row centre (§2.3) and linear age model (§5). |
 | `to_csv(sections, path)`, `to_excel(sections, path)` | `export.py` | All sections in one table; Excel adds one sheet per section (needs `openpyxl`). |
 | `join_sections(sections, units=None, overlap="keep")` | `export.py` | Sections of one core as one series sorted by depth (§25.6). |
-| `to_las(sections, path, well="", units=None, overlap="upper")` | `export.py` | LAS 2.0 file of one core (§25.6). |
+| `to_las(sections, path, well="", units=None, overlap="upper", *, overwrite=True)` | `export.py` | LAS 2.0 file of one core (§25.6). Use `overwrite=False` for exclusive creation. |
 | `read_manifest(path)`, `run_manifest(path, to_mask=None, **analysis)`, `write_manifest_template(folder, out=None)`, `load_exclusion(path)` | `batch.py` | Batch processing from a manifest (§25.6); `run_manifest` returns `{core: [sections, top to bottom]}`. |
 | `plot_section(section, ax=None, show_indices=True)` | `plotting.py` | Quick-look figure of bioturbation %, BI and ii against depth (needs `matplotlib`). |
 
@@ -2160,6 +2160,12 @@ sedcoretool batch sections.csv [--bin-cm 1 | --bin-px N] [--threshold 5 | --pale
 
 Every section is analysed as in §3 with the same options. CSV and Excel hold all cores and sections (Excel adds one
 sheet per section); with `.las`, one file per core (`<name>_<core>.las` when there are several).
+For a multi-core LAS batch, the filename component for each core retains alphanumeric characters, hyphens
+and underscores, and replaces other characters with underscores. Before writing, the CLI compares all
+proposed filenames and existing directory entries using Unicode NFC and case folding. A collision within
+the batch reports both core names and the conflicting filename. An occupied destination also stops the
+batch before the first write. Files are opened for exclusive creation to protect destinations that appear
+after the initial check.
 
 **Joining sections** (as §15.1): sections are sorted by top depth, depths are converted to the units of the
 uppermost section and intervals are joined **without recomputing them**. Gaps between sections are kept as they are.

@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.101 — 2026-11-09
+- Reject conflicting filenames and existing destinations before exporting a multi-core LAS batch.
+
 ## V0.100 — 2026-11-09
 - Reject out-of-range Python mask labels before allocating class results. Supported labels retain their class names and interval values.
 

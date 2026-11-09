@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from PIL import Image
 
-from sedcoretool import analyze_mask
+from sedcoretool import analyze_mask, cli
 from sedcoretool.batch import read_manifest, run_manifest, write_manifest_template
 from sedcoretool.cli import main
 from sedcoretool.export import join_sections, to_las
@@ -92,7 +92,9 @@ def test_las_export(core, tmp_path):
 
 def test_cli_batch_manifest_and_bin_cm(core, tmp_path, capsys):
     assert main(["batch", str(core / "sections.csv"), "--label-mask", "--bin-cm", "10", "-o", str(tmp_path / "x.las")]) == 0
-    assert (tmp_path / "x_A.las").exists() and (tmp_path / "x_B.las").exists()
+    for name, sections in run_manifest(core / "sections.csv", bin_cm=10).items():
+        expected = to_las(sections, tmp_path / f"reference_{name}.las", well=name)
+        assert (tmp_path / f"x_{name}.las").read_bytes() == expected.read_bytes()
     assert main(["batch", str(core / "sections.csv"), "--label-mask", "--bin-cm", "5", "-o", str(tmp_path / "x.csv")]) == 0
     out = pd.read_csv(tmp_path / "x.csv")
     assert set(out["core"]) == {"A", "B"} and len(out) == 20 + 10 + 20
@@ -106,6 +108,41 @@ def test_cli_batch_manifest_and_bin_cm(core, tmp_path, capsys):
           "--exclude-value", "255", "--bin-cm", "10", "-o", str(tmp_path / "lab.csv")])
     r = pd.read_csv(tmp_path / "lab.csv").iloc[0]
     assert r["bioturbation_pct"] == 100 and r["valid_pct"] == 50
+
+
+@pytest.mark.parametrize(("first", "second"), [("Core/A", "Core:A"), ("CoreA", "corea"), ("가", "\u1100\u1161")])
+def test_cli_rejects_las_filename_collisions_before_writing(core, first, second):
+    manifest = pd.read_csv(core / "sections.csv")
+    manifest["core"] = ["Independent", first, second]
+    manifest.to_csv(core / "collisions.csv", index=False)
+    args = ["batch", str(core / "collisions.csv"), "--label-mask", "-o", str(core / "result.las")]
+    with pytest.raises(ValueError, match="LAS output filename collision") as error:
+        main(args)
+    assert repr(first) in str(error.value) and repr(second) in str(error.value)
+    assert not list(core.glob("*.las"))
+
+
+def test_cli_rejects_existing_batch_las_destination_before_writing(core):
+    existing = core / "RESULT_b.LAS"
+    existing.write_bytes(b"Previous result")
+    args = ["batch", str(core / "sections.csv"), "--label-mask", "-o", str(core / "result.las")]
+    with pytest.raises(FileExistsError, match="LAS output already exists"):
+        main(args)
+    assert not (core / "result_A.las").exists()
+    assert existing.read_bytes() == b"Previous result"
+
+
+def test_cli_batch_las_preserves_a_file_created_after_preflight(core, monkeypatch):
+    def create_concurrent_output(sections, path, **kwargs):
+        path.write_bytes(b"Concurrent result")
+        return to_las(sections, path, **kwargs)
+
+    monkeypatch.setattr(cli, "to_las", create_concurrent_output)
+    args = ["batch", str(core / "sections.csv"), "--label-mask", "-o", str(core / "result.las")]
+    with pytest.raises(FileExistsError):
+        main(args)
+    assert (core / "result_A.las").read_bytes() == b"Concurrent result"
+    assert not (core / "result_B.las").exists()
 
 
 def test_cli_rejects_extreme_label_unless_explicitly_excluded(tmp_path):

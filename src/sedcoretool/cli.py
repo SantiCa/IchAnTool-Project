@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Iterable
 from pathlib import Path
+from unicodedata import normalize
 
 import numpy as np
 
@@ -18,6 +20,22 @@ from .segmentation import mask_from_palette, mask_from_threshold
 
 def _safe(name: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in name) or "core"
+
+
+def _batch_las_paths(out: Path, cores: Iterable[str]) -> dict[str, Path]:
+    paths: dict[str, Path] = {}
+    owners: dict[str, str] = {}
+    for core in cores:
+        path = out.with_name(f"{out.stem}_{_safe(core)}.las")
+        key = normalize("NFC", path.name).casefold()
+        if key in owners:
+            raise ValueError(f"LAS output filename collision for cores {owners[key]!r} and {core!r} at {path.name!r}")
+        owners[key] = core
+        paths[core] = path
+    for entry in out.parent.iterdir():
+        if normalize("NFC", entry.name).casefold() in owners:
+            raise FileExistsError(f"LAS output already exists at {entry}")
+    return paths
 
 
 def _mask_args(a: argparse.ArgumentParser) -> None:
@@ -159,8 +177,9 @@ def main(argv=None) -> int:
         cores = run_manifest(args.manifest, to_mask=read, **_bins(args))
         out = args.output
         if out.suffix.lower() == ".las" and len(cores) > 1:
-            for core, secs in cores.items():
-                f = _write(secs, out.with_name(f"{out.stem}_{_safe(core)}.las"), args.overlap, core)
+            for core, path in _batch_las_paths(out, cores).items():
+                secs = cores[core]
+                f = to_las(secs, path, well=core, overlap=args.overlap or "upper", overwrite=False)
                 print(f"{core}: {len(secs)} sections -> {f}")
         else:
             secs = [s for v in cores.values() for s in v]
