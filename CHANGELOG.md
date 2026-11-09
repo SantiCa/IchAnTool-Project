@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.95 — 2026-11-09
+- Warn in the section editor when an opened project has invalid depths or units.
+
 ## V0.94 — 2026-11-09
 - Add a reproducible browser and Python performance baseline for the public IODP example and a larger synthetic core.
 

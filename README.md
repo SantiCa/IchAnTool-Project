@@ -81,7 +81,8 @@ U-Net on the computer.
 ## Quick start (program)
 
 1. **Create a project** and add the images of a core, one per section, with the top and bottom depth of each.
-   Large images are reduced for working; the original file is always kept.
+   Large images are reduced for working; the original file is always kept. If an opened section shows a depth
+   warning, correct its depth values or unit before using its interval results.
 2. **Mark the bioturbation:** enhance the image, detect candidate traces or draw them, and exclude zones that must not
    be counted. Intervals with too few valid pixels are reported as *no data*, never as 0.
 3. **Assign ichnotaxa** to some traces; the program suggests the rest, and you accept or correct the suggestions.

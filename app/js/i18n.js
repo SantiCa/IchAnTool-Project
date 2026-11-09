@@ -1840,6 +1840,7 @@ Object.assign(D.en, { 'ds.interp': 'Interpolate the columns used to the depth of
 // V0.36: data safety
 Object.assign(D.es, {
   'fig.keepRatio': 'Mantener las proporciones de la foto', 'fig.ratioNote': 'Alto/ancho del testigo: {r}', 'geo.cancel': 'Cancelar',
+  'sec.depthWarning': 'Revisa la profundidad de esta sección antes de usar sus resultados. Introduce valores numéricos, con la base por debajo del techo, y selecciona mm, cm o m.',
   'load.failed': 'No se ha podido abrir el proyecto: {e}. No se ha guardado nada encima de la copia guardada.',
   'load.badMask': 'la máscara «{k}» de la sección «{s}» está dañada',
   'load.newer': 'Este proyecto se guardó con una versión más nueva ({v}). Se abre solo para consultar: los cambios no se guardarán. Actualiza SedCoreTool para editarlo.',
@@ -1848,6 +1849,7 @@ Object.assign(D.es, {
 });
 Object.assign(D.en, {
   'fig.keepRatio': 'Keep the photo proportions', 'fig.ratioNote': 'Core height/width: {r}', 'geo.cancel': 'Cancel',
+  'sec.depthWarning': 'Check this section’s depths before using its results. Enter numeric depths with the bottom greater than the top, and select mm, cm or m.',
   'load.failed': 'The project could not be opened: {e}. Nothing was saved over the stored copy.',
   'load.badMask': 'the «{k}» mask of section «{s}» is damaged',
   'load.newer': 'This project was saved with a newer version ({v}). It opens read-only: changes will not be saved. Update SedCoreTool to edit it.',

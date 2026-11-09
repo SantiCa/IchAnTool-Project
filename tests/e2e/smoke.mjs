@@ -307,14 +307,18 @@ try {
   // A legacy project ZIP still opens through the normal picker. A hostile ZIP is rejected before saving.
   const importZip = await p.evaluate(async () => {
     const { zipFiles } = await import('./js/zip.js');
+    const { DEFAULT_FILTERS, DEFAULT_DETECT } = await import('./js/imageproc.js');
     const input = document.getElementById('impProj');
+    const sendFile = (file) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
     const send = async (path, id) => {
       const data = JSON.stringify({ app: 'CorAnTool', kind: 'project', version: 5, id, name: id, cores: [] });
       const blob = await zipFiles([{ name: path, data }]);
-      const transfer = new DataTransfer();
-      transfer.items.add(new File([blob], id + '.corantool', { type: 'application/zip' }));
-      input.files = transfer.files;
-      input.dispatchEvent(new Event('change', { bubbles: true }));
+      sendFile(new File([blob], id + '.corantool', { type: 'application/zip' }));
     };
     const { getProject } = await import('./js/storage.js');
     const waitFor = async (predicate) => {
@@ -327,6 +331,39 @@ try {
     await send('project.json', 'legacy-zip-smoke');
     const opened = await waitFor(() => window.ichantool.S.id === 'legacy-zip-smoke');
     const saved = !!(await getProject('legacy-zip-smoke'));
+
+    // Current files keep their valid interval results; older and current files with suspect depths can still open.
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 2;
+    const section = {
+      id: 'depth-test-section', name: 'Depth test', w: 2, h: 2, ds: 1, top: 0, bottom: 2, units: 'cm',
+      file: { name: 'section.png', type: 'image/png', b64: canvas.toDataURL().split(',')[1] },
+      roi: { x0: 0, y0: 0, x1: 2, y1: 2 }, filters: DEFAULT_FILTERS, detect: DEFAULT_DETECT,
+      labels: [0, 4], exclude: [0, 4], objects: [], nextId: 1,
+    };
+    const { S } = window.ichantool;
+    const warning = document.getElementById('secDepthWarning');
+    const importProject = async (project) => {
+      sendFile(new File([JSON.stringify({ ...project, name: project.id, kind: 'project' })], project.id + '.json'));
+      if (!(await waitFor(() => S.id === project.id && S.sections.length === 1 && document.getElementById('busy').hidden))) {
+        throw new Error(`Project did not open: ${project.id}`);
+      }
+    };
+    const valid = { app: 'SedCoreTool', version: 5, id: 'valid-depth-smoke', cores: [{ id: 'c', sections: [section] }] };
+    await importProject(valid);
+    const validBins = S.sections[0].bins.map((b) => [b.dTop, b.dBottom, b.pct, b.BI, b.ii]);
+    const validQuiet = warning.hidden;
+    await importProject({ ...valid, id: 'invalid-unit-smoke', cores: [{ id: 'c', sections: [{ ...section, units: 'in' }] }] });
+    const currentWarns = !warning.hidden && S.sections[0].units === 'in';
+    await importProject({
+      app: 'IchAnTool', version: 2, id: 'invalid-legacy-depth-smoke', settings: { binPx: 1 },
+      sections: [{ ...section, bottom: 0 }],
+    });
+    const legacyWarns = !warning.hidden && S.cores[0].id === 'main' && S.sections[0].bottom === 0
+      && S.settings.binCm === 1 && (await getProject(S.id)).sections[0].bottom === 0;
+    const bottom = document.getElementById('secBottom');
+    bottom.value = '2'; bottom.dispatchEvent(new Event('change', { bubbles: true }));
+    const corrected = warning.hidden && S.sections[0].bottom === 2;
+
     const log = console.error;
     let rejected = false;
     console.error = (error, ...args) => {
@@ -336,10 +373,12 @@ try {
     try {
       await send('../project.json', 'hostile-zip-smoke');
       await waitFor(() => rejected);
-      return [opened, saved, rejected, !(await getProject('hostile-zip-smoke'))];
+      return { opened, saved, rejected, notStored: !(await getProject('hostile-zip-smoke')),
+        validQuiet, validBins, currentWarns, legacyWarns, corrected };
     } finally { console.error = log; }
   });
-  assert.deepEqual(importZip, [true, true, true, true]);
+  assert.deepEqual(importZip, { opened: true, saved: true, rejected: true, notStored: true,
+    validQuiet: true, validBins: [[0, 1, 0, 0, 1], [1, 2, 0, 0, 1]], currentWarns: true, legacyWarns: true, corrected: true });
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);
 } catch (e) { fail(e.message); } finally { await b.close(); }

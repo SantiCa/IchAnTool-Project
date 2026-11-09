@@ -1839,8 +1839,8 @@ Implementation: `storage.js` and the *projects* block of `app.js`.
 each section's `file.path = images/<section id><ext>`) and the original images at full resolution. Anyone can open it
 with **Import file…** on another computer. **Download full backup (all projects)** writes one package with all projects and the user settings
 (`settings.json`), named `sedcoretool_copia_<date>.sedcoretool`. Older `.corantool` packages and older JSON project
-files (with images in base64) are still imported. On import a new identifier is assigned so that no other project is
-overwritten, and images go to the `images` store.
+files (with inline images) are still imported. Project identifiers are preserved on import unless the user chooses
+to restore a separate copy after an identifier conflict (§23.3). The library stores images separately from project metadata.
 
 Project ZIP import accepts classic stored and Deflate archives. It checks paths, directory and local headers,
 and declared uncompressed sizes before reading entries. Limits are 16 MiB for the central directory, 128 MiB
@@ -1957,18 +1957,32 @@ sections: [...]}]}`. `comments` holds the project's comment threads (with replie
   their hierarchy and categories, intervals, rules, preparation and classifier settings, the map and group names. The
   trained models are not stored (they are retrained with their seed).
 - **RLE** (run-length encoding): `[value, count, value, count, …]`. It greatly reduces the size of masks, which have
-  large uniform areas. On import and on opening, each RLE of `labels` and `exclude` must have even length,
-  non-negative integer counts and add up exactly to `w × h` (`core.js::rleValid`); otherwise the file is rejected and
-  the stored copy is not touched.
-- **Format version 5.** A file with a `version` higher than the program's opens **read-only**: the user is warned and
-  nothing is saved (neither in the library nor in the automatic copy).
-- **Older files** are converted when opened (`upgradeProject`): format 1–2 files (a single set of sections) become a
-  project with one core (id `main`, keeping its intervals), and each multiproxy core of those files becomes another
-  core with its data as imported data. Projects saved before the interval thickness was set in cm stored `binPx`
-  (rows); it is converted to `binCm = binPx / ppcm` of the first section, so that section keeps exactly its intervals.
+  large uniform areas. Each supplied RLE must have even length and non-negative integer counts that add up to
+  `w × h` (`core.js::rleValid`). Imports check this before writing the project when its dimensions are available.
+  The loader also checks after deriving any missing dimensions. A failed load disables autosave for that session.
 - Browser preferences (`localStorage`): `ichantool.theme`, `ichantool.panels`, `ichantool.mapFrames`,
   `ichantool.mapNet`, `ichantool.keys`, `ichantool.hoverHelp`, `ichantool.overlap`, `ichantool.autoNext`,
   `ichantool.presets`, `ichantool.homeTab`, `ichantool.last` and others of the same form.
+
+#### Project compatibility
+
+The app identifiers `IchAnTool`, `CorAnTool` and `SedCoreTool` are accepted on import. A ZIP package or a shared
+folder resolves image paths relative to its own `project.json`. Standalone JSON projects and JSON backups can use
+inline images (base64 or byte arrays). In the library the loader resolves image keys and reassembles separately
+stored section records before opening. Older library records can still carry the sections inline.
+
+| Project version | Open and migration path |
+| --- | --- |
+| 1–2 | `upgradeProject` maps top-level sections, records and the age model to a main core when needed. Other legacy multiproxy cores become cores with imported records. |
+| 3–4 | Read the core-based layout directly. The loader accepts image references and legacy inline images. Where needed it decodes the image for dimensions and recomputes missing trace statistics. |
+| 5 | The current format supports overlap stacks and editable cells. Imports and library opens use the same section loader. |
+| Greater than 5 | The app attempts to open the familiar fields for consultation and warns that edits will not autosave. The import step can still store the file in the library. |
+
+The loader converts an old interval thickness in rows (`binPx`) to centimetres when `binCm` is absent, dividing
+by the first section's pixels per centimetre or using 1 cm if there are no sections. The section editor shows a
+non-blocking warning when the selected section has a non-finite or non-numeric depth, its bottom is not greater
+than its top, or its unit is outside `mm`, `cm` and `m`. The warning is recalculated when selecting a section or
+editing the depths and units. Opening the project leaves those values as stored.
 
 ---
 
