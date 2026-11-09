@@ -6,13 +6,68 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import numpy as np
 import pytest
 from openpyxl import load_workbook
-from PIL import Image
+from PIL import Image, ImageFile
 
-from sedcoretool import analyze_mask
+from sedcoretool import analyze_mask, load_image, load_mask
+from sedcoretool import io as image_io
 from sedcoretool.batch import read_manifest, write_manifest_template
-from sedcoretool.cli import _write
+from sedcoretool.cli import _write, main
 from sedcoretool.export import to_csv, to_excel
 from sedcoretool.unet.dataset import load_export
+
+
+def test_image_load_budget_preserves_supported_values(tmp_path, monkeypatch):
+    monkeypatch.setattr(image_io, "_IMAGE_LOAD_BUDGET_BYTES", 128 * 1024)
+    gray = np.array([[0, 12], [125, 255]], dtype=np.uint8)
+    samples = np.array([[0, 256], [4096, 65535]], dtype=np.uint16)
+    image, mask = tmp_path / "image.png", tmp_path / "mask.tif"
+    Image.fromarray(gray).save(image)
+    Image.fromarray(samples).save(mask)
+
+    rgb = load_image(image, "RGB")
+    native = load_image(mask)
+    labels = load_mask(mask)
+    assert rgb.shape == (2, 2, 3) and rgb.dtype == np.uint8
+    assert native.shape == labels.shape == (2, 2)
+    assert native.dtype == np.uint16 and labels.dtype == np.int32
+    np.testing.assert_array_equal(rgb, np.repeat(gray[..., None], 3, axis=-1))
+    np.testing.assert_array_equal(native, samples)
+    np.testing.assert_array_equal(labels, samples)
+
+
+@pytest.mark.parametrize("as_mask", [False, True], ids=["image", "mask"])
+def test_over_budget_input_is_rejected_before_pixel_access(tmp_path, monkeypatch, as_mask):
+    path = tmp_path / "input.png"
+    Image.new("L", (16, 16)).save(path)
+    monkeypatch.setattr(image_io, "_IMAGE_LOAD_BUDGET_BYTES", ImageFile.MAXBLOCK)
+
+    def no_pixel_access(*args, **kwargs):
+        pytest.fail("pixel access before the image loading budget check")
+
+    monkeypatch.setattr(Image.Image, "load", no_pixel_access)
+    monkeypatch.setattr(ImageFile.ImageFile, "load", no_pixel_access)
+    monkeypatch.setattr(Image.Image, "convert", no_pixel_access)
+    monkeypatch.setattr(image_io.np, "asarray", no_pixel_access)
+    with pytest.raises(ValueError, match=r"input\.png .*estimated image loading memory .*exceeds"):
+        if as_mask:
+            load_mask(path)
+        else:
+            load_image(path, "RGB")
+
+
+def test_full_resolution_iodp_section_fits_the_load_budget():
+    # Documented native scanner dimensions, checked without creating a raster.
+    for mode, convert, mask in [("RGBA", True, False), ("I", False, True), ("I;16", False, True)]:
+        assert image_io._image_load_bytes(1380, 29880, mode, convert=convert, mask=mask) <= image_io._IMAGE_LOAD_BUDGET_BYTES
+
+
+def test_label_mask_cli_reports_image_loading_budget(tmp_path, monkeypatch):
+    path, out = tmp_path / "labels.png", tmp_path / "analysis.csv"
+    Image.new("L", (16, 16)).save(path)
+    monkeypatch.setattr(image_io, "_IMAGE_LOAD_BUDGET_BYTES", ImageFile.MAXBLOCK)
+    with pytest.raises(ValueError, match="estimated image loading memory"):
+        main(["analyze", str(path), "--top", "0", "--bottom", "2", "--label-mask", "-o", str(out)])
+    assert not out.exists()
 
 
 @pytest.mark.parametrize("joined", [False, True])

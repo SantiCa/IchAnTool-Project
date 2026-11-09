@@ -8,10 +8,28 @@ from struct import Struct
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFile, ImageMode
 
 SUPPORTED = {".png", ".tif", ".tiff", ".jpg", ".jpeg", ".bmp"}
 LOSSY = {".jpg", ".jpeg"}
+_NATIVE_IMAGE_MODES = {"L", "RGB", "RGBA", "I", "I;16"}
+# Covers a full-resolution IODP section (1,380 × 29,880) even with a four-byte output conversion.
+_IMAGE_LOAD_BUDGET_BYTES = 768 * 1024**2
+
+
+def _image_load_bytes(width: int, height: int, mode: str, *, convert: bool, mask: bool) -> int:
+    pixels = width * height
+    try:
+        descriptor = ImageMode.getmode(mode)
+    except KeyError:
+        raise ValueError(f"Unsupported image output mode {mode!r}") from None
+    packed = pixels * len(descriptor.bands) * np.dtype(descriptor.typestr).itemsize
+    raster = 4 * pixels + 64 * height  # Pillow pixel storage plus row pointers and alignment allowance.
+    decode_peak = 2 * raster  # Source and an allowance for codec staging.
+    convert_peak = 3 * raster if convert else 0  # Source, intermediate and destination.
+    array_peak = (2 if convert else 1) * raster + 2 * packed  # Pillow's raw chunks and their joined bytes.
+    mask_peak = packed + 4 * pixels if mask else 0  # The packed array and its int32 copy after closing Pillow.
+    return max(decode_peak, convert_peak, array_peak, mask_peak) + max(ImageFile.MAXBLOCK, 4 * width)
 
 
 def load_image(path: str | Path, mode: str | None = None) -> np.ndarray:
@@ -20,21 +38,33 @@ def load_image(path: str | Path, mode: str | None = None) -> np.ndarray:
     mode: optional PIL mode ("L" grayscale, "RGB"). None keeps the original.
     Lossy formats (JPEG) are accepted but discouraged for masks, because
     compression alters the pixel values the analysis relies on.
+    Raises ValueError if the estimated per-image pixel buffers exceed 768 MiB.
     """
+    return _load_pixels(path, mode, mask=False)
+
+
+def _load_pixels(path: str | Path, mode: str | None, *, mask: bool) -> np.ndarray:
     path = Path(path)
     if path.suffix.lower() not in SUPPORTED:
         raise ValueError(f"Unsupported format {path.suffix!r}; use one of {sorted(SUPPORTED)}")
     with Image.open(path) as im:
+        if mode is None and im.mode not in _NATIVE_IMAGE_MODES:
+            mode = "RGB"
+        estimate = _image_load_bytes(*im.size, im.mode if mode is None else mode, convert=mode is not None, mask=mask)
+        if estimate > _IMAGE_LOAD_BUDGET_BYTES:
+            raise ValueError(
+                f"{path.name} ({im.width} × {im.height}): estimated image loading memory "
+                f"({estimate:,} bytes) exceeds the {_IMAGE_LOAD_BUDGET_BYTES:,}-byte budget"
+            )
         if mode is not None:
-            im = im.convert(mode)
-        elif im.mode not in ("L", "RGB", "RGBA", "I", "I;16"):
-            im = im.convert("RGB")
+            with im.convert(mode) as converted:
+                return np.asarray(converted)
         return np.asarray(im)
 
 
 def load_mask(path: str | Path) -> np.ndarray:
     """Load a label mask (0 = background, 1..n = classes) saved as PNG/TIFF."""
-    arr = load_image(path)
+    arr = _load_pixels(path, None, mask=True)
     if arr.ndim != 2:
         raise ValueError("A label mask must be single-channel (2-D). "
                          "For colour-coded masks use segmentation.mask_from_palette.")

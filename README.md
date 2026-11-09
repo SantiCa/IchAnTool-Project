@@ -133,6 +133,8 @@ If a project package reports a CRC mismatch, use an intact copy of the package.
 
 Use lossless formats (PNG, TIFF) for masks. The complete API, command line and U-Net commands are described in the
 [technical documentation](docs/TECHNICAL_DOCUMENTATION.md#25-the-sedcoretool-python-package).
+Python image and mask loading reports an error before decoding if a file exceeds its estimated 768 MiB
+[per-load memory budget](docs/TECHNICAL_DOCUMENTATION.md#image-loading-budget).
 
 **Learned segmentation (experimental).** A U-Net can be trained on the traces reviewed in the program — from the
 desktop program (*Detection → U-Net → Train on this computer…*) or with `sedcoretool unet` — and then used as a

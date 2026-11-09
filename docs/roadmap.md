@@ -27,31 +27,46 @@ Keep task IDs stable. The changelog records what shipped.
   - [x] **M0.2.1 - Verify stored ZIP member integrity.** Check the CRC in bounded blocks before delivering
         stored members. Verify corruption in project JSON and images and preserve existing projects.
         [V0.98](../CHANGELOG.md#v098--2026-11-09)
-  - [ ] **M0.2.2 - Budget Python image and mask loading.** `load_image()` converts or materialises images
-        without an application-defined budget. `load_mask()` can also allocate an `int32` copy. Pillow's
-        configurable pixel checks provide a separate safeguard.
-    - **Approach.** Check image dimensions and estimated decode and conversion memory from metadata before
-      loading pixels. Include concurrent decode buffers and conversion copies, including the mask's
-      `int32` output. Justify the default using documented large-image workloads and a memory budget.
-    - **Acceptance.** Using small generated files and a reduced test budget, verify that both loaders
-      accept inputs within the limit with the expected shape, dtype and pixel values, including 16-bit
-      samples where supported. For each loader, verify that over-budget input raises a clear error before
-      pixel decoding, conversion or array creation. Use sentinels for these calls so the tests can establish
-      the order without allocating a large image. Verify an existing analysis or batch entry point
-      propagates the limit error and retain the numerical regression on supported inputs.
-    - **Likely touchpoints.** `src/sedcoretool/io.py`, `tests/test_io_security.py`,
-      `tests/test_batch.py` and `tests/test_core.py`. Document the user-visible limit and error in
-      `README.md` and the memory estimate and supported modes in the
-      [technical documentation](TECHNICAL_DOCUMENTATION.md).
-    - **Decision before implementation.** Establish the supported large-image envelope, the per-mode
-      memory estimate, and whether callers need a bounded override. Define how the application limit
-      interacts with Pillow's safeguard. Direct image reads in U-Net training are a separate path.
+  - [x] **M0.2.2 - Budget Python image and mask loading.** Apply a documented per-load estimate before
+        pixel decoding, including conversion and mask copies. Verify rejection through both loaders
+        and the label-mask CLI. [V0.99](../CHANGELOG.md#v099--2026-11-09)
+  - [ ] **M0.2.3 - Bound Python mask label expansion.** A single large label can make the analysis
+        allocate class names and result columns based on the maximum pixel value.
+    - **Approach.** Validate label values before allocating per-class data. Bound the class count and
+      preserve the mapping between supported labels and their class names.
+    - **Acceptance.** A tiny mask with an extreme label fails with a clear error in the public API and
+      through `--label-mask`. Use a test guard to verify the error occurs before creating per-class
+      data. Preserve exact interval percentages, BI and ii for supported masks and cover declared
+      classes, background and the CLI's exclusion value.
+    - **Likely touchpoints.** `src/sedcoretool/pipeline.py`, the label-mask path in
+      `src/sedcoretool/cli.py`, `tests/test_core.py` and `tests/test_batch.py`.
+    - **Decision before implementation.** Define how to handle nonconsecutive IDs and choose a
+      class limit justified by the supported workflows and their output cost.
+  - [ ] **M0.2.4 - Prevent batch LAS filename collisions.** Different core names can normalise to
+        the same output filename and silently overwrite earlier results.
+    - **Approach.** Resolve all destination names before writing any LAS file.
+    - **Acceptance.** Cores with colliding normalised names and case-only differences on
+      case-insensitive filesystems either produce distinct files with their own data or receive a
+      clear error before any write. Preserve existing names for noncolliding exports.
+    - **Likely touchpoints.** The batch LAS branch in `src/sedcoretool/cli.py` and `tests/test_batch.py`.
+    - **Decision before implementation.** Choose deterministic disambiguation or explicit rejection,
+      and define the policy for destinations already present on disk.
 - [x] **M0.3 - Project validation.** Cover current and legacy projects with diagnostic warnings.
       [V0.96](../CHANGELOG.md#v096--2026-11-09)
   - [x] **M0.3.1 - Format inventory and depth diagnostics.** Document the import and migration paths and warn
         about suspect depth metadata. [V0.95](../CHANGELOG.md#v095--2026-11-09)
   - [x] **M0.3.2 - Mask and region diagnostics.** Flag invalid regions and unresolved trace or overlap
         references, and preserve the original project when opening for inspection. [V0.96](../CHANGELOG.md#v096--2026-11-09)
+  - [ ] **M0.3.3 - Validate Python analysis inputs.** An invalid minimum valid-area fraction can change
+        the reported no-data intervals. A mismatched manifest exclusion image can raise an attribute
+        error while formatting the diagnostic.
+    - **Approach.** Require a finite `min_valid` in the inclusive range 0–1 in the API and CLI,
+      and report the dimensions of the exclusion image that was actually read.
+    - **Acceptance.** Reject negative, above-range and nonfinite values in API and CLI tests. Accept
+      0 and 1 and check their interval results. With the default batch mask reader and a mismatched
+      exclusion image, raise a value error that identifies the files and both dimensions.
+    - **Likely touchpoints.** `src/sedcoretool/pipeline.py`, `src/sedcoretool/cli.py`,
+      `src/sedcoretool/batch.py`, `tests/test_core.py` and `tests/test_batch.py`.
 
 #### M0.1 acceptance criteria
 
@@ -119,6 +134,37 @@ Keep task IDs stable. The changelog records what shipped.
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU
         after a recoverable GPU error and expose an explicit CPU option. [V0.90](../CHANGELOG.md#v090--2026-11-09)
+  - [ ] **M3.2.2 - Confine U-Net dataset output paths.** Prioritise this audit follow-up. Manifest
+        identifiers can affect the destination path when training tiles are written on Windows.
+    - **Approach.** Derive safe, deterministic filenames from core and section identifiers and
+      verify that each resolved image and mask destination stays within its intended output directory.
+    - **Acceptance.** Exercise absolute paths, Windows separators and parent traversal in ZIP and
+      folder exports. Reject invalid identifiers or write confined filenames. Verify that nothing is
+      created or overwritten outside the output directory, and that colliding identifiers cannot
+      overwrite tiles. Run the regression on Windows CI and preserve paired tiles and core splits.
+    - **Likely touchpoints.** `src/sedcoretool/unet/dataset.py`, `tests/test_unet.py` and the
+      existing Python CI matrix.
+  - [ ] **M3.2.3 - Preserve the last working U-Net model.** Starting a fresh desktop training run
+        with an existing name removes the published artifacts before preparation succeeds.
+    - **Approach.** Prepare and train in a staging location. Publish a complete model and metadata
+      together so readers see a consistent version, and retain the previous version on failure.
+    - **Acceptance.** Inject failures during preparation, training and publication, and test
+      cancellation. The previous ONNX and JSON stay byte-identical and load through the normal
+      model reader. A successful run exposes the new matching pair. Exercise the resume path.
+    - **Likely touchpoints.** `desktop/trainer.js` and `tests/app/trainer.test.mjs`.
+    - **Decision before implementation.** Choose the publication and resume strategy for supported
+      platforms and decide whether evaluation must succeed before a replacement becomes visible.
+  - [ ] **M3.2.4 - Reproduce the managed trainer environment.** The optional desktop installer
+        downloads dependencies whose versions can vary between installations.
+    - **Approach.** Document training-related network access in `SECURITY.md` and define tested
+      dependency constraints for the supported Python, CPU and CUDA configurations.
+    - **Acceptance.** Document the downloads and when they occur. Verify that two clean installs
+      of a supported configuration resolve to the same dependency versions and can run a trainer
+      smoke check. Keep coverage for CPU and each supported CUDA configuration.
+    - **Likely touchpoints.** `desktop/trainer.js`, the Python U-Net dependency configuration,
+      `SECURITY.md` and the trainer installation checks.
+    - **Decision before implementation.** Define the supported environment matrix and how its
+      constraints are updated and tested.
 
 ### M4 - Optional acceleration
 
@@ -137,6 +183,8 @@ Keep task IDs stable. The changelog records what shipped.
       the application. [V0.92](../CHANGELOG.md#v092--2026-11-09)
 - [ ] **M5.4 - Reduce legacy JavaScript type diagnostics.** Replace the baseline entries with checked contracts
       as the corresponding modules are changed.
+  - On the next TypeScript upgrade, migrate the deprecated `moduleResolution: "node"` setting and check
+    both typecheck configurations and the diagnostic baseline against the new compiler.
 
 ## Existing backlog
 

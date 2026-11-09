@@ -2030,7 +2030,7 @@ Masks follow one contract: a 2-D integer array where `0` = matrix and `1…n` = 
 | Function or object | Module | What it does |
 |--------------------|--------|--------------|
 | `load_image(path, mode=None)` | `io.py` | Reads PNG, TIFF, JPEG or BMP as a NumPy array (`mode` "L" grey or "RGB"). JPEG is accepted but discouraged for masks, because compression changes pixel values. |
-| `load_mask(path)` | `io.py` | Reads a single-channel label mask (PNG/TIFF) as integers. |
+| `load_mask(path)` | `io.py` | Reads a single-channel label mask (PNG/TIFF) as `int32`. |
 | `to_gray(img)` | `io.py` | Grey with the weights of version 2.1: 0.30 R + 0.56 G + 0.11 B. |
 | `mask_from_threshold(img, threshold=5, class_name="bioturbation")` | `segmentation.py` | Binary mask: grey ≤ threshold is bioturbation (bioturbation painted black, as in version 2.1). |
 | `mask_from_palette(img, palette, tolerance=10)` | `segmentation.py` | Multi-class mask from a colour-coded image: `palette = {"Zoophycos": "#ff0000", …}`; a pixel belongs to a class when each RGB channel is within `tolerance` of the class colour (the first matching class wins). The `*_mask.png` and `*_palette.json` exported by the program are read this way. |
@@ -2065,6 +2065,33 @@ section = analyze_mask(mask, top=0, bottom=150, units="cm", bin_cm=1, class_name
 section.add_age(model_depth=[0, 150], model_age=[0, 12.5])
 to_csv([section], "S1_bioturbation.csv")
 ```
+
+#### Image loading budget
+
+`load_image` and `load_mask` use a fixed budget of **768 MiB** for estimated pixel buffers per load. They
+check it from the image dimensions and output mode after opening the header and before loading, converting or
+materialising pixels. An estimate above the budget raises `ValueError` with the filename, dimensions and sizes.
+The CLI and batch workflows inherit the check through these loaders.
+
+For width `w` and height `h`, let `P = w × h`, `R = 4P + 64h` bytes for a Pillow raster with row overhead,
+and `B = P × output bands × bytes per output sample` for the packed array. The estimate adds
+`max(PIL.ImageFile.MAXBLOCK, 4w)` bytes for an encoder block to the largest applicable stage:
+
+| Stage | Estimated bytes |
+| --- | ---: |
+| Decoding, including a codec staging allowance | `2R` |
+| Colour conversion, when requested or needed by the default mode selection | `3R` |
+| NumPy materialisation, including raw byte chunks and their joined buffer | `R + 2B`, or `2R + 2B` with conversion |
+| Mask conversion to `int32` after the Pillow image is closed | `B + 4P` |
+
+The budget covers the documented [full-resolution IODP sections](../examples/U1385I-1H/README.md) at
+1,380 × 29,880 pixels (41.2 million). The formula estimates about 633 MiB for an explicit conversion to
+four-byte RGBA at those dimensions. The 768 MiB ceiling gives about 135 MiB of additional capacity for
+larger sections and accommodates roughly 50 million pixels at similar aspect ratios. The policy estimates
+loading buffers. Process RSS also depends on decoder internals, memory already in use and later analysis
+allocations. Pillow applies its own configurable checks independently, and may raise an earlier error.
+Direct Pillow reads in U-Net training follow their own input paths.
+[Pillow image loading](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open)
 
 ### 25.3 Command line: `sedcoretool analyze`
 

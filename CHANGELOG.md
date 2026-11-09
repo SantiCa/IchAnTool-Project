@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.99 — 2026-11-09
+- Reject Python image and mask loads that exceed the estimated memory budget before decoding their pixels.
+
 ## V0.98 — 2026-11-09
 - Detect corrupt project ZIP members, including stored images, before replacing an existing project.
 
