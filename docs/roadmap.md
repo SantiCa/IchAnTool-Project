@@ -18,8 +18,10 @@ Keep task IDs stable. The changelog records what shipped.
 
 ### M0 - Baseline and project safety
 
-- [ ] **M0.1 - Reproducible performance baseline.** **Ready.** First task. Codex edits and delivers.
-      Claude reviews in read-only mode and independently reruns both benchmark cases.
+- [ ] **M0.1 - Reproducible performance baseline.** **In review.** Codex delivered the benchmark and both
+      measured cases in [V0.94](../CHANGELOG.md#v094--2026-11-09). Claude independently reruns both cases in
+      read-only mode and reviews the boundaries, memory accounting and result parity using the
+      [benchmark instructions and recorded run](benchmarks/M0.1.md). Codex addresses any findings before closure.
 - [x] **M0.2 - Import and export safety.** Bound ZIP expansion and escape formula-like spreadsheet text
       while preserving numeric measurements. [V0.91](../CHANGELOG.md#v091--2026-11-09)
 - [ ] **M0.3 - Project validation.** Identify the supported formats and migration paths. Start with diagnostic

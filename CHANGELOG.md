@@ -10,6 +10,9 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.94 — 2026-11-09
+- Add a reproducible browser and Python performance baseline for the public IODP example and a larger synthetic core.
+
 ## V0.93 — 2026-11-09
 - Clarify contributor rules for scoped performance work, incremental rollouts, dependency review and numerical regression tests.
 

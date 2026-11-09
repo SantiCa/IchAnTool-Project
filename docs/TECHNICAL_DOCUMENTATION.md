@@ -2147,6 +2147,9 @@ separate windows where needed.
 
 ## 28. Repository engineering and security
 
+**Performance baseline.** The [M0.1 benchmark](benchmarks/M0.1.md) measures browser project opening, IndexedDB
+autosave and interval analysis, and verifies the shared interval results against the public Python API.
+
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
 in strict mode on `core.js`, `state.js` and `imageproc.js`. JSDoc describes the shared contracts, and consumers
 such as `columns.js` use those types through ordinary JavaScript imports. The second pass checks all application
