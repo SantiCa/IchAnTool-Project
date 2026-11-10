@@ -1,0 +1,42 @@
+{
+  "report_sha256": "19d18cbe1bd3cf5a19eaa1ecc118c89c73b370c393603b6874b97405c7e05434",
+  "measured_application_commit": "664fcff4c2474ff165c9188fab557f82a43abfda",
+  "application_commit_hash_verified": true,
+  "delivered_tool_hashes_verified": true,
+  "author_audit": true,
+  "independent_review": false,
+  "cases": [
+    {
+      "case": "u1385",
+      "summaries_recomputed": true,
+      "baseline_inputs_and_intervals_match": true,
+      "finding": {
+        "fractional_parity_passed": false,
+        "differing_cells": 805,
+        "affected_sections_one_based": [
+          2,
+          4
+        ],
+        "affected_intervals": 216,
+        "BI_differences": 2,
+        "ii_differences": 1,
+        "max_depth_error_m": 0.00020000000000131024,
+        "max_percentage_point_error": 0.7675689880128473
+      },
+      "row_counts_sampled_share_pct": 88.63494418660822,
+      "python_numpy_reduction_self_share_pct": 53.61400545171309,
+      "python_classification_cumulative_share_pct": 0.11438690201064206
+    },
+    {
+      "case": "synthetic",
+      "summaries_recomputed": true,
+      "baseline_inputs_and_intervals_match": true,
+      "finding": {
+        "fractional_parity_passed": true
+      },
+      "row_counts_sampled_share_pct": 97.40116536362294,
+      "python_numpy_reduction_self_share_pct": 57.64054831301859,
+      "python_classification_cumulative_share_pct": 0.08469249738877707
+    }
+  ]
+}

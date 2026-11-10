@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.120 — 2026-11-10
+
+- Publish reproducible interval-analysis profiles on the public and synthetic reference cores, distinguishing fresh pixel counts from reused browser counts and measuring the public Python API.
+- Document a fractional-interval boundary disagreement between Python and JavaScript, including its effect on percentages and indices; retain the existing analysis while recording the correction needed before optimisation.
+
 ## V0.119 — 2026-11-10
 
 - Enable the optimised navigation preview at startup, with a session control to restore the previous renderer.

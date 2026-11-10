@@ -2482,6 +2482,11 @@ autosave and interval analysis, and verifies the shared interval results against
 Its [independent validation](benchmarks/M0.1-independent-review-2026-11-10.md) confirms source and fixture
 fingerprints, measurement boundaries, sampled memory accounting, numerical parity and save/reopen checks.
 The measurements are informational and do not impose CI performance thresholds.
+The [shared-analysis profile](benchmarks/M3.1.2.md), run with `tools/benchmark_analysis.py`, reuses both edited
+M0.1 fixtures, measures resident-mask analysis with cleared/reusable browser row counts and the public Python
+API, and records separate CDP/cProfile diagnostics. Exact repeatability, input preservation and accepted 2 cm
+baseline results pass. Fractional 1.37 cm intervals expose the boundary disagreement described in §31.1;
+measurement completion and scientific parity have separate report flags. The profile changes no algorithms.
 The [M1.1.2 benchmark](benchmarks/M1.1.2.md) measures editing history with two trace densities and verifies
 undo, overlapping trace order and persistence.
 The [large-image profile](benchmarks/M2.2.md), run with `tools/benchmark_images.py`, measures prepared-project
@@ -2597,6 +2602,17 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 ## 31. Validation
 
 ### 31.1 Automated tests
+
+**Shared-analysis validation.** The [M3.1.2 profile](benchmarks/M3.1.2.md#fractional-boundary-finding) verifies
+both M0.1 reference cases at 2 cm with the original 1e-9 absolute tolerance and exact BI/ii/missing values.
+At 1.37 cm, public sections 2 and 4 have a reproducible one-row boundary disagreement: JavaScript computes
+`bin_cm * (n_rows / span_cm)`, while Python computes `(bin_cm * n_rows) / span_cm`. Values immediately around
+a half-row can round differently. In section 2, 68.5 versus 68.49999999999999 rows gives a first endpoint
+of 1.5138 versus 1.5136 m. This changes some percentages and indices and is a known parity limitation;
+the tolerance is not widened. The report retains both result arrays and the failed scientific-parity flag.
+The synthetic 1.37 cm case passes. Tests of the profiling harness verify cropped/remapped labels,
+exclusions, partial bins, disagreement reporting and weighted CPU-sample attribution.
+
 **97 program tests, 19 Python tests** (17 run always; 2 are skipped when the optional `onnx`/`torch` dependencies are
 missing), a browser end-to-end test in the tests workflow and a desktop end-to-end test in the desktop build workflow (§28).
 
