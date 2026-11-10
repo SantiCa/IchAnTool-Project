@@ -2003,7 +2003,9 @@ Implementation: `storage.js` and the *projects* block of `app.js`.
   section comparison cache advances only after the transaction completes successfully.
 - A failed save leaves the last complete project available for reopening and keeps live edits pending. The
   **Retry save** button appears beside the save status. Actions that replace the open project first flush its
-  pending save and stop if changes remain unsaved (`app.js::canLeaveProject`). Exporting the current project
+  pending save and stop if changes remain unsaved (`app.js::canLeaveProject`). An uninitialised workspace with
+  neither a project ID nor any cores is not an open project to preserve, so startup preferences do not block
+  creating/importing the first project. Exporting the current project
   remains available during a storage failure. A failed replacement import also leaves live edits pending.
 - Saving never runs during a load or on a read-only project, and opening another project cancels the pending save of
   the previous one. If loading fails halfway, the state is cleared, nothing is saved and the user is warned. The

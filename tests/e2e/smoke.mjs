@@ -4,6 +4,7 @@
 // V0.49: also compares the web analysis of the idealized core (browser JPEG decoder) with the V2.1 reference CSV.
 import assert from 'node:assert/strict';
 import { verifyInterruptedSaves } from './interrupted-saves.mjs';
+import { verifyFirstRun } from './first-run.mjs';
 import { verifyDataTable } from './data-table.mjs';
 import { verifyTableViewport } from './table-viewport.mjs';
 import { verifyTaxonFigures } from './taxon-figures.mjs';
@@ -21,6 +22,7 @@ const W = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (fn, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await p.evaluate(fn)) return; await W(500); } throw new Error('timeout: ' + fn); };
 const fail = (m) => { console.error('E2E FAIL:', m); process.exitCode = 1; };
 try {
+  await verifyFirstRun(b, URL);
   await verifyInterruptedSaves(b, URL);
   await verifyDataTable(b, URL);
   await verifyTableViewport(b, URL);

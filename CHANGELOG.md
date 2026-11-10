@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.116 — 2026-11-10
+
+- Fix creating or importing the first project in an empty library when startup preferences have marked the uninitialised workspace as changed. Keep failed-save protection for existing projects.
+
 ## V0.115 — 2026-11-10
 
 - Give core-column and whole-core figures independent tracks, records, axes, widths, colours, visibility and image presentation; keep distribution/section styles and depth windows separate by figure type and tab.

@@ -110,6 +110,12 @@ Keep task IDs stable. The changelog records what shipped.
 
 ### M2 - Large projects and responsive display
 
+The first-run project-entry blocker found while preparing M2.2 is corrected in
+[V0.116](../CHANGELOG.md#v0116--2026-11-10). First creation/import and persisted reload pass in isolated empty
+browser libraries, including the standalone HTML. The full interrupted-save/browser regression and required
+delivery checks pass. Only a workspace with neither project ID nor cores bypasses the pending-save guard;
+existing projects retain failed-save protection. Performance evidence is collected after this correction.
+
 - [x] **M2.1 - Large tables.** Profile large table operations and evaluate visible-row rendering behind
       a default-off flag. Selection, editing, navigation and full exports verified.
       [V0.112](../CHANGELOG.md#v0112--2026-11-10).
@@ -156,6 +162,12 @@ Keep task IDs stable. The changelog records what shipped.
   - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain
         native 16-bit samples for enhancement and save originals in bounded writes.
         [V0.87](../CHANGELOG.md#v087--2026-11-09)
+  - [ ] **M2.2.2 - Opening and navigation profile. In progress.** Authorised by the maintainer on 10 November
+        2026; editor: Codex; verification: reproducible benchmark and required checks. Measure M0.1 public and
+        synthetic projects plus a synthetic core exceeding the existing cache budgets. The
+        [predeclared contract](benchmarks/M2.2.md) defines timing, memory/CPU accounting, provenance and exact
+        edit/depth/image-export checks. Choose the next optimisation from the evidence; do not change loading
+        or cache defaults in this profiling phase.
 
 ### M3 - Analysis and learned segmentation
 
