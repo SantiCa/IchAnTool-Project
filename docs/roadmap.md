@@ -119,19 +119,29 @@ Keep task IDs stable. The changelog records what shipped.
       and Show more from 183.2 to 133.2 ms on the recorded machine. All full CSV fingerprints match.
     - Browser regression verifies bounded row reads, numbering across cores, text selection, edit/restore,
       complete export, core/layer filters, and empty/age-only cores. Required delivery checks pass.
-  - [ ] **M2.1.2 - Interval lookup and cumulative expansion.** **In progress; measured correction delivered.**
-        [V0.110](../CHANGELOG.md#v0110--2026-11-10), [benchmark and raw measurements](benchmarks/M2.1.2.md).
-    - Ten Show more actions reach 10,400 rows in the medium/large cases. The 100,000-row full CSV median falls
-      from 166.5 to 132.2 ms (20.6%); all complete CSV fingerprints match. The predeclared 25% CSV improvement
-      criterion is not met, so this phase remains open.
+  - [x] **M2.1.2 - Interval lookup and cumulative expansion.** Interval lookup delivered in
+        [V0.110](../CHANGELOG.md#v0110--2026-11-10); CSV formatter follow-up and acceptance completed in
+        [V0.111](../CHANGELOG.md#v0111--2026-11-10), [benchmark and raw measurements](benchmarks/M2.1.2.md#csv-formatter-follow-up-results-v0111).
+    - The maintainer authorised the formatter follow-up on 10 November 2026; Codex implemented and verified it.
+      A fresh isolated V0.109 comparison uses identical benchmark tools, one warm-up and five measured runs per
+      size. The 100,000-row full CSV median falls from 169.6 to 66.3 ms (60.9%), exceeding the 25% target.
+      All three complete CSV fingerprints match, including the original reports. The fixture uses integer
+      measurements; equivalent speedups for decimal-heavy projects are not established.
     - Binary lookup handles finite disjoint intervals; overlapping/irregular inputs retain original first-match
       semantics. Names are resolved once per model call. Exact generated tests and browser table/CSV checks
-      cover endpoints, gaps, overlaps, axis conversion, selection and edit/restore. Required delivery checks pass.
-    - Cumulative expansion is not faster: the large-case tenth action is 819.2 ms and the ten actions total
-      5,049.1 ms. Whole-trial browser RSS remains about 2,276 MiB; no memory reduction is established.
-  - Next scope to authorise: use the recorded CSV profile to address the unmet export target, then evaluate a
-    separately gated viewport experiment for cumulative expansion. Keep the native table as the default until
-    selection, editing, navigation, full export and measured performance pass the experiment's criteria.
+      cover endpoints, gaps, overlaps, axis conversion, selection and edit/restore. Formatter regressions cover
+      decimal rounding, numeric boundaries and spreadsheet escaping. Required delivery checks pass.
+    - Ten Show more actions reach 10,400 rows in the medium/large cases. Cumulative rendering remains costly:
+      the large-case ten actions total 4,880.9 ms. Whole-trial RSS remains about 2,275 MiB at that size;
+      the medium-case median is higher with overlapping ranges. No rendering or memory improvement is claimed.
+  - [ ] **M2.1.3 - Viewport rendering experiment.** **Pending scope definition.** Evaluate rendering only
+        visible rows behind a feature flag, with the native table remaining the default.
+    - Define the experiment's selection and keyboard-navigation behaviour and performance acceptance criteria
+      before implementation. Reuse the 2,000/20,000/100,000-row fixtures and the cumulative-expansion baseline;
+      verify editing/restoration, navigation and complete CSV exports alongside timing and memory measurements.
+    - Roll back by disabling the flag. Make the experiment the default and remove the flag only after its
+      acceptance criteria pass and the maintainer accepts the transition.
+  - Next scope to authorise: M2.1.3, starting with the interaction contract and measured acceptance criteria.
 - [ ] **M2.2 - Large images.** Profile opening and navigation on large cores. Evaluate tiled loading if justified.
       Verify depth mapping, editing and exported images.
   - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain

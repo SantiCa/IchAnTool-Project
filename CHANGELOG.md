@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.111 — 2026-11-10
+
+- Export large Data tables faster while preserving every row, numeric rounding and spreadsheet text escaping.
+
 ## V0.110 — 2026-11-10
 
 - Export large Data tables faster by indexing non-overlapping interval labels; retain existing boundary and overlap behaviour.

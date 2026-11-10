@@ -342,14 +342,18 @@ export function baconToAgeText(text, { center = 'median', depthUnit = 'cm', ageD
  * @returns {string}
  */
 export function toCSV(rows) {
-  /** @param {CsvCell} v */
-  const q = (v) => {
-    if (v == null) return '';
-    let s = typeof v === 'number' ? String(+v.toFixed(6)) : String(v);
-    if (typeof v !== 'number' && (/^[ \u00a0]*[\t\r\n]/.test(s) || /^[\s\u0000-\u001f]*[=+@\-＝＋－＠]/u.test(s))) s = "'" + s;
-    return /[",;|\t\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  /** @param {CsvCell} value */
+  const formatCell = (value) => {
+    if (value == null) return '';
+    if (typeof value === 'number') {
+      // Integers already have the same representation after six-decimal rounding.
+      return String(Number.isInteger(value) ? value : +value.toFixed(6));
+    }
+    let text = String(value);
+    if (/^[ \u00a0]*[\t\r\n]/.test(text) || /^[\s\u0000-\u001f]*[=+@\-＝＋－＠]/u.test(text)) text = "'" + text;
+    return /[",;|\t\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
-  return rows.map((r) => r.map(q).join(',')).join('\n') + '\n';
+  return rows.map((row) => row.map(formatCell).join(',')).join('\n') + '\n';
 }
 
 /** Run-length encoding for label/exclusion layers in project files: [value, run, value, run, ...].

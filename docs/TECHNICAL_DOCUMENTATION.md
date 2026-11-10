@@ -2016,7 +2016,10 @@ The program ignores these `#` lines on table import. User-supplied delimiters an
 are escaped so they cannot open another field or row. CSV and Excel exporters prepend an apostrophe to text
 that starts with spreadsheet formula characters (`=`, `+`, `-`, `@`, including full-width equivalents), even after
 leading whitespace. Leading tabs and line breaks also trigger the escape. Numeric cells retain their numeric
-values. Text fields with delimiters or line breaks are quoted in CSV. Excel section sheet names are normalised and
+values. `core.js::toCSV` rounds noninteger numbers to six decimal places with `toFixed(6)`, converts the result
+back to a number and then to text, removing trailing zeroes. Integer numbers go directly to their string
+representation; numeric cells bypass text escaping and delimiter checks. Null and undefined cells are empty.
+Text fields with delimiters or line breaks are quoted in CSV. Excel section sheet names are normalised and
 made unique within the workbook. Tables are produced by the pure
 module `exportio.js` (`bioturbationTable`, `objectsTable`, `provenanceLines`/`withProvenance`, `ageModelText`,
 `recordSeries`), so the content of each file is tested.

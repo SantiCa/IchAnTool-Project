@@ -31,14 +31,14 @@ export async function verifyDataTable(browser, url) {
       const range = document.createRange(); range.selectNodeContents(cell);
       const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
       const selected = selection.toString() === cell.textContent && document.activeElement === cell;
-      cell.textContent = '901'; cell.blur();
-      const edited = S.cores[0].edits.value_0['1'].v === 901;
+      cell.textContent = '-901.234567'; cell.blur();
+      const edited = S.cores[0].edits.value_0['1'].v === -901.234567;
       return { initial, expanded: rows.length, total, bounded, coreBoundary, selected, edited };
     });
     if (result.initial !== 400 || result.expanded !== 1400 || !['total', 'bounded', 'coreBoundary', 'selected', 'edited'].every((key) => result[key])) {
       throw new Error('Data table regression: ' + JSON.stringify(result));
     }
-    await page.evaluate(captureDataTableCSV, { rowCount: 2400, edited: { row: 1, column: 0, value: 901 } });
+    await page.evaluate(captureDataTableCSV, { rowCount: 2400, edited: { row: 1, column: 0, value: -901.234567 } });
     await page.evaluate(() => { document.getElementById('dsRestoreAll').click(); document.getElementById('dsRestoreAll').click(); });
     await page.evaluate(captureDataTableCSV, { rowCount: 2400 });
     const filtered = await page.evaluate(async () => {
