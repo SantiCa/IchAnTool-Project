@@ -2269,6 +2269,9 @@ separate windows where needed.
 
 **Performance baseline.** The [M0.1 benchmark](benchmarks/M0.1.md) measures browser project opening, IndexedDB
 autosave and interval analysis, and verifies the shared interval results against the public Python API.
+Its [independent validation](benchmarks/M0.1-independent-review-2026-11-10.md) confirms source and fixture
+fingerprints, measurement boundaries, sampled memory accounting, numerical parity and save/reopen checks.
+The measurements are informational and do not impose CI performance thresholds.
 The [M1.1.2 benchmark](benchmarks/M1.1.2.md) measures editing history with two trace densities and verifies
 undo, overlapping trace order and persistence.
 

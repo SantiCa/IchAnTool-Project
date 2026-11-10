@@ -1,0 +1,208 @@
+{
+  "source_fingerprint": "17f8eb8d1ac305a654e11fa9a427d4e6618ddb0b36a97b03da092b75d18025d7",
+  "source_file_count": 72,
+  "reports": {
+    "original": {
+      "source": {
+        "commit": "9b2fed57a198ba508e5f6e50719539dd76be0618",
+        "dirty": true,
+        "input_files_sha256": "138992fe9b9ecda5ef7f45f8d3a482a33ed186f0626c938e953520fe2a5aa207"
+      },
+      "environment": {
+        "os": "Windows-11-10.0.26300-SP0",
+        "architecture": "AMD64",
+        "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+        "logical_cpus": 16,
+        "physical_cores": 8,
+        "ram_mib": 31850,
+        "python": "3.14.2",
+        "sedcoretool": "0.94.0",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "pillow": "13.0.0",
+        "psutil": "7.2.2"
+      },
+      "started_utc": "2026-11-09T12:50:10.444333+00:00"
+    },
+    "clean_author": {
+      "source": {
+        "commit": "debf2d60a6d4f12059048da69606d82f0f76e8c5",
+        "dirty": false,
+        "input_files_sha256": "17f8eb8d1ac305a654e11fa9a427d4e6618ddb0b36a97b03da092b75d18025d7"
+      },
+      "environment": {
+        "os": "Windows-11-10.0.26300-SP0",
+        "architecture": "AMD64",
+        "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+        "logical_cpus": 16,
+        "physical_cores": 8,
+        "ram_mib": 31850,
+        "python": "3.14.2",
+        "sedcoretool": "0.94.0",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "pillow": "13.0.0",
+        "psutil": "7.2.2"
+      },
+      "started_utc": "2026-11-09T23:51:59.562229+00:00"
+    },
+    "independent": {
+      "source": {
+        "commit": "debf2d60a6d4f12059048da69606d82f0f76e8c5",
+        "dirty": false,
+        "input_files_sha256": "17f8eb8d1ac305a654e11fa9a427d4e6618ddb0b36a97b03da092b75d18025d7"
+      },
+      "environment": {
+        "os": "Windows-11-10.0.26300-SP0",
+        "architecture": "AMD64",
+        "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+        "logical_cpus": 16,
+        "physical_cores": 8,
+        "ram_mib": 31850,
+        "python": "3.14.2",
+        "sedcoretool": "0.94.0",
+        "numpy": "2.5.4",
+        "pandas": "3.1.1",
+        "pillow": "13.0.0",
+        "psutil": "7.2.2"
+      },
+      "started_utc": "2026-11-09T23:57:10.361874+00:00"
+    }
+  },
+  "comparisons": {
+    "u1385": {
+      "all_fixture_fields_match_all_reports": true,
+      "hashes": {
+        "synthetic_package_sha256": null,
+        "analysis_input_sha256": "ab61a88b0e133b078aa42d0d8ee9dd1d5c29887ddc9e7fd4a20ff80bfb2edee4",
+        "browser_intervals_sha256": "32cd677f867a70e31bf2b22d1c2102672d23d0ed2a5b22e47785b9b21605ab6c"
+      },
+      "pixels": 15228500,
+      "intervals": 440,
+      "no_data_intervals": 0,
+      "summary": {
+        "open_ms": {
+          "median": 173,
+          "min": 157.30000001192093,
+          "max": 189.2000000178814
+        },
+        "autosave_ms": {
+          "median": 1561.199999988079,
+          "min": 1556.2999999821186,
+          "max": 1570.6000000238419
+        },
+        "javascript_analysis_ms": {
+          "median": 28.69999998807907,
+          "min": 27.80000001192093,
+          "max": 34.5
+        },
+        "python_analysis_ms": {
+          "median": 147.17350000864826,
+          "min": 143.62740001524799,
+          "max": 151.89489998738281
+        },
+        "browser_peak_rss_mib": {
+          "median": 902.09375,
+          "min": 844.05078125,
+          "max": 985.46875
+        },
+        "python_peak_rss_mib": {
+          "median": 156.20703125,
+          "min": 155.328125,
+          "max": 156.57421875
+        }
+      },
+      "max_depth_error": 8.881784197001252e-16,
+      "max_percentage_point_error": 7.105427357601002e-15,
+      "browser_rss_samples": [
+        48,
+        46,
+        47,
+        46,
+        49,
+        52
+      ],
+      "python_rss_samples": [
+        11,
+        11,
+        11,
+        12,
+        11,
+        12
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      }
+    },
+    "synthetic": {
+      "all_fixture_fields_match_all_reports": true,
+      "hashes": {
+        "synthetic_package_sha256": "444b024b68f3d3e4970e6457eeca8c98ed51fbb93d21e1ed0a7708afb02cd88f",
+        "analysis_input_sha256": "fde76e9b55ebc275e50484c5db57177bff015a31944e90e13c9745875e021e89",
+        "browser_intervals_sha256": "8478569174481456796bf9d6aaa947f43a89d261f02472f0166927fdb3def1f5"
+      },
+      "pixels": 49152000,
+      "intervals": 512,
+      "no_data_intervals": 8,
+      "summary": {
+        "open_ms": {
+          "median": 339.5,
+          "min": 328,
+          "max": 345.69999998807907
+        },
+        "autosave_ms": {
+          "median": 1855.4000000059605,
+          "min": 1836.2000000178814,
+          "max": 1873.2999999821186
+        },
+        "javascript_analysis_ms": {
+          "median": 112.40000000596046,
+          "min": 112.09999999403954,
+          "max": 118.39999997615814
+        },
+        "python_analysis_ms": {
+          "median": 263.18750000791624,
+          "min": 260.4662000085227,
+          "max": 285.29890000936575
+        },
+        "browser_peak_rss_mib": {
+          "median": 1180.37890625,
+          "min": 1091.1171875,
+          "max": 1271.26953125
+        },
+        "python_peak_rss_mib": {
+          "median": 351.13671875,
+          "min": 347.8046875,
+          "max": 351.14453125
+        }
+      },
+      "max_depth_error": 0.0,
+      "max_percentage_point_error": 7.105427357601002e-15,
+      "browser_rss_samples": [
+        61,
+        60,
+        62,
+        60,
+        62,
+        61
+      ],
+      "python_rss_samples": [
+        17,
+        17,
+        17,
+        17,
+        17,
+        17
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      }
+    }
+  },
+  "all_raw_summary_checks_pass": true,
+  "tracked_worktree_status": ""
+}

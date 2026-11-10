@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.107 — 2026-11-10
+
+- Publish the independent performance-baseline review, with matching source, input and result fingerprints and verified measurement boundaries.
+- Accept the reproducible baseline for future performance comparisons, with raw measurements and documented limits.
+
 ## V0.106 — 2026-11-10
 
 - Document a complete performance benchmark repetition from a clean V0.94 checkout, with matching input and result fingerprints.

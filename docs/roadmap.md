@@ -18,18 +18,20 @@ Keep task IDs stable. The changelog records what shipped.
 
 ### M0 - Baseline and project safety
 
-- [ ] **M0.1 - Reproducible performance baseline.** **In review.** Codex delivered the benchmark and both
-      measured cases in [V0.94](../CHANGELOG.md#v094--2026-11-09). Claude independently reruns both cases in
-      read-only mode and reviews the boundaries, memory accounting and result parity using the
-      [benchmark instructions and recorded run](benchmarks/M0.1.md). Codex addresses any findings before closure.
+- [x] **M0.1 - Reproducible performance baseline.** Benchmark and original measurements delivered in
+      [V0.94](../CHANGELOG.md#v094--2026-11-09); independently reviewed and accepted in
+      [V0.107](../CHANGELOG.md#v0107--2026-11-10).
   - Codex verified a source-fingerprint mismatch between the original report and clean V0.94, then repeated both
     cases from the clean delivery with one warm-up and five measurements each. Inputs, interval results and
     the synthetic ZIP fingerprints match the original; all reload and parity checks pass.
     [Clean-checkout evidence and provenance](benchmarks/M0.1.md#clean-checkout-repetition),
     [V0.106](../CHANGELOG.md#v0106--2026-11-10).
-  - Next step: Claude independently repeats both cases and records the boundaries, memory-accounting and parity
-    review. Claude is unavailable in the current Codex session; the maintainer must arrange that review or explicitly
-    authorise a different independent reviewer. M0.1 remains in review until this criterion is met.
+  - The maintainer authorised a separate Codex reviewer in place of Claude on 10 November 2026. That reviewer
+    independently ran both complete cases, audited measurement boundaries and RSS accounting, recalculated the
+    statistics, and verified source/input/result fingerprints, reloads and numerical/categorical parity.
+    [Independent review and evidence](benchmarks/M0.1-independent-review-2026-11-10.md).
+    The source-provenance finding is resolved by the matching clean-checkout reports; no implementation findings
+    remain. Required delivery checks pass. The baseline remains informational, with no CI performance thresholds.
 - [x] **M0.2 - Import and export safety.** Bound ZIP expansion and escape formula-like spreadsheet text
       while preserving numeric measurements. [V0.91](../CHANGELOG.md#v091--2026-11-09)
   - [x] **M0.2.1 - Verify stored ZIP member integrity.** Check the CRC in bounded blocks before delivering
@@ -68,7 +70,8 @@ Keep task IDs stable. The changelog records what shipped.
 - Verify that the saved edit survives reopening and that JavaScript and Python agree on shared interval results
   under the same analysis settings. Document the tolerance for floating-point results and check categorical results
   for exact agreement.
-- Claude reruns both cases independently and checks the measurement boundaries, memory accounting and result parity.
+- An independent reviewer reruns both cases and checks the measurement boundaries, memory accounting and result parity.
+  The maintainer authorised a separate Codex reviewing agent in place of Claude on 10 November 2026.
   Codex addresses review findings before marking the task complete. Collect an informational baseline before
   proposing CI regression thresholds.
 
