@@ -2457,6 +2457,12 @@ fingerprints, measurement boundaries, sampled memory accounting, numerical parit
 The measurements are informational and do not impose CI performance thresholds.
 The [M1.1.2 benchmark](benchmarks/M1.1.2.md) measures editing history with two trace densities and verifies
 undo, overlapping trace order and persistence.
+The [large-image profile](benchmarks/M2.2.md), run with `tools/benchmark_images.py`, measures prepared-project
+opening, section navigation, resident/evicted returns and zoom/pan. It reuses M0.1 preparation and RSS sampling,
+adds separate main-thread/worker CPU profiles and checks exact image/mask/interval preservation through edits,
+full-resolution PNG export and reload. Application provenance is checked separately from benchmark-tool hashes;
+text line endings are normalised, including bundled licences. The report records the measured application
+commit, environment, every trial, median/range and limitations. Profiling does not change cache budgets or loaders.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
 in strict mode on `core.js`, `state.js` and `imageproc.js`. JSDoc describes the shared contracts, and consumers

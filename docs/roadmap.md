@@ -162,12 +162,34 @@ existing projects retain failed-save protection. Performance evidence is collect
   - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain
         native 16-bit samples for enhancement and save originals in bounded writes.
         [V0.87](../CHANGELOG.md#v087--2026-11-09)
-  - [ ] **M2.2.2 - Opening and navigation profile. In progress.** Authorised by the maintainer on 10 November
+  - [x] **M2.2.2 - Opening and navigation profile.** [V0.117](../CHANGELOG.md#v0117--2026-11-10).
+        Authorised by the maintainer on 10 November
         2026; editor: Codex; verification: reproducible benchmark and required checks. Measure M0.1 public and
         synthetic projects plus a synthetic core exceeding the existing cache budgets. The
         [predeclared contract](benchmarks/M2.2.md) defines timing, memory/CPU accounting, provenance and exact
         edit/depth/image-export checks. Choose the next optimisation from the evidence; do not change loading
         or cache defaults in this profiling phase.
+    - The [complete report and source audit](benchmarks/M2.2.md#recorded-results) measure V0.116 application
+      commit `0ecb5efb7b4fc51c62b6781511a26444fae4f1fb`, with matching application-source provenance and separate
+      tool hashes. One warm-up, five measurements and one diagnostic CPU trial per case pass exact navigation,
+      interval/mask/image, delete/undo/redo, persisted reload and full-resolution mask-PNG checks (21 trials).
+    - Large-case opening through two frames is 1306.0 ms median; ten selections total 4805.4 ms. The first
+      evicted return is 281.4 ms, versus 32.3 ms after reloading into memory. Whole-trial peak RSS is 3385.4 MiB
+      median, including export/reload verification. Main-thread navigation samples identify the `drawNav` →
+      `sectionCanvas` → `reduceRGBA` preview path as the next target. This delivery claims no speedup.
+    - Required delivery checks pass: 188 Python tests (six optional/permission skips), 147 Node tests, types,
+      Ruff, version consistency, full Chrome smoke test, standalone build and standalone first-run regression.
+      The benchmark/report remain local on `master` until an authorised push. Next work is M2.2.3; this phase
+      does not change image loading, caches or working resolution.
+  - [ ] **M2.2.3 - Navigation preview experiment. Ready.** Prototype a separately cached, opt-in preview sized
+        for the visible navigation strip; preserve the column/figure image path. Compare with the M2.2.2
+        fixture sequence, environment and timing boundaries. Target at least 20% lower median large-case
+        `first_visits_total_ms`, no more than 20 ms added median resident-return latency, and no more than 10%
+        added median whole-trial peak RSS. Keep the old path as the default and rollback until accepted.
+    - Predeclare the visual-equivalence bound against the legacy displayed strip before implementing the
+      preview. Verify depth click/drag positions within 1e-9 working pixels, exact unchanged masks/indices,
+      saved/reloaded edits and full-resolution exports. Promotion requires the maintainer's acceptance.
+      Tiled loading remains deferred pending evidence on workloads that justify it.
 
 ### M3 - Analysis and learned segmentation
 

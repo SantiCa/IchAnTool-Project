@@ -1,0 +1,33 @@
+{
+  "kind": "author verification, not independent review",
+  "application_matches_recorded_provenance": true,
+  "application_matches_head": true,
+  "tool_hashes_match_recorded": true,
+  "summaries_recomputed_exactly": true,
+  "trials": {
+    "u1385": {
+      "measurements": 5,
+      "warmups": 1,
+      "diagnostic_cpu_trials": 1,
+      "export_pixels_per_trial": 2595000
+    },
+    "synthetic": {
+      "measurements": 5,
+      "warmups": 1,
+      "diagnostic_cpu_trials": 1,
+      "export_pixels_per_trial": 6144000
+    },
+    "large": {
+      "measurements": 5,
+      "warmups": 1,
+      "diagnostic_cpu_trials": 1,
+      "export_pixels_per_trial": 15360000
+    }
+  },
+  "generator": {
+    "historical_source_commit": "0ecb5efb7b4fc51c62b6781511a26444fae4f1fb",
+    "original_and_parameterised_generator_byte_equal": true,
+    "package_sha256": "aadd7befe779ba54dd8cf00afdc5ae0007162150b7e354a14ab4bddcf6d9bfbb"
+  },
+  "audited_application_commit": "0ecb5efb7b4fc51c62b6781511a26444fae4f1fb"
+}

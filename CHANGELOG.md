@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.117 — 2026-11-10
+
+- Add reproducible large-image diagnostics for project opening, section navigation, zoom/pan, cache residency and memory, with exact edit/reload and full-resolution mask-export checks.
+- Publish measurements on public and synthetic cores, identifying navigation-thumbnail preparation as the next optimisation target.
+
 ## V0.116 — 2026-11-10
 
 - Fix creating or importing the first project in an empty library when startup preferences have marked the uninitialised workspace as changed. Keep failed-save protection for existing projects.

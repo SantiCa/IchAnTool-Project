@@ -199,6 +199,10 @@ in the browser version, a few libraries. See [SECURITY.md](SECURITY.md).
 | [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) | How to contribute; working rules for contributors and AI coding assistants |
 | [paper/](paper/) | Software paper (in preparation) |
 
+For reproducible measurements of large-image opening and navigation, see the
+[benchmark command, results and limits](docs/benchmarks/M2.2.md). It uses public and deterministic synthetic
+projects and verifies edits, saved reloads and every pixel of the exported mask.
+
 ## Repository layout
 
 ```

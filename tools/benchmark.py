@@ -46,10 +46,12 @@ def rle(mask):
     return np.column_stack((flat[edges[:-1]], np.diff(edges))).ravel().tolist()
 
 
-def make_synthetic(path):
+def make_synthetic(path, *, height=6400):
     """Write a deterministic normal project package with precomputed nonoverlapping traces."""
+    if not isinstance(height, int) or not 256 <= height <= 16000:
+        raise ValueError("Synthetic section height must be an integer from 256 to 16000 pixels")
     rng = np.random.Generator(np.random.PCG64(SEED))
-    w, h, depth_cm = 960, 6400, 128
+    w, h, depth_cm = 960, height, 128
     filters = dict(channel="rgb", blackPoint=0, whitePoint=255, gamma=1, brightness=0, contrast=0, saturation=100)
     classes = [
         dict(id="undet", name="Undetermined", color="#d9a441", counts=True, fixed=True, plain=True),
