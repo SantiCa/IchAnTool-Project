@@ -11,8 +11,10 @@ on cores the model has never seen.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -116,6 +118,33 @@ def tiles_of(item: Item, tile: int, overlap: int, px_per_cm: float | None, min_v
             yield y0, x0, img[ys][:, xs], m
 
 
+def _tile_stems(items: list[Item]) -> list[str]:
+    """Portable, bounded names whose identity does not depend on sanitised display labels."""
+    stems, used = [], set()
+    for item in items:
+        labels = []
+        for field, value in (("core", item.core), ("section", item.section)):
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"invalid {field} identifier: expected a non-empty string")
+            labels.append(re.sub(r"[^A-Za-z0-9_-]+", "_", value)[:32])
+        identity = json.dumps([item.core, item.section], ensure_ascii=True, separators=(",", ":")).encode("ascii")
+        stem = "__".join([*labels, hashlib.sha256(identity).hexdigest()])
+        if stem.casefold() in used:
+            raise ValueError(f"duplicate core/section identifiers: {item.core!r}, {item.section!r}")
+        used.add(stem.casefold())
+        stems.append(stem)
+    return stems
+
+
+def _dataset_path(output: Path, *parts: str) -> Path:
+    """Reject aliases as well as escapes, before writing or replacing dataset contents."""
+    path = output.joinpath(*parts)
+    resolved = path.resolve()
+    if not resolved.is_relative_to(output) or resolved != path:
+        raise ValueError(f"unsafe dataset output path: {path}")
+    return path
+
+
 def prepare_dataset(src: str | Path, out: str | Path, tile: int = 512, overlap: int = 64,
                     px_per_cm: float | None = None, binary: bool = True, val_cores=None, test_cores=None,
                     seed: int = 42, min_valid: float = 0.5, overwrite: bool = False) -> dict:
@@ -123,39 +152,48 @@ def prepare_dataset(src: str | Path, out: str | Path, tile: int = 512, overlap: 
 
     ``out`` must be empty, so that tiles of two datasets are never mixed. With ``overwrite=True`` a previous dataset
     in ``out`` (recognised by its ``dataset.json``) is replaced; any other non-empty directory is refused.
+    Tile names use portable labels and the exact core/section identity. Duplicate identities and aliased output
+    paths are refused before replacement; existing files are never silently overwritten during tile creation.
     """
     items, classes = load_export(src)
     if not items:
         raise ValueError("the export has no images")
+    stems = _tile_stems(items)
     if px_per_cm is None:
         px_per_cm = float(np.median([it.px_per_cm for it in items]))
     split = split_cores([it.core for it in items], val_cores, test_cores, seed=seed)
-    out = Path(out)
+    out = Path(out).resolve()
+    partitions = {part: _dataset_path(out, part) for part in ("train", "val", "test")}
+    directories = {(part, kind): _dataset_path(out, part, kind) for part in partitions for kind in ("images", "masks")}
+    metadata = _dataset_path(out, "dataset.json")
     if out.exists() and any(out.iterdir()):
         if not overwrite:
             raise ValueError("output directory must be empty; choose a new directory or use --overwrite to replace "
                              "a previous dataset")
-        if not (out / "dataset.json").is_file():
+        if not metadata.is_file():
             raise ValueError("--overwrite only replaces a previous dataset (a directory containing dataset.json)")
-        for k in ("train", "val", "test"):
-            shutil.rmtree(out / k, ignore_errors=True)
-        (out / "dataset.json").unlink()
+        for directory in partitions.values():
+            shutil.rmtree(directory, ignore_errors=True)
+        metadata.unlink()
     counts = {k: {"tiles": 0, "cores": sorted({c for c, v in split.items() if v == k})} for k in ("train", "val", "test")}
-    for k in counts:
-        for d in ("images", "masks"):
-            (out / k / d).mkdir(parents=True, exist_ok=True)
-    for it in items:
+    for directory in directories.values():
+        directory.mkdir(parents=True, exist_ok=True)
+    for it, stem in zip(items, stems, strict=True):
         part = split[it.core]
-        stem = f"{it.core}__{it.section}".replace("/", "_")
         for y0, x0, im, m in tiles_of(it, tile, overlap, px_per_cm, min_valid):
             if binary:
                 m = binary_mask(m)
             name = f"{stem}__y{y0}_x{x0}.png"
-            Image.fromarray(im).save(out / part / "images" / name)
-            Image.fromarray(m).save(out / part / "masks" / name)
+            image_path = _dataset_path(out, part, "images", name)
+            mask_path = _dataset_path(out, part, "masks", name)
+            with image_path.open("xb") as image_file:
+                Image.fromarray(im).save(image_file, format="PNG")
+            with mask_path.open("xb") as mask_file:
+                Image.fromarray(m).save(mask_file, format="PNG")
             counts[part]["tiles"] += 1
     names = ["bioturbation"] if binary else [c["name"] for c in classes]
     summary = {"tile": tile, "overlap": overlap, "pxPerCm": px_per_cm, "binary": binary, "classes": names,
                "ignore": IGNORE, "seed": seed, "split": counts}
-    (out / "dataset.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    with metadata.open("x", encoding="utf-8") as file:
+        file.write(json.dumps(summary, indent=2))
     return summary

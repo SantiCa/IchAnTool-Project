@@ -703,6 +703,23 @@ at least one reviewed trace (§24). The Python package then provides four comman
   classes → 1); `--multiclass` keeps ichnotaxa as classes. The output directory must be empty, so that tiles of two
   datasets are never mixed; `--overwrite` replaces a previous dataset (a directory containing `dataset.json`) and
   refuses any other non-empty directory. Validation and test core lists must not overlap.
+
+  Prepared image and mask tiles have matching names:
+  `<core-label>__<section-label>__<identity-sha256>__y<row>_x<column>.png`. Each display label replaces runs outside
+  ASCII letters, digits, `_` and `-` with `_`, then retains at most 32 characters. The full 64-digit SHA-256 is
+  calculated from the ASCII encoding of `json.dumps([core, section], ensure_ascii=True, separators=(",", ":"))`.
+  Thus source identifiers remain unchanged in the core split, while separators, drive prefixes, case variants,
+  ambiguous `__` boundaries and truncated labels cannot silently merge output filenames. Core and section
+  identifiers must be non-empty strings. Duplicate identifier pairs are rejected before output creation or
+  replacement, including with `--overwrite`.
+
+  The chosen output root is resolved first. Partition directories, image/mask directories and `dataset.json`
+  are checked before replacement; every tile destination is checked before writing. A path must resolve to
+  itself below that root, so symbolic links and Windows junctions inside the output tree are refused. Tiles
+  and metadata are created exclusively, rejecting an existing file instead of silently replacing it. Image
+  and mask pixels, tile geometry and the core split use the same preparation rules. Existing prepared folders
+  remain compatible with training and evaluation. Newly generated names can change the lexicographic order
+  used by the training loader; resume a checkpoint with its original prepared folder.
 - **`train`**: U-Net (Ronneberger et al., 2015) with a ResNet-34 encoder pre-trained on ImageNet
   (`segmentation-models-pytorch`). Loss = cross-entropy (binary: BCE with logits) + soft Dice
   `1 − (2Σpt + 1)/(Σp + Σt + 1)` (multi-class: mean over classes ≥ 1), ignoring pixels marked 255. Augmentations:

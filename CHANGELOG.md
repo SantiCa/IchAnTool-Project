@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.108 — 2026-11-10
+
+- Keep prepared U-Net images and masks inside the chosen output folder, including when identifiers contain Windows paths.
+- Give distinct core/section pairs distinct portable filenames; reject duplicate pairs before replacing a dataset.
+- Refuse linked output paths and preserve files that appear during tile creation instead of overwriting them.
+
 ## V0.107 — 2026-11-10
 
 - Publish the independent performance-baseline review, with matching source, input and result fingerprints and verified measurement boundaries.

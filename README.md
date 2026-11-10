@@ -154,6 +154,9 @@ Use `sedcoretool unet train DATA OUT --cpu-only` or `train(..., cpu_only=True)` 
 probing CUDA or Metal. The `predict` and `evaluate` subcommands also accept `--cpu-only`.
 
 When preparing training data from the command line, choose a new or empty output directory for each preparation.
+Preparation assigns portable tile filenames and requires unique core/section identifier pairs. If a duplicate
+is reported, correct the identifiers before retrying. Linked paths inside the output folder are refused.
+Existing prepared datasets remain usable; keep the same prepared folder when resuming a training run.
 While any core is reserved for a final test, the ichnotaxon classifier excludes all library and other-project
 examples, whose independence cannot be established for older model files.
 

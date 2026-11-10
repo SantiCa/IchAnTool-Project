@@ -128,16 +128,15 @@ Keep task IDs stable. The changelog records what shipped.
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU
         after a recoverable GPU error and expose an explicit CPU option. [V0.90](../CHANGELOG.md#v090--2026-11-09)
-  - [ ] **M3.2.2 - Confine U-Net dataset output paths.** Prioritise this audit follow-up. Manifest
-        identifiers can affect the destination path when training tiles are written on Windows.
-    - **Approach.** Derive safe, deterministic filenames from core and section identifiers and
-      verify that each resolved image and mask destination stays within its intended output directory.
-    - **Acceptance.** Exercise absolute paths, Windows separators and parent traversal in ZIP and
-      folder exports. Reject invalid identifiers or write confined filenames. Verify that nothing is
-      created or overwritten outside the output directory, and that colliding identifiers cannot
-      overwrite tiles. Run the regression on Windows CI and preserve paired tiles and core splits.
-    - **Likely touchpoints.** `src/sedcoretool/unet/dataset.py`, `tests/test_unet.py` and the
-      existing Python CI matrix.
+  - [x] **M3.2.2 - Confine U-Net dataset output paths.** Generate portable, bounded tile names from
+        display labels and the exact core/section identity; verify resolved destinations and create files
+        exclusively. [V0.108](../CHANGELOG.md#v0108--2026-11-10).
+    - Reproduced outside-file overwrites and label/boundary/case collisions in Windows from ZIP and folder
+      exports. Verified absolute, drive-relative, UNC, slash/backslash, traversal, control, Unicode and long
+      identifiers, duplicate rejection before overwrite, stable naming and late file collisions.
+    - Verified linked-output rejection, including Windows junctions, preservation of outside sentinels,
+      exact image/mask pixels in binary and multiclass preparation, and unchanged train/validation/test cores.
+      Regression tests run in the existing Python CI matrix, including Windows; required delivery checks pass.
   - [ ] **M3.2.3 - Preserve the last working U-Net model.** Starting a fresh desktop training run
         with an existing name removes the published artifacts before preparation succeeds.
     - **Approach.** Prepare and train in a staging location. Publish a complete model and metadata
