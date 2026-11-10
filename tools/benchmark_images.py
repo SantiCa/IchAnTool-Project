@@ -86,7 +86,9 @@ def measure_case(case, args, url, workspace):
             profile = Path(temp) / "profile"
             shutil.copytree(seed, profile)
             result, peak, samples = run_sample(["node", str(DRIVER), url, str(profile), args.chrome, case,
-                                                "profile" if profiled else "measure", "preview" if args.nav_preview else "legacy"], browser_tree=True)
+                                                "profile" if profiled else "measure", args.nav_mode], browser_tree=True)
+        if result["nav_preview"] != (args.nav_mode != "legacy"):
+            raise ValueError("Navigation renderer differs from the requested mode")
         if reference is None:
             reference = identities(result)
         elif identities(result) != reference:
@@ -103,12 +105,12 @@ def measure_case(case, args, url, workspace):
         print(f"{case} {entry['kind']} {index + 1}: open {entry['open_painted_ms']:.1f} ms, "
               f"navigation {entry['navigation_total_ms']:.1f} ms, peak {peak:.1f} MiB", file=sys.stderr, flush=True)
     visual = None
-    if args.nav_preview:
+    if args.nav_mode != "legacy":
         with tempfile.TemporaryDirectory(prefix="image-visual-", dir=directory) as temp:
             profile = Path(temp) / "profile"
             shutil.copytree(seed, profile)
             checked = json.loads(subprocess.check_output(["node", str(DRIVER), url, str(profile), args.chrome, case,
-                                                         "visual", "preview"], cwd=ROOT, timeout=TIMEOUT))
+                                                         "visual", args.nav_mode], cwd=ROOT, timeout=TIMEOUT))
         if identities(checked) != reference:
             raise ValueError("Visual trial changed scientific results")
         visual = checked["visual"]
@@ -135,7 +137,10 @@ def main():
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--nav-preview", action="store_true", help="Enable the session navigation-preview experiment through its checkbox")
+    navigation = parser.add_mutually_exclusive_group()
+    navigation.add_argument("--nav-preview", dest="nav_mode", action="store_const", const="preview", help="Enable navigation preview through its checkbox")
+    navigation.add_argument("--nav-default", dest="nav_mode", action="store_const", const="default", help="Verify navigation preview starts enabled without changing its checkbox")
+    parser.set_defaults(nav_mode="legacy")
     parser.add_argument("--workspace", type=Path, help="Parent for disposable profiles/fixtures; useful in restricted environments")
     args = parser.parse_args()
     if min(args.warmups, args.repetitions) < 1:
@@ -148,7 +153,8 @@ def main():
     report = {"started_utc": datetime.now(timezone.utc).isoformat(), "source": source_metadata(SOURCES),
               "application": provenance, "environment": describe_environment(),
               "warmups": args.warmups, "repetitions": args.repetitions, "rss_poll_target_ms": SAMPLE_SECONDS * 1000,
-              "nav_preview": args.nav_preview, "complete": False, "cases": []}
+              "nav_preview": args.nav_mode != "legacy", "navigation_mode": args.nav_mode,
+              "section_identity": "source-order index; random storage IDs excluded", "complete": False, "cases": []}
     if args.workspace:
         args.workspace = args.workspace.resolve()
         args.workspace.mkdir(parents=True, exist_ok=True)

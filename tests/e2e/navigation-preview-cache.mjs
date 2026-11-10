@@ -45,10 +45,18 @@ export async function verifyNavigationPreviewCache(browser, url) {
       s.roi = { x0: 1, x1: 7, y0: 5, y1: 95 }; verify('analysis region');
       view.overlay = true; I.S.selected = 1; I.assignClass('pl'); verify('trace assignment');
       verify('preview dimensions', 16, 500);
-      if (navigationPreviewCanvas(s, 25, 500) !== null || navigationPreviewCanvas(s, 16, 4097) !== null) throw new Error('Unsupported dimensions must fall back');
+      for (const [width, height] of [[0, 500], [25, 500], [16, 4097], [8.5, 500], [8, NaN]]) {
+        if (navigationPreviewCanvas(s, width, height) !== null) throw new Error('Unsupported dimensions must fall back');
+      }
+      const roi = s.roi;
+      for (const invalid of [null, { ...roi, y1: roi.y0 }, { ...roi, x1: s.w + 1 }]) {
+        s.roi = invalid;
+        if (navigationPreviewCanvas(s, 16, 500) !== null) throw new Error('Invalid saved regions must use the existing fallback');
+      }
+      s.roi = roi;
       const checkbox = document.getElementById('navPreview');
       checkbox.checked = false; checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-      if (previous.width !== 0) throw new Error('Disabling the experiment must release previews');
+      if (previous.width !== 0) throw new Error('Disabling the preview must release its canvases');
       previous = null; verify('rollback');
       view.tracks.image = true;
       const before = buildColumnLog().svg;

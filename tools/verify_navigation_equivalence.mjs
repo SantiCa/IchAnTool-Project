@@ -22,7 +22,11 @@ async function verify(url, preview) {
   try {
     await page.goto(url, { waitUntil: 'networkidle0' });
     await page.waitForFunction(() => window.ichantool);
-    if (preview) await page.$eval('#navPreview', (checkbox) => checkbox.click());
+    await page.evaluate((enabled) => {
+      const checkbox = document.getElementById('navPreview');
+      if (checkbox && checkbox.checked !== enabled) checkbox.click();
+      else if (enabled && !checkbox) throw new Error('Navigation preview is unavailable');
+    }, preview);
     await page.$eval('#openTest', (button) => button.click());
     const ready = () => page.waitForFunction(() => window.ichantool.S.sections.length === 6 && window.ichantool.S.sections[0].enh
       && document.getElementById('busy').hidden && document.getElementById('saveState').dataset.state === 'saved');

@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.119 — 2026-11-10
+
+- Enable the optimised navigation preview at startup, with a session control to restore the previous renderer.
+- Keep older projects, exported figures and scientific results compatible, and use the existing renderer for unsupported preview dimensions or invalid analysis regions.
+
 ## V0.118 — 2026-11-10
 
 - Add an optional, session-only navigation-preview experiment with exact display pixels and a bounded thumbnail cache. Keep the current navigation renderer as the default.

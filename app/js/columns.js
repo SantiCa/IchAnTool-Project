@@ -7,6 +7,7 @@ import { disposeDataTable, renderData } from './datatab.js';
 import { FIG_PANELS, arrowMarksSVG, axisErr, coreRatio, editSVGLabels, figTraces, panelDataURL, renderFigPanel, renderFigure, scheduleFigure } from './figures.js';
 
 import { UNIT_TO_CM, interpAge, topAt } from './core.js';
+import { validSavedRegion } from './edit.js';
 import { LOG_STYLE, ND_STYLE, taxaOptions, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
 import { t } from './i18n.js';
 import { buildNavigationLayers, NavigationPreviewCache } from './navpreview.js';
@@ -117,7 +118,8 @@ export const clearNavigationPreviews = () => navigationPreviews.clear();
 
 /** Navigation-only preview. Temporary legacy-size layers preserve exact display pixels; only the final strip is retained. */
 export function navigationPreviewCanvas(s, width, height) {
-  if (!s.orig || !s.enh || width < 1 || width > 24 || height < 1 || height > 4096) return null;
+  if (!s.orig || !s.enh || !validSavedRegion(s.roi, s.w, s.h)
+    || !Number.isInteger(width) || width < 1 || width > 24 || !Number.isInteger(height) || height < 1 || height > 4096) return null;
   const lv = S.logView, roi = s.roi, palette = S.classes.map((c) => c.color), opacity = Number.isFinite(lv.overlayAlpha) ? lv.overlayAlpha : S.ovAlpha;
   const key = JSON.stringify([s.logVer, s.w, s.h, s.ds, s.rot, s.crop, roi, s.filters, lv.imgMode, lv.overlay, lv.hideExcl,
     opacity, palette, S.settings.predThr, S.settings.includePred, S.settings.countCandidates, width, height]);

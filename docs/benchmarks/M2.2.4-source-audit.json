@@ -1,0 +1,51 @@
+{
+  "kind": "author verification, not independent review",
+  "application_parent_commit": "e1a11d9a0d6afb5dc7897eadb00b9ebc597bea36",
+  "application_files_sha256": "d1162d1314e7066d75b22b37bd69a2f79347f758d8e02e36e486f2a951a607eb",
+  "both_paths_match_recorded_candidate_working_tree": true,
+  "benchmark_tool_hashes_equal": true,
+  "environment_and_runtimes_equal": true,
+  "summaries_recomputed_exactly": true,
+  "all_fixture_and_scientific_identities_equal_across_paths": true,
+  "section_identity": "source-order index; random storage IDs excluded",
+  "unchanged_modules_relative_to_parent": [
+    "app/js/navpreview.js",
+    "app/js/core.js",
+    "app/js/imageproc.js",
+    "app/js/unet.js"
+  ],
+  "column_renderer_unchanged_relative_to_parent": true,
+  "reference_trials": 21,
+  "default_trials": 24,
+  "criteria": {
+    "large_first_visits_at_least_20_percent_faster": true,
+    "large_resident_return_at_most_20_ms_added": true,
+    "large_peak_rss_at_most_10_percent_added": true
+  },
+  "comparisons": {
+    "u1385": {
+      "first_visits_reduction_percent": 33.3508679605719,
+      "resident_return_added_ms": -0.19999992847442627,
+      "peak_rss_change_percent": 3.4898853674983243,
+      "exact_display_comparisons": 9,
+      "exact_display_pixels": 449658,
+      "export_pixels_per_trial": 2595000
+    },
+    "synthetic": {
+      "first_visits_reduction_percent": 35.27393699669806,
+      "resident_return_added_ms": 0.10000002384185791,
+      "peak_rss_change_percent": 3.7374003750586082,
+      "exact_display_comparisons": 11,
+      "exact_display_pixels": 549582,
+      "export_pixels_per_trial": 6144000
+    },
+    "large": {
+      "first_visits_reduction_percent": 33.379007945049665,
+      "resident_return_added_ms": 0.10000002384185791,
+      "peak_rss_change_percent": 9.999477195008645,
+      "exact_display_comparisons": 11,
+      "exact_display_pixels": 549582,
+      "export_pixels_per_trial": 15360000
+    }
+  }
+}

@@ -157,8 +157,11 @@ existing projects retain failed-save protection. Performance evidence is collect
       acceptance criteria pass and the maintainer accepts the transition.
   - The experiment remains opt-in; large selections can retain extra rows and fixed widths can clip displayed
     text. Default promotion requires the maintainer's acceptance. The next performance scope is M2.2 profiling.
-- [ ] **M2.2 - Large images.** Profile opening and navigation on large cores. Evaluate tiled loading if justified.
+- [x] **M2.2 - Large images.** Profile opening and navigation on large cores. Evaluate tiled loading if justified.
       Verify depth mapping, editing and exported images.
+      Completed for the public/synthetic workloads through [V0.119](../CHANGELOG.md#v0119--2026-11-10).
+      The promoted preview retains session rollback; its measured memory margin is narrow. Tiled loading is
+      deferred until full-resolution/16-bit workloads justify a separately authorised phase.
   - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain
         native 16-bit samples for enhancement and save originals in bounded writes.
         [V0.87](../CHANGELOG.md#v087--2026-11-09)
@@ -206,11 +209,29 @@ existing projects retain failed-save protection. Performance evidence is collect
       version consistency, full Chrome smoke test, standalone build and offline navigation regression.
       Browser checks cover cache invalidation/disposal, pointer depth, unchanged column SVG and saved state.
       Delivery remains local on `master`; GitHub handoff requires an authorised push.
-  - [ ] **M2.2.4 - Accept or revise navigation-preview promotion.** The maintainer decides whether to enable
-        the experiment by default after trying it on representative projects. Keep the current path as the
-        default until then. If promotion is authorised, verify saved-project compatibility, fallback dimensions,
-        export/save regressions and the same benchmark limits before removing the session flag. Full-resolution
-        and 16-bit TIFF profiling remains a separate candidate if real workloads justify tiled loading.
+  - [x] **M2.2.4 - Accept or revise navigation-preview promotion.** [V0.119](../CHANGELOG.md#v0119--2026-11-10).
+        Authorised by the maintainer's
+        request to continue on 10 November 2026; editor: Codex; verification: matched benchmark and browser/
+        offline regression, with no independent reviewer assigned. The [contract](benchmarks/M2.2.4.md)
+        enables the preview at startup while retaining a session rollback control. Verify current/legacy
+        project compatibility, fallback dimensions and invalid regions, export/save regressions and the same
+        benchmark limits on public and synthetic workloads. Private-project acceptance has not been reported;
+        removing the rollback control is outside this phase. Full-resolution and 16-bit TIFF profiling remains
+        a separate candidate if real workloads justify tiled loading.
+    - Delivered: preview starts enabled, with an explicit session control to restore the previous renderer.
+      Invalid saved regions and unsupported/noninteger preview dimensions use the existing path. Saved
+      projects and scientific definitions remain unchanged.
+    - [Matched reports and author audit](benchmarks/M2.2.4.md#recorded-results) verify identical application/
+      tool fingerprints on both paths. Large first visits fall from 5108.6 to 3403.4 ms median (33.4%);
+      resident return adds 0.1 ms. Peak RSS rises 9.99948%, formally within 10% but with less than 0.02 MiB
+      headroom. No robust memory margin is established; retain rollback and require further representative
+      memory evidence before any future removal. All 45 trials and 31 exact gutter comparisons pass.
+    - Verified current, IchAnTool v2 and CorAnTool v3 imports with images/masks, session reset and migrated
+      reload, fallback/cache lifecycle, pointer depth, unchanged column SVG and full figure/save regressions.
+      Checks pass: 188 Python tests (six optional/permission skips), 150 Node tests, types, Ruff, version
+      consistency, full Chrome smoke, standalone build and offline current/legacy navigation regression.
+    - Local delivery on `master`; GitHub handoff needs an authorised push. The next roadmap phase is M3.1
+      analysis profiling; no further workstream is started here.
 
 ### M3 - Analysis and learned segmentation
 

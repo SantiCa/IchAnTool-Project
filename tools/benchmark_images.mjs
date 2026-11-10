@@ -14,11 +14,14 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(url, { waitUntil: 'networkidle0' });
   await page.waitForSelector(`#projList [data-id="${projectId}"] [data-act="open"]`, { visible: true });
-  if (previewMode === 'preview') await page.evaluate(() => {
+  const navPreview = await page.evaluate((selection) => {
     const checkbox = document.getElementById('navPreview');
-    if (!checkbox) throw new Error('Navigation-preview experiment is unavailable');
-    if (!checkbox.checked) checkbox.click();
-  });
+    if (!checkbox) { if (selection === 'legacy') return false; throw new Error('Navigation preview is unavailable'); }
+    if (selection === 'default') {
+      if (!checkbox.checked) throw new Error('Navigation preview must be enabled by default');
+    } else if (checkbox.checked !== (selection === 'preview')) checkbox.click();
+    return checkbox.checked;
+  }, previewMode);
   if (profiling) {
     main = await page.createCDPSession(); await main.send('Profiler.enable'); await main.send('Profiler.start');
     const attach = (worker) => {
@@ -45,7 +48,7 @@ try {
   if (profiling) cpuOpen = sites((await main.send('Profiler.stop')).profile);
   const fixture = await page.evaluate(() => {
     const S = window.ichantool.S;
-    return { settings: S.settings, sections: S.sections.map((s) => ({ id: s.id, w: s.w, h: s.h, ds: s.ds,
+    return { settings: S.settings, sections: S.sections.map((s, index) => ({ index, w: s.w, h: s.h, ds: s.ds,
       top: s.top, bottom: s.bottom, units: s.units, roi: s.roi, filters: s.filters, objects: s.objects.size })) };
   });
   assert.equal(fixture.sections.length, caseId === 'u1385' ? 6 : 8);
@@ -127,7 +130,7 @@ try {
     return_first_ms: navigation[last].painted_ms, warm_return_ms: navigation.at(-1).painted_ms,
     zoom_total_ms: interactions.filter((step) => step.action === 'zoom').reduce((sum, step) => sum + step.painted_ms, 0),
     pan_total_ms: interactions.filter((step) => step.action === 'pan').reduce((sum, step) => sum + step.painted_ms, 0),
-    initial, saved, firstPixels, edit, exported, cpu_main, cpu_workers, visual, nav_preview: previewMode === 'preview',
+    initial, saved, firstPixels, edit, exported, cpu_main, cpu_workers, visual, nav_preview: navPreview,
     chrome: await browser.version(), node: process.version,
     puppeteer: createRequire(import.meta.url)('puppeteer-core/package.json').version }));
 } catch (error) {
@@ -164,7 +167,7 @@ async function snapshot(page) {
         const row = s.roi.y0 + fraction * (s.roi.y1 - s.roi.y0);
         if (Math.abs(rowAtDepth(s, depthAtRow(s, row)) - row) > 1e-9) throw new Error('Depth/row mapping changed');
       }
-      packed.push({ id: s.id, labels: s._mk.labels.rle(), exclude: s._mk.exclude.rle(), stacks: s.stacks,
+      packed.push({ index: packed.length, labels: s._mk.labels.rle(), exclude: s._mk.exclude.rle(), stacks: s.stacks,
         objects: [...s.objects.values()].sort((a, b) => a.id - b.id).map((o) => [o.id, o.cls, o.pred, o.conf]), bins: s.bins });
     }
     const bytes = new TextEncoder().encode(JSON.stringify(packed));

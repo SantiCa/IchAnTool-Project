@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { objectStats } from '../../app/js/imageproc.js';
 import { rleDecode, rleEncode } from '../../app/js/core.js';
+import { zipFiles } from '../../app/js/zip.js';
 import { taxonFigureFixture } from './taxon-figures.mjs';
 
 /** Reference preparation is confined to a separate correctness trial, never to a timed/RSS trial. */
@@ -58,7 +59,7 @@ export async function verifyNavigationPreview(browser, url, { screenshots = fals
     }, fixture);
     await page.waitForFunction(() => window.ichantool.S.sections[0]?.enh);
     await frame(); const original = await science();
-    assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), false);
+    assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), true);
     await compareNavigationPreview(page);
     assert.equal(await science(), original);
     assert.equal(await page.$eval('#saveState', (status) => status.dataset.state), 'saved');
@@ -100,11 +101,63 @@ export async function verifyNavigationPreview(browser, url, { screenshots = fals
     if (screenshots) await page.screenshot({ path: 'dist/navigation-preview.png' });
     const saved = await page.evaluate(async () => { await window.ichantool.saveToDB(); return window.ichantool.serialize(); });
     assert.equal(JSON.stringify(saved).includes('navPreview'), false);
+    await change('#navPreview', false);
+    assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), false);
+    await page.evaluate(() => window.ichantool.saveToDB());
     await page.reload({ waitUntil: 'networkidle0' });
     await page.waitForFunction(() => window.ichantool?.S.sections[0]?.enh);
-    assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), false);
+    assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), true);
     await compareNavigationPreview(page);
     assert.deepEqual(errors, []);
     console.log('Navigation preview: exact display pixels, source/overlay/exclusion/opacity, edits, ROI, resize, resolution, pointer depth, rollback and session-only state verified.');
   } finally { await page.close(); }
+}
+
+/** Older project formats enter through the ordinary importer, with real inline image bytes and masks. */
+export async function verifyLegacyNavigation(browser, url) {
+  for (const version of [2, 3]) {
+    const context = await browser.createBrowserContext(), page = await context.newPage(), errors = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await page.goto(url, { waitUntil: 'networkidle0' });
+      await page.waitForFunction(() => window.ichantool);
+      const fixture = taxonFigureFixture(), core = fixture.cores[0], section = core.sections[0];
+      section.file = await page.evaluate(() => {
+        const canvas = document.createElement('canvas'); canvas.width = 8; canvas.height = 100;
+        const ctx = canvas.getContext('2d'); ctx.fillStyle = '#b4b4b4'; ctx.fillRect(0, 0, 8, 100);
+        return { name: 'legacy.png', type: 'image/png', b64: canvas.toDataURL().split(',')[1] };
+      });
+      fixture.version = version; fixture.id = `navigation-v${version}`; fixture.app = version === 2 ? 'IchAnTool' : 'CorAnTool';
+      if (version === 2) {
+        Object.assign(fixture, { sections: core.sections, age: core.age, logView: core.logView });
+        delete fixture.cores;
+      }
+      const json = JSON.stringify(fixture), file = version === 2 ? new Blob([json]) : await zipFiles([{ name: 'project.json', data: json }]);
+      await page.evaluate((bytes, name) => {
+        const input = document.getElementById('impProj'), transfer = new DataTransfer();
+        transfer.items.add(new File([new Uint8Array(bytes)], name)); input.files = transfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }, [...new Uint8Array(await file.arrayBuffer())], version === 2 ? 'navigation-v2.json' : 'navigation-v3.corantool');
+      await page.waitForFunction((id) => window.ichantool.S.id === id && window.ichantool.S.sections[0]?.enh
+        && document.getElementById('busy').hidden && document.getElementById('saveState').dataset.state === 'saved', {}, fixture.id);
+      const snapshot = () => page.evaluate(() => {
+        const I = window.ichantool, section = I.S.sections[0]; I.analyze(section);
+        return { labels: section._mk.labels.rle(), exclude: section._mk.exclude.rle(), bins: section.bins,
+          objects: [...section.objects.values()].map((o) => [o.id, o.cls]) };
+      });
+      const before = await snapshot();
+      assert.deepEqual(before.labels, section.labels); assert.deepEqual(before.exclude, section.exclude);
+      assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), true);
+      await compareNavigationPreview(page); assert.deepEqual(await snapshot(), before);
+      await page.$eval('#navPreview', (checkbox) => checkbox.click());
+      await page.evaluate(() => window.ichantool.saveToDB());
+      assert.equal(JSON.stringify(await page.evaluate(() => window.ichantool.serialize())).includes('navPreview'), false);
+      await page.reload({ waitUntil: 'networkidle0' });
+      await page.waitForFunction(() => window.ichantool?.S.sections[0]?.enh);
+      assert.equal(await page.$eval('#navPreview', (checkbox) => checkbox.checked), true);
+      assert.deepEqual(await snapshot(), before); await compareNavigationPreview(page);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  }
+  console.log('Navigation defaults: IchAnTool v2 JSON and CorAnTool v3 package import, exact masks/results, session rollback and migrated reload verified.');
 }

@@ -1,4 +1,4 @@
-## SedCoreTool V0.118
+## SedCoreTool V0.119
 
 SedCoreTool quantifies bioturbation and ichnotaxa in sediment-core images and combines them with other down-core
 records and described intervals. Version 0.x, in active development. The downloads contain no sample data: the
@@ -20,10 +20,10 @@ The full list of changes is in [CHANGELOG.md](https://github.com/SantiCa/SedCore
 
 | System | File |
 |---|---|
-| Windows 10/11, x64 | `SedCoreTool-V0.118-windows-setup.exe` or `SedCoreTool-V0.118-windows-portable.exe` |
-| macOS 13 or later, Intel and Apple Silicon | `SedCoreTool-V0.118-mac-universal.dmg` |
-| Linux, x64 | `SedCoreTool-V0.118-linux-x86_64.AppImage` or `SedCoreTool-V0.118-linux-amd64.deb` |
-| Any system, in a browser | `SedCoreTool_V0.118.html` (single file, works offline) |
+| Windows 10/11, x64 | `SedCoreTool-V0.119-windows-setup.exe` or `SedCoreTool-V0.119-windows-portable.exe` |
+| macOS 13 or later, Intel and Apple Silicon | `SedCoreTool-V0.119-mac-universal.dmg` |
+| Linux, x64 | `SedCoreTool-V0.119-linux-x86_64.AppImage` or `SedCoreTool-V0.119-linux-amd64.deb` |
+| Any system, in a browser | `SedCoreTool_V0.119.html` (single file, works offline) |
 | Verification | `SHA256SUMS.txt` and `RELEASE_MANIFEST.json` |
 
 Windows: run the installer or open the portable version. macOS: drag the application to Applications. Linux: make

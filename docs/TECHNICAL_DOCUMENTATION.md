@@ -1107,10 +1107,13 @@ section (`logView.imgPanels`), with a width in the real proportion of the core p
 (`style.imgAspect = 'keep'`: width = plot height / (height/width of the core), median of the sections; ×
 `imgStretch`) or a fixed width (`imgW`).
 
-**Section navigation preview.** The session-only **Navigation preview (experimental)** checkbox starts off
-and is not serialised. When enabled, `app.js::drawNav` requests `columns.js::navigationPreviewCanvas` for the
+**Section navigation preview.** The session-only **Optimised navigation preview** checkbox starts enabled
+and is not serialised. Disabling it restores the previous renderer until reload, which enables it again.
+When enabled, `app.js::drawNav` requests `columns.js::navigationPreviewCanvas` for the
 visible strip; column and figure rendering still use `sectionCanvas`. Preview dimensions outside 1–24 pixels
-wide or 1–4096 pixels high, or unavailable source/enhanced pixels, fall back to `sectionCanvas`.
+wide or 1–4096 pixels high, noninteger dimensions, invalid saved analysis regions or unavailable source/enhanced
+pixels fall back to `sectionCanvas`. Region validity uses the shared `edit.js::validSavedRegion` contract,
+preserving the existing inspection path for suspect projects.
 
 `navpreview.js::buildNavigationLayers` visits the source once, accumulating both the photo and mask into the
 same grid as the column reducer: scale `min(1, 512 / width)`, with rounded output dimensions. Each output
@@ -1128,7 +1131,7 @@ the cached canvases. Cache keys include section revision, dimensions/resolution,
 image/overlay/exclusion settings, opacity, class colours, prediction policy and preview dimensions. Existing
 edit paths update the section revision. Pixel and mask cache budgets, working images, scientific arrays,
 pointer/depth mapping and export renderers retain their existing contracts. The
-[experiment report](benchmarks/M2.2.3.md) defines exact visual comparison and matched performance acceptance.
+[promotion report](benchmarks/M2.2.4.md) defines exact visual comparison and matched performance acceptance.
 
 ### 15.5 Columns and scales
 
@@ -2487,10 +2490,14 @@ adds separate main-thread/worker CPU profiles and checks exact image/mask/interv
 full-resolution PNG export and reload. Application provenance is checked separately from benchmark-tool hashes;
 text line endings are normalised, including bundled licences. The report records the measured application
 commit, environment, every trial, median/range and limitations. Profiling does not change cache budgets or loaders.
-The [navigation-preview comparison](benchmarks/M2.2.3.md) uses identical benchmark-tool fingerprints on the
-reference and experimental application. Its separate visual trials compare every displayed gutter pixel;
+The [navigation-preview comparison](benchmarks/M2.2.3.md) and
+[startup-default verification](benchmarks/M2.2.4.md) use identical benchmark-tool fingerprints on each pair of
+paths. Separate visual trials compare every displayed gutter pixel;
 reference preparation is excluded from timing/RSS trials. Provenance includes untracked, non-ignored source
-files and records additions relative to the application commit.
+files and records additions relative to the application commit. `--nav-default` requires the preview to start
+enabled without changing the checkbox; the legacy benchmark explicitly disables it before timed opening.
+Current fixture/scientific hashes identify sections by source-order index, excluding random storage IDs
+while retaining masks, assignments and interval arrays. This canonicalisation changes no project data.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
 in strict mode on `core.js`, `state.js` and `imageproc.js`. JSDoc describes the shared contracts, and consumers
