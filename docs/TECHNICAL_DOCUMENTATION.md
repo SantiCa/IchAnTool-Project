@@ -1222,6 +1222,15 @@ display limit. CSV calls the same model without a limit and exports every row. T
 in use, preserving text selection and the existing editing handlers. Repeated expansion still grows the DOM.
 The [Data table benchmark](benchmarks/M2.1.md) records the measured improvement, exact CSV checks and limits.
 
+For each core/layer, `geo.js::createIntervalLookup` indexes the axis-converted intervals once per model call.
+Finite, nonempty, nonoverlapping intervals are searched by binary search on a sorted copy; source arrays and
+interval objects are preserved. Matches use `from <= x < to`, including touching endpoints and gaps. Overlapping
+or irregular bounds use the original linear first-match predicate; nonfinite or nonnumeric query values also
+retain its coercion behaviour. Interval category names are resolved once for that model call, including generated
+groups and validation categories, and rebuilt with each render/export. The same lookup serves the displayed
+prefix and full CSV. [Cumulative expansion and CSV measurements](benchmarks/M2.1.2.md) describe the validation
+and the remaining cost of the growing DOM.
+
 ### 17.3 Computed columns
 One formula per column (`sheet.js::evalColumn`), evaluated row by row over the core. Operators `+ − * / ^` and
 comparisons (`< > <= >= == !=`, giving 1/0); names without spaces or in brackets (`[XRF Ba/Ti]`), `depth`, `age`.

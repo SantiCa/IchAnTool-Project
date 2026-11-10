@@ -204,6 +204,25 @@ export function intervalsOnAxis(list, axis, core) {
   }).filter(Boolean);
 }
 
+/** First half-open match for a fixed interval set; rebuild after changing interval bounds. */
+export function createIntervalLookup(intervals) {
+  const linear = (x) => intervals.find((q) => x >= q.from && x < q.to);
+  if (intervals.some((q) => !Number.isFinite(q.from) || !Number.isFinite(q.to) || q.from >= q.to)) return linear;
+  const sorted = intervals.slice().sort((a, b) => a.from - b.from);
+  // Overlaps must retain source-order priority; irregular inputs retain the predicate's coercion.
+  if (sorted.some((q, i) => i > 0 && sorted[i - 1].to > q.from)) return linear;
+  return (x) => {
+    if (!Number.isFinite(x)) return linear(x);
+    let lo = 0, hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (sorted[mid].from <= x) lo = mid + 1; else hi = mid;
+    }
+    const match = sorted[lo - 1];
+    return match && x < match.to ? match : undefined;
+  };
+}
+
 /** Ids of intervals of a child layer that are not inside any interval of its parent layer (same core). */
 export function orphanIntervals(intervals, layers, cores) {
   const parent = new Map(layers.map((l) => [l.id, l.parent])), byCore = new Map(cores.map((c) => [c.id ?? c.name, c]));

@@ -1,0 +1,1651 @@
+{
+  "started_utc": "2026-11-10T02:02:13.900411+00:00",
+  "source": {
+    "commit": "71f0735972d4f2c6c304ad92c04e696b409987f1",
+    "dirty": true,
+    "input_files_sha256": "88947f9d0eabcd688f257cc74114d493c6fc013881e9f93d15fbb8c1305ba13d"
+  },
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "architecture": "AMD64",
+    "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+    "logical_cpus": 16,
+    "physical_cores": 8,
+    "ram_mib": 31850,
+    "python": "3.14.2",
+    "sedcoretool": "0.110.0",
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "pillow": "13.0.0",
+    "psutil": "7.2.2"
+  },
+  "warmups": 1,
+  "repetitions": 5,
+  "rss_poll_target_ms": 25.0,
+  "expansion_steps": 10,
+  "cases": [
+    {
+      "case": "small",
+      "fixture": {
+        "seed": 210108,
+        "row_count": 2000,
+        "core_count": 2,
+        "numeric_columns": 6,
+        "layer_count": 2,
+        "interval_count": 40,
+        "rows_per_interval": 100,
+        "initial_display_rows": 400,
+        "more_display_rows": 1400
+      },
+      "csv_sha256": "829c2c3601e7a45dc0734ace74c225b15209fd8e46c676332e9c163a2a126c14",
+      "csv_rows_verified": 2000,
+      "initial": 400,
+      "expanded": 1400,
+      "displayed": 2000,
+      "expansion_steps": 10,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 46.599999994039536,
+          "edit_ms": 61,
+          "select_ms": 33,
+          "more_ms": 116.69999998807907,
+          "scroll_ms": 30,
+          "export_ms": 4.200000017881393,
+          "expansion_total_ms": 303.09999999403954,
+          "last_expansion_ms": 186.40000000596046,
+          "expanded_select_ms": 32.69999998807907,
+          "browser_peak_rss_mib": 712.859375,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.69999998807907
+            },
+            {
+              "rows": 2000,
+              "render_ms": 186.40000000596046
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 47.29999998211861,
+          "edit_ms": 59.099999994039536,
+          "select_ms": 33.29999998211861,
+          "more_ms": 116.59999999403954,
+          "scroll_ms": 33.099999994039536,
+          "export_ms": 5.199999988079071,
+          "expansion_total_ms": 316.59999999403954,
+          "last_expansion_ms": 200,
+          "expanded_select_ms": 32.599999994039536,
+          "browser_peak_rss_mib": 727.42578125,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.59999999403954
+            },
+            {
+              "rows": 2000,
+              "render_ms": 200
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 44.19999998807907,
+          "edit_ms": 48,
+          "select_ms": 32.10000002384186,
+          "more_ms": 116.69999998807907,
+          "scroll_ms": 32.79999998211861,
+          "export_ms": 4.5,
+          "expansion_total_ms": 316.59999999403954,
+          "last_expansion_ms": 199.90000000596046,
+          "expanded_select_ms": 32.69999998807907,
+          "browser_peak_rss_mib": 719.50390625,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.69999998807907
+            },
+            {
+              "rows": 2000,
+              "render_ms": 199.90000000596046
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 46.70000001788139,
+          "edit_ms": 61.79999998211861,
+          "select_ms": 33.30000001192093,
+          "more_ms": 116.69999998807907,
+          "scroll_ms": 33,
+          "export_ms": 4.299999982118607,
+          "expansion_total_ms": 316.59999999403954,
+          "last_expansion_ms": 199.90000000596046,
+          "expanded_select_ms": 32.80000001192093,
+          "browser_peak_rss_mib": 730.6796875,
+          "browser_rss_samples": 30,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.69999998807907
+            },
+            {
+              "rows": 2000,
+              "render_ms": 199.90000000596046
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 46.70000001788139,
+          "edit_ms": 61.29999998211861,
+          "select_ms": 33.400000005960464,
+          "more_ms": 116.59999999403954,
+          "scroll_ms": 33,
+          "export_ms": 4.399999976158142,
+          "expansion_total_ms": 316.40000000596046,
+          "last_expansion_ms": 199.80000001192093,
+          "expanded_select_ms": 32.69999998807907,
+          "browser_peak_rss_mib": 719.1015625,
+          "browser_rss_samples": 30,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.59999999403954
+            },
+            {
+              "rows": 2000,
+              "render_ms": 199.80000001192093
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 48,
+          "edit_ms": 48.19999998807907,
+          "select_ms": 31.099999994039536,
+          "more_ms": 133.30000001192093,
+          "scroll_ms": 33,
+          "export_ms": 4.4000000059604645,
+          "expansion_total_ms": 333.2000000178814,
+          "last_expansion_ms": 199.90000000596046,
+          "expanded_select_ms": 32.599999994039536,
+          "browser_peak_rss_mib": 727.5703125,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.30000001192093
+            },
+            {
+              "rows": 2000,
+              "render_ms": 199.90000000596046
+            }
+          ]
+        }
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "summary": {
+        "open_ms": {
+          "median": 46.70000001788139,
+          "min": 44.19999998807907,
+          "max": 48
+        },
+        "edit_ms": {
+          "median": 59.099999994039536,
+          "min": 48,
+          "max": 61.79999998211861
+        },
+        "select_ms": {
+          "median": 33.29999998211861,
+          "min": 31.099999994039536,
+          "max": 33.400000005960464
+        },
+        "more_ms": {
+          "median": 116.69999998807907,
+          "min": 116.59999999403954,
+          "max": 133.30000001192093
+        },
+        "scroll_ms": {
+          "median": 33,
+          "min": 32.79999998211861,
+          "max": 33.099999994039536
+        },
+        "export_ms": {
+          "median": 4.4000000059604645,
+          "min": 4.299999982118607,
+          "max": 5.199999988079071
+        },
+        "browser_peak_rss_mib": {
+          "median": 727.42578125,
+          "min": 719.1015625,
+          "max": 730.6796875
+        },
+        "expansion_total_ms": {
+          "median": 316.59999999403954,
+          "min": 316.40000000596046,
+          "max": 333.2000000178814
+        },
+        "last_expansion_ms": {
+          "median": 199.90000000596046,
+          "min": 199.80000001192093,
+          "max": 200
+        },
+        "expanded_select_ms": {
+          "median": 32.69999998807907,
+          "min": 32.599999994039536,
+          "max": 32.80000001192093
+        }
+      },
+      "cpu_profile": [
+        {
+          "function": "measure",
+          "source": "(benchmark)",
+          "line": 3,
+          "sampled_self_ms": 240.288
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 134.452
+        },
+        {
+          "function": "(idle)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 94.994
+        },
+        {
+          "function": "renderDataTable",
+          "source": "js/datatab.js",
+          "line": 157,
+          "sampled_self_ms": 58.114000000000004
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 4.561
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 168,
+          "sampled_self_ms": 4.373
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 129,
+          "sampled_self_ms": 3.931
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 132,
+          "sampled_self_ms": 2.487
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 166,
+          "sampled_self_ms": 2.315
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/geo.js",
+          "line": 214,
+          "sampled_self_ms": 1.545
+        },
+        {
+          "function": "fmt",
+          "source": "js/state.js",
+          "line": 139,
+          "sampled_self_ms": 1.53
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 22,
+          "sampled_self_ms": 1.528
+        },
+        {
+          "function": "esc",
+          "source": "js/app.js",
+          "line": 1944,
+          "sampled_self_ms": 1.524
+        },
+        {
+          "function": "refreshCoreData",
+          "source": "js/app.js",
+          "line": 2681,
+          "sampled_self_ms": 1.465
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 1,
+          "sampled_self_ms": 1.444
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2690,
+          "sampled_self_ms": 0.565
+        }
+      ],
+      "csv_cpu_profile": [
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 5.973
+        },
+        {
+          "function": "q",
+          "source": "js/core.js",
+          "line": 346,
+          "sampled_self_ms": 1.536
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.527
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 327,
+          "sampled_self_ms": 1.323
+        },
+        {
+          "function": "captureDataTableCSV",
+          "source": "(benchmark)",
+          "line": 1,
+          "sampled_self_ms": 1.163
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 129,
+          "sampled_self_ms": 0.212
+        }
+      ]
+    },
+    {
+      "case": "medium",
+      "fixture": {
+        "seed": 210108,
+        "row_count": 20000,
+        "core_count": 2,
+        "numeric_columns": 6,
+        "layer_count": 2,
+        "interval_count": 400,
+        "rows_per_interval": 100,
+        "initial_display_rows": 400,
+        "more_display_rows": 1400
+      },
+      "csv_sha256": "468b5097d4a1d7fe360ecae9ef374701b97a4d5d16cd4928e5a764f93608f39b",
+      "csv_rows_verified": 20000,
+      "initial": 400,
+      "expanded": 1400,
+      "displayed": 10400,
+      "expansion_steps": 10,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 55.30000001192093,
+          "edit_ms": 52.19999998807907,
+          "select_ms": 33.20000001788139,
+          "more_ms": 116.69999998807907,
+          "scroll_ms": 74.60000002384186,
+          "export_ms": 26.599999994039536,
+          "expansion_total_ms": 5070.399999946356,
+          "last_expansion_ms": 956.6999999880791,
+          "expanded_select_ms": 51.900000005960464,
+          "browser_peak_rss_mib": 2443.796875,
+          "browser_rss_samples": 93,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.69999998807907
+            },
+            {
+              "rows": 2400,
+              "render_ms": 217
+            },
+            {
+              "rows": 3400,
+              "render_ms": 299.40000000596046
+            },
+            {
+              "rows": 4400,
+              "render_ms": 420.40000000596046
+            },
+            {
+              "rows": 5400,
+              "render_ms": 429.09999999403954
+            },
+            {
+              "rows": 6400,
+              "render_ms": 566.7999999821186
+            },
+            {
+              "rows": 7400,
+              "render_ms": 585.0999999940395
+            },
+            {
+              "rows": 8400,
+              "render_ms": 780.8999999761581
+            },
+            {
+              "rows": 9400,
+              "render_ms": 698.3000000119209
+            },
+            {
+              "rows": 10400,
+              "render_ms": 956.6999999880791
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 54.30000001192093,
+          "edit_ms": 52.80000001192093,
+          "select_ms": 33.29999998211861,
+          "more_ms": 116.90000000596046,
+          "scroll_ms": 76,
+          "export_ms": 27.30000001192093,
+          "expansion_total_ms": 4967.9000000059605,
+          "last_expansion_ms": 835.0999999940395,
+          "expanded_select_ms": 47.099999994039536,
+          "browser_peak_rss_mib": 2512.88671875,
+          "browser_rss_samples": 93,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.90000000596046
+            },
+            {
+              "rows": 2400,
+              "render_ms": 218.2000000178814
+            },
+            {
+              "rows": 3400,
+              "render_ms": 297.90000000596046
+            },
+            {
+              "rows": 4400,
+              "render_ms": 421.5
+            },
+            {
+              "rows": 5400,
+              "render_ms": 444.5
+            },
+            {
+              "rows": 6400,
+              "render_ms": 534.1999999880791
+            },
+            {
+              "rows": 7400,
+              "render_ms": 568.0999999940395
+            },
+            {
+              "rows": 8400,
+              "render_ms": 765.5999999940395
+            },
+            {
+              "rows": 9400,
+              "render_ms": 765.9000000059605
+            },
+            {
+              "rows": 10400,
+              "render_ms": 835.0999999940395
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 56,
+          "edit_ms": 51.69999998807907,
+          "select_ms": 31.5,
+          "more_ms": 133.30000001192093,
+          "scroll_ms": 83.69999998807907,
+          "export_ms": 27.400000005960464,
+          "expansion_total_ms": 5078.200000017881,
+          "last_expansion_ms": 827.5,
+          "expanded_select_ms": 44.400000005960464,
+          "browser_peak_rss_mib": 2283.9140625,
+          "browser_rss_samples": 93,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.30000001192093
+            },
+            {
+              "rows": 2400,
+              "render_ms": 216.2999999821186
+            },
+            {
+              "rows": 3400,
+              "render_ms": 366.80000001192093
+            },
+            {
+              "rows": 4400,
+              "render_ms": 382.19999998807907
+            },
+            {
+              "rows": 5400,
+              "render_ms": 497.30000001192093
+            },
+            {
+              "rows": 6400,
+              "render_ms": 503.59999999403954
+            },
+            {
+              "rows": 7400,
+              "render_ms": 667.9000000059605
+            },
+            {
+              "rows": 8400,
+              "render_ms": 649.8000000119209
+            },
+            {
+              "rows": 9400,
+              "render_ms": 833.5
+            },
+            {
+              "rows": 10400,
+              "render_ms": 827.5
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 57.400000005960464,
+          "edit_ms": 60,
+          "select_ms": 33.400000005960464,
+          "more_ms": 133.19999998807907,
+          "scroll_ms": 78.69999998807907,
+          "export_ms": 30.200000017881393,
+          "expansion_total_ms": 5152.099999964237,
+          "last_expansion_ms": 988.7999999821186,
+          "expanded_select_ms": 61.599999994039536,
+          "browser_peak_rss_mib": 2413.32421875,
+          "browser_rss_samples": 95,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.19999998807907
+            },
+            {
+              "rows": 2400,
+              "render_ms": 219.7999999821186
+            },
+            {
+              "rows": 3400,
+              "render_ms": 296.5
+            },
+            {
+              "rows": 4400,
+              "render_ms": 418.69999998807907
+            },
+            {
+              "rows": 5400,
+              "render_ms": 431.7000000178814
+            },
+            {
+              "rows": 6400,
+              "render_ms": 568.1999999880791
+            },
+            {
+              "rows": 7400,
+              "render_ms": 567.7000000178814
+            },
+            {
+              "rows": 8400,
+              "render_ms": 786.5
+            },
+            {
+              "rows": 9400,
+              "render_ms": 741
+            },
+            {
+              "rows": 10400,
+              "render_ms": 988.7999999821186
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 57.400000005960464,
+          "edit_ms": 53.099999994039536,
+          "select_ms": 33.099999994039536,
+          "more_ms": 116.59999999403954,
+          "scroll_ms": 105.7999999821186,
+          "export_ms": 30.30000001192093,
+          "expansion_total_ms": 5067.800000041723,
+          "last_expansion_ms": 883.4000000059605,
+          "expanded_select_ms": 35.30000001192093,
+          "browser_peak_rss_mib": 2473.75390625,
+          "browser_rss_samples": 94,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.59999999403954
+            },
+            {
+              "rows": 2400,
+              "render_ms": 233.2000000178814
+            },
+            {
+              "rows": 3400,
+              "render_ms": 333.19999998807907
+            },
+            {
+              "rows": 4400,
+              "render_ms": 419.40000000596046
+            },
+            {
+              "rows": 5400,
+              "render_ms": 430.60000002384186
+            },
+            {
+              "rows": 6400,
+              "render_ms": 570.4000000059605
+            },
+            {
+              "rows": 7400,
+              "render_ms": 580
+            },
+            {
+              "rows": 8400,
+              "render_ms": 782.0999999940395
+            },
+            {
+              "rows": 9400,
+              "render_ms": 718.9000000059605
+            },
+            {
+              "rows": 10400,
+              "render_ms": 883.4000000059605
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 53.5,
+          "edit_ms": 52.79999998211861,
+          "select_ms": 33.400000005960464,
+          "more_ms": 116.7000000178814,
+          "scroll_ms": 80.09999999403954,
+          "export_ms": 27.700000017881393,
+          "expansion_total_ms": 5198.600000053644,
+          "last_expansion_ms": 983.9000000059605,
+          "expanded_select_ms": 44.80000001192093,
+          "browser_peak_rss_mib": 2399.52734375,
+          "browser_rss_samples": 95,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 116.7000000178814
+            },
+            {
+              "rows": 2400,
+              "render_ms": 233.19999998807907
+            },
+            {
+              "rows": 3400,
+              "render_ms": 334.5
+            },
+            {
+              "rows": 4400,
+              "render_ms": 419.60000002384186
+            },
+            {
+              "rows": 5400,
+              "render_ms": 466.7999999821186
+            },
+            {
+              "rows": 6400,
+              "render_ms": 562.9000000059605
+            },
+            {
+              "rows": 7400,
+              "render_ms": 582.6000000238419
+            },
+            {
+              "rows": 8400,
+              "render_ms": 785.0999999940395
+            },
+            {
+              "rows": 9400,
+              "render_ms": 713.3000000119209
+            },
+            {
+              "rows": 10400,
+              "render_ms": 983.9000000059605
+            }
+          ]
+        }
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "summary": {
+        "open_ms": {
+          "median": 56,
+          "min": 53.5,
+          "max": 57.400000005960464
+        },
+        "edit_ms": {
+          "median": 52.80000001192093,
+          "min": 51.69999998807907,
+          "max": 60
+        },
+        "select_ms": {
+          "median": 33.29999998211861,
+          "min": 31.5,
+          "max": 33.400000005960464
+        },
+        "more_ms": {
+          "median": 116.90000000596046,
+          "min": 116.59999999403954,
+          "max": 133.30000001192093
+        },
+        "scroll_ms": {
+          "median": 80.09999999403954,
+          "min": 76,
+          "max": 105.7999999821186
+        },
+        "export_ms": {
+          "median": 27.700000017881393,
+          "min": 27.30000001192093,
+          "max": 30.30000001192093
+        },
+        "browser_peak_rss_mib": {
+          "median": 2413.32421875,
+          "min": 2283.9140625,
+          "max": 2512.88671875
+        },
+        "expansion_total_ms": {
+          "median": 5078.200000017881,
+          "min": 4967.9000000059605,
+          "max": 5198.600000053644
+        },
+        "last_expansion_ms": {
+          "median": 883.4000000059605,
+          "min": 827.5,
+          "max": 988.7999999821186
+        },
+        "expanded_select_ms": {
+          "median": 44.80000001192093,
+          "min": 35.30000001192093,
+          "max": 61.599999994039536
+        }
+      },
+      "cpu_profile": [
+        {
+          "function": "measure",
+          "source": "(benchmark)",
+          "line": 3,
+          "sampled_self_ms": 3224.687
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1298.942
+        },
+        {
+          "function": "renderDataTable",
+          "source": "js/datatab.js",
+          "line": 157,
+          "sampled_self_ms": 825.2
+        },
+        {
+          "function": "(idle)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 57.809
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 166,
+          "sampled_self_ms": 50.689
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 47.323
+        },
+        {
+          "function": "fmt",
+          "source": "js/state.js",
+          "line": 139,
+          "sampled_self_ms": 24.752000000000002
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 168,
+          "sampled_self_ms": 14.966000000000001
+        },
+        {
+          "function": "esc",
+          "source": "js/app.js",
+          "line": 1944,
+          "sampled_self_ms": 10.411999999999999
+        },
+        {
+          "function": "querySelectorAll",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 9.435
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 129,
+          "sampled_self_ms": 7.341
+        },
+        {
+          "function": "cellEdit",
+          "source": "js/app.js",
+          "line": 2722,
+          "sampled_self_ms": 6.234999999999999
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 150,
+          "sampled_self_ms": 4.64
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2716,
+          "sampled_self_ms": 3.169
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2702,
+          "sampled_self_ms": 3.083
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 132,
+          "sampled_self_ms": 3.052
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 22,
+          "sampled_self_ms": 1.659
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/geo.js",
+          "line": 214,
+          "sampled_self_ms": 1.559
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 149,
+          "sampled_self_ms": 1.531
+        },
+        {
+          "function": "renderData",
+          "source": "js/datatab.js",
+          "line": 118,
+          "sampled_self_ms": 1.525
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 1,
+          "sampled_self_ms": 1.521
+        },
+        {
+          "function": "refreshCoreData",
+          "source": "js/app.js",
+          "line": 2681,
+          "sampled_self_ms": 0.863
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2690,
+          "sampled_self_ms": 0.661
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 172,
+          "sampled_self_ms": 0.401
+        }
+      ],
+      "csv_cpu_profile": [
+        {
+          "function": "q",
+          "source": "js/core.js",
+          "line": 346,
+          "sampled_self_ms": 12.797
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 11.937
+        },
+        {
+          "function": "toCSV",
+          "source": "js/core.js",
+          "line": 344,
+          "sampled_self_ms": 3.057
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/core.js",
+          "line": 352,
+          "sampled_self_ms": 2.615
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 129,
+          "sampled_self_ms": 2.283
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 150,
+          "sampled_self_ms": 1.541
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 149,
+          "sampled_self_ms": 1.537
+        },
+        {
+          "function": "saveFile",
+          "source": "js/app.js",
+          "line": 2516,
+          "sampled_self_ms": 1.53
+        },
+        {
+          "function": "click",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.276
+        },
+        {
+          "function": "RegExp: [\",;|\\t\\r\\n]",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.165
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 329,
+          "sampled_self_ms": 0.771
+        }
+      ]
+    },
+    {
+      "case": "large",
+      "fixture": {
+        "seed": 210108,
+        "row_count": 100000,
+        "core_count": 2,
+        "numeric_columns": 6,
+        "layer_count": 2,
+        "interval_count": 2000,
+        "rows_per_interval": 100,
+        "initial_display_rows": 400,
+        "more_display_rows": 1400
+      },
+      "csv_sha256": "34d4e9ca596820aec0cb8f32dcd28e548c8984abf98cddb7f8b3860c935a111a",
+      "csv_rows_verified": 100000,
+      "initial": 400,
+      "expanded": 1400,
+      "displayed": 10400,
+      "expansion_steps": 10,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 88,
+          "edit_ms": 47.70000001788139,
+          "select_ms": 33.5,
+          "more_ms": 133.19999998807907,
+          "scroll_ms": 82.5,
+          "export_ms": 126.5,
+          "expansion_total_ms": 5061.200000047684,
+          "last_expansion_ms": 846.8000000119209,
+          "expanded_select_ms": 46.5,
+          "browser_peak_rss_mib": 2266.1953125,
+          "browser_rss_samples": 98,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.19999998807907
+            },
+            {
+              "rows": 2400,
+              "render_ms": 199.90000000596046
+            },
+            {
+              "rows": 3400,
+              "render_ms": 320.59999999403954
+            },
+            {
+              "rows": 4400,
+              "render_ms": 379.10000002384186
+            },
+            {
+              "rows": 5400,
+              "render_ms": 505
+            },
+            {
+              "rows": 6400,
+              "render_ms": 529.5999999940395
+            },
+            {
+              "rows": 7400,
+              "render_ms": 651.1000000238419
+            },
+            {
+              "rows": 8400,
+              "render_ms": 632.3000000119209
+            },
+            {
+              "rows": 9400,
+              "render_ms": 863.5999999940395
+            },
+            {
+              "rows": 10400,
+              "render_ms": 846.8000000119209
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 84.69999998807907,
+          "edit_ms": 43.80000001192093,
+          "select_ms": 33.099999994039536,
+          "more_ms": 133.19999998807907,
+          "scroll_ms": 98.90000000596046,
+          "export_ms": 153.5,
+          "expansion_total_ms": 5198.399999976158,
+          "last_expansion_ms": 901.2000000178814,
+          "expanded_select_ms": 58.79999998211861,
+          "browser_peak_rss_mib": 2299.33984375,
+          "browser_rss_samples": 99,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.19999998807907
+            },
+            {
+              "rows": 2400,
+              "render_ms": 216.5
+            },
+            {
+              "rows": 3400,
+              "render_ms": 317.19999998807907
+            },
+            {
+              "rows": 4400,
+              "render_ms": 365.69999998807907
+            },
+            {
+              "rows": 5400,
+              "render_ms": 486.09999999403954
+            },
+            {
+              "rows": 6400,
+              "render_ms": 480.09999999403954
+            },
+            {
+              "rows": 7400,
+              "render_ms": 683.5
+            },
+            {
+              "rows": 8400,
+              "render_ms": 654.8000000119209
+            },
+            {
+              "rows": 9400,
+              "render_ms": 960.0999999940395
+            },
+            {
+              "rows": 10400,
+              "render_ms": 901.2000000178814
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 90.30000001192093,
+          "edit_ms": 39.400000005960464,
+          "select_ms": 33.400000005960464,
+          "more_ms": 133.19999998807907,
+          "scroll_ms": 84.7000000178814,
+          "export_ms": 132.19999998807907,
+          "expansion_total_ms": 5113.800000041723,
+          "last_expansion_ms": 843.6000000238419,
+          "expanded_select_ms": 42.29999998211861,
+          "browser_peak_rss_mib": 2271.390625,
+          "browser_rss_samples": 96,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.19999998807907
+            },
+            {
+              "rows": 2400,
+              "render_ms": 199.80000001192093
+            },
+            {
+              "rows": 3400,
+              "render_ms": 317.69999998807907
+            },
+            {
+              "rows": 4400,
+              "render_ms": 381.69999998807907
+            },
+            {
+              "rows": 5400,
+              "render_ms": 584.8000000119209
+            },
+            {
+              "rows": 6400,
+              "render_ms": 515.4000000059605
+            },
+            {
+              "rows": 7400,
+              "render_ms": 667.4000000059605
+            },
+            {
+              "rows": 8400,
+              "render_ms": 621.3000000119209
+            },
+            {
+              "rows": 9400,
+              "render_ms": 848.9000000059605
+            },
+            {
+              "rows": 10400,
+              "render_ms": 843.6000000238419
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 92.7999999821186,
+          "edit_ms": 44.400000005960464,
+          "select_ms": 33.400000005960464,
+          "more_ms": 133.09999999403954,
+          "scroll_ms": 78.80000001192093,
+          "export_ms": 135.39999997615814,
+          "expansion_total_ms": 5049.099999964237,
+          "last_expansion_ms": 801.6999999880791,
+          "expanded_select_ms": 45.30000001192093,
+          "browser_peak_rss_mib": 2275.63671875,
+          "browser_rss_samples": 97,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.09999999403954
+            },
+            {
+              "rows": 2400,
+              "render_ms": 200
+            },
+            {
+              "rows": 3400,
+              "render_ms": 318.30000001192093
+            },
+            {
+              "rows": 4400,
+              "render_ms": 364.2999999821186
+            },
+            {
+              "rows": 5400,
+              "render_ms": 487.90000000596046
+            },
+            {
+              "rows": 6400,
+              "render_ms": 496.59999999403954
+            },
+            {
+              "rows": 7400,
+              "render_ms": 699.8999999761581
+            },
+            {
+              "rows": 8400,
+              "render_ms": 665.1999999880791
+            },
+            {
+              "rows": 9400,
+              "render_ms": 882.1000000238419
+            },
+            {
+              "rows": 10400,
+              "render_ms": 801.6999999880791
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 91.40000000596046,
+          "edit_ms": 44.30000001192093,
+          "select_ms": 33.5,
+          "more_ms": 133.09999999403954,
+          "scroll_ms": 79.5,
+          "export_ms": 126.59999999403954,
+          "expansion_total_ms": 4933.300000011921,
+          "last_expansion_ms": 798.2999999821186,
+          "expanded_select_ms": 45.400000005960464,
+          "browser_peak_rss_mib": 2301.69921875,
+          "browser_rss_samples": 97,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.09999999403954
+            },
+            {
+              "rows": 2400,
+              "render_ms": 199.90000000596046
+            },
+            {
+              "rows": 3400,
+              "render_ms": 300.69999998807907
+            },
+            {
+              "rows": 4400,
+              "render_ms": 365.60000002384186
+            },
+            {
+              "rows": 5400,
+              "render_ms": 485.10000002384186
+            },
+            {
+              "rows": 6400,
+              "render_ms": 530.7999999821186
+            },
+            {
+              "rows": 7400,
+              "render_ms": 637.9000000059605
+            },
+            {
+              "rows": 8400,
+              "render_ms": 632.5999999940395
+            },
+            {
+              "rows": 9400,
+              "render_ms": 849.3000000119209
+            },
+            {
+              "rows": 10400,
+              "render_ms": 798.2999999821186
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 88.7999999821186,
+          "edit_ms": 46.19999998807907,
+          "select_ms": 33.400000005960464,
+          "more_ms": 133.30000001192093,
+          "scroll_ms": 77.7000000178814,
+          "export_ms": 125.40000000596046,
+          "expansion_total_ms": 5049.100000023842,
+          "last_expansion_ms": 819.2000000178814,
+          "expanded_select_ms": 45.5,
+          "browser_peak_rss_mib": 2269.04296875,
+          "browser_rss_samples": 98,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "render_ms": 133.30000001192093
+            },
+            {
+              "rows": 2400,
+              "render_ms": 216.5
+            },
+            {
+              "rows": 3400,
+              "render_ms": 301.69999998807907
+            },
+            {
+              "rows": 4400,
+              "render_ms": 364.40000000596046
+            },
+            {
+              "rows": 5400,
+              "render_ms": 504.60000002384186
+            },
+            {
+              "rows": 6400,
+              "render_ms": 527.4000000059605
+            },
+            {
+              "rows": 7400,
+              "render_ms": 653.0999999940395
+            },
+            {
+              "rows": 8400,
+              "render_ms": 645.7999999821186
+            },
+            {
+              "rows": 9400,
+              "render_ms": 883.0999999940395
+            },
+            {
+              "rows": 10400,
+              "render_ms": 819.2000000178814
+            }
+          ]
+        }
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "summary": {
+        "open_ms": {
+          "median": 90.30000001192093,
+          "min": 84.69999998807907,
+          "max": 92.7999999821186
+        },
+        "edit_ms": {
+          "median": 44.30000001192093,
+          "min": 39.400000005960464,
+          "max": 46.19999998807907
+        },
+        "select_ms": {
+          "median": 33.400000005960464,
+          "min": 33.099999994039536,
+          "max": 33.5
+        },
+        "more_ms": {
+          "median": 133.19999998807907,
+          "min": 133.09999999403954,
+          "max": 133.30000001192093
+        },
+        "scroll_ms": {
+          "median": 79.5,
+          "min": 77.7000000178814,
+          "max": 98.90000000596046
+        },
+        "export_ms": {
+          "median": 132.19999998807907,
+          "min": 125.40000000596046,
+          "max": 153.5
+        },
+        "browser_peak_rss_mib": {
+          "median": 2275.63671875,
+          "min": 2269.04296875,
+          "max": 2301.69921875
+        },
+        "expansion_total_ms": {
+          "median": 5049.100000023842,
+          "min": 4933.300000011921,
+          "max": 5198.399999976158
+        },
+        "last_expansion_ms": {
+          "median": 819.2000000178814,
+          "min": 798.2999999821186,
+          "max": 901.2000000178814
+        },
+        "expanded_select_ms": {
+          "median": 45.400000005960464,
+          "min": 42.29999998211861,
+          "max": 58.79999998211861
+        }
+      },
+      "cpu_profile": [
+        {
+          "function": "measure",
+          "source": "(benchmark)",
+          "line": 3,
+          "sampled_self_ms": 3219.471
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1236.79
+        },
+        {
+          "function": "renderDataTable",
+          "source": "js/datatab.js",
+          "line": 157,
+          "sampled_self_ms": 832.544
+        },
+        {
+          "function": "(idle)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 72.442
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 55.331
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 166,
+          "sampled_self_ms": 39.657
+        },
+        {
+          "function": "fmt",
+          "source": "js/state.js",
+          "line": 139,
+          "sampled_self_ms": 27.175
+        },
+        {
+          "function": "esc",
+          "source": "js/app.js",
+          "line": 1944,
+          "sampled_self_ms": 18.677
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2716,
+          "sampled_self_ms": 18.339
+        },
+        {
+          "function": "refreshCoreData",
+          "source": "js/app.js",
+          "line": 2681,
+          "sampled_self_ms": 10.593
+        },
+        {
+          "function": "querySelectorAll",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 9.198
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 129,
+          "sampled_self_ms": 8.598
+        },
+        {
+          "function": "cellEdit",
+          "source": "js/app.js",
+          "line": 2722,
+          "sampled_self_ms": 7.784
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2702,
+          "sampled_self_ms": 7.774
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 168,
+          "sampled_self_ms": 6.287
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 150,
+          "sampled_self_ms": 4.634
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 132,
+          "sampled_self_ms": 3.28
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 22,
+          "sampled_self_ms": 2.579
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/multiproxy.js",
+          "line": 70,
+          "sampled_self_ms": 1.651
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/geo.js",
+          "line": 214,
+          "sampled_self_ms": 1.588
+        },
+        {
+          "function": "getSelection",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.558
+        },
+        {
+          "function": "frame",
+          "source": "(benchmark)",
+          "line": 2,
+          "sampled_self_ms": 1.55
+        },
+        {
+          "function": "focus",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.55
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2690,
+          "sampled_self_ms": 1.531
+        },
+        {
+          "function": "$.onclick",
+          "source": "js/datatab.js",
+          "line": 196,
+          "sampled_self_ms": 1.531
+        }
+      ],
+      "csv_cpu_profile": [
+        {
+          "function": "q",
+          "source": "js/core.js",
+          "line": 346,
+          "sampled_self_ms": 71.682
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 30.969
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 129,
+          "sampled_self_ms": 15.064
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 13.433
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/core.js",
+          "line": 352,
+          "sampled_self_ms": 11.097
+        },
+        {
+          "function": "saveFile",
+          "source": "js/app.js",
+          "line": 2516,
+          "sampled_self_ms": 7.56
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 329,
+          "sampled_self_ms": 4.681
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 327,
+          "sampled_self_ms": 3.385
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 149,
+          "sampled_self_ms": 3.062
+        },
+        {
+          "function": "toCSV",
+          "source": "js/core.js",
+          "line": 344,
+          "sampled_self_ms": 2.923
+        },
+        {
+          "function": "RegExp: [\",;|\\t\\r\\n]",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.514
+        }
+      ]
+    }
+  ]
+}

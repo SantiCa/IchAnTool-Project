@@ -5,8 +5,9 @@ import { createRequire } from 'node:module';
 import { prepareDataTableFixture, captureDataTableCSV } from './data_table_fixture.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 
-const [url, profilePath, chrome, rowArgument, runMode] = process.argv.slice(2);
+const [url, profilePath, chrome, rowArgument, runMode, expansionArgument = '1'] = process.argv.slice(2);
 const rowCount = Number(rowArgument), profiling = runMode === 'profile';
+const expansionSteps = Number(expansionArgument);
 const browser = await puppeteer.launch({ executablePath: chrome, userDataDir: profilePath,
   headless: true, args: ['--no-sandbox'], defaultViewport: { width: 1440, height: 900 } });
 const errors = [];
@@ -21,7 +22,7 @@ try {
   const client = await page.createCDPSession();
   await client.send('HeapProfiler.collectGarbage');
   if (profiling) { await client.send('Profiler.enable'); await client.send('Profiler.start'); }
-  const timings = await page.evaluate(async () => {
+  const timings = await page.evaluate(async (steps) => {
     const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const measure = async (action) => { const start = performance.now(); action(); void document.getElementById('dBody').offsetHeight; await frame(); return performance.now() - start; };
     const open_ms = await measure(() => document.getElementById('modeData').click());
@@ -35,38 +36,62 @@ try {
     const selected = window.getSelection().toString() === cell.textContent && document.activeElement === cell;
     const more_ms = await measure(() => document.getElementById('dMore').click());
     const expanded = document.querySelectorAll('#dBody tbody tr').length;
+    const expansion_timings = [{ rows: expanded, render_ms: more_ms }];
+    for (let step = 1; step < steps && document.getElementById('dMore'); step++) {
+      const render_ms = await measure(() => document.getElementById('dMore').click());
+      expansion_timings.push({ rows: document.querySelectorAll('#dBody tbody tr').length, render_ms });
+    }
+    const displayed = document.querySelectorAll('#dBody tbody tr').length;
     const grid = document.querySelector('#dBody .dsgrid');
     const scroll_ms = await measure(() => { grid.scrollTop = grid.scrollHeight; });
-    return { open_ms, edit_ms, select_ms, more_ms, scroll_ms, initial, expanded, selected,
+    const tail = [...document.querySelectorAll('#dBody td[data-col="value_0"]')].reverse().find((element) => element.textContent);
+    const expanded_select_ms = await measure(() => {
+      tail.focus(); const range = document.createRange(); range.selectNodeContents(tail);
+      const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+    });
+    return { open_ms, edit_ms, select_ms, more_ms, scroll_ms, initial, expanded, displayed, selected,
+      expanded_selected: window.getSelection().toString() === tail.textContent && document.activeElement === tail,
+      expansion_timings, expansion_total_ms: expansion_timings.reduce((sum, step) => sum + step.render_ms, 0),
+      last_expansion_ms: expansion_timings.at(-1).render_ms, expanded_select_ms,
       scroll_verified: grid.scrollTop > 0 && grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 2 };
-  });
-  let cpu;
+  }, expansionSteps);
+  let cpu, cpu_export;
   if (profiling) {
     const { profile } = await client.send('Profiler.stop');
-    const durations = new Map();
-    (profile.samples || []).forEach((id, index) => durations.set(id, (durations.get(id) || 0) + profile.timeDeltas[index]));
-    const sites = new Map();
-    for (const node of profile.nodes) {
-      const url = node.callFrame.url;
-      const source = url.startsWith('pptr:') ? '(benchmark)' : url.split('/').slice(-2).join('/') || '(runtime)';
-      const key = `${source}:${node.callFrame.lineNumber}:${node.callFrame.functionName}`;
-      const site = sites.get(key) || { function: node.callFrame.functionName || '(anonymous)', source,
-        line: node.callFrame.lineNumber + 1, sampled_self_ms: 0 };
-      site.sampled_self_ms += (durations.get(node.id) || 0) / 1000;
-      sites.set(key, site);
-    }
-    cpu = [...sites.values()].filter((site) => site.sampled_self_ms > 0)
-      .sort((a, b) => b.sampled_self_ms - a.sampled_self_ms).slice(0, 25);
+    cpu = profileSites(profile);
+    await client.send('Profiler.start');
+    await page.evaluate(captureDataTableCSV, { rowCount, verify: false });
+    const exportedProfile = await client.send('Profiler.stop');
+    cpu_export = profileSites(exportedProfile.profile);
     await client.send('Profiler.disable');
   }
   const exported = await page.evaluate(captureDataTableCSV, { rowCount });
   assert.equal(timings.initial, 400); assert.equal(timings.expanded, fixture.more_display_rows);
+  assert.equal(timings.displayed, Math.min(rowCount, 400 + 1000 * expansionSteps));
+  assert.equal(timings.expanded_selected, true);
   assert.equal(timings.selected, true); assert.equal(timings.scroll_verified, true);
   assert.deepEqual(errors, []);
   const { data, ...verification } = exported;
-  console.log(JSON.stringify({ fixture, ...timings, ...verification,
-    csv_sha256: createHash('sha256').update(data).digest('hex'), cpu,
+  console.log(JSON.stringify({ fixture, expansion_steps: expansionSteps, ...timings, ...verification,
+    csv_sha256: createHash('sha256').update(data).digest('hex'), cpu, cpu_export,
     chrome: await browser.version(), node: process.version,
     puppeteer: createRequire(process.env.PUPPETEER_MODULE || import.meta.url)('puppeteer-core/package.json').version }));
   await client.detach();
 } finally { await browser.close(); }
+
+function profileSites(profile) {
+  const durations = new Map();
+  (profile.samples || []).forEach((id, index) => durations.set(id, (durations.get(id) || 0) + profile.timeDeltas[index]));
+  const sites = new Map();
+  for (const node of profile.nodes) {
+    const url = node.callFrame.url;
+    const source = url.startsWith('pptr:') ? '(benchmark)' : url.split('/').slice(-2).join('/') || '(runtime)';
+    const key = `${source}:${node.callFrame.lineNumber}:${node.callFrame.functionName}`;
+    const site = sites.get(key) || { function: node.callFrame.functionName || '(anonymous)', source,
+      line: node.callFrame.lineNumber + 1, sampled_self_ms: 0 };
+    site.sampled_self_ms += (durations.get(node.id) || 0) / 1000;
+    sites.set(key, site);
+  }
+  return [...sites.values()].filter((site) => site.sampled_self_ms > 0)
+    .sort((a, b) => b.sampled_self_ms - a.sampled_self_ms).slice(0, 25);
+}

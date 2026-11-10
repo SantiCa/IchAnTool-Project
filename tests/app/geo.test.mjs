@@ -2,7 +2,50 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
-import { mergeAgeImports, mergeMixedImports } from '../../app/js/geo.js';
+import { mergeAgeImports, mergeMixedImports, createIntervalLookup, intervalsOnAxis } from '../../app/js/geo.js';
+
+test('interval lookup retains half-open boundaries, gaps and original objects without reordering input', () => {
+  const intervals = [{ from: 10, to: 20 }, { from: -5, to: 0 }, { from: 0, to: 5 }];
+  const original = [...intervals], lookup = createIntervalLookup(intervals);
+  for (const x of [-6, -5, -1, 0, 4.99, 5, 9, 10, 19.99, 20, null, '0', undefined, NaN, Infinity]) {
+    assert.equal(lookup(x), intervals.find((q) => x >= q.from && x < q.to));
+  }
+  assert.deepEqual(intervals, original);
+  assert.equal(createIntervalLookup([])(0), undefined);
+});
+
+test('interval lookup preserves first-match priority and coercion for overlapping or irregular bounds', () => {
+  const cases = [
+    [{ from: 2, to: 9 }, { from: 0, to: 10 }],
+    [{ from: 0, to: 10 }, { from: 2, to: 9 }],
+    [{ from: 2, to: 2 }, { from: 8, to: 3 }, { from: 0, to: 10 }],
+    [{ from: -Infinity, to: Infinity }, { from: NaN, to: 4 }],
+    [{ from: '2', to: '8' }, { from: null, to: 10 }],
+  ];
+  for (const intervals of cases) {
+    const lookup = createIntervalLookup(intervals);
+    for (const x of [-Infinity, -1, 0, 2, 3, 8, 9, 10, Infinity, NaN, null, '3', 'bad', undefined]) {
+      assert.equal(lookup(x), intervals.find((q) => x >= q.from && x < q.to));
+    }
+  }
+});
+
+test('generated interval queries exactly match the linear predicate before and after axis conversion', () => {
+  const random = seededRandom(210110);
+  const core = { depth: [0, 1000], age: [0, 2000] };
+  for (let trial = 0; trial < 100; trial++) {
+    const intervals = Array.from({ length: 40 }, (_, index) => ({ axis: 'depth',
+      from: index * 20, to: index * 20 + 5 + random() * (trial % 2 ? 30 : 10) }));
+    // Reverse the source order to exercise sorting and overlap priority independently.
+    intervals.reverse();
+    for (const axis of ['depth', 'age']) {
+      const converted = intervalsOnAxis(intervals, axis, core), lookup = createIntervalLookup(converted);
+      const queries = converted.flatMap((q) => [q.from, q.to, (q.from + q.to) / 2]);
+      for (let i = 0; i < 100; i++) queries.push(random() * 2000 - 10);
+      for (const x of queries) assert.equal(lookup(x), converted.find((q) => x >= q.from && x < q.to));
+    }
+  }
+});
 
 test('mixed age and depth imports require a usable relation and preserve both sources', () => {
   const a = { depth: [0, 10], age: null, proxies: { A: [1, 2] } };

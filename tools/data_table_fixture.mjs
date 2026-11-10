@@ -32,7 +32,7 @@ export async function prepareDataTableFixture(rowCount) {
 }
 
 /** Capture the real CSV export without downloading a file, then check every cell. Runs in the page. */
-export async function captureDataTableCSV({ rowCount, edited = null }) {
+export async function captureDataTableCSV({ rowCount, edited = null, verify = true }) {
   const { parseTable } = await import('./js/log.js');
   const createURL = URL.createObjectURL;
   let csv = null;
@@ -42,7 +42,9 @@ export async function captureDataTableCSV({ rowCount, edited = null }) {
   try {
     const start = performance.now(); document.getElementById('dCsv').click();
     if (!csv) throw new Error('Data export did not produce a CSV');
-    const export_ms = performance.now() - start, text = await csv.text();
+    const export_ms = performance.now() - start;
+    if (!verify) return { export_ms, csv_bytes: csv.size };
+    const text = await csv.text();
     const data = text.split(/\r?\n/).filter((line) => line && !line.startsWith('#')).join('\n');
     const table = parseTable(text), perCore = rowCount / 2;
     const headers = ['core', 'depth', 'age', ...Array.from({ length: 6 }, (_, column) => `value_${column}`), 'Layer 0', 'Layer 1'];

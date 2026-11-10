@@ -73,7 +73,43 @@ export async function verifyDataTable(browser, url) {
         && document.getElementById('dInfo').textContent === t('data.info', { r: 550, c: 2 });
     });
     if (!ageOnly) throw new Error('Empty or age-only cores changed table boundaries, columns or row counts');
+    const intervalLabels = await page.evaluate(async () => {
+      const I = window.ichantool, { parseTable } = await import('./js/log.js');
+      I.setMode('section');
+      const values = Array.from({ length: 11 }, (_, i) => i);
+      const layers = ['disjoint', 'overlap'].map((id) => ({ id, name: id,
+        cats: ['Early', 'Middle', 'Late', 'First', 'Second'].map((name) => ({ id: id + name, name, color: '#567890' })) }));
+      const intervals = ['depth', 'age'].flatMap((core) => {
+        const scale = core === 'depth' ? 2 : 1;
+        return [['disjoint', 6, 8, 'Late'], ['disjoint', 0, 2, 'Early'], ['disjoint', 2, 4, 'Middle'],
+          ['overlap', 2, 8, 'First'], ['overlap', 0, 6, 'Second']].map(([layer, from, to, category], index) => ({
+          id: core + index, core, layer, from: from * scale, to: to * scale, cat: layer + category, axis: 'age',
+        }));
+      });
+      await I.loadProject({ app: 'SedCoreTool', kind: 'project', version: 5, id: 'data-table-intervals',
+        cores: [{ id: 'depth', name: 'Depth', imp: { depth: values, age: values.map((x) => x * 2), proxies: { A: values } } },
+          { id: 'age', name: 'Age', imp: { age: values, proxies: { A: values } } }], geo: { layers, intervals } });
+      const selector = document.getElementById('dCore');
+      selector.innerHTML = '<option value="__all">All cores</option>'; selector.value = '__all';
+      document.getElementById('dLayers').checked = true;
+      I.setMode('data');
+      const disjoint = ['Early', 'Early', 'Middle', 'Middle', '', '', 'Late', 'Late', '', '', ''];
+      const overlap = ['Second', 'Second', 'First', 'First', 'First', 'First', 'First', 'First', '', '', ''];
+      const expected = [...values, ...values].map((x) => [disjoint[x], overlap[x]]);
+      const displayed = [...document.querySelectorAll('#dBody tbody tr')].map((row) => [...row.children].slice(-2).map((cell) => cell.textContent));
+      const createURL = URL.createObjectURL;
+      const preventDownload = (event) => { if (event.target.closest?.('a[download]')) event.preventDefault(); };
+      let csv;
+      document.addEventListener('click', preventDownload, true);
+      URL.createObjectURL = (blob) => { if (blob.type === 'text/csv') csv = blob; return createURL(blob); };
+      try {
+        document.getElementById('dCsv').click();
+        const exported = parseTable(await csv.text()).text.map((row) => row.slice(-2));
+        return JSON.stringify(displayed) === JSON.stringify(expected) && JSON.stringify(exported) === JSON.stringify(expected);
+      } finally { URL.createObjectURL = createURL; document.removeEventListener('click', preventDownload, true); }
+    });
+    if (!intervalLabels) throw new Error('Table/CSV interval labels changed at overlaps, boundaries, gaps or axis conversion');
     if (errors.length) throw new Error('Data table page errors: ' + errors.join(' | '));
-    console.log('Data table: bounded row preparation, core boundary, selection, edit/restore and complete CSV verified.');
+    console.log('Data table: bounded preparation, selection, edit/restore, complete CSV and interval labels verified.');
   } finally { await page.close(); }
 }

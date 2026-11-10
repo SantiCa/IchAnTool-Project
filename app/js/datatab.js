@@ -9,7 +9,7 @@ import { FIT_KINDS, PLOT_COLORS, PLOT_TYPES, buildStratPlot, buildXYPlot } from 
 
 import { toCSV } from './core.js';
 import { csvCommentText } from './exportio.js';
-import { intervalsOnAxis } from './geo.js';
+import { createIntervalLookup, intervalsOnAxis } from './geo.js';
 import { FUNCTIONS, cellName, evalCells, parseFormula } from './sheet.js';
 
 /* ───────────── data tab: all data of the project, computed and manual columns, free cells ───────────── */
@@ -138,11 +138,16 @@ function tableModel(limit = Infinity) {
     totalRows += n;
     const displayed = Math.min(n, Math.max(0, limit - rows.length));
     if (!displayed) continue;
-    const ivs = new Map(layers.map((L) => [L.id, intervalsOnAxis(S.geo.intervals.filter((q) => q.core === c.id && q.layer === L.id), c.depth ? 'depth' : 'age', c)]));
+    const intervalNames = new Map();
+    const ivs = new Map(layers.map((L) => {
+      const intervals = intervalsOnAxis(S.geo.intervals.filter((q) => q.core === c.id && q.layer === L.id), c.depth ? 'depth' : 'age', c);
+      for (const q of intervals) intervalNames.set(q, geoCat(q.cat)?.name || '');
+      return [L.id, createIntervalLookup(intervals)];
+    }));
     for (let i = 0; i < displayed; i++) {
       const x = c.depth ? c.depth[i] : c.age[i];
       rows.push({ c, i, depth: c.depth?.[i] ?? null, age: c.age?.[i] ?? null, vals: cols.map(([k]) => c.proxies[k]?.[i] ?? null),
-        lay: layers.map((L) => { const q = ivs.get(L.id).find((v) => x >= v.from && x < v.to); return q ? geoCat(q.cat)?.name || '' : ''; }) });
+        lay: layers.map((L) => intervalNames.get(ivs.get(L.id)(x)) || '') });
     }
   }
   return { cores, cols, layers, rows, totalRows };

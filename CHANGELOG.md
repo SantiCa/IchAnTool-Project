@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.110 — 2026-11-10
+
+- Export large Data tables faster by indexing non-overlapping interval labels; retain existing boundary and overlap behaviour.
+- Verify cumulative table expansion, native text selection and complete exports with reproducible measurements.
+
 ## V0.109 — 2026-11-10
 
 - Open and rebuild large Data tables faster by preparing the displayed rows on demand; CSV export retains every row.
