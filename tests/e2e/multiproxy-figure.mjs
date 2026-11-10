@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { taxonFigureFixture } from './taxon-figures.mjs';
 
-function multiproxyFigureFixture() {
+export function multiproxyFigureFixture() {
   const fixture = taxonFigureFixture(), first = fixture.cores[0];
   first.imp = { depth: [0, 5, 10], proxies: { Ca: [1, 3, 2], Ti: [4, 2, 5] } };
   const second = structuredClone(first);
@@ -93,11 +93,7 @@ export async function verifyMultiproxyFigure(browser, url, { screenshots = false
     await page.waitForSelector('#figOut [data-role="abundance"][opacity="0.35"] polygon');
     assert.deepEqual(await page.evaluate(() => window.ichantool.S.fig.geoView.style.colHide), ['sp:Planolites', 'rec:Ti', 'band:fam:events']);
     assert.equal(await page.evaluate(() => window.ichantool.S.curCore), 'taxon-core');
-    await page.evaluate(() => {
-      document.getElementById('geoAxis').value = 'age';
-      document.getElementById('geoAxis').dispatchEvent(new Event('change', { bubbles: true }));
-      window.ichantool.setMode('fig');
-    });
+    await change('[data-fview="axis"]', 'age');
     await page.waitForFunction(() => document.querySelector('#figOut svg')?.textContent.includes('(ka)'));
     const agePosition = await page.$eval('#figOut [data-role="occurrence"][data-taxon="Chondrites"] text', (text) => {
       const clip = document.querySelector('#figOut clipPath[id$="plot"] rect');
@@ -115,10 +111,7 @@ export async function verifyMultiproxyFigure(browser, url, { screenshots = false
       signature: [...new Uint8Array(await window.__figureExports.find((b) => b.type === 'image/png').arrayBuffer()).slice(0, 8)] }));
     assert.match(exports.svg, /data-role="abundance" opacity="0.35"/);
     assert.deepEqual(exports.signature, [137, 80, 78, 71, 13, 10, 26, 10]);
-    await page.evaluate(() => {
-      document.getElementById('geoAxis').value = 'depth';
-      document.getElementById('geoAxis').dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await change('[data-fview="axis"]', 'depth');
     await change('#figGeoCore', 'numeric-core');
     await page.waitForFunction(() => document.querySelector('#figOut svg')?.textContent.includes('Numeric only'));
     assert.equal(await page.$('#figOut [data-role="abundance"]'), null);

@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.115 — 2026-11-10
+
+- Give core-column and whole-core figures independent tracks, records, axes, widths, colours, visibility and image presentation; keep distribution/section styles and depth windows separate by figure type and tab.
+- Choose a multiproxy figure's own depth/age axis and image treatment without changing the analysis view. Map age image panels and classification bands through the selected core's depth–age relation.
+- Preserve inherited presentation and custom column labels in existing projects, save independent settings with figure tabs, and restore inherited presentation per figure type.
+
 ## V0.114 — 2026-11-10
 
 - Add ichnotaxon abundance, symmetric curves, presence names/symbols, opacity and percentage labels to multiproxy figures.

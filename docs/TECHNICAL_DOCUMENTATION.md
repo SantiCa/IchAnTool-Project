@@ -161,6 +161,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 | `storage.js` | Project library in IndexedDB | — |
 | `state.js` | Shared program state (`S`) and small helpers used by the interface modules | — |
 | `columns.js` | Composite log of a core: column view, records, order and visibility of chart columns | — |
+| `figview.js` | Serializable figure presentation, inherited defaults and independent overrides | ✓ |
 | `panels.js` | Resizable and collapsible side panels, resizable maps | — |
 | `datatab.js` | Data tab: all data of the project, Grapher-like plots and the spreadsheet view | — |
 | `multiproxy.js` | Multiproxy tool: numeric records, interval layers, classifiers, composite-log readout, manual classification, maps | — |
@@ -1126,8 +1127,8 @@ if they are hex colours (`#rgb` or `#rrggbb`); any other value falls back to its
 Dashed lines mark the top of each section. NO DATA intervals (§3.2) are drawn with a configurable style (`ndShow`,
 `ndFill` = hatched/solid/none, `ndColor`, `ndLine`, `ndLabel`, `ndText`, `ndImage` = also over the images;
 `log.js::ND_STYLE, noDataGaps, noDataRect`). The order and visibility of columns are set with `style.colOrder` and
-`style.colHide` (nothing is deleted; `log.js::orderCols`), shared by the core column, the whole-core figure and the
-distribution figure. Ichnotaxa can be hidden from drawing (`style.speciesHide`). Axes, ticks and labels are edited as
+`style.colHide` (nothing is deleted; `log.js::orderCols`). Figures inherit the column settings until a presentation
+override is edited (§20.1.1). Ichnotaxa can be hidden from drawing (`style.speciesHide`). Axes, ticks and labels are edited as
 described in §20.8.
 
 ### 15.6 Reading values with the cursor, column widths and pop-up help
@@ -1668,8 +1669,8 @@ and caption and are exported as SVG (images embedded) and PNG (×2); the locatio
 `[{ id, name, fig }]`, and `figTab`, the active one; `fig` repeats the active figure for files read by older versions).
 Each tab holds the complete setting of one figure — type, title, caption, orientation per type, window, columns and
 series — so versions of the same type with different series can be kept. A new tab is a copy of the current figure; an
-empty name shows the figure type. Figures that draw the current Core column or Multiproxy view (`log`, `geolog`, `map`)
-take their column styles from that view, which is shared by all tabs.
+empty name shows the figure type. Core/log figures can inherit the current view or store independent presentation
+settings per type and tab (§20.1.1). The multiproxy map follows its analysis view.
 
 ### 20.1 Common options
 - **Depth window** (core units; empty = the whole core) for every figure; in age it is converted with the age model.
@@ -1679,6 +1680,41 @@ take their column styles from that view, which is shared by all tabs.
 - Hiding ichnotaxa (👁 button) only changes what is shown on the working image.
 - **Orientation** (`fig.orient`: `v` or `h`), see §20.9; **excluded zones** can be hidden in every figure that shows
   core images (§20.9).
+
+#### 20.1.1 Independent figure presentation
+
+`figview.js::figureViewOf` reads presentation without adding saved state. `editFigureView` snapshots inherited
+settings on the first edit into `fig.views[type]` for `core`, `log`, `range` and `sections`. Multiproxy compositions
+retain `fig.geoView`. Missing overrides continue to read the current core-column/Multiproxy presentation and
+legacy figure fields (`tracks`, `recs`, `rangeAxis`, `secFrom`, `secTo`, `corePanels`, `coreHideExcl`, `keepRatio`).
+Saved profiles are ordinary project data and survive figure-tab duplication and project save/reload.
+
+Core and column figures expose independent tracks, external-record selection, widths, scales, colours,
+visibility/order, and depth/age axes. Distribution and section figures have independent style and depth
+windows. `depthFrom`/`depthTo` remain in the section base depth units; core/range windows are converted to age
+with the age model. Column and multiproxy `from`/`to` use the selected axis; changing that axis clears both
+limits. Heights are bounded to 200–6000 px in column/multiproxy controls. Photo-proportion choices are per type.
+Reset removes only the current type's presentation and taxon override; legacy figure fields and other types/tabs
+are retained. Core selection, title/caption and the existing size-specific controls are separate from this reset.
+
+`columns.js::buildColumnLog` builds the column SVG from an explicit view; `renderLog` adds the analysis-view DOM
+and interaction. Figure rendering does not activate the analysis view or replace its state. Existing column
+label edits are applied to inherited column figures and copied into their profile. Scientific measurements and
+tabular exports are unaffected by presentation changes.
+
+Column and multiproxy image controls store image mode, panels, overlay, hidden exclusions, fixed width/aspect,
+stretch and opacity in the profile. Plain image overlay opacity retains its 0.35 minimum; alpha panels accept
+0–1. Whole-core image panels and exclusions likewise use that figure's profile. On an age axis, figure image
+panels resample each displayed row at `depth = interpAge(invertModel(model), age)`; trace arrows and occurrence
+names/symbols use the forward age mapping. The inherited image path stays available for existing projects;
+independent age panels are enabled by editing a presentation override. Section comparison panels keep a depth
+axis. Class colours and interpretation settings still belong to the project, and arrow annotation controls
+retain their existing figure settings.
+
+Unit checks verify unchanged legacy reads, nested-state isolation, per-type/tab copying, saved overrides and
+exact interval conversion. Browser checks verify unchanged analysis state and measurement arrays, inherited
+label edits, nonlinear age image pixels and manual occurrences, type/tab isolation, saved profiles, reset and
+SVG/PNG export in the served and standalone applications.
 
 ### 20.2 Representative traces
 For each ichnotaxon of the active core the user ticks which traces to use (thumbnails) or asks for an automatic choice
@@ -1784,7 +1820,8 @@ An explicit empty list omits all numeric records. The available variables have d
 selected core.
 
 The multiproxy figure accepts an optional composition override in `fig.geoView`. Before the first edit it
-inherits `geo.view`; the first edit copies those presentation settings. Its `tracks` select image,
+inherits `geo.view`, its axis from Multiproxy and image settings from the core column; the first edit copies
+those presentation settings. Its `tracks` select image,
 bioturbation, ichnotaxa, BI, ii, manual indices, section labels and presence marks. The shared ichnotaxon
 renderer uses `fig.taxaStyles.geolog` ([presentation methods](#2031-ichnotaxon-presentation)); editing that
 panel also enables the ichnotaxon track. `style.colOrder` and `style.colHide` order and hide numeric records,
@@ -1800,8 +1837,10 @@ removes `geoView` and `taxaStyles.geolog`; the core and numeric-variable selecti
 core from the one open in the image editor. Section depths are multiplied by
 `UNIT_TO_CM[section.units] / UNIT_TO_CM[core.units]`; both bin limits and occurrence positions use this factor.
 Age coordinates use that core's age model, without activating it or replacing global analysis settings.
-The vertical axis, interval definitions and classification remain those of Multiproxy. Image panels and
-treatment retain the core-column settings. No image-derived tracks are created without sections, or on an
+The figure may select its own vertical axis and image treatment. Interval definitions and classification
+remain those of Multiproxy. Classification runs are first built on the analysis axis; `geo.js::segmentsOnAxis`
+converts both endpoints of each complete run with `intervalsOnAxis`, retaining labels, colours and opacity and
+clamping to the core's depth–age data without extrapolation. The analysis-axis run is unchanged. No image-derived tracks are created without sections, or on an
 age axis without that core's age model. Presence marks still do not imply percentage abundance.
 
 Browser regression checks cover mixed section/core units, the selected core's own age model, exact unchanged

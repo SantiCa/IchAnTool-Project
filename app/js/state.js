@@ -15,7 +15,7 @@
  *   feat?: ReturnType<typeof import('./imageproc.js').features> | null}} TraceObject
  * @typedef {{from: number, to: number, BI: number | null, ii: number | null}} ManualIndex
  * @typedef {{axis: string, from: number | null, to: number | null, height: number, imgMode: string,
- *   overlay: boolean, hideExcl: boolean, tracks: Record<string, boolean>, imgPanels?: string[],
+ *   overlay: boolean, hideExcl: boolean, overlayAlpha?: number, tracks: Record<string, boolean>, imgPanels?: string[],
  *   colW?: Record<string, number>, textEdits?: Record<string, string>, style?: object}} LogView
  * @typedef {{depth: number[] | null, age: (number | null)[] | null, proxies: Record<string, (number | null)[]>}} CoreData
  * @typedef {{v: number | null, o: number | null, at: string}} CellEdit

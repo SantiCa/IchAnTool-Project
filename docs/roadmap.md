@@ -268,11 +268,24 @@ Keep task IDs stable. The changelog records what shipped.
     Ruff, version consistency, standalone build, full Chrome smoke test and standalone figure regression.
     Exact measurements and analysis/view settings remain unchanged by figure composition. Mixed units,
     selected-core age coordinates, tab independence, save/reload, reset, SVG/PNG and visual layout pass.
-  - Local delivery on `master`; GitHub handoff requires the maintainer's authorised push. The vertical axis
-    still follows Multiproxy and image treatment follows the core column; independent controls are in F3.
-- [ ] **F3 - Extend figure composition across figure types.** Continue the maintainer's requested freedom of
+  - Local delivery on `master`; GitHub handoff requires the maintainer's authorised push. Independent axis and
+    image controls are delivered in F3.
+- [x] **F3 - Extend figure composition across figure types.** [V0.115](../CHANGELOG.md#v0115--2026-11-10). Authorised by the maintainer on
+      10 November 2026; editor: Codex; verification: automated checks plus served/standalone browser regression.
+      Continue the maintainer's requested freedom of
       composition in a separate phase: independent track/style controls in the remaining core/log figures,
       including image treatment and vertical-axis selection. Preserve their existing defaults and saved projects.
+  - Acceptance: independent core/log tracks, records and presentation; per-type distribution/section style and
+    depth windows; independent multiproxy axis/image treatment; exact unchanged analysis state and measurements;
+    correct nonlinear age image/occurrence mapping and classification endpoints; inherited labels and legacy
+    projects; tab isolation, saved profiles, reset and SVG/PNG.
+  - Delivered and verified: 181 Python tests passed (six optional/permission skips), 147 Node tests, types,
+    Ruff, version consistency, standalone build, full Chrome smoke test and all three figure regressions in
+    the offline HTML. New-profile browser checks also verify photo-proportion controls and inherited custom labels.
+    Visual inspection passes; presentation leaves the analysis views and measurement arrays exactly unchanged.
+  - Local delivery on `master`; GitHub handoff requires the maintainer's authorised push. Section comparison
+    panels retain a depth axis; class colours and existing arrow annotation settings remain shared project/figure
+    settings. The next performance candidate is M2.2 profiling; no further workstream started in this delivery.
 - [x] **F1 - Configurable ichnotaxon figures.** [V0.113](../CHANGELOG.md#v0113--2026-11-10). Authorised by the maintainer on
       10 November 2026, ahead of further performance work. Share abundance/occurrence presentation between the
       whole interpreted core, core column and ichnotaxa distribution, with independent settings for figure tabs.

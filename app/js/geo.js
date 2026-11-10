@@ -204,6 +204,13 @@ export function intervalsOnAxis(list, axis, core) {
   }).filter(Boolean);
 }
 
+/** Convert complete classification bands, preserving their labels and source-axis interval thickness. */
+export function segmentsOnAxis(segments, sourceAxis, targetAxis, core) {
+  if (sourceAxis === targetAxis) return segments;
+  return intervalsOnAxis(segments.map((segment) => ({ ...segment, axis: sourceAxis, from: segment.a0, to: segment.a1 })), targetAxis, core)
+    .map(({ axis, from, to, ...segment }) => ({ ...segment, a0: from, a1: to }));
+}
+
 /** First half-open match for a fixed interval set; rebuild after changing interval bounds. */
 export function createIntervalLookup(intervals) {
   const linear = (x) => intervals.find((q) => x >= q.from && x < q.to);

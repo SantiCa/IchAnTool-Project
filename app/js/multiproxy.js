@@ -1,11 +1,12 @@
 /* Multiproxy tool: numeric records, interval layers, classifiers, composite-log readout, manual classification and maps. */
 import { lang, t } from './i18n.js';
+import { geoTrackOptions } from './figview.js';
 import { mergeAgeImports, mergeMixedImports } from './geo.js';
-import { MAP_PROJECTIONS, MAP_STYLE, MAP_SYMBOLS, METHODS, applyCatalogue, buildMapSVG, buildSamples, coreAges, coreFromRows, coresFromLongTable, crossValidateSteps, featureSeries, fitBBoxAspect, fitModel, fitModelSteps, fitSampleTransform, intervalsFromTable, intervalsOnAxis, labelSamples, layerFeatureNames, mapBBox, mapFrame, mapGeometry, mapSummary, orphanIntervals, predictLabel, tidyIntervals, transformSample, zoomBBox } from './geo.js';
+import { MAP_PROJECTIONS, MAP_STYLE, MAP_SYMBOLS, METHODS, applyCatalogue, buildMapSVG, buildSamples, coreAges, coreFromRows, coresFromLongTable, crossValidateSteps, featureSeries, fitBBoxAspect, fitModel, fitModelSteps, fitSampleTransform, intervalsFromTable, intervalsOnAxis, labelSamples, layerFeatureNames, mapBBox, mapFrame, mapGeometry, mapSummary, orphanIntervals, predictLabel, segmentsOnAxis, tidyIntervals, transformSample, zoomBBox } from './geo.js';
 import { $, S, fetchAsset, fmt, sec, uid } from './state.js';
 import { DELIVERY, armed, busy, compositeMarks, compositeTaxonPoints, cropState, endCrop, esc, finalTestsHTML, holdoutHTML, holdoutIds, loadLib, makeCore, markDirty, openCoreDlg, refreshAllCores, refreshCoreData, renderCoreBar, runFinalGeo, safe, saveFile, scheduleFloat, toast, updateTip, view, withProv, zoomAt } from './app.js';
-import { axesFormHTML, colOrderHTML, colorsFormHTML, columnImages, compositeData, mode, scheduleLog, syncColOrder } from './columns.js';
-import { UNIT_TO_CM, interpAge, parseAgeModel, toCSV } from './core.js';
+import { axesFormHTML, colOrderHTML, colorsFormHTML, columnImages, compositeData, logStyleOf, mode, scheduleLog, syncColOrder } from './columns.js';
+import { interpAge, parseAgeModel, toCSV } from './core.js';
 import { buildLogSVG, compositeRows, decodeText, parseTable } from './log.js';
 import { renderFigure, verticalStyleHTML } from './figures.js';
 import { INTERP_DEFAULT, INTERP_METHODS, RAMPS, colorRange, contourLevels, contourSegments, interpolate, maskLand, rampColor } from './interp.js';
@@ -94,9 +95,9 @@ function layerTree() {
 }
 const isDescendant = (id, anc) => { for (let l = geoLayer(id); l?.parent; l = geoLayer(l.parent)) if (l.parent === anc) return true; return false; };
 
-export function geoFigureVars(core) {
+export function geoFigureVars(core, axis = S.geo.settings.axis) {
   if (!core) return [];
-  const xs = S.geo.settings.axis === 'age' ? coreAges(core) : core.depth;
+  const xs = axis === 'age' ? coreAges(core) : core.depth;
   return allNumericVars().filter((k) => featureSeries(core, k, S.geo.ratios)?.some((v, i) => v != null && xs?.[i] != null));
 }
 function allNumericVars() {
@@ -554,6 +555,10 @@ export function renderGeo() {
 
 /** Contiguous runs of samples of one core with the same class, as band segments. */
 function segmentsFor(coreId, getLabel, axis, step, opacity) {
+  if (axis !== S.geo.settings.axis) {
+    const runs = segmentsFor(coreId, getLabel, S.geo.settings.axis, step, opacity);
+    return segmentsOnAxis(runs, S.geo.settings.axis, axis, geoCore(coreId));
+  }
   const segs = []; let cur = null;
   geoRT.samples.forEach((s, i) => {
     if (s.core !== coreId) return;
@@ -603,13 +608,13 @@ const bandLegendOf = (bands) => [...new Set(bands.flatMap((b) => b.segs.map((s) 
 
 function renderGeoMarkHint() { /* V26: classes are chosen on the columns themselves */ }
 
-export const geoFigureTracks = (view = {}) => ({ image: true, total: true, species: false, BI: false, ii: false, manual: false, secs: false, marks: false, ...view.tracks });
+export const geoFigureTracks = (view = {}) => geoTrackOptions(view);
 
 /** Optional figure settings compose the same records without changing the Multiproxy analysis view. */
 export function buildGeoLog(core, features = null, options = null) {
   const g = S.geo, st = g.settings;
   if (!core) return null;
-  const view = { ...g.view, ...options }, axis = st.axis, xs = axis === 'age' ? coreAges(core) : core.depth;
+  const view = { ...g.view, ...options }, axis = options?.axis === 'depth' || options?.axis === 'age' ? options.axis : st.axis, xs = axis === 'age' ? coreAges(core) : core.depth;
   const D = options && core.sections?.length && (axis === 'depth' || core.ageModel?.model) ? compositeData(axis, core) : null;
   const ivAxis = intervalsOnAxis(g.intervals.filter((q) => q.core === core.id), axis, core).flatMap((q) => [q.from, q.to]);
   const valid = [...(xs || []).filter((v) => v != null), ...ivAxis, ...(D?.rows.flatMap((r) => [r.a0, r.a1]) || [])];
@@ -649,19 +654,15 @@ export function buildGeoLog(core, features = null, options = null) {
   if (D) {
     rows = D.rows;
     tracks = geoFigureTracks(options);
-    if (tracks.image) { images = columnImages(D, from, to, height); image = images[0]; }
+    if (tracks.image) { images = columnImages(D, from, to, height, options.imageView || S.logView); image = images[0]; }
   }
-  const style = { ...view.style };
-  if (options) {
-    const units = axis === 'age' ? core.ageModel?.units || 'ka' : core.units || 'm';
-    const target = axis === 'depth' && ['mm', 'cm', 'm'].includes(style.yUnit) ? style.yUnit : units;
-    style.yFactor = axis === 'depth' ? UNIT_TO_CM[units] / UNIT_TO_CM[target] : 1;
-  }
+  const presentation = options ? logStyleOf({ axis, base: core.units || 'm' }, view, core.ageModel?.units || 'ka') : null;
+  const style = presentation?.style || { ...view.style };
   if (features != null && !options?.style) style.colHide = (style.colHide || []).filter((id) => !id.startsWith('rec:'));
   const visibleBands = bands.filter((b) => !style.colHide?.includes('band:' + b.key));
   const res = buildLogSVG({
     title: core.name, subtitle: t('geo.subtitleLogs', { n: geoRT.samples.filter((s) => s.core === core.id).length, step: st.step }),
-    axisLabel: axis === 'age' ? `${t('r.age')} (${core.ageModel?.units || 'ka'})` : `${t('r.depth')} (${options && style.yUnit || core.units || 'm'})`,
+    axisLabel: presentation?.label || (axis === 'age' ? `${t('r.age')} (${core.ageModel?.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`),
     from, to, height, rows, classes: D ? S.classes.filter((c) => c.counts !== false && c.id !== 'artifact').map((c) => ({ ...c, index: S.classes.indexOf(c) })) : [],
     taxa: D && tracks.species ? options.taxa || {} : null, taxonClasses: S.classes.map((c, index) => ({ ...c, index })),
     taxonPoints: D && tracks.species ? compositeTaxonPoints(D, options.taxa?.source || 'all') : [], respectTaxonColumnVisibility: true,

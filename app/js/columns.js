@@ -1,4 +1,4 @@
-/* Composite log of a core: column view, records and the order and visibility of chart columns. */
+/* Composite log: shared drawing for the column view and independent figures, records and track controls. */
 import { $, S, fmt, hex, uid } from './state.js';
 import { analyze, armed, busy, compositeMarks, compositeTaxonPoints, effClassArray, esc, idListOf, idMode, legendOf, markDirty, needPixels, requestRender, resizeCanvases, rowAtDepth, safe, saveFile, toast, updateTip, withProv } from './app.js';
 import { geoOverlay, loadLand, logInteract, readTableFile, renderGeo, renderGeoLogs } from './multiproxy.js';
@@ -9,6 +9,7 @@ import { FIG_PANELS, arrowMarksSVG, axisErr, coreRatio, editSVGLabels, figTraces
 import { UNIT_TO_CM, interpAge, topAt } from './core.js';
 import { LOG_STYLE, ND_STYLE, taxaOptions, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
 import { t } from './i18n.js';
+import { figureViewOf, editFigureView } from './figview.js';
 import { recordSeries } from './exportio.js';
 
 /* ───────────── composite log ───────────── */
@@ -77,8 +78,9 @@ export function reduceRGBA(w, h, sw, sh, pix) {
  *
  * @param {import('./state.js').SectionState} s
  */
-export function sectionCanvas(s) {
-  const lv = S.logView, key = `${s.logVer}|${lv.imgMode}|${lv.overlay}|${lv.hideExcl}|${S.ovAlpha}|${S.settings.predThr}|${S.settings.includePred}|${S.settings.countCandidates}|${s.w}x${s.h}`;
+export function sectionCanvas(s, lv = S.logView) {
+  const opacity = Number.isFinite(lv.overlayAlpha) ? Math.max(0, Math.min(1, lv.overlayAlpha)) : S.ovAlpha;
+  const key = `${s.logVer}|${lv.imgMode}|${lv.overlay}|${lv.hideExcl}|${opacity}|${S.settings.predThr}|${S.settings.includePred}|${S.settings.countCandidates}|${s.w}x${s.h}`;
   if (s._lc?.key === key) return s._lc.canvas;
   const k = Math.min(1, 512 / s.w), sw = Math.max(1, Math.round(s.w * k)), sh = Math.max(1, Math.round(s.h * k));
   const bkey = `${lv.imgMode}|${s.ds}|${s.w}x${s.h}|${s.rot}|${JSON.stringify(s.crop)}|${lv.imgMode === 'orig' ? '' : JSON.stringify(s.filters) + JSON.stringify(s.roi)}`;
@@ -95,7 +97,7 @@ export function sectionCanvas(s) {
   const out = document.createElement('canvas'); out.width = sw; out.height = sh;
   const oc = out.getContext('2d'); oc.drawImage(s._lb.canvas, 0, 0);
   if (lv.overlay || lv.hideExcl) {   // traces (alpha a) and blank excluded zones, averaged straight into the strip (V0.41)
-    const L = s.labels, ex = s.exclude, eff = lv.overlay ? effClassArray(s) : null, cols = S.classes.map((q) => hex(q.color)), a = Math.round(255 * Math.max(0.35, S.ovAlpha));
+    const L = s.labels, ex = s.exclude, eff = lv.overlay ? effClassArray(s) : null, cols = S.classes.map((q) => hex(q.color)), a = Math.round(255 * Math.max(0.35, opacity));
     const W = 255, px = [0, 0, 0, 0];
     const im = reduceRGBA(s.w, s.h, sw, sh, (i) => {
       if (ex[i]) { if (!lv.hideExcl) return null; px[0] = px[1] = px[2] = px[3] = W; return px; }   // V31: excluded zones left blank
@@ -120,21 +122,21 @@ export function coreImages(D, from, to, H, o) {
   let w = +o.w > 0 ? +o.w : 64;
   if (o.keep) { if (D.axis === 'depth') { const r = coreRatio(D, from, to); if (r) w = H / r; } w *= +o.stretch > 0 ? +o.stretch : 1; }
   w = Math.round(Math.max(8, Math.min(600, w)));
-  if (D.axis !== 'depth' || (o.plain && panels.length === 1 && panels[0] === (o.mode === 'orig' ? 'orig' : 'enh'))) return [{ href: stripDataURL(D, from, to, H, w * 2), w }];
+  if ((D.axis !== 'depth' && !o.axisPanels) || (o.plain && panels.length === 1 && panels[0] === (o.mode === 'orig' ? 'orig' : 'enh'))) return [{ href: stripDataURL(D, from, to, H, w * 2, o.view), w }];
   const tr = panels.includes('arrows') ? figTraces(D, from, to) : null, multi = panels.length > 1;
   return panels.map((p) => {
-    const im = { href: panelDataURL(D, from, to, H, w, p === 'arrows' ? 'enh' : p, !!o.hideExcl), w, title: multi ? t('fig.p.' + p) : null };
+    const im = { href: panelDataURL(D, from, to, H, w, p === 'arrows' ? 'enh' : p, !!o.hideExcl, o.view?.alpha), w, title: multi ? t('fig.p.' + p) : null };
     if (p === 'arrows') { im.draw = (x, cw, y) => arrowMarksSVG(tr, x, cw, y); im.marks = false; }
     return im;
   });
 }
 /** Core column and Multiproxy: the panels and width chosen in the core column. */
-export function columnImages(D, from, to, H) {
-  const lv = S.logView, st = lv.style || {};
-  return coreImages(D, from, to, H, { panels: lv.imgPanels, mode: lv.imgMode, hideExcl: lv.hideExcl, keep: (st.imgAspect || 'keep') === 'keep', stretch: st.imgStretch, w: st.imgW, plain: true });
+export function columnImages(D, from, to, H, lv = S.logView) {
+  const st = lv.style || {};
+  return coreImages(D, from, to, H, { axisPanels: lv !== S.logView, view: lv, panels: lv.imgPanels, mode: lv.imgMode, hideExcl: lv.hideExcl, keep: (st.imgAspect || 'keep') === 'keep', stretch: st.imgStretch, w: st.imgW, plain: true });
 }
 
-function stripDataURL(D, from, to, H, W) {
+function stripDataURL(D, from, to, H, W, lv = S.logView) {
   const Hc = Math.min(4000, Math.round(H * 2)), c = document.createElement('canvas'); c.width = W; c.height = Hc;
   const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, Hc);
   const inv = invertModel(D.model);
@@ -143,18 +145,18 @@ function stripDataURL(D, from, to, H, W) {
     const d = D.axis === 'age' ? interpAge(inv, v) : v; if (d == null) continue;
     const s = D.secs.find((q) => d >= q.top * D.f(q) && d < q.bottom * D.f(q)); if (!s) continue;
     const row = Math.floor(rowAtDepth(s, d / D.f(s))); if (row < s.roi.y0 || row >= s.roi.y1) continue;
-    const cv = sectionCanvas(s), k = s._lc.k;
+    const cv = sectionCanvas(s, lv), k = s._lc.k;
     ctx.drawImage(cv, s.roi.x0 * k, Math.min(cv.height - 1, Math.floor(row * k)), Math.max(1, (s.roi.x1 - s.roi.x0) * k), 1, 0, r, W, 1);
   }
   return c.toDataURL('image/jpeg', 0.88);
 }
 
-export function logRecords(D) {
+export function logRecords(D, lv = S.logView, records = S.records, selected = null) {
   const inv = invertModel(D.model), out = [];
-  for (const r of S.records) for (const s of r.series) if (s.show) out.push({ name: s.name, color: s.color, reverse: s.reverse, axis: r.axis, x: s.x, y: s.y, pts: s.x.map((x, i) => [toAxis(x, r.axis, D.axis, D.model, inv), s.y[i]]) });
+  for (const r of records) for (const s of r.series) if (selected ? selected.includes(s.name) : s.show) out.push({ name: s.name, color: s.color, reverse: s.reverse, axis: r.axis, x: s.x, y: s.y, pts: s.x.map((x, i) => [toAxis(x, r.axis, D.axis, D.model, inv), s.y[i]]) });
   // V0.28: width of the age interval (e.g. Bacon 95 %) as one more track, when the age model has it
   const m = S.age.model;
-  if (m?.min && S.logView.tracks.ageErr !== false) {
+  if (m?.min && lv.tracks.ageErr !== false) {
     const name = t('age.errTrack', { u: S.age.units || 'ka' }), y = m.depth.map((_, i) => m.max[i] - m.min[i]);
     out.push({ name, color: '#6b5e4b', reverse: false, axis: 'depth', x: m.depth, y, pts: m.depth.map((d, i) => [toAxis(d, 'depth', D.axis, D.model, inv), y[i]]) });
   }
@@ -192,32 +194,43 @@ export function arrowFormHTML() {
     <div class="f"><span>${t('ar.excl')}</span><div class="chk2">${S.classes.filter((c) => c.id !== 'artifact').map((c) => `<label class="chk"><input type="checkbox" data-arex="${esc(c.id)}" ${ex.has(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></div>`;
 }
 
-export function renderLog() {
-  $('logStage').querySelector('[data-label-editor]')?.remove();
-  const box = $('logSvg');
-  if (!S.sections.length) { box.innerHTML = `<p class="note" style="padding:24px">${t('log.empty')}</p>`; lastLog = null; return; }
-  const D = compositeData(), lv = S.logView;
+export function buildColumnLog(lv = S.logView, selected = null, figure = false) {
+  if (!S.sections.length) return null;
+  const D = compositeData(lv.axis);
   const [r0, r1] = rowsRange(D.rows);
   let from = lv.from ?? r0, to = lv.to ?? r1;
   if (!(to > from)) { from = r0; to = r1; }
-  $('logFrom').value = +from.toPrecision(6); $('logTo').value = +to.toPrecision(6);
   const classes = S.classes.map((c, i) => ({ name: c.name, color: c.color, symbol: c.symbol || 'triDown', index: i, counts: c.counts })).filter((c) => c.counts);
-  const records = logRecords(D), imgW = 64;
-  const images = lv.tracks.image ? columnImages(D, from, to, lv.height) : null, image = images?.[0] || null;
+  const records = logRecords(D, lv, S.records, selected), imgW = 64;
+  const images = lv.tracks.image ? columnImages(D, from, to, lv.height, figure ? lv : S.logView) : null, image = images?.[0] || null;
   const boundaries = D.secs.map((s, i) => { const ax = (v) => (D.axis === 'age' ? interpAge(D.model, v * D.f(s)) : v * D.f(s)); return { a: ax(s.top), a1: ax(s.bottom), label: s.name, n: i + 1 }; }).filter((b) => b.a != null);
-  const { style, label: axisLabel } = logStyleOf(D);
+  const { style, label: axisLabel } = logStyleOf(D, lv);
   const marks = lv.tracks.marks !== false ? compositeMarks(D) : [], idm = idMode();
-  let res;
-  try { res = buildLogSVG({
+  const taxa = figure ? S.fig.taxaStyles?.log ?? lv.style?.taxa : lv.style?.taxa;
+  const res = buildLogSVG({
     style, title: S.name, subtitle: idm && !['total', 'species', 'BI', 'ii'].some((k) => lv.tracks[k]) ? t('id.subtitle', { n: marks.length, from: fmt(from, 4), to: fmt(to, 4), u: D.axis === 'age' ? S.age.units : D.base }) : t('log.subtitle', { n: D.secs.length, b: fmt(S.settings.binCm || 1, 3), from: fmt(from, 4), to: fmt(to, 4), u: D.axis === 'age' ? S.age.units : D.base }),
     axisLabel, from, to, height: lv.height, rows: D.rows, classes, tracks: lv.tracks, image, images, imageWidth: image?.w || imgW, records, boundaries,   // V0.2: identification marks and quantified tracks can be shown together
-    taxa: lv.style?.taxa, taxonPoints: lv.style?.taxa ? compositeTaxonPoints(D) : [],
+    taxa, taxonPoints: taxa ? compositeTaxonPoints(D) : [],
     taxonClasses: S.classes.map((c, index) => ({ ...c, index })).filter((c) => c.id !== 'artifact'),
     marks, idList: idm || marks.length ? idListOf(D.rows, marks) : null, legendClasses: legendOf(lv.overlay || lv.tracks.species ? classes.filter((c) => D.rows.some((r) => r.classPct?.[c.index] > 0)) : [], marks),
     ...geoOverlay(D.axis),
     labels: { secs: t('log.secs'), noData: t('log.noData'), total: t('log.total'), species: t('log.species'), image: t('log.image'), marks: t('id.marks'), idList: t('id.list') },
-    colWidths: (lv.colW ||= {}),
-  }); } catch (e) { console.error(e); box.innerHTML = `<p class="note">${esc(axisErr(e))}</p>`; lastLog = null; return; }
+    colWidths: lv.colW || {}, respectTaxonColumnVisibility: figure,
+  });
+  return { ...D, from, to, classes, records, res, axisLabel, svg: res.svg };
+}
+
+export function renderLog() {
+  $('logStage').querySelector('[data-label-editor]')?.remove();
+  const box = $('logSvg');
+  if (!S.sections.length) { box.innerHTML = `<p class="note" style="padding:24px">${t('log.empty')}</p>`; lastLog = null; return; }
+  const lv = S.logView;
+  let log;
+  try { log = buildColumnLog(lv); }
+  catch (e) { console.error(e); box.innerHTML = `<p class="note">${esc(axisErr(e))}</p>`; lastLog = null; return; }
+  const { res, from, to, classes, records, axisLabel } = log, D = log;
+  $('logFrom').value = +from.toPrecision(6); $('logTo').value = +to.toPrecision(6);
+  lv.colW ||= {};
   box.innerHTML = res.svg;
   lastLog = { ...D, from, to, classes, records, svg: res.svg };
   syncColOrder('log', res.columns);   // V0.33
@@ -233,25 +246,23 @@ export function renderLog() {
     } });
 }
 
-/* ── V0.5: style of the column and its figure (per core, shared by the column view and the column figure) ── */
+/* Column presentation; explicit view arguments keep figure profiles separate from analysis views. */
 const AGE_TO_KA = { a: 0.001, ka: 1, Ma: 1000 };
-export function logStyleOf(D) {
-  const st = { ...LOG_STYLE, ...(S.logView.style || {}) };
+export function logStyleOf(D, lv = S.logView, ageUnits = S.age.units) {
+  const st = { ...LOG_STYLE, ...(lv.style || {}) };
   let unit, f = 1;
-  if (D.axis === 'age') { unit = st.yUnitAge && AGE_TO_KA[st.yUnitAge] && AGE_TO_KA[S.age.units] ? st.yUnitAge : S.age.units; f = AGE_TO_KA[S.age.units] / (AGE_TO_KA[unit] || AGE_TO_KA[S.age.units] || 1) || 1; }
+  if (D.axis === 'age') { unit = st.yUnitAge && AGE_TO_KA[st.yUnitAge] && AGE_TO_KA[ageUnits] ? st.yUnitAge : ageUnits; f = AGE_TO_KA[ageUnits] / (AGE_TO_KA[unit] || AGE_TO_KA[ageUnits] || 1) || 1; }
   else { unit = st.yUnit && UNIT_TO_CM[st.yUnit] ? st.yUnit : D.base; f = UNIT_TO_CM[D.base] / UNIT_TO_CM[unit]; }
   return { style: { ...st, yFactor: f }, label: `${t(D.axis === 'age' ? 'r.age' : 'r.depth')} (${unit})` };
 }
 /* ───────────── V0.33: order and visibility of the columns of every chart ───────────── */
 const lastCols = { log: [], geo: [], range: [], figure: [] };
-export const colView = (kind) => kind === 'figure' ? S.fig.geoView || S.geo.view : kind === 'geo' ? S.geo.view : S.logView;
+export const colView = (kind) => kind === 'figure' ? figureViewOf(S.fig, S.logView, S.geo.view, S.geo.settings.axis) : kind === 'geo' ? S.geo.view : S.logView;
 export function editableColView(kind) {
   if (kind === 'figure') {
-    if (!S.fig.geoView) {
-      S.fig.geoView = JSON.parse(JSON.stringify(S.geo.view));
-      if (S.fig.geoFeatures != null && S.fig.geoView.style) S.fig.geoView.style.colHide = (S.fig.geoView.style.colHide || []).filter((id) => !id.startsWith('rec:'));
-    }
-    return S.fig.geoView;
+    const view = editFigureView(S.fig, S.logView, S.geo.view, S.geo.settings.axis);
+    view.overlayAlpha ??= S.ovAlpha;
+    return view;
   }
   return colView(kind);
 }
@@ -341,19 +352,19 @@ document.addEventListener('click', (e) => {
     if (el) { el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }
   }
 });
-export function styleFormHTML(showTaxa = true) {
-  const st = { ...LOG_STYLE, ...(S.logView.style || {}) }, num = (k, lab, step = 'any', min = 0) => `<label class="f"><span>${t(lab)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${st[k] ?? ''}" placeholder="${t('fig.auto2')}"></label>`;
+export function styleFormHTML(showTaxa = true, lv = S.logView, kind = 'log') {
+  const st = { ...LOG_STYLE, ...(lv.style || {}) }, num = (k, lab, step = 'any', min = 0) => `<label class="f"><span>${t(lab)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${st[k] ?? ''}" placeholder="${t('fig.auto2')}"></label>`;
   const chk = (k, lab) => `<label class="chk"><input type="checkbox" data-st="${k}" ${st[k] ? 'checked' : ''}><span>${t(lab)}</span></label>`;
   const sel = (k, lab, opts) => `<label class="f"><span>${t(lab)}</span><select data-st="${k}">${opts.map(([v, l]) => `<option value="${v}" ${String(st[k] ?? '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
-  return `${colOrderHTML('log')}<div class="grid2">
+  return `${colOrderHTML(kind)}<div class="grid2">
     ${sel('yUnit', 'st.yUnit', [['', t('st.native')], ['m', 'm'], ['cm', 'cm'], ['mm', 'mm']])}
     ${sel('yUnitAge', 'st.yUnitAge', [['', t('st.native')], ['a', 'a'], ['ka', 'ka'], ['Ma', 'Ma']])}
     ${tickFieldsHTML(st)}
     ${num('fontSize', 'st.fontSize', 1, 6)}</div>
     <div class="chk2">${chk('frame', 'st.frame')}${chk('grid', 'st.grid')}${chk('boundaries', 'st.boundaries')}${chk('showTitle', 'st.showTitle')}</div>
-    ${colorsFormHTML(st, 'log')}${showTaxa ? speciesFormHTML(st) : ''}
+    ${colorsFormHTML(st, 'log')}${showTaxa ? (kind === 'figure' ? taxaFormHTML(taxaOptions(S.fig.taxaStyles?.[S.fig.type] ?? st.taxa, { style: st })) : speciesFormHTML(st)) : ''}
     ${ndFormHTML(st)}
-    ${axesFormHTML()}`;
+    ${axesFormHTML(null, lv)}`;
 }
 /** V0.31: ichnotaxa shown in «By ichnotaxon» (and the distribution chart), stacked or each in its own column. */
 export function speciesFormHTML(st) {
@@ -376,9 +387,9 @@ export function taxaFormHTML(q, scope = 'figure') {
 
 function changeTaxaPresentation(el, reset = false) {
   const figure = el.closest('[data-taxa-scope]')?.dataset.taxaScope === 'figure', F = S.fig;
-  const context = { style: (figure && F.type === 'geolog' ? colView('figure') : S.logView).style || {}, range: figure && F.type === 'range', display: F.rangeDisplay, source: F.rangeSrc || 'all' };
+  const context = { style: (figure ? colView('figure') : S.logView).style || {}, range: figure && F.type === 'range', display: F.rangeDisplay, source: F.rangeSrc || 'all' };
   if (figure && F.type === 'geolog') context.style = { ...context.style, colHide: [] };
-  const current = figure ? F.taxaStyles?.[F.type] ?? (F.type === 'core' ? S.logView.style?.taxa : undefined) : S.logView.style?.taxa;
+  const current = figure ? F.taxaStyles?.[F.type] ?? (['core', 'log'].includes(F.type) ? colView('figure').style?.taxa : undefined) : S.logView.style?.taxa;
   const q = taxaOptions(current, context);
   const rebuild = reset || ['layout', 'abundance', 'occurrence', 'source'].includes(el.dataset.taxa);
   if (el.dataset.taxaAll != null) {
@@ -411,7 +422,7 @@ document.addEventListener('click', (e) => {
 export function axesFormHTML(only = null, lv = S.logView, recNames = null) {
   const ax = lv.style?.axes || {}, W = lv.colW || {};
   const recs = recNames || [...new Set(S.records.flatMap((r) => r.series.map((x) => x.name)))];
-  const figureTaxa = mode === 'fig' ? S.fig.taxaStyles?.[S.fig.type] : null;
+  const figureTaxa = mode === 'fig' && lv !== S.logView ? S.fig.taxaStyles?.[S.fig.type] : null;
   const sep = (figureTaxa || lv.style?.taxa)?.layout === 'separate' || (!(figureTaxa || lv.style?.taxa) && lv.style?.speciesMode === 'separate'), spHide = new Set(lv.style?.speciesHide || []);
   const spCols = sep ? S.classes.filter((c) => c.counts !== false && c.id !== 'artifact' && !spHide.has(c.name)).map((c) => ['sp:' + c.name, c.name, 70]) : [['species', t('log.species'), 150]];
   const cols = [['secs', t('log.secs'), 40], ['total', t('log.total'), 150], ...spCols, ['BI', 'BI', 46], ['ii', 'ii', 46], ...recs.map((n) => ['rec:' + n, n, 120])];

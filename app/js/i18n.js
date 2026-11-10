@@ -571,7 +571,7 @@ Object.assign(D.es, {
   'fig.chosen': '{n} elegidos de {m}', 'fig.nOf': '{n} de {m} trazas', 'fig.noTraces': 'Este sondeo aún no tiene trazas asignadas a icnotaxones.',
   'fig.pickFirst': 'Marca los ejemplos de cada icnotaxón (o pulsa «Elegir automáticamente»).', 'fig.empty': 'No hay datos para esta figura en el sondeo o proyecto actual.',
   'fig.coreSub': 'Sondeo completo · {n} secciones', 'fig.coreNote': 'Imagen con las trazas, bioturbación, icnotaxones, índices, registros y bandas de intervalos y clasificación, de techo a muro. Las pistas visibles son las del Registro del sondeo.',
-  'fig.geoNote': 'El eje, las capas y la clasificación proceden de Multiproxy. Elige variables y taxones, muestra u oculta columnas y ordénalas para esta figura. La imagen conserva el tratamiento de la columna del testigo.', 'fig.geoReset': 'Seguir la selección de Multiproxy', 'fig.geoCompositionReset': 'Restablecer la composición de esta figura', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
+  'fig.geoNote': 'Las capas y la clasificación proceden de Multiproxy. Esta figura guarda su propio eje, tratamiento de imagen, variables, taxones y orden de columnas.', 'fig.geoReset': 'Seguir la selección de Multiproxy', 'fig.geoCompositionReset': 'Restablecer la composición de esta figura', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
   'fig.logNote': 'Usa la ventana, la altura y las pistas elegidas en Registro del sondeo.',
 });
 Object.assign(D.en, {
@@ -583,7 +583,7 @@ Object.assign(D.en, {
   'fig.chosen': '{n} chosen of {m}', 'fig.nOf': '{n} of {m} traces', 'fig.noTraces': 'This core has no traces assigned to ichnotaxa yet.',
   'fig.pickFirst': 'Tick the examples of each ichnotaxon (or press “Choose automatically”).', 'fig.empty': 'No data for this figure in the current core or project.',
   'fig.coreSub': 'Whole core · {n} sections', 'fig.coreNote': 'Image with traces, bioturbation, ichnotaxa, indices, records and interval/classification bands, top to bottom. Tracks as in Core log.',
-  'fig.geoNote': 'The axis, layers and classification come from Multiproxy. Select variables and taxa, show or hide columns and order them for this figure. The image keeps the treatment of the core column.', 'fig.geoReset': 'Follow the Multiproxy selection', 'fig.geoCompositionReset': 'Reset this figure composition', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
+  'fig.geoNote': 'Layers and classification come from Multiproxy. This figure stores its own axis, image treatment, variables, taxa and column order.', 'fig.geoReset': 'Follow the Multiproxy selection', 'fig.geoCompositionReset': 'Reset this figure composition', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
   'fig.logNote': 'Uses the window, height and tracks of Core log.',
 });
 
@@ -1257,9 +1257,11 @@ Object.assign(D.en, { 'err.import': 'Could not import “{f}”: {m}', 'top.lang
 
 /* V0.2: hide ichnotaxa while interpreting; figure options */
 Object.assign(D.es, { 'cls.hide': 'Ocultar este icnotaxón en la imagen (no se borra)', 'cls.show': 'Mostrar este icnotaxón', 'cls.solo': 'Ver solo el activo', 'cls.soloTip': 'Oculta en la imagen los demás icnotaxones para interpretar sin que molesten. No se borra nada ni cambia el análisis.', 'cls.showAll': 'Mostrar todos',
-  'fig.tracks': 'Columnas', 'fig.recs': 'Otros registros', 'fig.coreImgW': 'Ancho del testigo (px)' });
+  'fig.tracks': 'Columnas', 'fig.recs': 'Otros registros', 'fig.coreImgW': 'Ancho del testigo (px)',
+  'fig.compositionReset': 'Restablecer la presentación heredada', 'fig.compositionNote': 'Estas opciones pertenecen a este tipo de figura y pestaña. No modifican la vista de análisis.', 'fig.overlayOpacity': 'Opacidad de la superposición (0,35–1)' });
 Object.assign(D.en, { 'cls.hide': 'Hide this ichnotaxon in the image (not deleted)', 'cls.show': 'Show this ichnotaxon', 'cls.solo': 'Show active only', 'cls.soloTip': 'Hides the other ichnotaxa in the image so they do not get in the way. Nothing is deleted and the analysis does not change.', 'cls.showAll': 'Show all',
-  'fig.tracks': 'Columns', 'fig.recs': 'Other records', 'fig.coreImgW': 'Core width (px)' });
+  'fig.tracks': 'Columns', 'fig.recs': 'Other records', 'fig.coreImgW': 'Core width (px)',
+  'fig.compositionReset': 'Restore inherited presentation', 'fig.compositionNote': 'These options belong to this figure type and tab. They do not change the analysis view.', 'fig.overlayOpacity': 'Overlay opacity (0.35–1)' });
 Object.assign(D.es, { 'sec.needProject': 'Primero crea o abre un proyecto: las imágenes se guardan siempre dentro de un proyecto y de un sondeo.', 'sec.pickCoreTitle': 'Añadir {n} imagen(es)', 'sec.pickCore': '¿A qué sondeo pertenecen?', 'sec.newCore': 'Nuevo sondeo…', 'sec.newCoreName': 'Nombre del nuevo sondeo', 'sec.addHere': 'Añadir' });
 Object.assign(D.en, { 'sec.needProject': 'Create or open a project first: images are always kept inside a project and a core.', 'sec.pickCoreTitle': 'Add {n} image(s)', 'sec.pickCore': 'Which core do they belong to?', 'sec.newCore': 'New core…', 'sec.newCoreName': 'Name of the new core', 'sec.addHere': 'Add' });
 Object.assign(D.es, { 'fig.rangeSubBoth': 'Abundancia relativa por intervalo (barras) e icnotaxones identificados (triángulos)' });

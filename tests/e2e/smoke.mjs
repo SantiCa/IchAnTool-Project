@@ -8,6 +8,7 @@ import { verifyDataTable } from './data-table.mjs';
 import { verifyTableViewport } from './table-viewport.mjs';
 import { verifyTaxonFigures } from './taxon-figures.mjs';
 import { verifyMultiproxyFigure } from './multiproxy-figure.mjs';
+import { verifyFigureComposition } from './figure-composition.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 
 const URL = process.env.APP_URL || 'http://localhost:8765/app/index.html';
@@ -25,6 +26,7 @@ try {
   await verifyTableViewport(b, URL);
   await verifyTaxonFigures(b, URL);
   await verifyMultiproxyFigure(b, URL);
+  await verifyFigureComposition(b, URL);
   await p.goto(URL, { waitUntil: 'networkidle0' });
   await p.evaluate(() => document.getElementById('openTest').click());
   await until(() => window.ichantool?.S.sections.length === 6 && window.ichantool.S.sections.every((s) => s.objects.size > 0));

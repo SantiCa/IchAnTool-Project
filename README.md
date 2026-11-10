@@ -121,7 +121,13 @@ For a **Multiproxy log** figure, select the core, numeric variables and core tra
 the same presentation controls. Use **Column order and visibility** to mix taxon, proxy, index and interval
 tracks in the desired order. Height, window, widths, scales and colours belong to that figure tab. Reset the
 composition to follow the Multiproxy view again; the analysis settings and other figures remain unchanged.
-The vertical axis follows Multiproxy, and image treatment follows the core-column controls.
+Use the figure's **Vertical axis** and image controls to select depth or age, panels, overlays and excluded
+zones independently of Multiproxy and the core column. Age images require the selected core's age model.
+
+**Whole interpreted core** and **Core column** figures also keep their own tracks, records, axes, colours,
+widths and image options. Distribution and section figures keep their own style and depth window. Settings
+are independent for each figure type and tab; **Restore inherited presentation** removes that type's
+presentation override. Existing projects inherit their previous presentation until you edit these controls.
 
 ## Quick start (Python package)
 
