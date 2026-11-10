@@ -31,7 +31,7 @@ from benchmark import (
 )
 
 DRIVER = ROOT / "tools" / "benchmark_images.mjs"
-SOURCES = ("tools/benchmark_images.py", "tools/benchmark_images.mjs")
+SOURCES = ("tools/benchmark_images.py", "tools/benchmark_images.mjs", "tests/e2e/navigation-preview.mjs")
 CASES = ("u1385", "synthetic", "large")
 METRICS = ("open_ready_ms", "open_painted_ms", "navigation_total_ms", "first_visits_total_ms", "return_first_ms",
            "warm_return_ms", "zoom_total_ms", "pan_total_ms", "browser_peak_rss_mib")
@@ -46,7 +46,8 @@ def normalised_hash(data):
 
 
 def application_provenance():
-    names = sorted(filter(None, git("ls-files", "-z", "--", "app", "src/sedcoretool").decode().split("\0")))
+    names = sorted(set(filter(None, git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "app", "src/sedcoretool").decode().split("\0"))))
+    head_names = set(git("ls-tree", "-r", "--name-only", "-z", "HEAD", "--", "app", "src/sedcoretool").decode().split("\0"))
     digest = hashlib.sha256()
     mismatches = []
     for name in names:
@@ -55,8 +56,8 @@ def application_provenance():
         text = text or Path(name).name.startswith(("LICENSE", "OFL"))
         binary = not text
         current = hashlib.sha256(data).hexdigest() if binary else normalised_hash(data)
-        head = git("show", "HEAD:" + name)
-        expected = hashlib.sha256(head).hexdigest() if binary else normalised_hash(head)
+        head = git("show", "HEAD:" + name) if name in head_names else None
+        expected = None if head is None else hashlib.sha256(head).hexdigest() if binary else normalised_hash(head)
         if current != expected:
             mismatches.append(name)
         digest.update(name.encode() + b"\0" + bytes.fromhex(current))
@@ -85,7 +86,7 @@ def measure_case(case, args, url, workspace):
             profile = Path(temp) / "profile"
             shutil.copytree(seed, profile)
             result, peak, samples = run_sample(["node", str(DRIVER), url, str(profile), args.chrome, case,
-                                                "profile" if profiled else "measure"], browser_tree=True)
+                                                "profile" if profiled else "measure", "preview" if args.nav_preview else "legacy"], browser_tree=True)
         if reference is None:
             reference = identities(result)
         elif identities(result) != reference:
@@ -101,10 +102,20 @@ def measure_case(case, args, url, workspace):
         runs.append(entry)
         print(f"{case} {entry['kind']} {index + 1}: open {entry['open_painted_ms']:.1f} ms, "
               f"navigation {entry['navigation_total_ms']:.1f} ms, peak {peak:.1f} MiB", file=sys.stderr, flush=True)
+    visual = None
+    if args.nav_preview:
+        with tempfile.TemporaryDirectory(prefix="image-visual-", dir=directory) as temp:
+            profile = Path(temp) / "profile"
+            shutil.copytree(seed, profile)
+            checked = json.loads(subprocess.check_output(["node", str(DRIVER), url, str(profile), args.chrome, case,
+                                                         "visual", "preview"], cwd=ROOT, timeout=TIMEOUT))
+        if identities(checked) != reference:
+            raise ValueError("Visual trial changed scientific results")
+        visual = checked["visual"]
     measured = [run for run in runs if run["kind"] == "measurement"]
     return {"case": case, **reference, "seed": None if case == "u1385" else 138501,
             "package_sha256": None if case == "u1385" else hashlib.sha256(fixture.read_bytes()).hexdigest(),
-            "runtimes": runtime, "runs": runs, "cpu": cpu,
+            "runtimes": runtime, "runs": runs, "cpu": cpu, "visual": visual,
             "summary": {metric: {"median": statistics.median(run[metric] for run in measured),
                                  "min": min(run[metric] for run in measured), "max": max(run[metric] for run in measured)}
                         for metric in METRICS}}
@@ -124,6 +135,7 @@ def main():
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--nav-preview", action="store_true", help="Enable the session navigation-preview experiment through its checkbox")
     parser.add_argument("--workspace", type=Path, help="Parent for disposable profiles/fixtures; useful in restricted environments")
     args = parser.parse_args()
     if min(args.warmups, args.repetitions) < 1:
@@ -136,7 +148,7 @@ def main():
     report = {"started_utc": datetime.now(timezone.utc).isoformat(), "source": source_metadata(SOURCES),
               "application": provenance, "environment": describe_environment(),
               "warmups": args.warmups, "repetitions": args.repetitions, "rss_poll_target_ms": SAMPLE_SECONDS * 1000,
-              "complete": False, "cases": []}
+              "nav_preview": args.nav_preview, "complete": False, "cases": []}
     if args.workspace:
         args.workspace = args.workspace.resolve()
         args.workspace.mkdir(parents=True, exist_ok=True)

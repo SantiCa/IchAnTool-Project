@@ -9,6 +9,7 @@ import { FIG_PANELS, arrowMarksSVG, axisErr, coreRatio, editSVGLabels, figTraces
 import { UNIT_TO_CM, interpAge, topAt } from './core.js';
 import { LOG_STYLE, ND_STYLE, taxaOptions, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
 import { t } from './i18n.js';
+import { buildNavigationLayers, NavigationPreviewCache } from './navpreview.js';
 import { figureViewOf, editFigureView } from './figview.js';
 import { recordSeries } from './exportio.js';
 
@@ -109,6 +110,34 @@ export function sectionCanvas(s, lv = S.logView) {
   }
   s._lc = { key, canvas: out, k: sw / s.w };
   return out;
+}
+
+const navigationPreviews = new NavigationPreviewCache(8 * 1024 * 1024, (canvas) => { canvas.width = canvas.height = 0; });
+export const clearNavigationPreviews = () => navigationPreviews.clear();
+
+/** Navigation-only preview. Temporary legacy-size layers preserve exact display pixels; only the final strip is retained. */
+export function navigationPreviewCanvas(s, width, height) {
+  if (!s.orig || !s.enh || width < 1 || width > 24 || height < 1 || height > 4096) return null;
+  const lv = S.logView, roi = s.roi, palette = S.classes.map((c) => c.color), opacity = Number.isFinite(lv.overlayAlpha) ? lv.overlayAlpha : S.ovAlpha;
+  const key = JSON.stringify([s.logVer, s.w, s.h, s.ds, s.rot, s.crop, roi, s.filters, lv.imgMode, lv.overlay, lv.hideExcl,
+    opacity, palette, S.settings.predThr, S.settings.includePred, S.settings.countCandidates, width, height]);
+  const cached = navigationPreviews.get(s, key); if (cached) return cached;
+  const layers = buildNavigationLayers({ width: s.w, height: s.h, rgba: lv.imgMode === 'orig' ? s.orig : s.enh,
+    labels: lv.overlay ? s.labels : null, exclude: lv.overlay || lv.hideExcl ? s.exclude : null,
+    classIndices: lv.overlay ? effClassArray(s) : [], colors: palette.map(hex), stacks: s.stacks,
+    overlay: !!lv.overlay, hideExcluded: !!lv.hideExcl, alpha: Math.round(255 * Math.max(0.35, Math.min(1, opacity))) });
+  const image = document.createElement('canvas'); image.width = layers.width; image.height = layers.height;
+  const context = image.getContext('2d'); context.putImageData(new ImageData(layers.photo, layers.width, layers.height), 0, 0);
+  if (layers.trace) {
+    const overlay = document.createElement('canvas'); overlay.width = layers.width; overlay.height = layers.height;
+    overlay.getContext('2d').putImageData(new ImageData(layers.trace, layers.width, layers.height), 0, 0);
+    context.drawImage(overlay, 0, 0); overlay.width = overlay.height = 0;
+  }
+  const result = document.createElement('canvas'); result.width = width; result.height = height;
+  const scale = layers.width / s.w;
+  result.getContext('2d').drawImage(image, roi.x0 * scale, roi.y0 * scale, (roi.x1 - roi.x0) * scale, (roi.y1 - roi.y0) * scale, 0, 0, width, height);
+  image.width = image.height = 0;
+  navigationPreviews.set(s, key, result, width * height * 4); return result;
 }
 
 /** Core image strip for the window, resampled row by row onto the depth or age axis. */

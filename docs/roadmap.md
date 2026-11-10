@@ -181,7 +181,11 @@ existing projects retain failed-save protection. Performance evidence is collect
       Ruff, version consistency, full Chrome smoke test, standalone build and standalone first-run regression.
       The benchmark/report remain local on `master` until an authorised push. Next work is M2.2.3; this phase
       does not change image loading, caches or working resolution.
-  - [ ] **M2.2.3 - Navigation preview experiment. Ready.** Prototype a separately cached, opt-in preview sized
+  - [x] **M2.2.3 - Navigation preview experiment.** [V0.118](../CHANGELOG.md#v0118--2026-11-10).
+        Authorised by the maintainer on 10 November
+        2026; editor: Codex; verification: unit/browser regression and matched benchmark. The
+        [predeclared contract](benchmarks/M2.2.3.md) requires exact visual equality and bounded cache ownership.
+        Prototype a separately cached, opt-in preview sized
         for the visible navigation strip; preserve the column/figure image path. Compare with the M2.2.2
         fixture sequence, environment and timing boundaries. Target at least 20% lower median large-case
         `first_visits_total_ms`, no more than 20 ms added median resident-return latency, and no more than 10%
@@ -190,6 +194,23 @@ existing projects retain failed-save protection. Performance evidence is collect
       preview. Verify depth click/drag positions within 1e-9 working pixels, exact unchanged masks/indices,
       saved/reloaded edits and full-resolution exports. Promotion requires the maintainer's acceptance.
       Tiled loading remains deferred pending evidence on workloads that justify it.
+    - Delivered behind a default-off, session-only checkbox in the Sections panel. One-pass photo/mask
+      preparation retains the legacy reduction/compositing grid temporarily and caches only the displayed
+      strip, with weak section ownership and an 8 MiB LRU limit. Disable it to clear the cache and roll back.
+    - The [matched reports and author audit](benchmarks/M2.2.3.md#recorded-results) use identical tools on V0.117
+      and the fingerprinted V0.118 working tree. Large-case first visits fall from 4407.0 to 2921.3 ms median
+      (33.7%); resident returns stay at 32.2/32.3 ms; median whole-trial peak RSS rises 4.8%, within the 10% limit.
+      All 45 benchmark trials pass; separate visual trials check 31 complete gutters with zero differing pixels.
+      A separate canonical comparison verifies exact public-core scientific state despite random section IDs.
+    - Required checks pass: 188 Python tests (six optional/permission skips), 150 Node tests, types, Ruff,
+      version consistency, full Chrome smoke test, standalone build and offline navigation regression.
+      Browser checks cover cache invalidation/disposal, pointer depth, unchanged column SVG and saved state.
+      Delivery remains local on `master`; GitHub handoff requires an authorised push.
+  - [ ] **M2.2.4 - Accept or revise navigation-preview promotion.** The maintainer decides whether to enable
+        the experiment by default after trying it on representative projects. Keep the current path as the
+        default until then. If promotion is authorised, verify saved-project compatibility, fallback dimensions,
+        export/save regressions and the same benchmark limits before removing the session flag. Full-resolution
+        and 16-bit TIFF profiling remains a separate candidate if real workloads justify tiled loading.
 
 ### M3 - Analysis and learned segmentation
 

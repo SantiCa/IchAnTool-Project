@@ -1,0 +1,62 @@
+{
+  "kind": "author correctness verification, separate from performance trials",
+  "tool_sha256": "4b07b2b920979b3dc76299888bed2bcecf535a4698b4481e68727597228edef3",
+  "excluded_field": "random section ID only; all sections remain in source order",
+  "exact_scientific_hashes_equal": true,
+  "legacy": {
+    "title": "SedCoreTool V0.117",
+    "section_ids": [
+      "e7jttbd",
+      "ngwrubb",
+      "m4j7b1u",
+      "5hihjc3",
+      "l75n4cz",
+      "b1eag9g"
+    ],
+    "hashes": {
+      "initial": {
+        "science": "6a45bec2a1cdd600a5216c48be8d6849e3f23c4f649e8ad3489cd0ece95c0407",
+        "original": "ee6533776c2cee2894e6bc509d7749f5a76119de0bc4660e70d78884fc9d65df",
+        "enhanced": "89b3f3d2756d325916c393813eabaf96cb60f29034564079163dd0386c30af01"
+      },
+      "deleted": {
+        "science": "30098dc788a8a52a27834518e8882c0783b613390229294c6a312963f21d7c4f",
+        "original": "ee6533776c2cee2894e6bc509d7749f5a76119de0bc4660e70d78884fc9d65df",
+        "enhanced": "89b3f3d2756d325916c393813eabaf96cb60f29034564079163dd0386c30af01"
+      },
+      "reloaded": {
+        "science": "30098dc788a8a52a27834518e8882c0783b613390229294c6a312963f21d7c4f",
+        "original": "ee6533776c2cee2894e6bc509d7749f5a76119de0bc4660e70d78884fc9d65df",
+        "enhanced": "89b3f3d2756d325916c393813eabaf96cb60f29034564079163dd0386c30af01"
+      }
+    }
+  },
+  "preview": {
+    "title": "SedCoreTool V0.118",
+    "section_ids": [
+      "8poe2gj",
+      "tsqg3em",
+      "440s8xj",
+      "j1vj871",
+      "tfdp2hy",
+      "lr59w9n"
+    ],
+    "hashes": {
+      "initial": {
+        "science": "6a45bec2a1cdd600a5216c48be8d6849e3f23c4f649e8ad3489cd0ece95c0407",
+        "original": "ee6533776c2cee2894e6bc509d7749f5a76119de0bc4660e70d78884fc9d65df",
+        "enhanced": "89b3f3d2756d325916c393813eabaf96cb60f29034564079163dd0386c30af01"
+      },
+      "deleted": {
+        "science": "30098dc788a8a52a27834518e8882c0783b613390229294c6a312963f21d7c4f",
+        "original": "ee6533776c2cee2894e6bc509d7749f5a76119de0bc4660e70d78884fc9d65df",
+        "enhanced": "89b3f3d2756d325916c393813eabaf96cb60f29034564079163dd0386c30af01"
+      },
+      "reloaded": {
+        "science": "30098dc788a8a52a27834518e8882c0783b613390229294c6a312963f21d7c4f",
+        "original": "ee6533776c2cee2894e6bc509d7749f5a76119de0bc4660e70d78884fc9d65df",
+        "enhanced": "89b3f3d2756d325916c393813eabaf96cb60f29034564079163dd0386c30af01"
+      }
+    }
+  }
+}

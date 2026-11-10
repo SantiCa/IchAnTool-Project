@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.118 — 2026-11-10
+
+- Add an optional, session-only navigation-preview experiment with exact display pixels and a bounded thumbnail cache. Keep the current navigation renderer as the default.
+- Reduce first-visit navigation time by 33.7% on the measured 122.9-million-pixel synthetic core, with 4.8% higher median whole-trial peak memory; publish the matched comparison and correctness checks.
+
 ## V0.117 — 2026-11-10
 
 - Add reproducible large-image diagnostics for project opening, section navigation, zoom/pan, cache residency and memory, with exact edit/reload and full-resolution mask-export checks.

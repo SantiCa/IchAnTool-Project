@@ -161,6 +161,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 | `storage.js` | Project library in IndexedDB | — |
 | `state.js` | Shared program state (`S`) and small helpers used by the interface modules | — |
 | `columns.js` | Composite log of a core: column view, records, order and visibility of chart columns | — |
+| `navpreview.js` | Navigation-only photo/mask reduction and bounded preview ownership | ✓ |
 | `figview.js` | Serializable figure presentation, inherited defaults and independent overrides | ✓ |
 | `panels.js` | Resizable and collapsible side panels, resizable maps | — |
 | `datatab.js` | Data tab: all data of the project, Grapher-like plots and the spreadsheet view | — |
@@ -1105,6 +1106,29 @@ zones** (`logView.hideExcl`), excluded pixels are drawn white. The image can als
 section (`logView.imgPanels`), with a width in the real proportion of the core photograph by default
 (`style.imgAspect = 'keep'`: width = plot height / (height/width of the core), median of the sections; ×
 `imgStretch`) or a fixed width (`imgW`).
+
+**Section navigation preview.** The session-only **Navigation preview (experimental)** checkbox starts off
+and is not serialised. When enabled, `app.js::drawNav` requests `columns.js::navigationPreviewCanvas` for the
+visible strip; column and figure rendering still use `sectionCanvas`. Preview dimensions outside 1–24 pixels
+wide or 1–4096 pixels high, or unavailable source/enhanced pixels, fall back to `sectionCanvas`.
+
+`navpreview.js::buildNavigationLayers` visits the source once, accumulating both the photo and mask into the
+same grid as the column reducer: scale `min(1, 512 / width)`, with rounded output dimensions. Each output
+bucket visits source coordinates from `ceil(output * sourceSize / outputSize)` to the next boundary, exclusively.
+RGB uses premultiplied alpha, with an opaque photo, effective countable trace classes and optional white
+exclusions. Overlay alpha is `round(255 * max(0.35, min(1, opacity)))`. Integer channel sums for at most 258
+pixels are exactly representable in Float32 (`258 * 255 * 255 < 2^24`); larger buckets, or non-byte colours,
+round every addition with `Math.fround`, preserving the legacy Float32 reducer. Uint8Clamped conversion and
+native canvas composition retain its rounding, followed by the same fractional ROI crop and downscale.
+The temporary grid arrays/canvases are not cached; temporary canvases are zero-sized after use.
+
+Only the final displayed strip is cached, with an 8 MiB LRU limit. Weak section lookups and entries without
+owner references avoid retaining a closed project. Eviction, disabling the flag and project reset zero-size
+the cached canvases. Cache keys include section revision, dimensions/resolution, rotation/crop/ROI, filters,
+image/overlay/exclusion settings, opacity, class colours, prediction policy and preview dimensions. Existing
+edit paths update the section revision. Pixel and mask cache budgets, working images, scientific arrays,
+pointer/depth mapping and export renderers retain their existing contracts. The
+[experiment report](benchmarks/M2.2.3.md) defines exact visual comparison and matched performance acceptance.
 
 ### 15.5 Columns and scales
 
@@ -2463,6 +2487,10 @@ adds separate main-thread/worker CPU profiles and checks exact image/mask/interv
 full-resolution PNG export and reload. Application provenance is checked separately from benchmark-tool hashes;
 text line endings are normalised, including bundled licences. The report records the measured application
 commit, environment, every trial, median/range and limitations. Profiling does not change cache budgets or loaders.
+The [navigation-preview comparison](benchmarks/M2.2.3.md) uses identical benchmark-tool fingerprints on the
+reference and experimental application. Its separate visual trials compare every displayed gutter pixel;
+reference preparation is excluded from timing/RSS trials. Provenance includes untracked, non-ignored source
+files and records additions relative to the application commit.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
 in strict mode on `core.js`, `state.js` and `imageproc.js`. JSDoc describes the shared contracts, and consumers

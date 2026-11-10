@@ -76,8 +76,11 @@ def test_provenance_distinguishes_newlines_from_application_edits(image_benchmar
         path.write_bytes(b"benchmark tool\n")
 
     def fake_git(*args):
-        if args[0] == "ls-files":
-            return b"app/js/app.js\0app/vendor/LICENSE-library-1.0\0"
+        if args[0] in ("ls-files", "ls-tree"):
+            names = b"app/js/app.js\0app/vendor/LICENSE-library-1.0\0"
+            if args[0] == "ls-files" and (tmp_path / "app/js/added.js").exists():
+                names += b"app/js/added.js\0"
+            return names
         if args[0] == "show":
             return expected if args[1] == "HEAD:app/js/app.js" else b"Library licence\n"
         assert args == ("rev-parse", "HEAD")
@@ -94,3 +97,8 @@ def test_provenance_distinguishes_newlines_from_application_edits(image_benchmar
     assert after["modified_files"] == ["app/js/app.js"]
     assert after["files_sha256"] != before["files_sha256"]
     assert after["tool_sha256"] == before["tool_sha256"]
+    source.write_bytes(expected)
+    (tmp_path / "app/js/added.js").write_text("// new measured module\n", encoding="utf-8")
+    added = image_benchmark.application_provenance()
+    assert added["modified_files"] == ["app/js/added.js"]
+    assert added["files_sha256"] != before["files_sha256"]

@@ -20,10 +20,10 @@ import { $, APP, APP_NAMES, CLF_SCOPES, ML_DEFAULT, S, VERSION, clsById, default
 import { figTabsData, loadFigTabs, renderFigPanel, renderFigure, resetFigTabs, scheduleFigure, traceCanvas } from './figures.js';
 import { renderData } from './datatab.js';
 import { frameRatio, panelPrefs, savePanels } from './panels.js';
-import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
+import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.117';
+export const DELIVERY = 'V0.118';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -1448,7 +1448,14 @@ function niceStep(pxPerUnit, minPx) {
 }
 
 /* ───────────── V0.26: navigation strip — the whole analysis area at the right edge of the view; click or drag to move ───────────── */
-let navBox = null;
+let navBox = null, navigationPreviewOn = false;
+/** @type {HTMLInputElement} */ ($('navPreview')).checked = false;
+$('navPreview').addEventListener('change', (event) => {
+  event.stopPropagation(); // A session display choice must not trigger the generic project-change handler.
+  navigationPreviewOn = /** @type {HTMLInputElement} */ (event.target).checked;
+  if (!navigationPreviewOn) clearNavigationPreviews();
+  requestRender();
+});
 /** V0.27: width of the navigation gutter at the left of the depth ruler (0 when turned off). */
 const navGut = () => (S.settings?.nav === false ? 0 : 66);
 function drawNav(s, cw, ch) {
@@ -1460,8 +1467,12 @@ function drawNav(s, cw, ch) {
   const roi = s.roi, rh = roi.y1 - roi.y0, rw = roi.x1 - roi.x0, H = ch - 30, z = S.view.zoom, y = 14;
   if (H < 60) return;
   const W = Math.round(Math.max(8, Math.min(24, (H * rw) / rh))), x = 6;
-  const cv = sectionCanvas(s), kk = s._lc?.k || 1;
-  try { vctx.drawImage(cv, roi.x0 * kk, roi.y0 * kk, rw * kk, rh * kk, x, y, W, H); } catch { /* pending */ }
+  const preview = navigationPreviewOn ? navigationPreviewCanvas(s, W, H) : null;
+  const cv = preview ? null : sectionCanvas(s), kk = s._lc?.k || 1;
+  try {
+    if (preview) vctx.drawImage(preview, x, y);
+    else { vctx.drawImage(cv, roi.x0 * kk, roi.y0 * kk, rw * kk, rh * kk, x, y, W, H); }
+  } catch { /* pending */ }
   vctx.strokeStyle = '#3a4240'; vctx.lineWidth = 1; vctx.strokeRect(x - 0.5, y - 0.5, W + 1, H + 1);
   // its own small ruler: the whole section from top to bottom
   const span = s.bottom - s.top;
@@ -2944,6 +2955,7 @@ function resetState() {
   readOnlyProject = false; projectPreview = null; $('projectValidation').hidden = true;
   const maxMP = S.settings.maxMP || 8;
   S.id = uid(); S.name = t('proj.untitled'); S.notes = ''; S.comments = []; S.finalTests = [];
+  clearNavigationPreviews();
   MEM.px.length = 0; MEM.mask.length = 0; pxWanted.clear();   // V0.1: pictures of the previous project can be freed
   S.selected = 0; S.multi.clear(); S.library = []; S.sheet = { columns: [], cells: {} }; resetFigTabs(); S.kind = 'normal'; S.multiSource = null; S.plots = []; S.plotCur = 0; S.coreModels = {};
   S.geo = defaultGeo(); geoReset();

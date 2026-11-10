@@ -111,6 +111,10 @@ U-Net on the computer.
 
 The built-in help and guided tour explain each step. The downloads contain no sample data.
 
+In the **Sections** panel, **Navigation preview (experimental)** uses a separate thumbnail cache for the
+section navigator. It is off by default and applies only to the current session. Disable it to restore the
+current renderer; reloading starts with it off. See the [matched benchmark and limits](docs/benchmarks/M2.2.3.md).
+
 In **Figures**, use **Ichnotaxa in the charts** to choose abundance shapes and occurrences independently.
 For names at manually identified positions, select **Names only** and **Manual marks only**; add bars or
 symmetric curves and percentage labels as needed. Opacity 100% is opaque. Figure tabs keep their own choices.

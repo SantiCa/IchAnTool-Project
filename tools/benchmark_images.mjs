@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import puppeteer from 'puppeteer-core';
 
-const [url, profile, executablePath, caseId, mode] = process.argv.slice(2);
+const [url, profile, executablePath, caseId, mode, previewMode = 'legacy'] = process.argv.slice(2);
 const projectId = caseId === 'u1385' ? 'test-u1385' : 'benchmark-synthetic';
 const browser = await puppeteer.launch({ executablePath, userDataDir: profile, headless: true,
   args: ['--no-sandbox'], defaultViewport: { width: 1440, height: 900 } });
@@ -14,6 +14,11 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(url, { waitUntil: 'networkidle0' });
   await page.waitForSelector(`#projList [data-id="${projectId}"] [data-act="open"]`, { visible: true });
+  if (previewMode === 'preview') await page.evaluate(() => {
+    const checkbox = document.getElementById('navPreview');
+    if (!checkbox) throw new Error('Navigation-preview experiment is unavailable');
+    if (!checkbox.checked) checkbox.click();
+  });
   if (profiling) {
     main = await page.createCDPSession(); await main.send('Profiler.enable'); await main.send('Profiler.start');
     const attach = (worker) => {
@@ -48,7 +53,9 @@ try {
     assert.equal(section.w, 960); assert.equal(section.h, caseId === 'large' ? 16000 : 6400); assert.equal(section.ds, 1);
   }
   const firstPixels = await imageHashes(page);
-  const initial = await snapshot(page), navigation = [];
+  const initial = await snapshot(page), navigation = [], visual = [];
+  const compare = mode === 'visual' ? (await import('../tests/e2e/navigation-preview.mjs')).compareNavigationPreview : null;
+  if (compare) visual.push(await compare(page));
   const last = fixture.sections.length - 1;
   if (profiling) await main.send('Profiler.start');
   for (const index of [...Array.from({ length: last }, (_, i) => i + 1), 0, last, 0]) {
@@ -75,6 +82,7 @@ try {
         pixel_buffer_bytes: sections.reduce((sum, s) => sum + (s.orig?.byteLength || 0) + (s.enh?.byteLength || 0), 0) };
     });
     navigation.push(entry);
+    if (compare) visual.push(await compare(page));
   }
   console.error(caseId, mode, 'navigated');
   const interactions = [];
@@ -119,7 +127,7 @@ try {
     return_first_ms: navigation[last].painted_ms, warm_return_ms: navigation.at(-1).painted_ms,
     zoom_total_ms: interactions.filter((step) => step.action === 'zoom').reduce((sum, step) => sum + step.painted_ms, 0),
     pan_total_ms: interactions.filter((step) => step.action === 'pan').reduce((sum, step) => sum + step.painted_ms, 0),
-    initial, saved, firstPixels, edit, exported, cpu_main, cpu_workers,
+    initial, saved, firstPixels, edit, exported, cpu_main, cpu_workers, visual, nav_preview: previewMode === 'preview',
     chrome: await browser.version(), node: process.version,
     puppeteer: createRequire(import.meta.url)('puppeteer-core/package.json').version }));
 } catch (error) {

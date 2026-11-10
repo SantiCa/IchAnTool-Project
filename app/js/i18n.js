@@ -2084,3 +2084,5 @@ Object.assign(D.en, {
   'taxa.note': 'Occurrences keep their depth or age. Percentages use the measured valid area; a presence mark does not supply an abundance. 100% opacity is opaque. Numeric labels need vertical space.',
   'taxa.subtitle': 'Ichnotaxon abundance (%) and occurrence records',
 });
+Object.assign(D.es, { 'nav.preview': 'Miniatura de navegación (experimental)', 'nav.previewTip': 'Sólo durante esta sesión. Activa la preparación optimizada de la miniatura; desactívala para volver a la vista actual.' });
+Object.assign(D.en, { 'nav.preview': 'Navigation preview (experimental)', 'nav.previewTip': 'For this session only. Enable optimised thumbnail preparation; disable it to return to the current view.' });

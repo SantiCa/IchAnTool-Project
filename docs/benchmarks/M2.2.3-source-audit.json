@@ -1,0 +1,48 @@
+{
+  "kind": "author verification, not independent review",
+  "baseline_application_commit": "250cba40ab7be10b755e1b3fc28020efdbcca9ce",
+  "baseline_application_matches_head": true,
+  "experimental_application_parent_commit": "250cba40ab7be10b755e1b3fc28020efdbcca9ce",
+  "experimental_application_files_sha256": "d236723b3e8c81380bb157379a0119010f613ab9cd7274a301ecb34863be9a98",
+  "experimental_application_matches_recorded_working_tree": true,
+  "new_untracked_module_included_in_fingerprint": true,
+  "matched_benchmark_tool_hashes": true,
+  "environment_equal_except_delivery_version": true,
+  "summaries_recomputed_exactly": true,
+  "fixture_image_scientific_edit_export_and_reload_equal": true,
+  "public_random_section_ids_differ": true,
+  "public_canonical_science_verified_in_separate_two_version_trials": true,
+  "baseline_trials": 21,
+  "experimental_trials": 24,
+  "criteria": {
+    "large_first_visits_at_least_20_percent_faster": true,
+    "large_resident_return_at_most_20_ms_added": true,
+    "large_peak_rss_at_most_10_percent_added": true
+  },
+  "comparisons": {
+    "u1385": {
+      "first_visits_reduction_percent": 31.79799517518197,
+      "resident_return_added_ms": 0.0,
+      "peak_rss_change_percent": 0.06623298271384304,
+      "exact_display_comparisons": 9,
+      "exact_display_pixels": 449658,
+      "export_pixels_per_trial": 2595000
+    },
+    "synthetic": {
+      "first_visits_reduction_percent": 30.789487823860696,
+      "resident_return_added_ms": 0.10000002384185791,
+      "peak_rss_change_percent": 0.6090276428381225,
+      "exact_display_comparisons": 11,
+      "exact_display_pixels": 549582,
+      "export_pixels_per_trial": 6144000
+    },
+    "large": {
+      "first_visits_reduction_percent": 33.71227592393885,
+      "resident_return_added_ms": 0.09999996423721313,
+      "peak_rss_change_percent": 4.768989774625587,
+      "exact_display_comparisons": 11,
+      "exact_display_pixels": 549582,
+      "export_pixels_per_trial": 15360000
+    }
+  }
+}
