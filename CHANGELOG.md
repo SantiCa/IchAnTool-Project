@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.109 — 2026-11-10
+
+- Open and rebuild large Data tables faster by preparing the displayed rows on demand; CSV export retains every row.
+- Keep text selection, editing/restoration, interval labels and core selection covered by browser regression tests.
+
 ## V0.108 — 2026-11-10
 
 - Keep prepared U-Net images and masks inside the chosen output folder, including when identifiers contain Windows paths.

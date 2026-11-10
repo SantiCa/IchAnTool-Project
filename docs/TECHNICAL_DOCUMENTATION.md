@@ -1215,6 +1215,13 @@ editing values**, any value that is not in a computed column can be changed; the
 original in `core.edits[column][depth] = {v, o, at}` (new value, original value, date), applied to the combined data
 before computed columns (`applyCellEdits`), marked in the table and listed in the CSV header (`# edited by hand: …`).
 
+`datatab.js::tableModel(limit)` prepares numeric row values and interval labels only for the displayed prefix,
+initially 400 rows across the selected cores. **Show more** raises the limit by 1,000. The total count still
+includes all selected rows, and columns are collected from all selected cores, including those beyond the
+display limit. CSV calls the same model without a limit and exports every row. The native HTML table remains
+in use, preserving text selection and the existing editing handlers. Repeated expansion still grows the DOM.
+The [Data table benchmark](benchmarks/M2.1.md) records the measured improvement, exact CSV checks and limits.
+
 ### 17.3 Computed columns
 One formula per column (`sheet.js::evalColumn`), evaluated row by row over the core. Operators `+ − * / ^` and
 comparisons (`< > <= >= == !=`, giving 1/0); names without spaces or in brackets (`[XRF Ba/Ti]`), `depth`, `age`.

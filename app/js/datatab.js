@@ -126,35 +126,39 @@ export function renderData() {
   const view = $('dView').value;
   if (view === 'cols') renderDataCols(); else if (view === 'cells') renderDataCells(); else if (view === 'plot') renderDataPlot(); else renderDataTable();
 }
-function tableModel() {
+function tableModel(limit = Infinity) {
   const cores = dataCores(), names = new Map();
   for (const c of cores) for (const [k, v] of Object.entries(c.src)) if (!names.has(k)) names.set(k, v);
   const cols = [...names.entries()].sort((a, b) => SRC_ORDER[a[1]] - SRC_ORDER[b[1]] || a[0].localeCompare(b[0]));
   const layers = $('dLayers').checked ? S.geo.layers.filter((L) => S.geo.intervals.some((q) => q.layer === L.id && cores.some((c) => c.id === q.core))) : [];
   const rows = [];
+  let totalRows = 0;
   for (const c of cores) {
     const n = (c.depth || c.age || []).length;
+    totalRows += n;
+    const displayed = Math.min(n, Math.max(0, limit - rows.length));
+    if (!displayed) continue;
     const ivs = new Map(layers.map((L) => [L.id, intervalsOnAxis(S.geo.intervals.filter((q) => q.core === c.id && q.layer === L.id), c.depth ? 'depth' : 'age', c)]));
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < displayed; i++) {
       const x = c.depth ? c.depth[i] : c.age[i];
       rows.push({ c, i, depth: c.depth?.[i] ?? null, age: c.age?.[i] ?? null, vals: cols.map(([k]) => c.proxies[k]?.[i] ?? null),
         lay: layers.map((L) => { const q = ivs.get(L.id).find((v) => x >= v.from && x < v.to); return q ? geoCat(q.cat)?.name || '' : ''; }) });
     }
   }
-  return { cores, cols, layers, rows };
+  return { cores, cols, layers, rows, totalRows };
 }
 /* ───────────── V0.35: Data as a spreadsheet — every value editable (flagged), computed columns ───────────── */
 let dataEditOn = false, dataFormOpen = null, dataLastCell = null;
 function renderDataTable() {
-  const M = tableModel(), multi = M.cores.length > 1, nEd = editCount(M.cores);
-  $('dInfo').textContent = t('data.info', { r: M.rows.length, c: M.cols.length });
+  const M = tableModel(dataLimit), multi = M.cores.length > 1, nEd = editCount(M.cores);
+  $('dInfo').textContent = t('data.info', { r: M.totalRows, c: M.cols.length });
   const colLetter = (i) => cellName(i, 0).replace(/\d+$/, '');
   const fixed = (multi ? 1 : 0) + 2;
   const head = `<tr><th class="rn"></th>${multi ? `<th class="txt">${t('geo.core')}</th>` : ''}<th>${t('r.depth')}</th><th>${t('r.age')}</th>${M.cols.map(([k, src], j) => {
     const calc = S.sheet.columns.findIndex((x) => x.name === k);
     return `<th class="src-${src}" title="${esc(t('data.src.' + src))}"><span class="tag">${colLetter(fixed + j)} · ${t('data.src.' + src)}</span>${esc(k)}${src === 'calc' && calc >= 0 ? ` <button type="button" class="btn small ghost fx" data-fx="${calc}" title="${esc(t('ds.editFx'))}">ƒ</button>` : ''}</th>`;
   }).join('')}${M.layers.map((L) => `<th class="src-lay txt"><span class="tag">${t('data.src.lay')}</span>${esc(L.name)}</th>`).join('')}</tr>`;
-  const body = M.rows.slice(0, dataLimit).map((r, ri) => {
+  const body = M.rows.map((r, ri) => {
     const x = r.depth ?? r.age;
     return `<tr><td class="rn">${ri + 1}</td>${multi ? `<td class="txt">${esc(r.c.name)}</td>` : ''}<td class="ax">${fmt(r.depth, 4)}</td><td class="ax">${fmt(r.age, 3)}</td>${r.vals.map((v, j) => {
       const [k, src] = M.cols[j], ed = src !== 'man' && cellEdit(r.c, k, x), canEdit = dataEditOn && src !== 'calc' && x != null;
@@ -183,7 +187,7 @@ function renderDataTable() {
     </div>
     ${dataEditOn ? `<p class="dswarn">${t('ds.warn')}</p>` : ''}${form}
     <div class="dsgrid"><table class="dtable sheet"><thead>${head}</thead><tbody>${body}</tbody></table></div>
-    ${M.rows.length > dataLimit ? `<p><button class="btn small" id="dMore">${t('data.more', { n: M.rows.length - dataLimit })}</button></p>` : ''}`;
+    ${M.totalRows > dataLimit ? `<p><button class="btn small" id="dMore">${t('data.more', { n: M.totalRows - dataLimit })}</button></p>` : ''}`;
   if ($('dMore')) $('dMore').onclick = () => { dataLimit += 1000; renderDataTable(); };
   if (f && $('dsCore')) $('dsCore').value = fcol?.core || (f.type === 'man' ? M.cores[0]?.id : 'all') || 'all';
 }

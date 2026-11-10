@@ -110,8 +110,18 @@ Keep task IDs stable. The changelog records what shipped.
 
 ### M2 - Large projects and responsive display
 
-- [ ] **M2.1 - Large tables.** Profile large table operations and evaluate rendering only visible rows where
-      measurements show a benefit. Verify selection and exports.
+- [ ] **M2.1 - Large tables.** **In progress.** Profile large table operations and evaluate rendering only
+      visible rows where measurements show a benefit. Verify selection and exports.
+  - [x] **M2.1.1 - Bound Data table row preparation.** Measure initial opening and one Show more expansion
+        at 2,000, 20,000 and 100,000 rows. Prepare the displayed prefix while retaining full counts and CSV data.
+        [V0.109](../CHANGELOG.md#v0109--2026-11-10), [benchmark and raw measurements](benchmarks/M2.1.md).
+    - At 100,000 rows, median opening changes from 145.3 to 88.9 ms, edit-mode rebuilding from 96.3 to 52.4 ms,
+      and Show more from 183.2 to 133.2 ms on the recorded machine. All full CSV fingerprints match.
+    - Browser regression verifies bounded row reads, numbering across cores, text selection, edit/restore,
+      complete export, core/layer filters, and empty/age-only cores. Required delivery checks pass.
+  - Next scope to authorise: profile repeated expansion beyond 1,400 rendered rows and the full CSV export cost
+    before deciding whether viewport rendering or interval-query changes are justified. The current native table
+    and its cumulative Show more behaviour remain; the benchmark records a higher median full-export time.
 - [ ] **M2.2 - Large images.** Profile opening and navigation on large cores. Evaluate tiled loading if justified.
       Verify depth mapping, editing and exported images.
   - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain
