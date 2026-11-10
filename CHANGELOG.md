@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.112 — 2026-11-10
+
+- Add an optional visible-row Data table experiment with bounded rendering, keyboard navigation and complete CSV exports; keep the current table as the default.
+
 ## V0.111 — 2026-11-10
 
 - Export large Data tables faster while preserving every row, numeric rounding and spreadsheet text escaping.

@@ -1231,6 +1231,34 @@ groups and validation categories, and rebuilt with each render/export. The same 
 prefix and full CSV. [Cumulative expansion and CSV measurements](benchmarks/M2.1.2.md) describe the validation
 and the remaining cost of the growing DOM.
 
+The session-only **Visible rows only (experimental)** checkbox enables a separate rendering path; the native
+table remains the default. The initial 400-row limit and 1,000-row **Show more** increment still determine how
+many rows are available to scroll. `tableModel(limit, offset)` prepares the requested range across core
+boundaries, retaining the same column/layer discovery and interval matching. Full CSV export calls it without
+a limit or offset and therefore includes every selected source row.
+
+`tableview.js::mountTableViewport` uses fixed 28 px rows, fixed column widths and top/bottom spacer rows. It
+renders the visible range plus 12 rows of overscan on each side, scheduled through one animation-frame callback
+for scroll/resize/selection changes. Existing row nodes are retained where the old and new windows overlap.
+Native text selections retain their contiguous selected range and the viewport between them, which can exceed
+the usual window budget; clearing the selection releases those rows. A selection intersecting the table with
+an endpoint outside its data rows retains the whole available prefix. This preserves selection at the cost of
+rendering more rows. Long cell text can be clipped by the experiment's fixed widths; the underlying text and
+CSV remain complete.
+
+An edited cell is blurred and committed through the existing edit handler before leaving the retained range.
+Enter and vertical arrows move within the available rows. Tab/Shift+Tab cross editable columns and row/core
+boundaries, skipping calculated columns; PageUp/PageDown move by the window height; Ctrl/Cmd+Home/End move to
+the first/last editable cell of the available prefix. Escape restores the cell's pre-edit text. Text-selection
+modifiers and horizontal arrows keep native editing behaviour. The controller cancels callbacks and removes
+listeners/observers when the table is rebuilt or the Data mode is left. Disabling the checkbox restores native
+rendering; the flag is neither saved in projects nor persisted between app sessions. Rich pasted markup in
+editable cells is flattened to its text so that block elements cannot change the fixed row height; numeric
+validation and Escape restoration use the same text as the native path.
+
+The [viewport experiment](benchmarks/M2.1.3.md) records its interaction contract, measured acceptance criteria
+and validation. Changing the default and removing the flag requires the maintainer's acceptance.
+
 ### 17.3 Computed columns
 One formula per column (`sheet.js::evalColumn`), evaluated row by row over the core. Operators `+ − * / ^` and
 comparisons (`< > <= >= == !=`, giving 1/0); names without spaces or in brackets (`[XRF Ba/Ti]`), `depth`, `age`.

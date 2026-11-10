@@ -110,8 +110,9 @@ Keep task IDs stable. The changelog records what shipped.
 
 ### M2 - Large projects and responsive display
 
-- [ ] **M2.1 - Large tables.** **In progress.** Profile large table operations and evaluate rendering only
-      visible rows where measurements show a benefit. Verify selection and exports.
+- [x] **M2.1 - Large tables.** Profile large table operations and evaluate visible-row rendering behind
+      a default-off flag. Selection, editing, navigation and full exports verified.
+      [V0.112](../CHANGELOG.md#v0112--2026-11-10).
   - [x] **M2.1.1 - Bound Data table row preparation.** Measure initial opening and one Show more expansion
         at 2,000, 20,000 and 100,000 rows. Prepare the displayed prefix while retaining full counts and CSV data.
         [V0.109](../CHANGELOG.md#v0109--2026-11-10), [benchmark and raw measurements](benchmarks/M2.1.md).
@@ -134,14 +135,22 @@ Keep task IDs stable. The changelog records what shipped.
     - Ten Show more actions reach 10,400 rows in the medium/large cases. Cumulative rendering remains costly:
       the large-case ten actions total 4,880.9 ms. Whole-trial RSS remains about 2,275 MiB at that size;
       the medium-case median is higher with overlapping ranges. No rendering or memory improvement is claimed.
-  - [ ] **M2.1.3 - Viewport rendering experiment.** **Pending scope definition.** Evaluate rendering only
-        visible rows behind a feature flag, with the native table remaining the default.
-    - Define the experiment's selection and keyboard-navigation behaviour and performance acceptance criteria
-      before implementation. Reuse the 2,000/20,000/100,000-row fixtures and the cumulative-expansion baseline;
-      verify editing/restoration, navigation and complete CSV exports alongside timing and memory measurements.
+  - [x] **M2.1.3 - Viewport rendering experiment.** Visible-row rendering delivered behind a session-only,
+        default-off checkbox. [V0.112](../CHANGELOG.md#v0112--2026-11-10).
+    - Authorised by the maintainer on 10 November 2026. The [predeclared contract and acceptance criteria](benchmarks/M2.1.3.md)
+      require bounded rows outside active selections, exact CSV data, cross-window editing/navigation and at least
+      50% lower median total expansion latency against V0.111 using identical benchmark tools.
+    - The 100,000-row fixture's ten expansions fall from 5,745.6 to 332.9 ms (94.2%). Final mounted rows
+      fall from 10,400 to 36; all full CSV fingerprints match. Whole-trial peak RSS falls on the measured
+      workloads, without isolating DOM allocations. [Raw reports, validation and limits](benchmarks/M2.1.3.md#recorded-results-v0112).
+    - Browser checks cover cross-window/core editing and navigation, pointer selection during scrolling,
+      retained selection/release, manual/calculated columns, filters, empty/age-only cores and rollback.
+      A separate correctness check reaches the final row of a fully unlocked 100,000-row table, including
+      the standalone HTML. Required delivery checks pass.
     - Roll back by disabling the flag. Make the experiment the default and remove the flag only after its
       acceptance criteria pass and the maintainer accepts the transition.
-  - Next scope to authorise: M2.1.3, starting with the interaction contract and measured acceptance criteria.
+  - The experiment remains opt-in; large selections can retain extra rows and fixed widths can clip displayed
+    text. Default promotion requires the maintainer's acceptance. The next performance scope is M2.2 profiling.
 - [ ] **M2.2 - Large images.** Profile opening and navigation on large cores. Evaluate tiled loading if justified.
       Verify depth mapping, editing and exported images.
   - [x] **M2.2.1 - TIFF import and original image storage.** Read TIFF and BigTIFF in blocks, retain

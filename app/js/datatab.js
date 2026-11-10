@@ -9,6 +9,7 @@ import { FIT_KINDS, PLOT_COLORS, PLOT_TYPES, buildStratPlot, buildXYPlot } from 
 
 import { toCSV } from './core.js';
 import { csvCommentText } from './exportio.js';
+import { mountTableViewport } from './tableview.js';
 import { createIntervalLookup, intervalsOnAxis } from './geo.js';
 import { FUNCTIONS, cellName, evalCells, parseFormula } from './sheet.js';
 
@@ -112,7 +113,14 @@ $('dBody').addEventListener('click', (e) => {
   markDirty(); renderDataPlot();
 });
 
-let dataLimit = 400;
+let dataLimit = 400, dataViewportOn = false;
+/** @type {ReturnType<typeof mountTableViewport> | null} */
+let dataViewport = null;
+export function disposeDataTable() {
+  dataViewport?.destroy(); dataViewport = null;
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && $('dBody').contains(active)) active.blur();
+}
 const SRC_ORDER = { imp: 0, rec: 1, img: 2, man: 3, calc: 4 };
 function dataCores() { const v = $('dCore').value; return v === '__all' ? S.cores : S.cores.filter((c) => c.id === (v || S.curCore)); }
 export function renderData() {
@@ -124,9 +132,10 @@ export function renderData() {
   for (const o of $('dView').options) if (o.value === 'cols' || (o.value === 'cells' && !Object.keys(S.sheet.cells || {}).length)) o.hidden = true;
   if ($('dView').selectedOptions[0]?.hidden) $('dView').value = 'table';
   const view = $('dView').value;
+  if (view !== 'table') disposeDataTable();
   if (view === 'cols') renderDataCols(); else if (view === 'cells') renderDataCells(); else if (view === 'plot') renderDataPlot(); else renderDataTable();
 }
-function tableModel(limit = Infinity) {
+function tableModel(limit = Infinity, offset = 0) {
   const cores = dataCores(), names = new Map();
   for (const c of cores) for (const [k, v] of Object.entries(c.src)) if (!names.has(k)) names.set(k, v);
   const cols = [...names.entries()].sort((a, b) => SRC_ORDER[a[1]] - SRC_ORDER[b[1]] || a[0].localeCompare(b[0]));
@@ -135,8 +144,9 @@ function tableModel(limit = Infinity) {
   let totalRows = 0;
   for (const c of cores) {
     const n = (c.depth || c.age || []).length;
+    const first = Math.min(n, Math.max(0, offset - totalRows));
     totalRows += n;
-    const displayed = Math.min(n, Math.max(0, limit - rows.length));
+    const displayed = Math.min(n - first, Math.max(0, limit - rows.length));
     if (!displayed) continue;
     const intervalNames = new Map();
     const ivs = new Map(layers.map((L) => {
@@ -144,7 +154,7 @@ function tableModel(limit = Infinity) {
       for (const q of intervals) intervalNames.set(q, geoCat(q.cat)?.name || '');
       return [L.id, createIntervalLookup(intervals)];
     }));
-    for (let i = 0; i < displayed; i++) {
+    for (let i = first; i < first + displayed; i++) {
       const x = c.depth ? c.depth[i] : c.age[i];
       rows.push({ c, i, depth: c.depth?.[i] ?? null, age: c.age?.[i] ?? null, vals: cols.map(([k]) => c.proxies[k]?.[i] ?? null),
         lay: layers.map((L) => intervalNames.get(ivs.get(L.id)(x)) || '') });
@@ -154,8 +164,25 @@ function tableModel(limit = Infinity) {
 }
 /* ───────────── V0.35: Data as a spreadsheet — every value editable (flagged), computed columns ───────────── */
 let dataEditOn = false, dataFormOpen = null, dataLastCell = null;
+/** @param {ReturnType<typeof tableModel>} M @param {number} [offset] */
+function tableRowsHTML(M, offset = 0) {
+  const multi = M.cores.length > 1;
+  return M.rows.map((r, ri) => {
+    const x = r.depth ?? r.age;
+    return `<tr data-row="${offset + ri}"><td class="rn">${offset + ri + 1}</td>${multi ? `<td class="txt">${esc(r.c.name)}</td>` : ''}<td class="ax">${fmt(r.depth, 4)}</td><td class="ax">${fmt(r.age, 3)}</td>${r.vals.map((v, j) => {
+      const [k, src] = M.cols[j], ed = src !== 'man' && cellEdit(r.c, k, x), canEdit = dataEditOn && src !== 'calc' && x != null;
+      const tip = ed ? t('ds.modTip', { o: ed.o == null ? '—' : fmt(ed.o, 6), d: (ed.at || '').slice(0, 10) }) : '';
+      return `<td${canEdit ? ' contenteditable spellcheck="false"' : ''} class="${ed ? 'mod' : ''}${src === 'calc' ? ' calc' : ''}" data-core="${r.c.id}" data-col="${esc(k)}" data-src="${src}" data-x="${x}"${tip ? ` title="${esc(tip)}"` : ''}>${v == null ? '' : fmt(v, 6)}</td>`;
+    }).join('')}${r.lay.map((v) => `<td class="txt">${esc(v)}</td>`).join('')}</tr>`;
+  }).join('');
+}
 function renderDataTable() {
-  const M = tableModel(dataLimit), multi = M.cores.length > 1, nEd = editCount(M.cores);
+  const previous = /** @type {HTMLElement | null} */ ($('dBody').querySelector('.dsgrid'));
+  const context = JSON.stringify([S.id, /** @type {HTMLSelectElement} */ ($('dCore')).value,
+    /** @type {HTMLInputElement} */ ($('dLayers')).checked]);
+  const scrollTop = dataViewportOn && previous?.dataset.context === context ? previous.scrollTop : 0;
+  disposeDataTable();
+  const M = tableModel(dataViewportOn ? 0 : dataLimit), multi = M.cores.length > 1, nEd = editCount(M.cores);
   $('dInfo').textContent = t('data.info', { r: M.totalRows, c: M.cols.length });
   const colLetter = (i) => cellName(i, 0).replace(/\d+$/, '');
   const fixed = (multi ? 1 : 0) + 2;
@@ -163,14 +190,7 @@ function renderDataTable() {
     const calc = S.sheet.columns.findIndex((x) => x.name === k);
     return `<th class="src-${src}" title="${esc(t('data.src.' + src))}"><span class="tag">${colLetter(fixed + j)} · ${t('data.src.' + src)}</span>${esc(k)}${src === 'calc' && calc >= 0 ? ` <button type="button" class="btn small ghost fx" data-fx="${calc}" title="${esc(t('ds.editFx'))}">ƒ</button>` : ''}</th>`;
   }).join('')}${M.layers.map((L) => `<th class="src-lay txt"><span class="tag">${t('data.src.lay')}</span>${esc(L.name)}</th>`).join('')}</tr>`;
-  const body = M.rows.map((r, ri) => {
-    const x = r.depth ?? r.age;
-    return `<tr><td class="rn">${ri + 1}</td>${multi ? `<td class="txt">${esc(r.c.name)}</td>` : ''}<td class="ax">${fmt(r.depth, 4)}</td><td class="ax">${fmt(r.age, 3)}</td>${r.vals.map((v, j) => {
-      const [k, src] = M.cols[j], ed = src !== 'man' && cellEdit(r.c, k, x), canEdit = dataEditOn && src !== 'calc' && x != null;
-      const tip = ed ? t('ds.modTip', { o: ed.o == null ? '—' : fmt(ed.o, 6), d: (ed.at || '').slice(0, 10) }) : '';
-      return `<td${canEdit ? ' contenteditable spellcheck="false"' : ''} class="${ed ? 'mod' : ''}${src === 'calc' ? ' calc' : ''}" data-core="${r.c.id}" data-col="${esc(k)}" data-src="${src}" data-x="${x}"${tip ? ` title="${esc(tip)}"` : ''}>${v == null ? '' : fmt(v, 6)}</td>`;
-    }).join('')}${r.lay.map((v) => `<td class="txt">${esc(v)}</td>`).join('')}</tr>`;
-  }).join('');
+  const body = tableRowsHTML(M);
   const cores = S.cores.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   const f = dataFormOpen, fcol = f?.i != null ? S.sheet.columns[f.i] : null;
   const names = [...new Set(M.cols.map(([k]) => k)), 'depth', 'age'];
@@ -186,19 +206,30 @@ function renderDataTable() {
       <div class="row"><button type="button" class="btn small primary" id="dsSave">${t(fcol ? 'ds.save' : 'ds.add')}</button>${fcol ? `<button type="button" class="btn small" id="dsDel">${t('ds.del')}</button>` : ''}<button type="button" class="btn small ghost" id="dsCancel">${t('ds.cancel')}</button></div></div>` : '';
   $('dBody').innerHTML = `<div class="dsbar">
       <label class="chk ${dataEditOn ? 'on' : ''}"><input type="checkbox" id="dsEdit" ${dataEditOn ? 'checked' : ''}><span>${t('ds.edit')}</span></label>
+      <label class="chk"><input type="checkbox" id="dsViewport" ${dataViewportOn ? 'checked' : ''}><span>${t('ds.viewport')}</span></label>
       <button type="button" class="btn small" id="dsNewCol">${t('ds.newCol')}</button>
       <span class="dsmod">${nEd ? t('ds.nMod', { n: nEd }) : ''}</span>
-      ${nEd ? `<button type="button" class="btn small ghost" id="dsRestoreCell" disabled>${t('ds.restoreCell')}</button><button type="button" class="btn small ghost" id="dsRestoreAll">${t('ds.restoreAll')}</button>` : ''}
+      ${nEd || dataViewportOn ? `<button type="button" class="btn small ghost" id="dsRestoreCell" disabled ${nEd ? '' : 'hidden'}>${t('ds.restoreCell')}</button><button type="button" class="btn small ghost" id="dsRestoreAll" ${nEd ? '' : 'hidden'}>${t('ds.restoreAll')}</button>` : ''}
     </div>
     ${dataEditOn ? `<p class="dswarn">${t('ds.warn')}</p>` : ''}${form}
-    <div class="dsgrid"><table class="dtable sheet"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+    <div class="dsgrid"><table class="dtable sheet ${dataViewportOn ? 'dsviewport' : ''}" ${dataViewportOn ? `style="width:${50 + (multi ? 180 : 0) + 256 + M.cols.length * 132 + M.layers.length * 180}px"` : ''}>
+      ${dataViewportOn ? `<colgroup>${[50, ...(multi ? [180] : []), 128, 128, ...M.cols.map(() => 132), ...M.layers.map(() => 180)].map((width) => `<col style="width:${width}px">`).join('')}</colgroup>` : ''}
+      <thead>${head}</thead><tbody>${body}</tbody></table></div>
     ${M.totalRows > dataLimit ? `<p><button class="btn small" id="dMore">${t('data.more', { n: M.totalRows - dataLimit })}</button></p>` : ''}`;
+  if (dataViewportOn) {
+    const grid = /** @type {HTMLElement} */ ($('dBody').querySelector('.dsgrid')); grid.dataset.context = context;
+    dataViewport = mountTableViewport({ grid, body: grid.querySelector('tbody'), rowCount: Math.min(dataLimit, M.totalRows),
+      columnCount: fixed + 1 + M.cols.length + M.layers.length, scrollTop,
+      renderRows: (start, end) => tableRowsHTML(tableModel(end - start, start), start) });
+  }
   if ($('dMore')) $('dMore').onclick = () => { dataLimit += 1000; renderDataTable(); };
   if (f && $('dsCore')) $('dsCore').value = fcol?.core || (f.type === 'man' ? M.cores[0]?.id : 'all') || 'all';
 }
 $('dBody').addEventListener('change', (e) => {
-  if (e.target.id === 'dsEdit') { dataEditOn = e.target.checked; renderDataTable(); }
-  else if (e.target.id === 'dsType') { dataFormOpen = { type: e.target.value }; renderDataTable(); }
+  const target = /** @type {HTMLInputElement | HTMLSelectElement} */ (e.target);
+  if (target instanceof HTMLInputElement && target.id === 'dsViewport') { dataViewportOn = target.checked; renderDataTable(); }
+  else if (target instanceof HTMLInputElement && target.id === 'dsEdit') { dataEditOn = target.checked; renderDataTable(); }
+  else if (target.id === 'dsType') { dataFormOpen = { type: target.value }; renderDataTable(); }
 });
 $('dBody').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
@@ -235,9 +266,44 @@ $('dBody').addEventListener('focusin', (e) => {
   dataLastCell = td.classList.contains('mod') ? { core: td.dataset.core, col: td.dataset.col, x: td.dataset.x } : null;
   if ($('dsRestoreCell')) $('dsRestoreCell').disabled = !dataLastCell;
 });
+$('dBody').addEventListener('input', (e) => {
+  if (!dataViewport || !(e instanceof InputEvent) || e.isComposing || !(e.target instanceof HTMLElement)) return;
+  const cell = e.target.closest('td[contenteditable]');
+  if (!cell || !cell.children.length) return;
+  // Rich pasted markup must not change the fixed row geometry; numeric validation still uses its text.
+  const text = cell.textContent || ''; cell.textContent = text;
+  if (document.activeElement === cell) window.getSelection()?.collapse(cell.firstChild || cell, text.length);
+});
 $('dBody').addEventListener('keydown', (e) => {
   const td = e.target.closest?.('td[contenteditable]'); if (!td) return;
   if (e.key === 'Escape') { td.textContent = td.dataset.before || ''; td.blur(); return; }
+  if (dataViewport) {
+    const row = td.parentElement, grid = row.closest('.dsgrid');
+    const available = Number(grid.dataset.available), index = Number(row.dataset.row);
+    let target = index, column = td.cellIndex;
+    if (e.key === 'Tab') {
+      const editable = [...row.cells].filter((cell) => cell.isContentEditable).map((cell) => cell.cellIndex);
+      const position = editable.indexOf(column) + (e.shiftKey ? -1 : 1);
+      column = editable[(position + editable.length) % editable.length];
+      if (position < 0) target--; else if (position >= editable.length) target++;
+      if (target < 0 || target >= available) return;
+    } else if ((e.ctrlKey || e.metaKey) && ['Home', 'End'].includes(e.key)) {
+      const editable = [...row.cells].filter((cell) => cell.isContentEditable);
+      target = e.key === 'Home' ? 0 : available - 1;
+      column = (e.key === 'Home' ? editable[0] : editable.at(-1)).cellIndex;
+    } else {
+      if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'Enter' || e.key === 'ArrowDown') target++;
+      else if (e.key === 'ArrowUp') target--;
+      else if (e.key === 'PageDown') target += dataViewport.pageRows();
+      else if (e.key === 'PageUp') target -= dataViewport.pageRows();
+      else return;
+      if (e.key.startsWith('Page')) target = Math.max(0, Math.min(available - 1, target));
+    }
+    e.preventDefault();
+    if (!dataViewport.focusCell(target, column)) td.blur();
+    return;
+  }
   const move = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0; if (!move) return;
   e.preventDefault();
   const tr = move > 0 ? td.parentElement.nextElementSibling : td.parentElement.previousElementSibling, nx = tr?.children[td.cellIndex];
@@ -264,7 +330,9 @@ $('dBody').addEventListener('focusout', (e) => {
   const ed = cellEdit(c, col, x); td.classList.toggle('mod', !!ed);
   if (ed) td.title = t('ds.modTip', { o: ed.o == null ? '—' : fmt(ed.o, 6), d: ed.at.slice(0, 10) }); else td.removeAttribute('title');
   const n = editCount(dataCores()); const m = $('dBody').querySelector('.dsmod'); if (m) m.textContent = n ? t('ds.nMod', { n }) : '';
-  if (n && !$('dsRestoreAll')) renderDataTable();
+  if (dataViewport) {
+    for (const id of ['dsRestoreAll', 'dsRestoreCell']) if ($(id)) $(id).hidden = !n;
+  } else if (n && !$('dsRestoreAll')) renderDataTable();
 });
 function renderDataCols() {
   const cores = S.cores.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');

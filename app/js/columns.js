@@ -3,7 +3,7 @@ import { $, S, fmt, hex, uid } from './state.js';
 import { analyze, armed, busy, compositeMarks, effClassArray, esc, idListOf, idMode, legendOf, markDirty, needPixels, requestRender, resizeCanvases, rowAtDepth, safe, saveFile, toast, updateTip, withProv } from './app.js';
 import { geoOverlay, loadLand, logInteract, readTableFile, renderGeo, renderGeoLogs } from './multiproxy.js';
 import { applyPanels } from './panels.js';
-import { renderData } from './datatab.js';
+import { disposeDataTable, renderData } from './datatab.js';
 import { FIG_PANELS, arrowMarksSVG, axisErr, coreRatio, editSVGLabels, figTraces, panelDataURL, renderFigPanel, renderFigure, scheduleFigure } from './figures.js';
 
 import { UNIT_TO_CM, interpAge, topAt } from './core.js';
@@ -21,6 +21,7 @@ S.logView = defaultLogView();
 export let mode = 'section', logTimer = 0, lastLog = null;
 
 export function setMode(m) {
+  if (mode === 'data' && m !== 'data') disposeDataTable();
   mode = m; setTimeout(updateTip, 0); setTimeout(() => applyPanels(), 0);
   $('work').classList.toggle('log', m === 'log');
   $('work').classList.toggle('geo', m === 'geo');

@@ -372,6 +372,11 @@ dialog input[type=text] { min-width: 0; }
 .dtable.sheet td.calc { background: color-mix(in srgb, #b8742a 7%, var(--field)); }
 .dtable.sheet td[contenteditable] { cursor: text; }
 .dtable.sheet td[contenteditable]:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--panel); }
+.dtable.sheet.dsviewport { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.dtable.sheet.dsviewport tbody tr[data-row] { height: 28px; }
+.dtable.sheet.dsviewport tbody tr[data-row] td { box-sizing: border-box; height: 28px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; }
+.dtable.sheet.dsviewport tr[data-spacer] td { border: 0; padding: 0; min-width: 0; font-size: 0; line-height: 0; }
+.dtable.sheet.dsviewport tr[data-spacer][hidden] { display: none; }
 .dtable.sheet td.mod { background: color-mix(in srgb, #e0a800 26%, var(--field)); position: relative; font-weight: 600; }
 .dtable.sheet td.mod::before { content: ''; position: absolute; top: 0; left: 0; border: 5px solid transparent; border-top-color: #b3261e; border-left-color: #b3261e; }
 .dtable th .fx { padding: 0 5px; min-height: 18px; font-style: italic; }

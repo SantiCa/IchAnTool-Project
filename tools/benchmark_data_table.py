@@ -21,7 +21,8 @@ DRIVER = ROOT / "tools" / "benchmark_data_table.mjs"
 SOURCES = ("tools/benchmark_data_table.py", "tools/benchmark_data_table.mjs", "tools/data_table_fixture.mjs")
 CASES = {"small": 2000, "medium": 20000, "large": 100000}
 METRICS = ("open_ms", "edit_ms", "select_ms", "more_ms", "scroll_ms", "export_ms", "browser_peak_rss_mib",
-           "expansion_total_ms", "last_expansion_ms", "expanded_select_ms")
+           "expansion_total_ms", "last_expansion_ms", "expanded_select_ms",
+           "initial_dom_rows", "expanded_dom_rows", "final_dom_rows")
 
 
 class TableServer(ThreadingHTTPServer):
@@ -30,7 +31,8 @@ class TableServer(ThreadingHTTPServer):
 
 def measure_case(case, args, url, workspace):
     def command(profile, mode):
-        return ["node", str(DRIVER), url, profile, args.chrome, str(CASES[case]), mode, str(args.expansion_steps)]
+        return ["node", str(DRIVER), url, profile, args.chrome, str(CASES[case]), mode, str(args.expansion_steps),
+                "viewport" if args.viewport else "native"]
 
     runs, first = [], None
     for index in range(args.warmups + args.repetitions):
@@ -68,6 +70,7 @@ def main():
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--expansion-steps", type=int, default=1)
+    parser.add_argument("--viewport", action="store_true", help="Enable the experimental visible-row checkbox")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if min(args.warmups, args.repetitions, args.expansion_steps) < 1:
@@ -78,7 +81,8 @@ def main():
     args.chrome = str(Path(args.chrome).resolve(strict=True))
     report = {"started_utc": datetime.now(timezone.utc).isoformat(), "source": source_metadata(SOURCES),
               "environment": describe_environment(), "warmups": args.warmups, "repetitions": args.repetitions,
-              "rss_poll_target_ms": SAMPLE_SECONDS * 1000, "expansion_steps": args.expansion_steps}
+              "rss_poll_target_ms": SAMPLE_SECONDS * 1000, "expansion_steps": args.expansion_steps,
+              "viewport": args.viewport}
     with tempfile.TemporaryDirectory(prefix="sedcoretool-data-table-") as workspace:
         with TableServer(("127.0.0.1", 0), QuietHandler) as server:
             thread = threading.Thread(target=server.serve_forever, daemon=True)

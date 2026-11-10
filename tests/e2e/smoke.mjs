@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { verifyInterruptedSaves } from './interrupted-saves.mjs';
 import { verifyDataTable } from './data-table.mjs';
+import { verifyTableViewport } from './table-viewport.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 
 const URL = process.env.APP_URL || 'http://localhost:8765/app/index.html';
@@ -19,6 +20,7 @@ const fail = (m) => { console.error('E2E FAIL:', m); process.exitCode = 1; };
 try {
   await verifyInterruptedSaves(b, URL);
   await verifyDataTable(b, URL);
+  await verifyTableViewport(b, URL);
   await p.goto(URL, { waitUntil: 'networkidle0' });
   await p.evaluate(() => document.getElementById('openTest').click());
   await until(() => window.ichantool?.S.sections.length === 6 && window.ichantool.S.sections.every((s) => s.objects.size > 0));

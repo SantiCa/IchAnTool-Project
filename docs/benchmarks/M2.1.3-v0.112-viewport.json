@@ -1,0 +1,1751 @@
+{
+  "started_utc": "2026-11-10T08:18:27.782245+00:00",
+  "source": {
+    "commit": "ede7c52c86f5ec3b6a3525dcff1f90ac8f7b4e69",
+    "dirty": true,
+    "input_files_sha256": "f4b40cd940c8411e4636d6ac1727d9bf323b4ef89b11a2f5e379ab774324286c"
+  },
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "architecture": "AMD64",
+    "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+    "logical_cpus": 16,
+    "physical_cores": 8,
+    "ram_mib": 31850,
+    "python": "3.12.4",
+    "sedcoretool": "0.112.0",
+    "numpy": "1.26.4",
+    "pandas": "2.2.2",
+    "pillow": "11.3.0",
+    "psutil": "5.9.0"
+  },
+  "warmups": 1,
+  "repetitions": 5,
+  "rss_poll_target_ms": 25.0,
+  "expansion_steps": 10,
+  "viewport": true,
+  "cases": [
+    {
+      "case": "small",
+      "fixture": {
+        "seed": 210108,
+        "row_count": 2000,
+        "core_count": 2,
+        "numeric_columns": 6,
+        "layer_count": 2,
+        "interval_count": 40,
+        "rows_per_interval": 100,
+        "initial_display_rows": 400,
+        "more_display_rows": 1400
+      },
+      "csv_sha256": "829c2c3601e7a45dc0734ace74c225b15209fd8e46c676332e9c163a2a126c14",
+      "csv_rows_verified": 2000,
+      "initial": 400,
+      "expanded": 1400,
+      "displayed": 2000,
+      "expansion_steps": 10,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 19.400000005960464,
+          "edit_ms": 33.30000001192093,
+          "select_ms": 33.29999998211861,
+          "more_ms": 33.400000005960464,
+          "scroll_ms": 33.19999998807907,
+          "export_ms": 3.5,
+          "expansion_total_ms": 66.7000000178814,
+          "last_expansion_ms": 33.30000001192093,
+          "expanded_select_ms": 33.30000001192093,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 512.046875,
+          "browser_rss_samples": 29,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 2000,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 11.900000005960464,
+          "edit_ms": 27.400000005960464,
+          "select_ms": 33.5,
+          "more_ms": 33.29999998211861,
+          "scroll_ms": 33.19999998807907,
+          "export_ms": 3.9000000059604645,
+          "expansion_total_ms": 66.59999999403954,
+          "last_expansion_ms": 33.30000001192093,
+          "expanded_select_ms": 33.400000005960464,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 508.81640625,
+          "browser_rss_samples": 24,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 2000,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 23,
+          "edit_ms": 33.29999998211861,
+          "select_ms": 33.30000001192093,
+          "more_ms": 33.30000001192093,
+          "scroll_ms": 33.20000001788139,
+          "export_ms": 3.4000000059604645,
+          "expansion_total_ms": 66.5,
+          "last_expansion_ms": 33.19999998807907,
+          "expanded_select_ms": 33.19999998807907,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 504.51953125,
+          "browser_rss_samples": 25,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 2000,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 12.5,
+          "edit_ms": 33,
+          "select_ms": 33.30000001192093,
+          "more_ms": 33.400000005960464,
+          "scroll_ms": 33.30000001192093,
+          "export_ms": 3.300000011920929,
+          "expansion_total_ms": 66.59999999403954,
+          "last_expansion_ms": 33.19999998807907,
+          "expanded_select_ms": 34.099999994039536,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 505.6640625,
+          "browser_rss_samples": 26,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 2000,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 23.899999976158142,
+          "edit_ms": 33.400000005960464,
+          "select_ms": 33.30000001192093,
+          "more_ms": 33.30000001192093,
+          "scroll_ms": 33.10000002384186,
+          "export_ms": 3.9000000059604645,
+          "expansion_total_ms": 66.59999999403954,
+          "last_expansion_ms": 33.29999998211861,
+          "expanded_select_ms": 33.19999998807907,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 500.83984375,
+          "browser_rss_samples": 25,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 2000,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 12.400000005960464,
+          "edit_ms": 25.5,
+          "select_ms": 33.400000005960464,
+          "more_ms": 33.30000001192093,
+          "scroll_ms": 33.099999994039536,
+          "export_ms": 3.5,
+          "expansion_total_ms": 66.7000000178814,
+          "last_expansion_ms": 33.400000005960464,
+          "expanded_select_ms": 33.400000005960464,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 501.57421875,
+          "browser_rss_samples": 26,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 2000,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            }
+          ]
+        }
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "summary": {
+        "open_ms": {
+          "median": 12.5,
+          "min": 11.900000005960464,
+          "max": 23.899999976158142
+        },
+        "edit_ms": {
+          "median": 33,
+          "min": 25.5,
+          "max": 33.400000005960464
+        },
+        "select_ms": {
+          "median": 33.30000001192093,
+          "min": 33.30000001192093,
+          "max": 33.5
+        },
+        "more_ms": {
+          "median": 33.30000001192093,
+          "min": 33.29999998211861,
+          "max": 33.400000005960464
+        },
+        "scroll_ms": {
+          "median": 33.19999998807907,
+          "min": 33.099999994039536,
+          "max": 33.30000001192093
+        },
+        "export_ms": {
+          "median": 3.5,
+          "min": 3.300000011920929,
+          "max": 3.9000000059604645
+        },
+        "browser_peak_rss_mib": {
+          "median": 504.51953125,
+          "min": 500.83984375,
+          "max": 508.81640625
+        },
+        "expansion_total_ms": {
+          "median": 66.59999999403954,
+          "min": 66.5,
+          "max": 66.7000000178814
+        },
+        "last_expansion_ms": {
+          "median": 33.29999998211861,
+          "min": 33.19999998807907,
+          "max": 33.400000005960464
+        },
+        "expanded_select_ms": {
+          "median": 33.400000005960464,
+          "min": 33.19999998807907,
+          "max": 34.099999994039536
+        },
+        "initial_dom_rows": {
+          "median": 37,
+          "min": 37,
+          "max": 37
+        },
+        "expanded_dom_rows": {
+          "median": 37,
+          "min": 37,
+          "max": 37
+        },
+        "final_dom_rows": {
+          "median": 36,
+          "min": 36,
+          "max": 36
+        }
+      },
+      "cpu_profile": [
+        {
+          "function": "(idle)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 155.209
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 44.841
+        },
+        {
+          "function": "measure",
+          "source": "(benchmark)",
+          "line": 3,
+          "sampled_self_ms": 12.04
+        },
+        {
+          "function": "mountTableViewport",
+          "source": "js/tableview.js",
+          "line": 20,
+          "sampled_self_ms": 4.616
+        },
+        {
+          "function": "renderDataTable",
+          "source": "js/datatab.js",
+          "line": 179,
+          "sampled_self_ms": 3.055
+        },
+        {
+          "function": "renderData",
+          "source": "js/datatab.js",
+          "line": 126,
+          "sampled_self_ms": 1.65
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 1,
+          "sampled_self_ms": 1.54
+        },
+        {
+          "function": "insertRows",
+          "source": "js/tableview.js",
+          "line": 52,
+          "sampled_self_ms": 1.529
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2702,
+          "sampled_self_ms": 1.525
+        },
+        {
+          "function": "update",
+          "source": "js/tableview.js",
+          "line": 67,
+          "sampled_self_ms": 1.515
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 172,
+          "sampled_self_ms": 0.222
+        }
+      ],
+      "csv_cpu_profile": [
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 6.194
+        },
+        {
+          "function": "safe",
+          "source": "js/app.js",
+          "line": 2527,
+          "sampled_self_ms": 1.531
+        },
+        {
+          "function": "URL.createObjectURL",
+          "source": "(benchmark)",
+          "line": 7,
+          "sampled_self_ms": 1.53
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 138,
+          "sampled_self_ms": 1.121
+        }
+      ]
+    },
+    {
+      "case": "medium",
+      "fixture": {
+        "seed": 210108,
+        "row_count": 20000,
+        "core_count": 2,
+        "numeric_columns": 6,
+        "layer_count": 2,
+        "interval_count": 400,
+        "rows_per_interval": 100,
+        "initial_display_rows": 400,
+        "more_display_rows": 1400
+      },
+      "csv_sha256": "468b5097d4a1d7fe360ecae9ef374701b97a4d5d16cd4928e5a764f93608f39b",
+      "csv_rows_verified": 20000,
+      "initial": 400,
+      "expanded": 1400,
+      "displayed": 10400,
+      "expansion_steps": 10,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 20,
+          "edit_ms": 33.20000001788139,
+          "select_ms": 33.5,
+          "more_ms": 33.29999998211861,
+          "scroll_ms": 33.20000001788139,
+          "export_ms": 17.19999998807907,
+          "expansion_total_ms": 333,
+          "last_expansion_ms": 33.29999998211861,
+          "expanded_select_ms": 33.30000001192093,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 613.72265625,
+          "browser_rss_samples": 30,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 20.100000023841858,
+          "edit_ms": 18.599999994039536,
+          "select_ms": 33.19999998807907,
+          "more_ms": 33.60000002384186,
+          "scroll_ms": 33.10000002384186,
+          "export_ms": 18.19999998807907,
+          "expansion_total_ms": 332.90000000596046,
+          "last_expansion_ms": 33.19999998807907,
+          "expanded_select_ms": 33.30000001192093,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 599.4453125,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.60000002384186
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 19.799999982118607,
+          "edit_ms": 32.89999997615814,
+          "select_ms": 33.39999997615814,
+          "more_ms": 33.5,
+          "scroll_ms": 33.099999994039536,
+          "export_ms": 18.099999994039536,
+          "expansion_total_ms": 333,
+          "last_expansion_ms": 33.29999998211861,
+          "expanded_select_ms": 33.30000001192093,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 605.359375,
+          "browser_rss_samples": 30,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 20.400000005960464,
+          "edit_ms": 32.19999998807907,
+          "select_ms": 33.5,
+          "more_ms": 33.099999994039536,
+          "scroll_ms": 33.20000001788139,
+          "export_ms": 17.900000005960464,
+          "expansion_total_ms": 332.69999998807907,
+          "last_expansion_ms": 33.29999998211861,
+          "expanded_select_ms": 35.099999994039536,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 574.35546875,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 28.299999982118607,
+          "edit_ms": 33.39999997615814,
+          "select_ms": 33.30000001192093,
+          "more_ms": 33.400000005960464,
+          "scroll_ms": 33.19999998807907,
+          "export_ms": 17.30000001192093,
+          "expansion_total_ms": 332.90000000596046,
+          "last_expansion_ms": 33.400000005960464,
+          "expanded_select_ms": 33.400000005960464,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 601.28125,
+          "browser_rss_samples": 30,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.099999994039536
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.599999994039536
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 19.599999994039536,
+          "edit_ms": 29.599999994039536,
+          "select_ms": 34.099999994039536,
+          "more_ms": 32.80000001192093,
+          "scroll_ms": 33.19999998807907,
+          "export_ms": 16.299999982118607,
+          "expansion_total_ms": 332.40000000596046,
+          "last_expansion_ms": 33.20000001788139,
+          "expanded_select_ms": 33.19999998807907,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 599.7734375,
+          "browser_rss_samples": 31,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 32.80000001192093
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.39999997615814
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            }
+          ]
+        }
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "summary": {
+        "open_ms": {
+          "median": 20.100000023841858,
+          "min": 19.599999994039536,
+          "max": 28.299999982118607
+        },
+        "edit_ms": {
+          "median": 32.19999998807907,
+          "min": 18.599999994039536,
+          "max": 33.39999997615814
+        },
+        "select_ms": {
+          "median": 33.39999997615814,
+          "min": 33.19999998807907,
+          "max": 34.099999994039536
+        },
+        "more_ms": {
+          "median": 33.400000005960464,
+          "min": 32.80000001192093,
+          "max": 33.60000002384186
+        },
+        "scroll_ms": {
+          "median": 33.19999998807907,
+          "min": 33.099999994039536,
+          "max": 33.20000001788139
+        },
+        "export_ms": {
+          "median": 17.900000005960464,
+          "min": 16.299999982118607,
+          "max": 18.19999998807907
+        },
+        "browser_peak_rss_mib": {
+          "median": 599.7734375,
+          "min": 574.35546875,
+          "max": 605.359375
+        },
+        "expansion_total_ms": {
+          "median": 332.90000000596046,
+          "min": 332.40000000596046,
+          "max": 333
+        },
+        "last_expansion_ms": {
+          "median": 33.29999998211861,
+          "min": 33.19999998807907,
+          "max": 33.400000005960464
+        },
+        "expanded_select_ms": {
+          "median": 33.30000001192093,
+          "min": 33.19999998807907,
+          "max": 35.099999994039536
+        },
+        "initial_dom_rows": {
+          "median": 37,
+          "min": 37,
+          "max": 37
+        },
+        "expanded_dom_rows": {
+          "median": 37,
+          "min": 37,
+          "max": 37
+        },
+        "final_dom_rows": {
+          "median": 36,
+          "min": 36,
+          "max": 36
+        }
+      },
+      "cpu_profile": [
+        {
+          "function": "(idle)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 354.284
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 81.545
+        },
+        {
+          "function": "measure",
+          "source": "(benchmark)",
+          "line": 3,
+          "sampled_self_ms": 35.107
+        },
+        {
+          "function": "renderDataTable",
+          "source": "js/datatab.js",
+          "line": 179,
+          "sampled_self_ms": 10.699
+        },
+        {
+          "function": "insertRows",
+          "source": "js/tableview.js",
+          "line": 52,
+          "sampled_self_ms": 8.017
+        },
+        {
+          "function": "mountTableViewport",
+          "source": "js/tableview.js",
+          "line": 20,
+          "sampled_self_ms": 6.103
+        },
+        {
+          "function": "refreshCoreData",
+          "source": "js/app.js",
+          "line": 2681,
+          "sampled_self_ms": 4.591
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2716,
+          "sampled_self_ms": 3.047
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2702,
+          "sampled_self_ms": 1.547
+        },
+        {
+          "function": "(anonymous)",
+          "source": "(benchmark)",
+          "line": 29,
+          "sampled_self_ms": 1.542
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 269,
+          "sampled_self_ms": 1.522
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.522
+        },
+        {
+          "function": "sizeSpacer",
+          "source": "js/tableview.js",
+          "line": 62,
+          "sampled_self_ms": 1.514
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 172,
+          "sampled_self_ms": 1.183
+        }
+      ],
+      "csv_cpu_profile": [
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 5.386
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/core.js",
+          "line": 356,
+          "sampled_self_ms": 4.571
+        },
+        {
+          "function": "formatCell",
+          "source": "js/core.js",
+          "line": 346,
+          "sampled_self_ms": 3.053
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 138,
+          "sampled_self_ms": 2.846
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 2.202
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 397,
+          "sampled_self_ms": 1.761
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 160,
+          "sampled_self_ms": 1.606
+        },
+        {
+          "function": "saveFile",
+          "source": "js/app.js",
+          "line": 2516,
+          "sampled_self_ms": 1.547
+        },
+        {
+          "function": "URL.createObjectURL",
+          "source": "(benchmark)",
+          "line": 7,
+          "sampled_self_ms": 1.531
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/geo.js",
+          "line": 214,
+          "sampled_self_ms": 1.529
+        }
+      ]
+    },
+    {
+      "case": "large",
+      "fixture": {
+        "seed": 210108,
+        "row_count": 100000,
+        "core_count": 2,
+        "numeric_columns": 6,
+        "layer_count": 2,
+        "interval_count": 2000,
+        "rows_per_interval": 100,
+        "initial_display_rows": 400,
+        "more_display_rows": 1400
+      },
+      "csv_sha256": "34d4e9ca596820aec0cb8f32dcd28e548c8984abf98cddb7f8b3860c935a111a",
+      "csv_rows_verified": 100000,
+      "initial": 400,
+      "expanded": 1400,
+      "displayed": 10400,
+      "expansion_steps": 10,
+      "runs": [
+        {
+          "kind": "warmup",
+          "open_ms": 50,
+          "edit_ms": 29.399999976158142,
+          "select_ms": 33.39999997615814,
+          "more_ms": 33.400000005960464,
+          "scroll_ms": 33.10000002384186,
+          "export_ms": 74,
+          "expansion_total_ms": 332.69999998807907,
+          "last_expansion_ms": 33.29999998211861,
+          "expanded_select_ms": 33.30000001192093,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 719.63671875,
+          "browser_rss_samples": 34,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.10000002384186
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.10000002384186
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.599999994039536
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 50.5,
+          "edit_ms": 28.5,
+          "select_ms": 33.5,
+          "more_ms": 33.30000001192093,
+          "scroll_ms": 33.19999998807907,
+          "export_ms": 71.5,
+          "expansion_total_ms": 332.7000000178814,
+          "last_expansion_ms": 33.20000001788139,
+          "expanded_select_ms": 33.39999997615814,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 741.5390625,
+          "browser_rss_samples": 35,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.599999994039536
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 49.400000005960464,
+          "edit_ms": 18.5,
+          "select_ms": 33.400000005960464,
+          "more_ms": 33.29999998211861,
+          "scroll_ms": 33.29999998211861,
+          "export_ms": 72,
+          "expansion_total_ms": 332.90000000596046,
+          "last_expansion_ms": 33.20000001788139,
+          "expanded_select_ms": 33.20000001788139,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 706.62890625,
+          "browser_rss_samples": 33,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.599999994039536
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 51.70000001788139,
+          "edit_ms": 33.19999998807907,
+          "select_ms": 33.5,
+          "more_ms": 33.400000005960464,
+          "scroll_ms": 33.29999998211861,
+          "export_ms": 70.5,
+          "expansion_total_ms": 332.90000000596046,
+          "last_expansion_ms": 33.19999998807907,
+          "expanded_select_ms": 33.20000001788139,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 740.265625,
+          "browser_rss_samples": 34,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.5
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.20000001788139
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 51.20000001788139,
+          "edit_ms": 27.19999998807907,
+          "select_ms": 33.400000005960464,
+          "more_ms": 33.30000001192093,
+          "scroll_ms": 33.19999998807907,
+          "export_ms": 71.90000000596046,
+          "expansion_total_ms": 333.2999999821186,
+          "last_expansion_ms": 33.400000005960464,
+          "expanded_select_ms": 33.29999998211861,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 717.62109375,
+          "browser_rss_samples": 34,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "open_ms": 50.5,
+          "edit_ms": 31,
+          "select_ms": 33.599999994039536,
+          "more_ms": 33.19999998807907,
+          "scroll_ms": 33.30000001192093,
+          "export_ms": 74.30000001192093,
+          "expansion_total_ms": 332.5999999642372,
+          "last_expansion_ms": 33.19999998807907,
+          "expanded_select_ms": 33.30000001192093,
+          "initial_dom_rows": 37,
+          "expanded_dom_rows": 37,
+          "final_dom_rows": 36,
+          "browser_peak_rss_mib": 713.109375,
+          "browser_rss_samples": 36,
+          "expansion_timings": [
+            {
+              "rows": 1400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 2400,
+              "dom_rows": 37,
+              "render_ms": 33.400000005960464
+            },
+            {
+              "rows": 3400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 4400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 5400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 6400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 7400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            },
+            {
+              "rows": 8400,
+              "dom_rows": 37,
+              "render_ms": 33.29999998211861
+            },
+            {
+              "rows": 9400,
+              "dom_rows": 37,
+              "render_ms": 33.30000001192093
+            },
+            {
+              "rows": 10400,
+              "dom_rows": 37,
+              "render_ms": 33.19999998807907
+            }
+          ]
+        }
+      ],
+      "runtimes": {
+        "chrome": "Chrome/157.0.8103.40",
+        "node": "v22.23.4",
+        "puppeteer": "23.11.1"
+      },
+      "summary": {
+        "open_ms": {
+          "median": 50.5,
+          "min": 49.400000005960464,
+          "max": 51.70000001788139
+        },
+        "edit_ms": {
+          "median": 28.5,
+          "min": 18.5,
+          "max": 33.19999998807907
+        },
+        "select_ms": {
+          "median": 33.5,
+          "min": 33.400000005960464,
+          "max": 33.599999994039536
+        },
+        "more_ms": {
+          "median": 33.30000001192093,
+          "min": 33.19999998807907,
+          "max": 33.400000005960464
+        },
+        "scroll_ms": {
+          "median": 33.29999998211861,
+          "min": 33.19999998807907,
+          "max": 33.30000001192093
+        },
+        "export_ms": {
+          "median": 71.90000000596046,
+          "min": 70.5,
+          "max": 74.30000001192093
+        },
+        "browser_peak_rss_mib": {
+          "median": 717.62109375,
+          "min": 706.62890625,
+          "max": 741.5390625
+        },
+        "expansion_total_ms": {
+          "median": 332.90000000596046,
+          "min": 332.5999999642372,
+          "max": 333.2999999821186
+        },
+        "last_expansion_ms": {
+          "median": 33.20000001788139,
+          "min": 33.19999998807907,
+          "max": 33.400000005960464
+        },
+        "expanded_select_ms": {
+          "median": 33.29999998211861,
+          "min": 33.20000001788139,
+          "max": 33.39999997615814
+        },
+        "initial_dom_rows": {
+          "median": 37,
+          "min": 37,
+          "max": 37
+        },
+        "expanded_dom_rows": {
+          "median": 37,
+          "min": 37,
+          "max": 37
+        },
+        "final_dom_rows": {
+          "median": 36,
+          "min": 36,
+          "max": 36
+        }
+      },
+      "cpu_profile": [
+        {
+          "function": "(idle)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 360.606
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 65.561
+        },
+        {
+          "function": "measure",
+          "source": "(benchmark)",
+          "line": 3,
+          "sampled_self_ms": 38.166
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2716,
+          "sampled_self_ms": 19.822
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2702,
+          "sampled_self_ms": 12.224
+        },
+        {
+          "function": "renderDataTable",
+          "source": "js/datatab.js",
+          "line": 179,
+          "sampled_self_ms": 12.211
+        },
+        {
+          "function": "mountTableViewport",
+          "source": "js/tableview.js",
+          "line": 20,
+          "sampled_self_ms": 7.602
+        },
+        {
+          "function": "refreshCoreData",
+          "source": "js/app.js",
+          "line": 2681,
+          "sampled_self_ms": 4.599
+        },
+        {
+          "function": "insertRows",
+          "source": "js/tableview.js",
+          "line": 52,
+          "sampled_self_ms": 3.867
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 3.079
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 170,
+          "sampled_self_ms": 3.075
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 172,
+          "sampled_self_ms": 2.233
+        },
+        {
+          "function": "click",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.545
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/app.js",
+          "line": 2690,
+          "sampled_self_ms": 1.539
+        },
+        {
+          "function": "getSelection",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.527
+        },
+        {
+          "function": "querySelector",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.525
+        },
+        {
+          "function": "focus",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.521
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 152,
+          "sampled_self_ms": 1.475
+        }
+      ],
+      "csv_cpu_profile": [
+        {
+          "function": "(anonymous)",
+          "source": "js/core.js",
+          "line": 356,
+          "sampled_self_ms": 27.462
+        },
+        {
+          "function": "(garbage collector)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 9.174
+        },
+        {
+          "function": "(program)",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 8.18
+        },
+        {
+          "function": "saveFile",
+          "source": "js/app.js",
+          "line": 2516,
+          "sampled_self_ms": 7.683
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 159,
+          "sampled_self_ms": 7.315
+        },
+        {
+          "function": "tableModel",
+          "source": "js/datatab.js",
+          "line": 138,
+          "sampled_self_ms": 7.041
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 397,
+          "sampled_self_ms": 6.115
+        },
+        {
+          "function": "formatCell",
+          "source": "js/core.js",
+          "line": 346,
+          "sampled_self_ms": 3.036
+        },
+        {
+          "function": "toCSV",
+          "source": "js/core.js",
+          "line": 344,
+          "sampled_self_ms": 3.032
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 395,
+          "sampled_self_ms": 3.001
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/datatab.js",
+          "line": 160,
+          "sampled_self_ms": 2.667
+        },
+        {
+          "function": "(anonymous)",
+          "source": "js/geo.js",
+          "line": 214,
+          "sampled_self_ms": 1.522
+        },
+        {
+          "function": "RegExp: [\",;|\\t\\r\\n]",
+          "source": "(runtime)",
+          "line": 0,
+          "sampled_self_ms": 1.516
+        },
+        {
+          "function": "safe",
+          "source": "js/app.js",
+          "line": 2527,
+          "sampled_self_ms": 0.074
+        }
+      ]
+    }
+  ]
+}
