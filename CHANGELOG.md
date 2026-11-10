@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.114 — 2026-11-10
+
+- Add ichnotaxon abundance, symmetric curves, presence names/symbols, opacity and percentage labels to multiproxy figures.
+- Compose each multiproxy figure independently: select core and proxy tracks, reorder or hide tracks, and adjust the window, height, widths, scales and colours. Save the composition in figure tabs and restore inherited settings when needed.
+- Align image-derived tracks and manual occurrences with the selected core's units and age model, including cores other than the one open in the image editor.
+
 ## V0.113 — 2026-11-10
 
 - Customise ichnotaxon abundance and presence in whole-core, core-column and distribution figures: separate, overlaid or stacked plots, curves, filled areas and symmetric curves with adjustable opacity.

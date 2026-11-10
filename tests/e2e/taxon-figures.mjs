@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { objectStats, DEFAULT_FILTERS, DEFAULT_DETECT } from '../../app/js/imageproc.js';
 import { rleEncode } from '../../app/js/core.js';
 
-function taxonFigureFixture() {
+export function taxonFigureFixture() {
   const width = 8, height = 100, labels = new Int32Array(width * height), rgba = new Uint8ClampedArray(width * height * 4).fill(180);
   for (let y = 10; y < 30; y++) for (let x = 0; x < 4; x++) labels[y * width + x] = 1;
   for (let y = 40; y < 60; y++) for (let x = 4; x < 8; x++) labels[y * width + x] = 2;

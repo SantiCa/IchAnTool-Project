@@ -222,6 +222,7 @@ export function wrapTitle(text, w) {
  *       bands:[{title, full, key, w, segs:[{a0,a1,color,opacity}]}] (key: stable id for widths and clicks),
  *       marks:[{a, xf, color, abbr}] (identified traces: triangle on the image at relative x xf),
  *       idList:[{a0, a1, items:[{name, abbr, color, plain}]}] (identified ichnotaxa per interval, column at the right),
+ *       respectTaxonColumnVisibility: boolean (keep style.colHide separate from taxa.hidden; hide columns and legend together),
  *       legendClasses:[{name, color}] (ichnotaxa legend, always drawn when given), bandLegend, shade:[{a0,a1,color}] (class colours behind the record curves) }
  */
 /**
@@ -388,7 +389,7 @@ export function mergedStyle(style) {
 }
 export function buildLogSVG(o) {
   const st = mergedStyle(o.style);
-  const taxa = o.taxa ? taxaOptions(o.taxa, { style: st }) : null;
+  const taxa = o.taxa ? taxaOptions(o.taxa, { style: o.respectTaxonColumnVisibility ? { ...st, colHide: [] } : st }) : null;
   SYM = { k: +st.markSize > 0 ? +st.markSize : 1, stroke: st.markStroke === 'none' ? 'none' : st.markStroke || '#ffffff', sw: +st.markStrokeW >= 0 && st.markStrokeW != null ? +st.markStrokeW : 0.8 };
   const L = { total: 'Bioturbation (%)', species: 'Ichnotaxa (%)', image: 'Core', ...(o.labels || {}) };
   if (st.totalTitle) L.total = st.totalTitle;
@@ -420,11 +421,12 @@ export function buildLogSVG(o) {
   // V0.33: column order (style.colOrder, ids) and hidden columns (style.colHide, ids; nothing is deleted); the axis stays first
   cols.forEach((c, i) => { if (!c.id && c.key === 'image') c.id = 'image:' + (c.img?.title || i); });
   const allCols = cols.filter((c) => c.key !== 'axis').map((c) => ({ id: c.id, title: c.full || c.title, key: c.key }));
-  orderCols(cols, taxa ? { ...st, colHide: (st.colHide || []).filter((id) => !id.startsWith('sp:')) } : st, 1);
+  orderCols(cols, taxa && !o.respectTaxonColumnVisibility ? { ...st, colHide: (st.colHide || []).filter((id) => !id.startsWith('sp:')) } : st, 1);
   let x = 8;
   for (const c of cols) { c.x = x; x += c.w + 14; }
   const W = x;
-  const taxonLegend = [...(t.species ? presentClasses : []), ...(o.legendClasses || [])].filter((c) => !taxa || !taxa.hidden.includes(c.name));
+  const taxonLegend = [...(t.species ? presentClasses : []), ...(o.legendClasses || [])].filter((c) =>
+    (!taxa || !taxa.hidden.includes(c.name)) && (!o.respectTaxonColumnVisibility || !st.colHide?.includes(taxa?.layout === 'separate' ? 'sp:' + c.name : 'species')));
   const seenL = new Set(), legendItems = [...taxonLegend, ...(o.bandLegend || [])].filter((k) => !seenL.has(k.name) && seenL.add(k.name));
   const perRow = Math.max(1, Math.floor((W - 16) / 170));
   const legendH = legendItems.length ? Math.ceil(legendItems.length / perRow) * 16 + 14 : 0;

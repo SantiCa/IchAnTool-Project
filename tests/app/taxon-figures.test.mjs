@@ -8,6 +8,18 @@ const base = { from: 0, to: 2, height: 200, rows, classes, records: [], tracks: 
   colWidths: { species: 100, 'sp:Chondrites': 100, 'sp:Planolites': 100 } };
 const abundanceGroups = (svg) => [...svg.matchAll(/<g data-taxon="[^"]*" data-role="abundance"[^>]*>(.*?)<\/g>/gs)].map((match) => match[1]);
 
+test('figure composition hides and reorders taxon tracks alongside proxies without losing available columns', () => {
+  const input = { ...base, taxa: { layout: 'separate' }, respectTaxonColumnVisibility: true,
+    records: [{ name: 'Ca', pts: [[0, 2], [2, 4]] }],
+    style: { colHide: ['sp:Planolites'], colOrder: ['rec:Ca', 'sp:Chondrites', 'sp:Planolites'] } };
+  const result = buildLogSVG(input);
+  assert.deepEqual(result.layout.map((column) => column.id), ['rec:Ca', 'sp:Chondrites']);
+  assert.ok(result.columns.some((column) => column.id === 'sp:Planolites'));
+  assert.equal(result.svg.includes('data-taxon="Planolites"'), false);
+  assert.equal(result.svg.includes('>Planolites</text>'), false);
+  assert.equal(buildLogSVG({ ...input, taxa: { ...input.taxa, hidden: [] }, respectTaxonColumnVisibility: false }).layout.some((column) => column.id === 'sp:Planolites'), true);
+});
+
 test('stacked and overlaid abundances retain exact percentage widths and change only the baseline', () => {
   for (const layout of ['stack', 'overlay']) {
     const result = buildLogSVG({ ...base, taxa: { layout, scale: 'percent', opacity: 0.4 } });

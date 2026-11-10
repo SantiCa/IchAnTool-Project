@@ -259,6 +259,20 @@ Keep task IDs stable. The changelog records what shipped.
 - [ ] Location map: cores from other projects and an inset location map
 
 ## Program
+- [x] **F2 - Multiproxy figure composition.** [V0.114](../CHANGELOG.md#v0114--2026-11-10). Authorised by the maintainer
+      on 10 November 2026. Editor: Codex; verification: automated checks and browser/standalone regression. Add ichnotaxa with the
+      shared presentation controls; independently choose, order, hide and scale core, proxy and interval tracks
+      per figure tab. Verify selected-core units/age mapping, unchanged measurements and analysis settings,
+      saved composition, reset and SVG/PNG.
+  - Delivered and verified: 181 Python tests passed (six optional/permission skips), 143 Node tests, types,
+    Ruff, version consistency, standalone build, full Chrome smoke test and standalone figure regression.
+    Exact measurements and analysis/view settings remain unchanged by figure composition. Mixed units,
+    selected-core age coordinates, tab independence, save/reload, reset, SVG/PNG and visual layout pass.
+  - Local delivery on `master`; GitHub handoff requires the maintainer's authorised push. The vertical axis
+    still follows Multiproxy and image treatment follows the core column; independent controls are in F3.
+- [ ] **F3 - Extend figure composition across figure types.** Continue the maintainer's requested freedom of
+      composition in a separate phase: independent track/style controls in the remaining core/log figures,
+      including image treatment and vertical-axis selection. Preserve their existing defaults and saved projects.
 - [x] **F1 - Configurable ichnotaxon figures.** [V0.113](../CHANGELOG.md#v0113--2026-11-10). Authorised by the maintainer on
       10 November 2026, ahead of further performance work. Share abundance/occurrence presentation between the
       whole interpreted core, core column and ichnotaxa distribution, with independent settings for figure tabs.

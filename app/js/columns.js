@@ -42,12 +42,12 @@ $('modeFig').addEventListener('click', () => setMode('fig'));
 
 export function scheduleLog(ms = 200) { if (mode !== 'log') return; clearTimeout(logTimer); logTimer = setTimeout(() => busy(renderLog), ms); }
 
-export function compositeData(axisPref = S.logView.axis) {   // V0.32: a figure may ask for its own axis
-  const secs = [...S.sections].sort((a, b) => a.top * UNIT_TO_CM[a.units] - b.top * UNIT_TO_CM[b.units]);
-  const base = secs[0]?.units || 'cm';
+export function compositeData(axisPref = S.logView.axis, core = null) {
+  const secs = [...(core?.sections || S.sections)].sort((a, b) => a.top * UNIT_TO_CM[a.units] - b.top * UNIT_TO_CM[b.units]);
+  const base = core?.units || secs[0]?.units || 'cm';
   const f = (s) => UNIT_TO_CM[s.units] / UNIT_TO_CM[base];
   for (const s of secs) analyze(s);
-  const model = S.age.model, axis = axisPref === 'age' && model ? 'age' : 'depth';
+  const model = (core?.ageModel || S.age).model, axis = axisPref === 'age' && model ? 'age' : 'depth';
   const rows = compositeRows(secs.map((s) => ({ name: s.name, bins: s.bins.map((b) => ({ ...b, dTop: b.dTop * f(s), dBottom: b.dBottom * f(s), depth: b.depth * f(s) })) })), { axis, model });
   return { secs, base, f, model, axis, rows };
 }
@@ -243,8 +243,18 @@ export function logStyleOf(D) {
   return { style: { ...st, yFactor: f }, label: `${t(D.axis === 'age' ? 'r.age' : 'r.depth')} (${unit})` };
 }
 /* ───────────── V0.33: order and visibility of the columns of every chart ───────────── */
-const lastCols = { log: [], geo: [], range: [] };
-export const colView = (kind) => (kind === 'geo' ? S.geo.view : S.logView);
+const lastCols = { log: [], geo: [], range: [], figure: [] };
+export const colView = (kind) => kind === 'figure' ? S.fig.geoView || S.geo.view : kind === 'geo' ? S.geo.view : S.logView;
+export function editableColView(kind) {
+  if (kind === 'figure') {
+    if (!S.fig.geoView) {
+      S.fig.geoView = JSON.parse(JSON.stringify(S.geo.view));
+      if (S.fig.geoFeatures != null && S.fig.geoView.style) S.fig.geoView.style.colHide = (S.fig.geoView.style.colHide || []).filter((id) => !id.startsWith('rec:'));
+    }
+    return S.fig.geoView;
+  }
+  return colView(kind);
+}
 export function colOrderHTML(kind) {
   const lv = colView(kind), st = lv.style || {}, hide = new Set(st.colHide || []);
   const cols = orderCols(lastCols[kind].map((c) => ({ ...c })), { colOrder: st.colOrder });
@@ -264,13 +274,13 @@ function afterColChange(kind) {
   if (mode === 'fig') scheduleFigure();
 }
 function saveColOrder(box) {
-  const kind = box.dataset.colord, lv = colView(kind); lv.style ||= {};
+  const kind = box.dataset.colord, lv = editableColView(kind); lv.style ||= {};
   lv.style.colOrder = [...box.querySelectorAll('li[data-colid]')].map((l) => l.dataset.colid);
   afterColChange(kind);
 }
 document.addEventListener('change', (e) => {
-  const el = e.target; if (el.dataset?.colshow == null) return;
-  const box = el.closest('[data-colord]'), lv = colView(box.dataset.colord); lv.style ||= {};
+  const el = /** @type {HTMLInputElement} */ (e.target); if (el.dataset?.colshow == null) return;
+  const box = /** @type {HTMLElement} */ (el.closest('[data-colord]')), lv = editableColView(box.dataset.colord); lv.style ||= {};
   const h = new Set(lv.style.colHide || []); if (el.checked) h.delete(el.dataset.colshow); else h.add(el.dataset.colshow);
   lv.style.colHide = [...h];
   if (box.dataset.colord === 'geo' && el.dataset.colshow === 'band:fam:' + S.geo.activeLayer) $('geoLayerShow').checked = el.checked;
@@ -302,10 +312,11 @@ export function colorsFormHTML(style, kind) {
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-colreset]'); if (!b) return;
-  const kind = b.dataset.colreset, lv = kind === 'geo' ? S.geo.view : S.logView;
+  const kind = b.dataset.colreset, figure = !!b.closest('[data-figure-style]'), lv = editableColView(figure ? 'figure' : kind);
   lv.style ||= {}; for (const key of COLOR_FIELDS[kind]) delete lv.style[key];
   markDirty();
-  if (kind === 'geo') { $('geoStyleForm').innerHTML = ''; renderGeoLogs(); }
+  if (figure) { renderFigPanel(); scheduleFigure(); }
+  else if (kind === 'geo') { $('geoStyleForm').innerHTML = ''; renderGeoLogs(); }
   else { renderLogPanel(); scheduleLog(); if (mode === 'fig') { renderFigPanel(); scheduleFigure(); } }
 });
 /** V0.69: ruler-style vertical scale — number, long, medium and short ticks, each with its own interval and length. */
@@ -365,7 +376,8 @@ export function taxaFormHTML(q, scope = 'figure') {
 
 function changeTaxaPresentation(el, reset = false) {
   const figure = el.closest('[data-taxa-scope]')?.dataset.taxaScope === 'figure', F = S.fig;
-  const context = { style: S.logView.style || {}, range: figure && F.type === 'range', display: F.rangeDisplay, source: F.rangeSrc || 'all' };
+  const context = { style: (figure && F.type === 'geolog' ? colView('figure') : S.logView).style || {}, range: figure && F.type === 'range', display: F.rangeDisplay, source: F.rangeSrc || 'all' };
+  if (figure && F.type === 'geolog') context.style = { ...context.style, colHide: [] };
   const current = figure ? F.taxaStyles?.[F.type] ?? (F.type === 'core' ? S.logView.style?.taxa : undefined) : S.logView.style?.taxa;
   const q = taxaOptions(current, context);
   const rebuild = reset || ['layout', 'abundance', 'occurrence', 'source'].includes(el.dataset.taxa);
@@ -378,10 +390,12 @@ function changeTaxaPresentation(el, reset = false) {
     q[key] = el.type === 'checkbox' ? el.checked : key === 'opacity' ? (el.value === '' ? 1 : +el.value / 100) : el.value;
   }
   if (figure) {
+    const enableTaxa = !reset && F.type === 'geolog' && !colView('figure').tracks?.species;
+    if (enableTaxa) { const view = editableColView('figure'); view.tracks = { ...view.tracks, species: true }; }
     F.taxaStyles ||= {};
     if (reset) delete F.taxaStyles[F.type]; else F.taxaStyles[F.type] = taxaOptions(q, context);
     if (!reset && F.type === 'range' && !F.rangeColW) F.rangeColW = ['names', 'both'].includes(q.occurrence) ? 120 : 70;
-    if (rebuild || el.dataset.taxaAll != null) renderFigPanel(); scheduleFigure();
+    if (rebuild || enableTaxa || el.dataset.taxaAll != null) renderFigPanel(); scheduleFigure();
   } else {
     S.logView.style ||= {};
     if (reset) delete S.logView.style.taxa; else S.logView.style.taxa = taxaOptions(q, context);
@@ -422,7 +436,7 @@ export function axesFormHTML(only = null, lv = S.logView, recNames = null) {
 }
 export function onStyleInput(e) {
   if (e.target.dataset.taxa || e.target.dataset.taxaHide != null) { changeTaxaPresentation(e.target); return; }
-  const el = e.target, geo = !!el.closest('[data-stt="geo"]'), lv = geo ? S.geo.view : S.logView;   // V0.22: Multiproxy has its own scales
+  const el = e.target, geo = !!el.closest('[data-stt="geo"]'), figure = !!el.closest('[data-figure-style]'), lv = editableColView(figure ? 'figure' : geo ? 'geo' : 'log');
   if (geo) setTimeout(renderGeoLogs, 0);
   if (el.dataset.axw != null) { lv.colW ||= {}; const v = +el.value; if (v >= 30) lv.colW[el.dataset.axw] = Math.min(600, v); else delete lv.colW[el.dataset.axw]; markDirty(); scheduleLog(); if (mode === 'fig') scheduleFigure(); return; }
   if (el.dataset.ax != null) {

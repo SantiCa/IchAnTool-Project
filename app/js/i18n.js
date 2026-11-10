@@ -571,7 +571,7 @@ Object.assign(D.es, {
   'fig.chosen': '{n} elegidos de {m}', 'fig.nOf': '{n} de {m} trazas', 'fig.noTraces': 'Este sondeo aún no tiene trazas asignadas a icnotaxones.',
   'fig.pickFirst': 'Marca los ejemplos de cada icnotaxón (o pulsa «Elegir automáticamente»).', 'fig.empty': 'No hay datos para esta figura en el sondeo o proyecto actual.',
   'fig.coreSub': 'Sondeo completo · {n} secciones', 'fig.coreNote': 'Imagen con las trazas, bioturbación, icnotaxones, índices, registros y bandas de intervalos y clasificación, de techo a muro. Las pistas visibles son las del Registro del sondeo.',
-  'fig.geoNote': 'Las capas y la clasificación proceden de Multiproxy. Cada figura puede elegir sus propias variables.', 'fig.geoReset': 'Seguir la selección de Multiproxy', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
+  'fig.geoNote': 'El eje, las capas y la clasificación proceden de Multiproxy. Elige variables y taxones, muestra u oculta columnas y ordénalas para esta figura. La imagen conserva el tratamiento de la columna del testigo.', 'fig.geoReset': 'Seguir la selección de Multiproxy', 'fig.geoCompositionReset': 'Restablecer la composición de esta figura', 'fig.mapNote': 'Usa la ventana de edad y el modo elegidos en la pestaña Mapa de Multiproxy.',
   'fig.logNote': 'Usa la ventana, la altura y las pistas elegidas en Registro del sondeo.',
 });
 Object.assign(D.en, {
@@ -583,7 +583,7 @@ Object.assign(D.en, {
   'fig.chosen': '{n} chosen of {m}', 'fig.nOf': '{n} of {m} traces', 'fig.noTraces': 'This core has no traces assigned to ichnotaxa yet.',
   'fig.pickFirst': 'Tick the examples of each ichnotaxon (or press “Choose automatically”).', 'fig.empty': 'No data for this figure in the current core or project.',
   'fig.coreSub': 'Whole core · {n} sections', 'fig.coreNote': 'Image with traces, bioturbation, ichnotaxa, indices, records and interval/classification bands, top to bottom. Tracks as in Core log.',
-  'fig.geoNote': 'Layers and classification come from Multiproxy. Each figure can select its own variables.', 'fig.geoReset': 'Follow the Multiproxy selection', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
+  'fig.geoNote': 'The axis, layers and classification come from Multiproxy. Select variables and taxa, show or hide columns and order them for this figure. The image keeps the treatment of the core column.', 'fig.geoReset': 'Follow the Multiproxy selection', 'fig.geoCompositionReset': 'Reset this figure composition', 'fig.mapNote': 'Uses the age window and mode of the Multiproxy Map tab.',
   'fig.logNote': 'Uses the window, height and tracks of Core log.',
 });
 

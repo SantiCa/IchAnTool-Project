@@ -117,6 +117,12 @@ symmetric curves and percentage labels as needed. Opacity 100% is opaque. Figure
 The same controls are available in the core-column style panel; presence marks retain their depth or age and
 do not supply a measured abundance. See the [figure presentation methods](docs/TECHNICAL_DOCUMENTATION.md#2031-ichnotaxon-presentation).
 
+For a **Multiproxy log** figure, select the core, numeric variables and core tracks, then add ichnotaxa with
+the same presentation controls. Use **Column order and visibility** to mix taxon, proxy, index and interval
+tracks in the desired order. Height, window, widths, scales and colours belong to that figure tab. Reset the
+composition to follow the Multiproxy view again; the analysis settings and other figures remain unchanged.
+The vertical axis follows Multiproxy, and image treatment follows the core-column controls.
+
 ## Quick start (Python package)
 
 ```bash

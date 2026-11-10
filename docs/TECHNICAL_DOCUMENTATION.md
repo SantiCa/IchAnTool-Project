@@ -1781,7 +1781,33 @@ The current views of those modes, with the figure options (title, caption, windo
 The multiproxy log can store its own core (`geoCore`) and list of displayed variables (`geoFeatures`) in each
 figure tab. Without these settings it follows the core and visible numeric records of the Multiproxy curves.
 An explicit empty list omits all numeric records. The available variables have data on the current axis of the
-selected core. Interval and classification tracks still use the Multiproxy order and visibility.
+selected core.
+
+The multiproxy figure accepts an optional composition override in `fig.geoView`. Before the first edit it
+inherits `geo.view`; the first edit copies those presentation settings. Its `tracks` select image,
+bioturbation, ichnotaxa, BI, ii, manual indices, section labels and presence marks. The shared ichnotaxon
+renderer uses `fig.taxaStyles.geolog` ([presentation methods](#2031-ichnotaxon-presentation)); editing that
+panel also enables the ichnotaxon track. `style.colOrder` and `style.colHide` order and hide numeric records,
+taxa, indices and interval/classification bands together, without changing their measurements. Hidden taxon
+columns remain available in the composition list and are omitted from its legend. Explicit taxon filtering
+(`taxa.hidden`) and column visibility are independent. `colW` and `style.axes` set track widths and scales;
+`height` is bounded to 200–6000 px. Nullable `from`/`to` delimit the current axis window, which must increase.
+The automatic window spans the numeric/interval coordinates and available section rows. Resetting composition
+removes `geoView` and `taxaStyles.geolog`; the core and numeric-variable selections have separate controls.
+
+`buildGeoLog(core, features, options)` keeps its two-argument analysis-view contract. Figure options use
+`compositeData(axis, core)` to combine the selected core's sections in `core.units`, including a different
+core from the one open in the image editor. Section depths are multiplied by
+`UNIT_TO_CM[section.units] / UNIT_TO_CM[core.units]`; both bin limits and occurrence positions use this factor.
+Age coordinates use that core's age model, without activating it or replacing global analysis settings.
+The vertical axis, interval definitions and classification remain those of Multiproxy. Image panels and
+treatment retain the core-column settings. No image-derived tracks are created without sections, or on an
+age axis without that core's age model. Presence marks still do not imply percentage abundance.
+
+Browser regression checks cover mixed section/core units, the selected core's own age model, exact unchanged
+analysis arrays, independent figure composition and tabs, numeric-only cores, saved settings, resets and
+SVG/PNG export. The same regression runs against the standalone HTML. Unit checks cover taxon/proxy ordering,
+hidden-column recovery and legend visibility.
 
 ### 20.7 Core location map
 Module `locmap.js` (pure); settings in `fig.loc` (defaults `LOCMAP_DEFAULTS`). Points: the cores of the project with

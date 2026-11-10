@@ -1,8 +1,8 @@
 /* Figures: representative traces, interpreted core, logs, location map and range chart. */
 import { $, S, clsById, fmt, hex, uid } from './state.js';
-import { tickFieldsHTML, arrowFormHTML, axesFormHTML, colOrderHTML, colView, colorsFormHTML, compositeData, coreImages, lastLog, logRecords, logStyleOf, mode, ndFormHTML, onStyleInput, reduceRGBA, renderLog, scheduleLog, taxaFormHTML, styleFormHTML, syncColOrder } from './columns.js';
+import { tickFieldsHTML, arrowFormHTML, axesFormHTML, colOrderHTML, colView, editableColView, colorsFormHTML, compositeData, coreImages, lastLog, logRecords, logStyleOf, mode, ndFormHTML, onStyleInput, reduceRGBA, renderLog, scheduleLog, taxaFormHTML, styleFormHTML, syncColOrder } from './columns.js';
 import { busy, clsAbbr, compositeMarks, compositeTaxonPoints, curCore, depthAtRow, effClassArray, effClassId, esc, idListOf, idMode, legendOf, markDirty, needPixels, pxPerCm, requestRender, rowAtDepth, safe, saveFile, toast } from './app.js';
-import { buildGeoLog, fetchImage, geoComputeSamples, geoFigureVars, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoMap } from './multiproxy.js';
+import { buildGeoLog, fetchImage, geoComputeSamples, geoFigureTracks, geoFigureVars, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoMap } from './multiproxy.js';
 
 import { UNIT_TO_CM, hasId, interpAge, topAt } from './core.js';
 import { vec } from './learn.js';
@@ -511,10 +511,16 @@ export function renderFigPanel() {
       <p class="note">${t('fig.coreNote')}</p>`;
     syncCoreFigSize();
   } else if (F.type === 'geolog') {
-    const core = figGeoCore(F), names = geoFigureVars(core), shown = figGeoFeatures(F);
+    const core = figGeoCore(F), names = geoFigureVars(core), shown = figGeoFeatures(F), view = colView('figure'), tracks = geoFigureTracks(view);
+    const trackLabels = { image: t('log.image'), total: t('log.total'), species: t('log.species'), BI: 'BI', ii: 'ii', manual: t('log.manual'), secs: t('log.secs'), marks: t('color.marks') };
     box.innerHTML = `<label class="f"><span>${t('geo.core')}</span><select id="figGeoCore">${S.cores.map((c) => `<option value="${c.id}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
       <details class="mini" open><summary>${t('fig.recs')}</summary><div class="chk2">${names.map((n) => `<label class="chk"><input type="checkbox" data-fgeo="${esc(n)}" ${shown.includes(n) ? 'checked' : ''}><span>${esc(n)}</span></label>`).join('') || '—'}</div>
-      <button type="button" class="btn small" id="figGeoReset" ${F.geoFeatures == null ? 'disabled' : ''}>${t('fig.geoReset')}</button></details><p class="note">${t('fig.geoNote')}</p>`;
+      <button type="button" class="btn small" id="figGeoReset" ${F.geoFeatures == null ? 'disabled' : ''}>${t('fig.geoReset')}</button></details>
+      <div class="f"><span>${t('fig.tracks')}</span><div class="chk2">${Object.entries(trackLabels).map(([key, label]) => `<label class="chk"><input type="checkbox" data-fgeo-track="${key}" ${tracks[key] ? 'checked' : ''} ${core?.sections?.length ? '' : 'disabled'}><span>${esc(label)}</span></label>`).join('')}</div></div>
+      ${taxaFormHTML(taxaOptions(F.taxaStyles?.geolog, { style: { ...view.style, colHide: [] } }))}
+      <div class="grid2">${['from', 'to', 'height'].map((key) => `<label class="f"><span>${t(key === 'height' ? 'log.height' : 'fig.' + key)}</span><input type="number" data-fgeo-field="${key}" step="${key === 'height' ? '50' : 'any'}" ${key === 'height' ? 'min="200" max="6000"' : ''} value="${esc(view[key] ?? '')}" placeholder="${key === 'height' ? '700' : t('fig.auto2')}"></label>`).join('')}</div>
+      <div data-figure-style>${colOrderHTML('figure')}<details class="mini"><summary>${t('st.title')}</summary>${verticalStyleHTML(view.style || {})}${colorsFormHTML(view.style || {}, 'geo')}${axesFormHTML(null, view, names)}</details></div>
+      <button type="button" class="btn small ghost" id="figGeoCompositionReset">${t('fig.geoCompositionReset')}</button><p class="note">${t('fig.geoNote')}</p>`;
   } else if (F.type === 'locmap') box.innerHTML = locmapPanelHTML();
   else box.innerHTML = `<p class="note">${t(F.type === 'map' ? 'fig.mapNote' : 'fig.logNote')}</p>`;
   if (F.type === 'log' || F.type === 'geolog') box.insertAdjacentHTML('afterbegin', `<label class="chk"><input type="checkbox" id="figLogHideExcl" ${S.logView.hideExcl ? 'checked' : ''}><span>${t('log.hideExcl')}</span></label>`);   // V0.51: every figure with the core
@@ -744,7 +750,12 @@ export function renderFigure() {
     else if (F.type === 'sections') svg = sectionsSVG();
     else if (F.type === 'range') svg = rangeSVG();
     else if (F.type === 'log') { renderLog(); svg = lastLog?.svg || null; }
-    else if (F.type === 'geolog') { if (geoRT.dirty) geoComputeSamples(); svg = buildGeoLog(figGeoCore(F), F.geoFeatures)?.res.svg || null; }
+    else if (F.type === 'geolog') {
+      if (geoRT.dirty) geoComputeSamples();
+      const log = buildGeoLog(figGeoCore(F), F.geoFeatures, { ...F.geoView, taxa: F.taxaStyles?.geolog });
+      syncColOrder('figure', log?.res.columns || []);
+      svg = log?.res.svg || null;
+    }
     else if (F.type === 'locmap') svg = locmapSVG();
     else { if (geoRT.dirty) geoComputeSamples(); svg = renderGeoMap() || null; }
     if (svg && orientOf(F) === 'h' && !['map', 'locmap'].includes(F.type)) svg = orientSVG(svg);   // V0.51
@@ -768,8 +779,12 @@ export function scopeIds(svg) {
   return svg.replace(new RegExp(`(\\sid="|url\\(#|href="#)(${q})(?=["')])`, 'g'), (m, a2, id) => `${a2}fig-${id}`);
 }
 $('figPanel').addEventListener('click', (e) => {
-  if (e.target.id !== 'figGeoReset') return;
-  delete S.fig.geoFeatures;
+  if (!(e.target instanceof Element)) return;
+  if (e.target.id === 'figGeoCompositionReset') {
+    delete S.fig.geoView;
+    if (S.fig.taxaStyles) delete S.fig.taxaStyles.geolog;
+  } else if (e.target.id === 'figGeoReset') delete S.fig.geoFeatures;
+  else return;
   renderFigPanel(); markDirty(); scheduleFigure();
 });
 let figTimer = 0;
@@ -778,7 +793,7 @@ $('figPanel').addEventListener('change', (e) => {
   const target = /** @type {HTMLInputElement} */ (e.target);
   if (e.target.dataset.lm != null) { onLocmapInput(e.target); return; }   // V0.43
   if (target.dataset.taxa || target.dataset.taxaHide != null || target.dataset.st || target.dataset.sph != null || target.dataset.ax != null || target.dataset.axw != null) { onStyleInput(e); return; }   // V0.5–V0.6: column style
-  const F = S.fig, el = e.target;
+  const F = S.fig, el = target;
   if (el.id === 'figType') { F.type = el.value; renderFigPanel(); }
   else if (el.id === 'figTitle') F.title = el.value; else if (el.id === 'figCaption') F.caption = el.value;
   else if (el.id === 'figOrient') (F.orients ||= {})[F.type] = el.value;   // V0.51
@@ -794,6 +809,16 @@ $('figPanel').addEventListener('change', (e) => {
   else if (el.dataset.ftrack) { F.tracks = { ...(F.tracks || S.logView.tracks), [el.dataset.ftrack]: el.checked }; }
   else if (el.dataset.frec != null) { const set = new Set(F.recs || S.records.flatMap((r) => r.series.filter((x) => x.show).map((x) => x.name))); if (el.checked) set.add(el.dataset.frec); else set.delete(el.dataset.frec); F.recs = [...set]; }
   else if (el.id === 'figGeoCore') { F.geoCore = el.value; renderFigPanel(); }
+  else if (el.dataset.fgeoTrack) {
+    const view = editableColView('figure'); view.tracks = geoFigureTracks(view); view.tracks[el.dataset.fgeoTrack] = el.checked;
+  }
+  else if (el.dataset.fgeoField) {
+    const view = editableColView('figure'), key = el.dataset.fgeoField, value = el.value === '' ? null : +el.value;
+    if (value != null && !Number.isFinite(value)) return;
+    const from = key === 'from' ? value : view.from, to = key === 'to' ? value : view.to;
+    if (from != null && to != null && !(to > from)) { el.setCustomValidity(t('edit.invalidAxis')); el.reportValidity(); return; }
+    el.setCustomValidity(''); view[key] = key === 'height' && value != null ? Math.max(200, Math.min(6000, value)) : value;
+  }
   else if (el.dataset.fgeo != null) {
     const chosen = new Set(figGeoFeatures(F));
     if (el.checked) chosen.add(el.dataset.fgeo); else chosen.delete(el.dataset.fgeo);
@@ -820,7 +845,7 @@ $('figPanel').addEventListener('change', (e) => {
   else if (el.dataset.taxonSymbol) { const c = clsById(el.dataset.taxonSymbol); if (c) c.symbol = el.value; requestRender(); scheduleLog(); }
   else if (el.id === 'figRangeH') F.rangeH = Math.max(300, +el.value || 900); else if (el.id === 'figRangeTotal') F.rangeTotal = el.checked;
   else if (el.dataset.key) {
-    const cls = el.closest('.thumbs').dataset.cls, set = new Set(F.picks[cls] || []);
+    const cls = /** @type {HTMLElement} */ (el.closest('.thumbs')).dataset.cls, set = new Set(F.picks[cls] || []);
     if (el.checked) set.add(el.dataset.key); else set.delete(el.dataset.key);
     F.picks[cls] = [...set]; el.closest('.figcls').querySelector('.note').textContent = t('fig.chosen', { n: set.size, m: classTraces(cls).length });
   }
