@@ -2060,3 +2060,25 @@ Object.assign(D.en, {
   'mp.markerFor': 'Edit marker for', 'mp.color': 'Colour', 'mp.markerReset': 'Reset marker',
   'mp.markerDefault': 'Inherited', 'mp.markerNote': 'Cores inherit their project’s style unless customised. Shared cores appear once and inherit from the first project by name.',
 });
+
+// Configurable ichnotaxon abundance and occurrence presentation.
+Object.assign(D.es, {
+  'taxa.layout': 'Distribución', 'taxa.layout.stack': 'Abundancias apiladas', 'taxa.layout.overlay': 'Superpuestos en una columna', 'taxa.layout.separate': 'Un icnotaxón por columna',
+  'taxa.abundance': 'Abundancia (%)', 'taxa.abundance.none': 'No mostrar abundancia', 'taxa.abundance.bars': 'Barras', 'taxa.abundance.line': 'Curvas', 'taxa.abundance.area': 'Áreas rellenas', 'taxa.abundance.kite': 'Curvas simétricas alrededor del eje',
+  'taxa.occurrence': 'Presencias', 'taxa.occurrence.none': 'No mostrar presencias', 'taxa.occurrence.symbols': 'Símbolos', 'taxa.occurrence.names': 'Solo nombres', 'taxa.occurrence.both': 'Símbolos y nombres',
+  'taxa.source': 'Procedencia de las presencias', 'taxa.source.all': 'Trazas y marcas manuales', 'taxa.source.objects': 'Trazas identificadas', 'taxa.source.marks': 'Solo marcas manuales',
+  'taxa.opacity': 'Opacidad del relleno o la curva (%)', 'taxa.scale': 'Escala de abundancia', 'taxa.scale.auto': 'Automática para los datos visibles', 'taxa.scale.percent': '0–100 %',
+  'taxa.values': 'Escribir los porcentajes en los intervalos', 'taxa.reset': 'Restablecer representación',
+  'taxa.note': 'Las presencias se sitúan en su profundidad o edad. Los porcentajes son los calculados sobre el área válida; una marca de presencia no aporta una abundancia. 100 % de opacidad es opaco. Las etiquetas numéricas necesitan espacio vertical.',
+  'taxa.subtitle': 'Abundancia (%) y registros de presencia de icnotaxones',
+});
+Object.assign(D.en, {
+  'taxa.layout': 'Layout', 'taxa.layout.stack': 'Stacked abundances', 'taxa.layout.overlay': 'Overlaid in one column', 'taxa.layout.separate': 'One ichnotaxon per column',
+  'taxa.abundance': 'Abundance (%)', 'taxa.abundance.none': 'Hide abundance', 'taxa.abundance.bars': 'Bars', 'taxa.abundance.line': 'Curves', 'taxa.abundance.area': 'Filled areas', 'taxa.abundance.kite': 'Symmetric curves around the axis',
+  'taxa.occurrence': 'Occurrences', 'taxa.occurrence.none': 'Hide occurrences', 'taxa.occurrence.symbols': 'Symbols', 'taxa.occurrence.names': 'Names only', 'taxa.occurrence.both': 'Symbols and names',
+  'taxa.source': 'Occurrence source', 'taxa.source.all': 'Traces and manual marks', 'taxa.source.objects': 'Identified traces', 'taxa.source.marks': 'Manual marks only',
+  'taxa.opacity': 'Fill or curve opacity (%)', 'taxa.scale': 'Abundance scale', 'taxa.scale.auto': 'Automatic for visible data', 'taxa.scale.percent': '0–100 %',
+  'taxa.values': 'Label percentages in intervals', 'taxa.reset': 'Reset presentation',
+  'taxa.note': 'Occurrences keep their depth or age. Percentages use the measured valid area; a presence mark does not supply an abundance. 100% opacity is opaque. Numeric labels need vertical space.',
+  'taxa.subtitle': 'Ichnotaxon abundance (%) and occurrence records',
+});

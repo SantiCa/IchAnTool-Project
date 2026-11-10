@@ -1692,6 +1692,56 @@ versions of each trace can be shown side by side (treated, original, trace only,
 The core column from top to bottom with image, traces, chosen tracks, records and the core's interval and
 classification bands. In identification mode it shows the marks and the "Identified ichnotaxa" column (§14).
 
+#### 20.3.1 Ichnotaxon presentation
+
+**Ichnotaxa in the charts** controls the whole interpreted core, core column and ichnotaxa distribution through
+shared DOM-free rendering in `log.js`. Options are stored per figure type in `fig.taxaStyles[type]`, within
+each figure tab, and per core column in `logView.style.taxa`. Without a whole-core override the figure inherits
+the core-column presentation. Distribution has its own settings; without an override it reads `rangeDisplay`
+and `rangeSrc`. Existing projects retain their original rendering until presentation settings are changed.
+**Reset presentation** removes the override and restores that inherited/default representation.
+
+- **Layout:** one column per ichnotaxon, overlays sharing an axis, or stacked abundances. Bars, curves and
+  filled areas can be stacked; symmetric curves and presence/label-only tracks use separate or overlaid columns.
+  Selecting a symmetric curve or hiding abundance while stacked switches to separate columns.
+- **Abundance:** bars per measured interval, linear curves through interval centres with endpoint values
+  extended to the interval bounds, filled areas, symmetric curves, or no abundance shape. A line/area is split
+  at missing measurements or a gap between intervals (`|next.a0 - previous.a1| > 1e-9` in the current axis units,
+  matching the existing continuity comparison). Zero is a measured value; missing values do not become zero.
+- **Symmetric curves:** for every continuous measured run, draw points at
+  `(centre ± |sx(p) - sx(base)|/2, interval centre)` and close the shape at the central axis at the run's top and
+  bottom. The half-width is clipped to half the track width. On a linear 0–100% axis it is `width × p / 200`.
+  These are mirrored measured percentages, without density estimation or new abundance calculations.
+- **Scales:** automatic maxima use the visible measurements (summed for stacks, otherwise individual values),
+  with the existing rounded range and a minimum automatic maximum of 1%. In separate columns each taxon has
+  its own range. Automatic mode honours custom horizontal bounds, reverse, log, step, divisions and decimals.
+  **0–100%** fixes a linear 0–100% range, overriding inherited bounds/log settings while retaining reversal and
+  tick formatting. Axis labels include `%`; mirrored axes place the baseline in the centre and magnitudes on
+  both sides. Stacks can exceed 100% when the underlying overlapping-taxon percentages do; choosing a fixed
+  axis clips the drawing and leaves all measurements intact.
+- **Opacity:** 0–100% applies to the abundance fill/curve; 100% is opaque. Presence symbols, names and numeric
+  percentage labels retain full opacity. Percentage labels can accompany symbols with no abundance shape;
+  they appear at measured interval centres when the interval occupies at least 10 px vertically.
+- **Occurrences:** symbols, names, both, or none, sourced from classified traces, hand-placed marks, or both.
+  `app.js::compositeTaxonPoints` uses the existing effective class and object centroid or the recorded mark
+  coordinates, with the same section-depth/age mapping. Names-only plus manual-marks-only places the taxon's
+  name at each recorded manual presence. Equal-depth duplicates of the same taxon/source are suppressed.
+  Endpoint names stay inside the clipping rectangle; the point itself retains its exact depth/age. Closely
+  spaced names can overlap: use a taller figure or a narrower window. Mark-only taxa can be displayed, but
+  a presence record never creates or increases a percentage. The interval-based identification list is omitted
+  when the explicit occurrence track is shown, avoiding duplicate listings.
+
+Taxon visibility is stored in the presentation override, independently per figure tab. A new override inherits
+existing taxon visibility and can then show/hide those taxa without changing the measurements. SVG and PNG use
+the same drawing and saved options; orientation, colours, symbols, window and track-width controls remain
+available. Long names may require wider columns. No analysis definitions or tabular-export values change.
+
+Regression checks cover unchanged measurement arrays/CSV, exact percentage widths and stacking, mirrored
+geometry, missing/gapped/single-interval runs, source filtering, marker-only taxa, escaping and bounded settings.
+Mirrored coordinates permit 0.01 px solely for the renderer's two-decimal coordinate rounding; scientific values
+use exact equality. Browser checks exercise per-tab/per-type choices, depth/age conversion, save/reload and
+decoded SVG/PNG exports, both when served and in the standalone HTML.
+
 ### 20.4 Core sections
 The same depth range `[from, to)` in several versions side by side: original, treated, coloured traces (opaque),
 traces with transparency (chosen opacity), outlines, traces only in colour on white, traces in black, and arrows with
@@ -1703,13 +1753,15 @@ those of each trace, `markScale`, `markStroke(W)`, `labelSize`, `labelColor`, `l
 figure and the core column.
 
 ### 20.5 Ichnotaxa distribution
-`log.js::buildRangeSVG`. One column per ichnotaxon present in the window, with an optional bioturbation (%) column.
+`log.js::buildRangeSVG`. One column per ichnotaxon present in the window by default, with an optional
+bioturbation (%) column. The shared [presentation controls](#2031-ichnotaxon-presentation) add overlays, stacks,
+names, opacity and percentage labels. Without a presentation override, the stored settings below apply:
 - **Source of presence** (`fig.rangeSrc` = `all` / `objects` / `marks`): a symbol for each identified trace (object
-  centroid, with its effective class) and for each mark placed by hand, at its depth or age (`app.js::figPoints`);
+  centroid, with its effective class) and for each mark placed by hand, at its depth or age (`app.js::compositeTaxonPoints`);
   `fig.rangeHollow` draws hollow marks; `fig.rangeAxis` gives the figure its own axis (depth or age, independent of
   the core column).
-- **Display** (`fig.rangeDisplay`): `symbols` (default; a presence per interval with `classPct > 0` or with marks, not
-  duplicated when both coincide, placed at the centre of the visible part of the interval), `bars` (width
+- **Display** (`fig.rangeDisplay`): `symbols` (default; one symbol per identified trace or manual mark at its
+  depth/age; the pure builder also accepts interval-centred presence when no point list is supplied), `bars` (width
   proportional to the ichnotaxon's percentage in each interval divided by its maximum in the window; keeps relative
   abundance), `both`, `kite` and `kiteSymbols`.
 - **Symmetric curves** (`kite`, `kiteSymbols`): the abundance of each ichnotaxon is drawn as two curves symmetric about

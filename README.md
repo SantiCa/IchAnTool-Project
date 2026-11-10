@@ -33,6 +33,8 @@ with the same analysis definitions is available for scripting and batch processi
   maps by age window with several interpolation methods and projections.
 - **Publication figures.** Core column, ichnotaxa distribution, representative traces, core sections and core
   location maps, as SVG, PNG or JPEG, with editable colours, axes and labels.
+  Whole-core, core-column and ichnotaxa distribution plots can combine separate, stacked or overlaid abundances,
+  symmetric curves, adjustable opacity, percentage labels and symbols or names at manual presence marks.
 - **Reproducible and shareable.** Every parameter is stored in the project together with the original images;
   exported tables record the version and settings used. Projects can be shared as a single file or through a shared
   folder, with comments.
@@ -108,6 +110,12 @@ U-Net on the computer.
    the affected section. Edits are temporary and a project export keeps the original data.
 
 The built-in help and guided tour explain each step. The downloads contain no sample data.
+
+In **Figures**, use **Ichnotaxa in the charts** to choose abundance shapes and occurrences independently.
+For names at manually identified positions, select **Names only** and **Manual marks only**; add bars or
+symmetric curves and percentage labels as needed. Opacity 100% is opaque. Figure tabs keep their own choices.
+The same controls are available in the core-column style panel; presence marks retain their depth or age and
+do not supply a measured abundance. See the [figure presentation methods](docs/TECHNICAL_DOCUMENTATION.md#2031-ichnotaxon-presentation).
 
 ## Quick start (Python package)
 

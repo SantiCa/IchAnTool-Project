@@ -259,6 +259,20 @@ Keep task IDs stable. The changelog records what shipped.
 - [ ] Location map: cores from other projects and an inset location map
 
 ## Program
+- [x] **F1 - Configurable ichnotaxon figures.** [V0.113](../CHANGELOG.md#v0113--2026-11-10). Authorised by the maintainer on
+      10 November 2026, ahead of further performance work. Share abundance/occurrence presentation between the
+      whole interpreted core, core column and ichnotaxa distribution, with independent settings for figure tabs.
+  - Offer stacked, overlaid or separate abundance tracks; bars, curves, filled areas and symmetric curves;
+    opacity; symbols and/or names at observed depths/ages; manual-mark-only source; percentage axes and labels.
+  - Preserve existing figure defaults and project readers. Presence-only records must not generate abundance.
+    Verify exact unchanged input/CSV values, symmetric geometry and gaps, source/visibility filtering, axis
+    conversion, independent tabs, saved settings, SVG/PNG export and the required delivery checks.
+  - Delivered and verified: exact unchanged measurements/CSV, shared geometry, independent tabs, depth/age,
+    saved settings, SVG/PNG and visual inspection. Required checks pass (181 Python tests with six optional/
+    permission skips; 142 Node tests; types, version, Ruff, standalone build and full Chrome smoke test).
+    The same figure regression passes against the standalone HTML opened directly from disk.
+  - Presentation settings are opt-in; reset restores the inherited/default plot. Dense presence names can
+    overlap and may need a taller figure or a narrower window. Further performance work remains at M2.2.
 - [ ] Unified data import; age model edited in the core dialog
 - [x] Column headers that stay visible while scrolling
 - [ ] Dedicated horizontal layout for each figure type

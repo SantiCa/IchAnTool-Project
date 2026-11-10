@@ -1,12 +1,12 @@
 /* Figures: representative traces, interpreted core, logs, location map and range chart. */
 import { $, S, clsById, fmt, hex, uid } from './state.js';
-import { tickFieldsHTML, arrowFormHTML, axesFormHTML, colOrderHTML, colView, colorsFormHTML, compositeData, coreImages, lastLog, logRecords, logStyleOf, mode, ndFormHTML, onStyleInput, reduceRGBA, renderLog, scheduleLog, speciesFormHTML, styleFormHTML, syncColOrder } from './columns.js';
-import { busy, clsAbbr, compositeMarks, curCore, depthAtRow, effClassArray, effClassId, esc, idListOf, idMode, legendOf, markDirty, needPixels, pxPerCm, requestRender, rowAtDepth, safe, saveFile, toast } from './app.js';
+import { tickFieldsHTML, arrowFormHTML, axesFormHTML, colOrderHTML, colView, colorsFormHTML, compositeData, coreImages, lastLog, logRecords, logStyleOf, mode, ndFormHTML, onStyleInput, reduceRGBA, renderLog, scheduleLog, taxaFormHTML, styleFormHTML, syncColOrder } from './columns.js';
+import { busy, clsAbbr, compositeMarks, compositeTaxonPoints, curCore, depthAtRow, effClassArray, effClassId, esc, idListOf, idMode, legendOf, markDirty, needPixels, pxPerCm, requestRender, rowAtDepth, safe, saveFile, toast } from './app.js';
 import { buildGeoLog, fetchImage, geoComputeSamples, geoFigureVars, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoMap } from './multiproxy.js';
 
 import { UNIT_TO_CM, hasId, interpAge, topAt } from './core.js';
 import { vec } from './learn.js';
-import { buildLogSVG, buildRangeSVG, extraTicks, noDataDefs, mergedStyle, noDataGaps, noDataRect, rowsRange, verticalTicks } from './log.js';
+import { buildLogSVG, buildRangeSVG, taxaOptions, extraTicks, noDataDefs, mergedStyle, noDataGaps, noDataRect, rowsRange, verticalTicks } from './log.js';
 import { t } from './i18n.js';
 import { LOCMAP_DEFAULTS, buildLocMapSVG, lmFitBBox, lmUtmZone, lmZoom } from './locmap.js';
 
@@ -193,9 +193,12 @@ function coreSVG() {
   const images = S.sections.length && lv.tracks.image ? coreImages(D, from, to, H, { panels: F.corePanels, mode: 'enh', hideExcl: F.coreHideExcl, w: imgW }) : null, image = images?.[0] || null;   // V0.25
   const boundaries = D.secs.map((x, i) => { const ax = (v) => (D.axis === 'age' ? interpAge(D.model, v * D.f(x)) : v * D.f(x)); return { a: ax(x.top), a1: ax(x.bottom), label: x.name, n: i + 1 }; }).filter((b) => b.a != null);
   const LS = logStyleOf(D), marks = lv.tracks.marks !== false ? compositeMarks(D) : [];
+  const taxa = F.taxaStyles?.core ?? lv.style?.taxa;
   const res = buildLogSVG({
     style: LS.style, colWidths: S.logView.colW || {}, title: curCore()?.name || S.name, subtitle: t('fig.coreSub', { n: D.secs.length }), axisLabel: LS.label,
     from, to, height: H, rows: D.rows, classes, tracks: { ...lv.tracks, image: !!image }, image, images, imageWidth: imgW, records: figRecords(D), boundaries, ...geoOverlay(D.axis),
+    taxa, taxonPoints: taxa ? compositeTaxonPoints(D) : [],
+    taxonClasses: S.classes.map((c, index) => ({ ...c, index })).filter((c) => c.id !== 'artifact'),
     marks, idList: idMode() || marks.length ? idListOf(D.rows, marks) : null, legendClasses: legendOf(classes.filter((c) => D.rows.some((r) => r.classPct?.[c.index] > 0)), marks),
     labels: { secs: t('log.secs'), noData: t('log.noData'), total: t('log.total'), species: t('log.species'), image: t('log.image'), marks: t('id.marks'), idList: t('id.list') },
   });
@@ -402,31 +405,13 @@ function sectionsSVG() {
   out.push('</svg>');
   return out.join('');
 }
-/**
- * V0.32: positions of identified ichnotaxa for the distribution figure, on the figure axis (depth or age).
- * src: 'objects' = traces identified on the image (centroid of each object), 'marks' = identification marks placed by
- * hand, 'all' = both. Each point: { a, index (class), kind: 'obj' | 'mark' }.
- */
-function figPoints(D, src = 'all') {
-  const out = [], idx = new Map(S.classes.map((c, i) => [c.id, i]));
-  const put = (s, y, cid, kind) => {
-    const c = clsById(cid); if (!c || c.id === 'artifact' || y < s.roi.y0 || y >= s.roi.y1) return;
-    const d = depthAtRow(s, y) * D.f(s), a = D.axis === 'age' ? interpAge(D.model, d) : d;
-    if (a != null) out.push({ a, index: idx.get(c.id), kind });
-  };
-  for (const s of D.secs) {
-    if (src !== 'marks') for (const o of s.objects.values()) { const cid = effClassId(o); if (cid && o.stats?.n) put(s, o.stats.sy / o.stats.n, cid, 'obj'); }
-    if (src !== 'objects') for (const m of s.marks || []) put(s, m.y, m.cls, 'mark');
-  }
-  return out.sort((p, q) => p.a - q.a);
-}
 function rangeSVG() {
   if (!S.sections.length) return null;
   const F = S.fig, D = compositeData(F.rangeAxis || S.logView.axis), [from, to] = figAxisWin(D);
   const classes = S.classes.map((c, i) => ({ name: c.name, color: c.color, symbol: c.symbol || 'triDown', index: i, plain: !!c.plain })).filter((c) => S.classes[c.index].id !== 'artifact');
-  const points = figPoints(D, F.rangeSrc || 'all');
-  const res = buildRangeSVG({ title: curCore()?.name || S.name, subtitle: t({ bars: 'fig.rangeSub', both: 'fig.rangeSubBoth', kite: 'fig.rangeSubKite', kiteSymbols: 'fig.rangeSubKiteSym' }[F.rangeDisplay] || 'fig.rangeSubPts'), colW: F.rangeColW || 30, axisLabel: logStyleOf(D).label, style: logStyleOf(D).style,
-    from, to, height: F.rangeH, rows: D.rows, classes, points, markHollow: F.rangeSrc === 'all' && F.rangeHollow !== false, display: F.rangeDisplay || 'symbols', total: F.rangeTotal, totalLabel: t('log.total') });
+  const points = compositeTaxonPoints(D, F.taxaStyles?.range ? 'all' : F.rangeSrc || 'all');
+  const res = buildRangeSVG({ title: curCore()?.name || S.name, subtitle: F.taxaStyles?.range ? t('taxa.subtitle') : t({ bars: 'fig.rangeSub', both: 'fig.rangeSubBoth', kite: 'fig.rangeSubKite', kiteSymbols: 'fig.rangeSubKiteSym' }[F.rangeDisplay] || 'fig.rangeSubPts'), colW: F.rangeColW || 30, axisLabel: logStyleOf(D).label, style: logStyleOf(D).style,
+    from, to, height: F.rangeH, rows: D.rows, classes, points, taxa: F.taxaStyles?.range, markHollow: (F.taxaStyles?.range?.source || F.rangeSrc) === 'all' && F.rangeHollow !== false, display: F.rangeDisplay || 'symbols', total: F.rangeTotal, totalLabel: t('log.total') });
   setTimeout(() => syncColOrder('range', res.columns), 0);   // V0.33 (after the form exists)
   return res.svg;
 }
@@ -504,19 +489,17 @@ export function renderFigPanel() {
     syncSecFigSize();
   } else if (F.type === 'range') {
     box.innerHTML = `${figWinHTML()}<label class="f"><span>${t('log.height')}</span><input type="number" id="figRangeH" min="300" max="6000" step="50" value="${F.rangeH}"></label>
-      <div class="grid2"><label class="f"><span>${t('fig.axisFig')}</span><select id="figRangeAxis"><option value="depth" ${(F.rangeAxis || S.logView.axis) !== 'age' ? 'selected' : ''}>${t('log.depth')}</option><option value="age" ${(F.rangeAxis || S.logView.axis) === 'age' ? 'selected' : ''} ${S.age.model ? '' : 'disabled'}>${t('log.age')}</option></select></label>
-      <label class="f"><span>${t('fig.ptsSrc')}</span><select id="figRangeSrc">${['all', 'objects', 'marks'].map((v) => `<option value="${v}" ${(F.rangeSrc || 'all') === v ? 'selected' : ''}>${t('fig.ptsSrc.' + v)}</option>`).join('')}</select></label></div>
-      ${(F.rangeSrc || 'all') === 'all' ? `<label class="chk"><input type="checkbox" id="figRangeHollow" ${F.rangeHollow !== false ? 'checked' : ''}><span>${t('fig.ptsHollow')}</span></label>` : ''}
-      <label class="f"><span>${t('fig.rangeDisplay')}</span><select id="figRangeDisplay">${['symbols', 'bars', 'both', 'kite', 'kiteSymbols'].map((v) => `<option value="${v}" ${(F.rangeDisplay || 'symbols') === v ? 'selected' : ''}>${t('fig.rangeDisplay.' + v)}</option>`).join('')}</select></label>
+      <label class="f"><span>${t('fig.axisFig')}</span><select id="figRangeAxis"><option value="depth" ${(F.rangeAxis || S.logView.axis) !== 'age' ? 'selected' : ''}>${t('log.depth')}</option><option value="age" ${(F.rangeAxis || S.logView.axis) === 'age' ? 'selected' : ''} ${S.age.model ? '' : 'disabled'}>${t('log.age')}</option></select></label>
+      ${taxaFormHTML(taxaOptions(F.taxaStyles?.range, { range: true, style: S.logView.style || {}, display: F.rangeDisplay, source: F.rangeSrc || 'all' }))}
+      ${(F.taxaStyles?.range?.source || F.rangeSrc || 'all') === 'all' ? `<label class="chk"><input type="checkbox" id="figRangeHollow" ${F.rangeHollow !== false ? 'checked' : ''}><span>${t('fig.ptsHollow')}</span></label>` : ''}
       <details class="mini"><summary>${t('fig.taxonSymbols')}</summary>${S.classes.filter((c) => c.id !== 'artifact').map((c) => `<label class="f"><span>${esc(c.name)}</span><select data-taxon-symbol="${esc(c.id)}">${['triDown','tri','circle','square','diamond','star','cross'].map((v) => `<option value="${v}" ${(c.symbol || 'triDown') === v ? 'selected' : ''}>${t('fig.ms.' + v)}</option>`).join('')}</select></label>`).join('')}</details>
       <label class="f"><span>${t('fig.rangeColW')}</span><input type="number" id="figRangeColW" min="16" max="200" step="2" value="${F.rangeColW || 30}"></label>
-      <div class="f"><span>${t('fig.rangeTaxa')}</span><div class="chk2">${S.classes.filter((c) => c.id !== 'artifact').map((c) => `<label class="chk"><input type="checkbox" data-range-taxon="${esc(c.name)}" ${(colView('range').style?.colHide || []).includes('sp:' + c.name) ? '' : 'checked'}><span>${esc(c.name)}</span></label>`).join('')}</div>
-      <div class="row"><button class="btn small" type="button" data-range-all="1">${t('mp.all')}</button><button class="btn small" type="button" data-range-all="0">${t('mp.none')}</button></div></div>
       <label class="chk"><input type="checkbox" id="figRangeTotal" ${F.rangeTotal ? 'checked' : ''}><span>${t('log.total')}</span></label><p class="note">${t('fig.rangeNote')}</p>`;   // V0.51: taxa shown and column width
   } else if (F.type === 'core') {
     const tr = F.tracks || S.logView.tracks, names = [...new Set(S.records.flatMap((r) => r.series.map((x) => x.name)))], shown = F.recs || S.records.flatMap((r) => r.series.filter((x) => x.show).map((x) => x.name));
     const trLab = { image: t('log.image'), total: t('log.total'), species: t('log.species'), BI: 'BI', ii: 'ii', secs: t('log.secs'), manual: t('log.manual'), marks: t('color.marks') };
     box.innerHTML = `${figWinHTML()}
+      ${taxaFormHTML(taxaOptions(F.taxaStyles?.core ?? S.logView.style?.taxa, { style: S.logView.style || {} }))}
       <div class="f"><span>${t('fig.tracks')}</span><div class="chk2">${Object.keys(trLab).map((k) => `<label class="chk"><input type="checkbox" data-ftrack="${k}" ${(k === 'marks' ? tr[k] !== false : tr[k]) ? 'checked' : ''}><span>${esc(trLab[k])}</span></label>`).join('')}</div></div>
       ${names.length ? `<div class="f"><span>${t('fig.recs')}</span><div class="chk2">${names.map((n) => `<label class="chk"><input type="checkbox" data-frec="${esc(n)}" ${shown.includes(n) ? 'checked' : ''}><span>${esc(n)}</span></label>`).join('')}</div></div>` : ''}
       <div class="grid2"><label class="f"><span>${t('fig.coreImgW')}</span><input type="number" id="figCoreImgW" min="10" max="600" step="10" value="${F.coreImgW || 70}"></label>
@@ -524,7 +507,7 @@ export function renderFigPanel() {
       <label class="chk"><input type="checkbox" id="figKeepRatio" ${F.keepRatio ? 'checked' : ''}><span>${t('fig.keepRatio')}</span></label><p class="note" id="figRatioNote"></p>
       <div class="f"><span>${t('log.panels')}</span><div class="chk2">${FIG_PANELS.map((q) => `<label class="chk"><input type="checkbox" data-corep="${q}" ${(F.corePanels || []).includes(q) ? 'checked' : ''}><span>${t('fig.p.' + q)}</span></label>`).join('')}</div></div>
       <label class="chk"><input type="checkbox" id="figCoreHideExcl" ${F.coreHideExcl ? 'checked' : ''}><span>${t('log.hideExcl')}</span></label>
-      <details class="mini"><summary>${t('st.title')}</summary><div id="figStyle">${styleFormHTML()}</div></details>
+      <details class="mini"><summary>${t('st.title')}</summary><div id="figStyle">${styleFormHTML(false)}</div></details>
       <p class="note">${t('fig.coreNote')}</p>`;
     syncCoreFigSize();
   } else if (F.type === 'geolog') {
@@ -535,7 +518,7 @@ export function renderFigPanel() {
   } else if (F.type === 'locmap') box.innerHTML = locmapPanelHTML();
   else box.innerHTML = `<p class="note">${t(F.type === 'map' ? 'fig.mapNote' : 'fig.logNote')}</p>`;
   if (F.type === 'log' || F.type === 'geolog') box.insertAdjacentHTML('afterbegin', `<label class="chk"><input type="checkbox" id="figLogHideExcl" ${S.logView.hideExcl ? 'checked' : ''}><span>${t('log.hideExcl')}</span></label>`);   // V0.51: every figure with the core
-  if (['sections', 'range', 'log'].includes(F.type)) box.insertAdjacentHTML('beforeend', `<details class="mini"><summary>${t('st.title')}</summary>${F.type === 'log' ? styleFormHTML() : verticalStyleHTML() + (F.type === 'range' ? colOrderHTML('range') + colorsFormHTML(S.logView.style || {}, 'range') + speciesFormHTML(S.logView.style || {}) + axesFormHTML(['total', 'species']) : '')}</details>`);
+  if (['sections', 'range', 'log'].includes(F.type)) box.insertAdjacentHTML('beforeend', `<details class="mini"><summary>${t('st.title')}</summary>${F.type === 'log' ? styleFormHTML() : verticalStyleHTML() + (F.type === 'range' ? colOrderHTML('range') + colorsFormHTML(S.logView.style || {}, 'range') + axesFormHTML(['total', 'species', ...S.classes.map((c) => 'sp:' + c.name)]) : '')}</details>`);
 }
 
 /** Editable SVG labels. Keys include source text and occurrence; offsets use the parent SVG coordinates. */
@@ -792,8 +775,9 @@ $('figPanel').addEventListener('click', (e) => {
 let figTimer = 0;
 export const scheduleFigure = () => { clearTimeout(figTimer); figTimer = setTimeout(renderFigure, 150); };
 $('figPanel').addEventListener('change', (e) => {
+  const target = /** @type {HTMLInputElement} */ (e.target);
   if (e.target.dataset.lm != null) { onLocmapInput(e.target); return; }   // V0.43
-  if (e.target.dataset.st || e.target.dataset.sph != null || e.target.dataset.ax != null || e.target.dataset.axw != null) { onStyleInput(e); return; }   // V0.5–V0.6: column style
+  if (target.dataset.taxa || target.dataset.taxaHide != null || target.dataset.st || target.dataset.sph != null || target.dataset.ax != null || target.dataset.axw != null) { onStyleInput(e); return; }   // V0.5–V0.6: column style
   const F = S.fig, el = e.target;
   if (el.id === 'figType') { F.type = el.value; renderFigPanel(); }
   else if (el.id === 'figTitle') F.title = el.value; else if (el.id === 'figCaption') F.caption = el.value;

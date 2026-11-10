@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.113 — 2026-11-10
+
+- Customise ichnotaxon abundance and presence in whole-core, core-column and distribution figures: separate, overlaid or stacked plots, curves, filled areas and symmetric curves with adjustable opacity.
+- Add symbols or names at identified traces or manual marks, together with percentage scales and labels; retain independent figure settings when saving or switching tabs.
+
 ## V0.112 — 2026-11-10
 
 - Add an optional visible-row Data table experiment with bounded rendering, keyboard navigation and complete CSV exports; keep the current table as the default.

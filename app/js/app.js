@@ -23,7 +23,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.112';
+export const DELIVERY = 'V0.113';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -1320,6 +1320,24 @@ export function compositeMarks(D) {
     const c = clsById(m.cls); if (!c || m.y < s.roi.y0 || m.y >= s.roi.y1) continue;
     const d = depthAtRow(s, m.y) * D.f(s), a = D.axis === 'age' ? interpAge(D.model, d) : d; if (a == null) continue;
     out.push({ a, xf: (m.x - s.roi.x0) / Math.max(1, s.roi.x1 - s.roi.x0), color: c.color, abbr: ab.get(c.name), name: c.name, symbol: c.symbol || 'triDown', plain: !!c.plain, cls: c.id });
+  }
+  return out.sort((p, q) => p.a - q.a);
+}
+/**
+ * V0.32: positions of identified ichnotaxa for the distribution figure, on the figure axis (depth or age).
+ * src: 'objects' = traces identified on the image (centroid of each object), 'marks' = identification marks placed by
+ * hand, 'all' = both. Each point: { a, index (class), kind: 'obj' | 'mark' }.
+ */
+export function compositeTaxonPoints(D, src = 'all') {
+  const out = [], idx = new Map(S.classes.map((c, i) => [c.id, i]));
+  const put = (s, y, cid, kind) => {
+    const c = clsById(cid); if (!c || c.id === 'artifact' || y < s.roi.y0 || y >= s.roi.y1) return;
+    const d = depthAtRow(s, y) * D.f(s), a = D.axis === 'age' ? interpAge(D.model, d) : d;
+    if (a != null) out.push({ a, index: idx.get(c.id), kind });
+  };
+  for (const s of D.secs) {
+    if (src !== 'marks') for (const o of s.objects.values()) { const cid = effClassId(o); if (cid && o.stats?.n) put(s, o.stats.sy / o.stats.n, cid, 'obj'); }
+    if (src !== 'objects') for (const m of s.marks || []) put(s, m.y, m.cls, 'mark');
   }
   return out.sort((p, q) => p.a - q.a);
 }

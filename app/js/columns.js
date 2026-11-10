@@ -1,13 +1,13 @@
 /* Composite log of a core: column view, records and the order and visibility of chart columns. */
 import { $, S, fmt, hex, uid } from './state.js';
-import { analyze, armed, busy, compositeMarks, effClassArray, esc, idListOf, idMode, legendOf, markDirty, needPixels, requestRender, resizeCanvases, rowAtDepth, safe, saveFile, toast, updateTip, withProv } from './app.js';
+import { analyze, armed, busy, compositeMarks, compositeTaxonPoints, effClassArray, esc, idListOf, idMode, legendOf, markDirty, needPixels, requestRender, resizeCanvases, rowAtDepth, safe, saveFile, toast, updateTip, withProv } from './app.js';
 import { geoOverlay, loadLand, logInteract, readTableFile, renderGeo, renderGeoLogs } from './multiproxy.js';
 import { applyPanels } from './panels.js';
 import { disposeDataTable, renderData } from './datatab.js';
 import { FIG_PANELS, arrowMarksSVG, axisErr, coreRatio, editSVGLabels, figTraces, panelDataURL, renderFigPanel, renderFigure, scheduleFigure } from './figures.js';
 
 import { UNIT_TO_CM, interpAge, topAt } from './core.js';
-import { LOG_STYLE, ND_STYLE, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
+import { LOG_STYLE, ND_STYLE, taxaOptions, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
 import { t } from './i18n.js';
 import { recordSeries } from './exportio.js';
 
@@ -211,6 +211,8 @@ export function renderLog() {
   try { res = buildLogSVG({
     style, title: S.name, subtitle: idm && !['total', 'species', 'BI', 'ii'].some((k) => lv.tracks[k]) ? t('id.subtitle', { n: marks.length, from: fmt(from, 4), to: fmt(to, 4), u: D.axis === 'age' ? S.age.units : D.base }) : t('log.subtitle', { n: D.secs.length, b: fmt(S.settings.binCm || 1, 3), from: fmt(from, 4), to: fmt(to, 4), u: D.axis === 'age' ? S.age.units : D.base }),
     axisLabel, from, to, height: lv.height, rows: D.rows, classes, tracks: lv.tracks, image, images, imageWidth: image?.w || imgW, records, boundaries,   // V0.2: identification marks and quantified tracks can be shown together
+    taxa: lv.style?.taxa, taxonPoints: lv.style?.taxa ? compositeTaxonPoints(D) : [],
+    taxonClasses: S.classes.map((c, index) => ({ ...c, index })).filter((c) => c.id !== 'artifact'),
     marks, idList: idm || marks.length ? idListOf(D.rows, marks) : null, legendClasses: legendOf(lv.overlay || lv.tracks.species ? classes.filter((c) => D.rows.some((r) => r.classPct?.[c.index] > 0)) : [], marks),
     ...geoOverlay(D.axis),
     labels: { secs: t('log.secs'), noData: t('log.noData'), total: t('log.total'), species: t('log.species'), image: t('log.image'), marks: t('id.marks'), idList: t('id.list') },
@@ -328,7 +330,7 @@ document.addEventListener('click', (e) => {
     if (el) { el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); }
   }
 });
-export function styleFormHTML() {
+export function styleFormHTML(showTaxa = true) {
   const st = { ...LOG_STYLE, ...(S.logView.style || {}) }, num = (k, lab, step = 'any', min = 0) => `<label class="f"><span>${t(lab)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${st[k] ?? ''}" placeholder="${t('fig.auto2')}"></label>`;
   const chk = (k, lab) => `<label class="chk"><input type="checkbox" data-st="${k}" ${st[k] ? 'checked' : ''}><span>${t(lab)}</span></label>`;
   const sel = (k, lab, opts) => `<label class="f"><span>${t(lab)}</span><select data-st="${k}">${opts.map(([v, l]) => `<option value="${v}" ${String(st[k] ?? '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
@@ -338,22 +340,65 @@ export function styleFormHTML() {
     ${tickFieldsHTML(st)}
     ${num('fontSize', 'st.fontSize', 1, 6)}</div>
     <div class="chk2">${chk('frame', 'st.frame')}${chk('grid', 'st.grid')}${chk('boundaries', 'st.boundaries')}${chk('showTitle', 'st.showTitle')}</div>
-    ${colorsFormHTML(st, 'log')}${speciesFormHTML(st)}
+    ${colorsFormHTML(st, 'log')}${showTaxa ? speciesFormHTML(st) : ''}
     ${ndFormHTML(st)}
     ${axesFormHTML()}`;
 }
 /** V0.31: ichnotaxa shown in «By ichnotaxon» (and the distribution chart), stacked or each in its own column. */
 export function speciesFormHTML(st) {
-  const hide = new Set(st.speciesHide || []), names = S.classes.filter((c) => c.counts !== false && c.id !== 'artifact').map((c) => c.name);
-  return `<div class="f"><span>${t('sp.title')}</span>
-    <label class="f"><span>${t('sp.mode')}</span><select data-st="speciesMode"><option value="stack" ${st.speciesMode !== 'separate' ? 'selected' : ''}>${t('sp.stack')}</option><option value="separate" ${st.speciesMode === 'separate' ? 'selected' : ''}>${t('sp.separate')}</option></select></label>
-    <div class="chk2">${names.map((n) => `<label class="chk"><input type="checkbox" data-sph="${esc(n)}" ${hide.has(n) ? '' : 'checked'}><span><i>${esc(n)}</i></span></label>`).join('')}</div></div>`;
+  return taxaFormHTML(taxaOptions(st.taxa, { style: st }), 'column');
 }
+/** Figure-specific controls use the same vocabulary and settings as the core column. */
+export function taxaFormHTML(q, scope = 'figure') {
+  const select = (key, choices) => `<label class="f"><span>${t('taxa.' + key)}</span><select data-taxa="${key}">${choices.map((value) =>
+    `<option value="${value}" ${q[key] === value ? 'selected' : ''} ${key === 'layout' && value === 'stack' && ['none', 'kite'].includes(q.abundance) ? 'disabled' : ''}>${t('taxa.' + key + '.' + value)}</option>`).join('')}</select></label>`;
+  const names = S.classes.filter((c) => c.id !== 'artifact').map((c) => c.name), hidden = new Set(q.hidden);
+  return `<div class="f" data-taxa-scope="${scope}"><span>${t('sp.title')}</span><div class="grid2">
+    ${select('layout', ['stack', 'overlay', 'separate'])}${select('abundance', ['none', 'bars', 'line', 'area', 'kite'])}
+    ${select('occurrence', ['none', 'symbols', 'names', 'both'])}${select('source', ['all', 'objects', 'marks'])}
+    ${select('scale', ['auto', 'percent'])}<label class="f"><span>${t('taxa.opacity')}</span><input type="number" data-taxa="opacity" min="0" max="100" step="5" value="${Math.round(q.opacity * 100)}"></label></div>
+    <label class="chk"><input type="checkbox" data-taxa="values" ${q.values ? 'checked' : ''}><span>${t('taxa.values')}</span></label>
+    <div class="chk2">${names.map((name) => `<label class="chk"><input type="checkbox" data-taxa-hide="${esc(name)}" ${hidden.has(name) ? '' : 'checked'}><span><i>${esc(name)}</i></span></label>`).join('')}</div>
+    <div class="row"><button type="button" class="btn small" data-taxa-all="1">${t('mp.all')}</button><button type="button" class="btn small" data-taxa-all="0">${t('mp.none')}</button></div>
+    <p class="note">${t('taxa.note')}</p><button type="button" class="btn small ghost" data-taxa-reset>${t('taxa.reset')}</button></div>`;
+}
+
+function changeTaxaPresentation(el, reset = false) {
+  const figure = el.closest('[data-taxa-scope]')?.dataset.taxaScope === 'figure', F = S.fig;
+  const context = { style: S.logView.style || {}, range: figure && F.type === 'range', display: F.rangeDisplay, source: F.rangeSrc || 'all' };
+  const current = figure ? F.taxaStyles?.[F.type] ?? (F.type === 'core' ? S.logView.style?.taxa : undefined) : S.logView.style?.taxa;
+  const q = taxaOptions(current, context);
+  const rebuild = reset || ['layout', 'abundance', 'occurrence', 'source'].includes(el.dataset.taxa);
+  if (el.dataset.taxaAll != null) {
+    q.hidden = el.dataset.taxaAll === '1' ? [] : S.classes.filter((c) => c.id !== 'artifact').map((c) => c.name);
+  } else if (el.dataset.taxaHide != null) {
+    const hidden = new Set(q.hidden); if (el.checked) hidden.delete(el.dataset.taxaHide); else hidden.add(el.dataset.taxaHide); q.hidden = [...hidden];
+  } else if (el.dataset.taxa) {
+    const key = el.dataset.taxa;
+    q[key] = el.type === 'checkbox' ? el.checked : key === 'opacity' ? (el.value === '' ? 1 : +el.value / 100) : el.value;
+  }
+  if (figure) {
+    F.taxaStyles ||= {};
+    if (reset) delete F.taxaStyles[F.type]; else F.taxaStyles[F.type] = taxaOptions(q, context);
+    if (!reset && F.type === 'range' && !F.rangeColW) F.rangeColW = ['names', 'both'].includes(q.occurrence) ? 120 : 70;
+    if (rebuild || el.dataset.taxaAll != null) renderFigPanel(); scheduleFigure();
+  } else {
+    S.logView.style ||= {};
+    if (reset) delete S.logView.style.taxa; else S.logView.style.taxa = taxaOptions(q, context);
+    if (rebuild || el.dataset.taxaAll != null) $('logStyle').innerHTML = styleFormHTML(); scheduleLog();
+  }
+  markDirty();
+}
+document.addEventListener('click', (e) => {
+  const el = e.target instanceof Element ? e.target.closest('[data-taxa-reset], [data-taxa-all]') : null;
+  if (el) changeTaxaPresentation(el, el.hasAttribute('data-taxa-reset'));
+});
 /** V0.6: width and axis format of each column at the right of the core (total, ichnotaxa, BI, ii and records). */
 export function axesFormHTML(only = null, lv = S.logView, recNames = null) {
   const ax = lv.style?.axes || {}, W = lv.colW || {};
   const recs = recNames || [...new Set(S.records.flatMap((r) => r.series.map((x) => x.name)))];
-  const sep = lv.style?.speciesMode === 'separate', spHide = new Set(lv.style?.speciesHide || []);
+  const figureTaxa = mode === 'fig' ? S.fig.taxaStyles?.[S.fig.type] : null;
+  const sep = (figureTaxa || lv.style?.taxa)?.layout === 'separate' || (!(figureTaxa || lv.style?.taxa) && lv.style?.speciesMode === 'separate'), spHide = new Set(lv.style?.speciesHide || []);
   const spCols = sep ? S.classes.filter((c) => c.counts !== false && c.id !== 'artifact' && !spHide.has(c.name)).map((c) => ['sp:' + c.name, c.name, 70]) : [['species', t('log.species'), 150]];
   const cols = [['secs', t('log.secs'), 40], ['total', t('log.total'), 150], ...spCols, ['BI', 'BI', 46], ['ii', 'ii', 46], ...recs.map((n) => ['rec:' + n, n, 120])];
   /* V0.75: the settings of the two percentage columns (title, shape of the bioturbation column, divisions) live in their table rows. */
@@ -376,6 +421,7 @@ export function axesFormHTML(only = null, lv = S.logView, recNames = null) {
     </table></div><p class="note">${t('st.axesNote')}</p></div>`;
 }
 export function onStyleInput(e) {
+  if (e.target.dataset.taxa || e.target.dataset.taxaHide != null) { changeTaxaPresentation(e.target); return; }
   const el = e.target, geo = !!el.closest('[data-stt="geo"]'), lv = geo ? S.geo.view : S.logView;   // V0.22: Multiproxy has its own scales
   if (geo) setTimeout(renderGeoLogs, 0);
   if (el.dataset.axw != null) { lv.colW ||= {}; const v = +el.value; if (v >= 30) lv.colW[el.dataset.axw] = Math.min(600, v); else delete lv.colW[el.dataset.axw]; markDirty(); scheduleLog(); if (mode === 'fig') scheduleFigure(); return; }
