@@ -4,6 +4,21 @@ import { readFileSync } from 'node:fs';
 import { parseTable } from '../../app/js/log.js';
 import { mergeAgeImports, mergeMixedImports, createIntervalLookup, intervalsOnAxis } from '../../app/js/geo.js';
 
+test('map coverage annotations are escaped and placed below the existing map note', () => {
+  const options = { bbox: [5, 30, 20, 42], land: [], points: [], mode: 'value', note: 'Existing note' };
+  const baseline = buildMapSVG(options), label = 'Outside cores <script>extrapolated</script>';
+  assert.equal(buildMapSVG({ ...options, coverageNote: '' }), baseline);
+  const expanded = buildMapSVG({ ...options, coverageNote: label });
+  assert.match(expanded, /Outside cores &lt;script&gt;extrapolated&lt;\/script&gt;/);
+  assert.doesNotMatch(expanded, /<script>/);
+  assert.ok(expanded.indexOf('Existing note') < expanded.indexOf('Outside cores'));
+  const attributed = buildMapSVG({ ...options, coverageNote: label, bg: { attribution: 'Map provider' } });
+  const lines = [...attributed.matchAll(/<text[^>]*y="([\d.]+)"[^>]*>([^<]*)<\/text>/g)];
+  const coverageY = +lines.find((line) => line[2].startsWith('Outside cores'))[1];
+  const attributionY = +lines.find((line) => line[2] === 'Map provider')[1];
+  assert.equal(attributionY - coverageY, 16, 'map attribution has its own line');
+});
+
 test('interval lookup retains half-open boundaries, gaps and original objects without reordering input', () => {
   const intervals = [{ from: 10, to: 20 }, { from: -5, to: 0 }, { from: 0, to: 5 }];
   const original = [...intervals], lookup = createIntervalLookup(intervals);

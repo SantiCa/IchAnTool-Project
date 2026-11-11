@@ -9,7 +9,7 @@ import { axesFormHTML, colOrderHTML, colorsFormHTML, columnImages, compositeData
 import { interpAge, parseAgeModel, toCSV } from './core.js';
 import { buildLogSVG, compositeRows, decodeText, mergedStyle, parseTable, validHexColor } from './log.js';
 import { renderFigure, verticalStyleHTML } from './figures.js';
-import { INTERP_DEFAULT, INTERP_METHODS, RAMPS, colorRange, contourLevels, contourSegments, interpolate, maskLand, rampColor } from './interp.js';
+import { INTERP_DEFAULT, INTERP_METHODS, RAMPS, colorRange, contourLevels, contourSegments, interpolate, maskLand, rampColor, visibleSeaOptions } from './interp.js';
 import { frameRatio, panelPrefs, placeSplitters, savePanels } from './panels.js';
 
 /* ───────────── multiproxy tool: numeric records, interval layers and automatic interval classification ─────────────
@@ -988,7 +988,7 @@ export function renderGeoMap() {
     land: geoLand, bbox, points: pts, mode: m.mode, colors, legend, style, bg, ...(vl ? { grid: vl.grid, nx: vl.nx, ny: vl.ny, colorFn: vl.colorFn, contours: vl.contours, contourLabels: vl.contourLabels, gridOpacity: vl.gridOpacity, colorbar: vl.colorbar } : {}),
     title: m.mode === 'class' ? t('geo.mapTitleClass', { l: target, a0: m.a0, a1: m.a1 }) : t('geo.mapTitleValue', { f: m.feature, a0: m.a0, a1: m.a1 }),
     subtitle: m.mode === 'class' ? (src?.r ? t('cl.mapSub', { c: src.c.name, m: t('geo.m.name.' + src.c.method) }) : t('geo.mapSubLabels')) : (m.ref ? t('geo.mapSubRef', { r0: m.r0, r1: m.r1 }) : t('geo.mapSubZ')),
-    note: t('geo.mapNote'),
+    note: t('geo.mapNote'), coverageNote: vl?.coverageNote,
   });
   box.innerHTML = svg; geoLastMap = { svg, pts };
   mapStyleUI('gmStyle', geoMapGet, (s2, v) => { S.geo.map.style = s2; S.geo.map.view = v; markDirty(); }, refreshProjectMaps);
@@ -1014,14 +1014,15 @@ export function valueLayer(pts, bbox, ip, label) {
   const [lo, hi] = colorRange((grid || []).concat(pts.map((p) => p.value)), o);
   const colorFn = (v) => rampColor(o.ramp, v, lo, hi, o.steps, o.reverse);
   const contours = grid && o.contours ? contourLevels(lo, hi, o.levels).map((level) => ({ level, label: +level.toFixed(3), segs: contourSegments(grid, nx, ny, level) })) : [];
-  return { grid, nx, ny, colorFn, contours, contourLabels: o.labels, gridOpacity: o.opacity, colorbar: { min: lo, max: hi, fn: colorFn, label }, info };
+  const coverageNote = grid && o.hull === false && o.method !== 'tin' ? t('ip.extrapolated') : '';
+  return { grid, nx, ny, colorFn, contours, contourLabels: o.labels, gridOpacity: o.opacity, colorbar: { min: lo, max: hi, fn: colorFn, label }, info, coverageNote };
 }
 
 /** Panel of interpolation and colour options. get() → options object (mutated by the panel); redraw() renders the map. */
 export function interpUI(boxId, get, save, redraw, info) {
   const box = $(boxId), o = get();
   box.dataset.key ||= '';
-  const key = `${lang()}|${o.method}|${o.scale}|${o.autoVario}|${o.contours}|${o.on}`;
+  const key = `${lang()}|${o.method}|${o.scale}|${o.autoVario}|${o.contours}|${o.on}|${o.hull}|${o.mask}`;
   const fill = () => {
     for (const el of box.querySelectorAll('[data-ip]')) if (el !== document.activeElement) { const k = el.dataset.ip; if (el.type === 'checkbox') el.checked = !!o[k]; else el.value = o[k]; }
     const inf = box.querySelector('.ipinfo');
@@ -1041,6 +1042,7 @@ export function interpUI(boxId, get, save, redraw, info) {
     movavg: num('radius', 'ip.radius', 0, 5000, 10),
   };
   box.innerHTML = `<details ${open ? 'open' : ''}><summary>${t('ip.title')}</summary><div class="msgrid">
+    <div style="flex-basis:100%"><button type="button" class="btn small" data-ip-preset="sea">${t('ip.visibleSea')}</button><p class="note" style="margin:6px 0">${t('ip.visibleSeaHelp')}</p></div>
     ${chk('on', 'ip.on')}${sel('method', 'ip.method', INTERP_METHODS.map((k) => [k, t('ip.m.' + k)]))}${P[m] || ''}
     <p class="note" style="flex-basis:100%;margin:0">${t('ip.d.' + m)}</p>
     ${num('res', 'ip.res', 10, 400, 10)}${chk('hull', 'ip.hull')}${sel('mask', 'ip.mask', [['both', t('ip.mask.both')], ['sea', t('ip.mask.sea')], ['land', t('ip.mask.land')]])}
@@ -1052,6 +1054,13 @@ export function interpUI(boxId, get, save, redraw, info) {
   box.onchange = (e) => {
     const el = e.target, k = el.dataset.ip; if (!k) return;
     const cur = get(); cur[k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? +el.value : el.value;
+    save(); setTimeout(redraw, 0);
+  };
+  box.onclick = async (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest('[data-ip-preset="sea"]')) return;
+    await loadLand();
+    if (!geoLand.length) { box.querySelector('.ipinfo').textContent = t('ip.needCoast'); return; }
+    Object.assign(get(), visibleSeaOptions(get()));
     save(); setTimeout(redraw, 0);
   };
 }

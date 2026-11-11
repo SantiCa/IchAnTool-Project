@@ -1,9 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { interpolate, delaunay, fitVariogram, variogram, contourSegments, contourLevels, rampColor, colorRange, maskLand, solve } from '../../app/js/interp.js';
+import { INTERP_DEFAULT, visibleSeaOptions, interpolate, delaunay, fitVariogram, variogram, contourSegments, contourLevels, rampColor, colorRange, maskLand, solve } from '../../app/js/interp.js';
 
 const pts = [{ lat: 0, lon: 0, value: 0 }, { lat: 0, lon: 2, value: 2 }, { lat: 2, lon: 0, value: 2 }, { lat: 2, lon: 2, value: 4 }, { lat: 1, lon: 1, value: 2 }];
 const bbox = [0, 0, 2, 2];
+
+test('visible-sea preset removes hull and radius limits without mutating saved input or changing presentation', () => {
+  const previous = Object.freeze({ ...INTERP_DEFAULT, on: false, method: 'tin', radius: 50, ramp: 'viridis', res: 40, power: 3, neighbours: 2 });
+  const options = visibleSeaOptions(previous);
+  assert.deepEqual(options, { ...previous, on: true, method: 'idw', radius: 0, hull: false, mask: 'sea' });
+  assert.equal(previous.hull, true); assert.equal(previous.method, 'tin'); assert.equal(previous.radius, 50);
+  assert.equal(INTERP_DEFAULT.hull, true, 'existing defaults remain restricted');
+});
+
+test('visible-sea IDW extends beyond the cores and keeps existing interior values exactly', () => {
+  const extent = [-1, -1, 3, 3], nx = 16, ny = 16;
+  const restricted = interpolate(pts, extent, nx, ny, { ...INTERP_DEFAULT, method: 'idw' }).grid;
+  const extended = interpolate(pts, extent, nx, ny, visibleSeaOptions(INTERP_DEFAULT)).grid;
+  assert.ok(restricted.some((value) => value === null));
+  assert.ok(extended.every((value) => Number.isFinite(value) && value >= 0 && value <= 4));
+  restricted.forEach((value, index) => { if (value !== null) assert.equal(extended[index], value); });
+  const constant = interpolate(pts.map((point) => ({ ...point, value: 1 })), extent, nx, ny, visibleSeaOptions(INTERP_DEFAULT));
+  assert.deepEqual(constant.grid, Array(nx * ny).fill(1));
+});
+
+test('extended sea coverage still excludes land cells and preserves the remaining values exactly', () => {
+  const extent = [-1, -1, 3, 3], nx = 8, ny = 8, land = [[-1, -1, 1, -1, 1, 3, -1, 3]];
+  const options = visibleSeaOptions(INTERP_DEFAULT), grid = interpolate(pts, extent, nx, ny, options).grid;
+  const sea = maskLand(grid, nx, ny, extent, land, options.mask);
+  for (let row = 0; row < ny; row++) for (let column = 0; column < nx; column++) {
+    const index = row * nx + column;
+    assert.equal(sea[index], column < 4 ? null : grid[index]);
+  }
+});
 
 test('invalid coordinates cannot contribute to an interpolated map', () => {
   for (const point of [{ lat: NaN, lon: 0 }, { lat: 91, lon: 0 }, { lat: 0, lon: 181 }]) {

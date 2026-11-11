@@ -101,6 +101,11 @@ U-Net on the computer.
    Double-click the name column handle to restore the automatic width. Each multiproxy log
    figure can choose its own proxies. In *Across projects*, select entire projects for an analysis and set
    site map colours and symbols by project or core.
+   For a proxy map, choose *Map* → *Value of a proxy*, expand *Interpolation and colour scale* and click
+   **Cover visible sea (IDW)**. Adjust the map frame to include the sea area you want to show. Values outside
+   the core perimeter are extrapolated; the frame does not define a geological basin boundary. Tick
+   **Only inside the outline of the cores** to restrict the map again. The same control is available in
+   *Across projects*.
 6. **Save and share:** projects are saved automatically on your computer. *Export this project (with images)* creates
    a `.sedcoretool` file that opens on any system; an automatic copy can be kept in a synchronised folder.
    If saving fails, the last complete save is preserved and your pending changes stay open. Use **Retry save**

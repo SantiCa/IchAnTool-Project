@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.135 — 2026-11-11
+
+- Add **Cover visible sea (IDW)** to project and across-project proxy maps: estimate values throughout the visible marine area, beyond the core perimeter, while masking land.
+- Label extrapolated maps in the view and SVG/PNG exports. Keep existing saved settings and the default core-perimeter restriction; the new coverage is activated explicitly.
+
 ## V0.134 — 2026-11-11
 
 - Add optional temporary desktop diagnostics for control use, save/backup operations, error locations, memory samples and unresponsive or failed windows, with a visible recording indicator.

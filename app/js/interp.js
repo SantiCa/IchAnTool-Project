@@ -14,6 +14,11 @@ export const INTERP_DEFAULT = {
   contours: false, levels: 8, labels: true, ramp: 'div', reverse: false, scale: 'sym2', vmin: -2, vmax: 2, steps: 0, opacity: 0.75, on: true,
 };
 
+/** Explicit preset: estimate over the visible sea using IDW without a distance or hull cut-off. */
+export function visibleSeaOptions(options = {}) {
+  return { ...options, on: true, method: 'idw', radius: 0, hull: false, mask: 'sea' };
+}
+
 /** Linear system A x = b (Gaussian elimination with partial pivoting); returns null if singular. */
 export function solve(A, b) {
   const n = b.length, M = A.map((r, i) => [...r, b[i]]), tol = 1e-12 * Math.max(1, ...A.map((r) => Math.max(...r.map(Math.abs))));

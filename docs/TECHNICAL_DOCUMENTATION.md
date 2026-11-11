@@ -1751,8 +1751,25 @@ the value interpolated at its centre. Interpolation is offered only in value mod
   "round" levels between the minimum and maximum of the colour scale, with labels. The defaults (hull and sea only)
   avoid extrapolating.
 
+**Cover visible sea (IDW)** explicitly enables inverse-distance interpolation with no search-radius cut-off,
+disables the convex-hull restriction and selects the sea-only mask. It preserves power, maximum core count,
+grid resolution and colour/presentation options. The preset is shared by project and across-project maps;
+project settings are saved with the project and across-project settings in `ichantool.allInterp`. Existing
+projects and defaults remain restricted unless the preset is activated. The coastline must load before the
+preset is applied; otherwise the previous settings are retained and the panel shows a retry message.
+The visible map extent determines coverage, not a geological basin polygon. The Natural Earth cell-centre
+mask excludes land; coastal cell edges can cross the shoreline at coarse grid resolutions. Rechecking the
+convex-hull option restores the spatial restriction. Linear triangulation remains empty outside its triangles.
+
+Maps computed without the hull restriction, except linear triangulation, include an extrapolation note below
+the map in the view and SVG/PNG exports. A separate line preserves any basemap attribution.
+Regression checks require exact equality of previously computed interior IDW cells at a fixed extent and
+resolution, finite estimates throughout the enlarged grid, constant-field preservation and exact unchanged
+unmasked values after applying the land mask. Browser regressions verify both map panels, saved settings,
+restored hull restriction, SVG/PNG exports and unchanged core measurements and analysis state.
+
 Interpolated maps are exploratory: with few, irregularly spaced cores the surface between them reflects the method
-more than the data.
+more than the data. Outside the core perimeter the values are extrapolated and are less constrained by observations.
 
 ### 19.6 Colour and projections
 - **Colour:** 8 scales (soft diverging, blue–red, viridis, magma, terrain, ocean, greys, rainbow), reversible; range

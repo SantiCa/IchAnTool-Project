@@ -743,7 +743,8 @@ export function buildMapSVG(o) {
   for (const k of ['labelColor', 'pointColor', 'stroke', 'land', 'sea', 'textColor', 'subColor', 'bgColor']) {
     if (typeof st[k] !== 'string' || !hexRe.test(st[k])) st[k] = MAP_STYLE[k];
   }
-  const [x0, y0, x1, y1] = o.bbox, F = mapFrame(o.bbox, st.proj || 'plate'), { W, H, top, bottom, P } = F;
+  const [x0, y0, x1, y1] = o.bbox, F = mapFrame(o.bbox, st.proj || 'plate'), { W, H, top, P } = F;
+  const bottom = F.bottom + (o.coverageNote && bg?.attribution ? 16 : 0);
   const xy = (lon, lat) => P(lon, lat).map((v) => v.toFixed(1)).join(' ');
   const linear = F.kind === 'plate' || F.kind === 'mercator'; // grid cells stay rectangles
   const raster = !!(bg && bg.href) && linear;
@@ -818,7 +819,8 @@ export function buildMapSVG(o) {
     if (cb.label) s.push(`<text x="${bx - 6}" y="${by + 9}" font-size="9" text-anchor="end" fill="${esc2(st.textColor)}">${esc2(cb.label)}</text>`);
   }
   if (o.note) s.push(`<text x="8" y="${top + H + 46}" fill="${esc2(st.subColor)}" font-size="10">${esc2(o.note)}</text>`);
-  if (bg && bg.attribution) s.push(`<text x="${W - 6}" y="${top + H + 62}" text-anchor="end" fill="${esc2(st.subColor)}" font-size="8.5">${esc2(bg.attribution)}</text>`);
+  if (o.coverageNote) s.push(`<text x="8" y="${top + H + 62}" fill="${esc2(st.subColor)}" font-size="10">${esc2(o.coverageNote)}</text>`);
+  if (bg && bg.attribution) s.push(`<text x="${W - 6}" y="${top + H + (o.coverageNote ? 78 : 62)}" text-anchor="end" fill="${esc2(st.subColor)}" font-size="8.5">${esc2(bg.attribution)}</text>`);
   s.push('</svg>');
   return s.join('');
 }

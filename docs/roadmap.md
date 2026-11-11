@@ -646,6 +646,19 @@ existing projects retain failed-save protection. Performance evidence is collect
 - [ ] Multiproxy classification on cores with an independent, published interpretation
 
 ## Multiproxy analysis and maps
+- [x] **G1 - Extend proxy maps across the visible sea.** [V0.135](../CHANGELOG.md#v0135--2026-11-11).
+      Authorised by the maintainer on 11 November 2026, with coverage explicitly defined as the visible marine
+      area. Editor: Codex; author verification, no independent reviewer assigned. Add an explicit IDW preset
+      without a hull or search-radius cut-off, retain the land mask, preserve existing defaults/saved settings
+      and identify extrapolated output. The frame is not a geological basin polygon.
+  - Acceptance verified: exact unchanged interior IDW cells at a fixed frame/resolution, constant-field
+    preservation, finite extended estimates, land masking, unchanged measurements/analysis state,
+    saved coverage, restored hull restriction, both map panels and SVG/PNG export annotations.
+  - Delivered: 227 Python tests passed (six optional/permission skips), 212 Node tests, type checks with no new
+    diagnostics, Ruff, version consistency, standalone build, full Chrome smoke and the same map regression
+    directly from the offline HTML. Visual inspection verifies controls, coast masking and the exported note.
+  - Local delivery on `master`; GitHub handoff requires the maintainer's authorised push. Extrapolated values
+    remain exploratory; coarse cell edges can cross the shoreline because masking uses each cell centre.
 - [ ] Permutation importance of variables (also for the neural network)
 - [ ] Kriging variance maps
 - [ ] Location map: cores from other projects and an inset location map
