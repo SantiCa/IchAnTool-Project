@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.128 — 2026-11-11
+
+- Validate no-data (`ndColor`, `ndLine`) and presentation colours against hexadecimal notation (`#rgb` and `#rrggbb`) across column logs, distribution charts, composite figures, location maps and multiproxy views, falling back to each style's defaults (`#f2f2f0` and `#b9bdbb` for no-data fill and hatching) when project values are malformed.
+- Escape interpolated style, record, class and control attributes in column, figure and map forms and exported SVGs while preserving valid colours, legacy project files and scientific arrays.
+
 ## V0.127 — 2026-11-11
 
 - Confine desktop `app://corantool` requests to files inside the packaged web root, rejecting sibling-prefix traversal, encoded path separators, Windows drive or UNC paths and malformed URL escapes while preserving normal application assets and floating windows.

@@ -36,7 +36,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 |---|---|---|
 | AUD-01 | Previous model artifacts are removed before preparation; already tracked | M3.2.3 |
 | AUD-02 | Prefix-only containment check replaced with directory-boundary and URL validation in [V0.127](../CHANGELOG.md#v0127--2026-11-11) | M0.4 |
-| AUD-03 | Unescaped no-data colours and inconsistent validation paths exist; audit the actual defaults and consumers | M0.5 |
+| AUD-03 | No-data and presentation colours validated against `#rgb`/`#rrggbb` with attribute escaping in [V0.128](../CHANGELOG.md#v0128--2026-11-11) | M0.5 |
 | AUD-04 | Palette parser assumes six hexadecimal digits | M3.3.1 |
 | AUD-05 | Fractional bin size still has an integer annotation | M3.3.2 |
 | AUD-06 | Double escaping is not established: leading apostrophes are unchanged by spreadsheet_text; validate marked-row editing/round trips | M3.3.3 |
@@ -119,7 +119,8 @@ The planning commit remains local on master until an authorised push. No audit f
     parent sentinels (`tests/app/desktop-protocol.test.mjs`, `tests/e2e/desktop.mjs`). Required Python, Node,
     typecheck, Ruff, version and standalone checks pass. Local delivery on `master`; GitHub handoff requires
     an authorised push. Next candidate in priority order: M0.5.
-- [ ] **M0.5 - Validate untrusted presentation colours (AUD-03).** Review no-data colour merging and
+- [x] **M0.5 - Validate untrusted presentation colours (AUD-03).** [V0.128](../CHANGELOG.md#v0128--2026-11-11).
+      Authorised by the maintainer on 11 November 2026. Review no-data colour merging and
       all affected DOM/SVG consumers in `log.js`, `columns.js` and shared figure controls.
   - Acceptance: validate both `ndColor` and `ndLine` against supported hex forms, escape interpolated
     attributes, and test malformed strings/types from saved projects. No injected attribute or element
@@ -127,6 +128,23 @@ The planning commit remains local on master until an authorised push. No audit f
     Preserve valid short/full hex colours, legacy projects, figure settings and scientific arrays.
     The audit's listed default and description of the current colour loop differ from this source;
     derive the patch and tests from actual merge/render paths rather than copying the proposed fix.
+  - Audited before patching: `ND_STYLE` defaults in `app/js/log.js` are `ndColor: '#f2f2f0'` and
+    `ndLine: '#b9bdbb'`; `noDataDefs` interpolated `q.ndColor` and `q.ndLine` into `<pattern id="nodata">`
+    without validation while `mergedStyle` only checked `Object.keys(LOG_STYLE).filter((k) => k.endsWith('Color'))`
+    and did not merge `ND_STYLE` or validate `ndLine`, `markStroke`, class/record/band colours or map styles;
+    `columns.js`, `figures.js`, `locmap.js`, `geo.js`, `multiproxy.js` and `app.js` also interpolated raw style
+    and colour fields into `<input type="color">` and SVG attributes.
+  - Delivered: `validHexColor(value, fallback)` (`^#[0-9a-f]{3}([0-9a-f]{3})?$/i`) and `mergedStyle` in
+    `app/js/log.js` merge `ND_STYLE` and `LOG_STYLE`, validate all `LOG_STYLE` `*Color` keys, `ndColor`,
+    `ndLine` and `markStroke`, normalise `ndFill`, `ndText`, `colOrder`, `colHide` and `speciesHide`, and guard
+    non-primitive `fontSize`/`opacity` inputs; `columns.js`, `figures.js`, `locmap.js`, `geo.js`,
+    `multiproxy.js` and `app.js` validate presentation, class, record, marker, band and map colours against
+    their respective defaults and escape interpolated attributes (`&`, `<`, `>`, `"`, `'`).
+  - Verified with unit tests across malformed strings, non-string types, `Object.create(null)`, valid `#rgb`
+    and `#rrggbb` colours, form builders and SVG exporters (`tests/app/log.test.mjs`,
+    `tests/app/locmap.test.mjs`), plus live DOM/SVG figure-composition checks (`tests/e2e/figure-composition.mjs`).
+    Required Python, Node, typecheck, Ruff, version and standalone checks pass. Local delivery on `master`;
+    GitHub handoff requires an authorised push. Next candidate in priority order: M3.2.3.
 
 #### M0.1 acceptance criteria
 

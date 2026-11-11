@@ -5,7 +5,7 @@ export { pxPerCm, depthAtRow, rowAtDepth };
 import { withProvenance, ageModelText, bioturbationTable, objectsTable } from './exportio.js';
 
 import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, traceSeparation, localSeparability, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian } from './imageproc.js';
-import { parseTable, decodeText, invertModel, toAxis, compositeRows, abbrevs, traceSymbolPath } from './log.js';
+import { parseTable, decodeText, invertModel, toAxis, compositeRows, abbrevs, traceSymbolPath, validHexColor } from './log.js';
 import { storageAvailable, listProjects, getProject, putProject, putMeta, deleteProject, getPref, setPref, putLite, listLite, getMeta, putImage, getImage, gcImages } from './storage.js';
 import { INTERP_DEFAULT } from './interp.js';
 
@@ -26,7 +26,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.127';
+export const DELIVERY = 'V0.128';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -1945,11 +1945,11 @@ function renderClasses() {
   if (s) for (const o of s.objects.values()) { const c = effClassId(o); if (c) nObj[c] = (nObj[c] || 0) + 1; }
   for (const x of S.sections) for (const o of x.objects.values()) if (o.cls) nEx[o.cls] = (nEx[o.cls] || 0) + 1;
   $('classList').innerHTML = S.classes.map((c) => `
-    <li data-id="${c.id}" class="${c.id === S.active ? 'active' : ''} ${c.plain ? 'plain' : ''} ${hid.has(c.id) ? 'hid' : ''}">
+    <li data-id="${esc(c.id)}" class="${c.id === S.active ? 'active' : ''} ${c.plain ? 'plain' : ''} ${hid.has(c.id) ? 'hid' : ''}">
       <button class="eye ${hid.has(c.id) ? 'off' : ''}" title="${esc(t(hid.has(c.id) ? 'cls.show' : 'cls.hide'))}" aria-label="${esc(t(hid.has(c.id) ? 'cls.show' : 'cls.hide'))}">👁</button>
-      <kbd>${keyOf(c)}</kbd>
-      <input type="color" value="${c.color}" aria-label="${t('a11y.color')}">
-      <input class="name" type="text" value="${esc(c.name)}" aria-label="${t('a11y.name')}">
+      <kbd>${esc(keyOf(c))}</kbd>
+      <input type="color" value="${esc(validHexColor(c.color, '#777777'))}" aria-label="${esc(t('a11y.color'))}">
+      <input class="name" type="text" value="${esc(c.name)}" aria-label="${esc(t('a11y.name'))}">
       <span class="cnt">${idMode() ? t('id.count', { n: S.sections.reduce((a, x) => a + (x.marks || []).filter((m) => m.cls === c.id).length, 0) }) : t('cls.counts', { n: nObj[c.id] || 0, e: nEx[c.id] || 0 })}</span>
       ${c.fixed ? `<span title="${esc(t('gx.fixedCls'))}"></span>` : `<button class="del" title="${esc(t('gx.delCls'))}" aria-label="${esc(t('gx.delCls'))}">✕</button>`}
     </li>`).join('');
@@ -1962,7 +1962,10 @@ export function armed(btn, msg) {
   btn._armT = setTimeout(() => { btn.dataset.armed = ''; btn.textContent = btn._armTxt; btn.classList.remove('danger'); }, 4000);
   return false;
 }
-export const esc = (s) => String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+export const esc = (s) => {
+  try { return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]); }
+  catch { return ''; }
+};
 
 function setHidden(ids) {
   S.settings.hidden = [...ids]; for (const x of S.sections) rebuildLUT(x);
@@ -2018,7 +2021,7 @@ function renderSelTools(s) {
 function renderMulti(s, box) {
   const objs = [...S.multi].map((id) => s.objects.get(id)).filter(Boolean);
   const n = (f) => objs.filter(f).length;
-  const opts = S.classes.map((c) => `<option value="${c.id}" ${c.id === S.active ? 'selected' : ''}>${keyOf(c) ? keyOf(c) + ' · ' : ''}${esc(c.name)}</option>`).join('');
+  const opts = S.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === S.active ? 'selected' : ''}>${keyOf(c) ? esc(keyOf(c)) + ' · ' : ''}${esc(c.name)}</option>`).join('');
   box.innerHTML = `<p><b>${t('obj.multiN', { n: objs.length })}</b></p>
     <p class="note">${t('obj.multiDetail', { m: n((o) => o.cls), p: n((o) => !o.cls && o.pred), c: n((o) => !o.cls && !o.pred) })}</p>
     <select id="multiCls" style="width:100%">${opts}</select><div class="row"><button class="btn small primary" id="multiAssign">${t('obj.multiAssign')}</button>
@@ -2065,8 +2068,8 @@ function renderObject() {
   if (s && S.multi.size > 1) { renderMulti(s, box); return; }
   if (!o) { box.innerHTML = `<p class="note">${t('obj.none')}</p>`; return; }
   const st = status(o), ppu = pxPerCm(s), f = o.feat || {}, [, y0, , y1] = o.bbox;
-  const opts = [`<option value="">${t('obj.unassigned')}</option>`].concat(S.classes.map((c) => `<option value="${c.id}" ${c.id === o.cls ? 'selected' : ''}>${keyOf(c) ? keyOf(c) + ' · ' : ''}${esc(c.name)}</option>`)).join('');
-  const sugg = o.pred ? `<span class="swatch" style="background:${clsById(o.pred)?.color}"></span>${esc(clsById(o.pred)?.name || '')} · ${Math.round(o.conf * 100)}%` : o.novel ? t('obj.novel') : '—';
+  const opts = [`<option value="">${t('obj.unassigned')}</option>`].concat(S.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === o.cls ? 'selected' : ''}>${keyOf(c) ? esc(keyOf(c)) + ' · ' : ''}${esc(c.name)}</option>`)).join('');
+  const sugg = o.pred ? `<span class="swatch" style="background:${validHexColor(clsById(o.pred)?.color, '#777777')}"></span>${esc(clsById(o.pred)?.name || '')} · ${Math.round(o.conf * 100)}%` : 'novel' in o && o.novel ? t('obj.novel') : '—';
   const u = s.units, toU = (cm) => cm / UNIT_TO_CM[u];
   box.innerHTML = `
     <dl class="kv">
@@ -2099,7 +2102,7 @@ function probTable(o) {
   const tot = {}; for (const k of CLF_SCOPES) for (const [n, v] of Object.entries(P[k]?.probs || {})) tot[n] = (tot[n] || 0) + v;
   const names = Object.keys(tot).sort((a, b) => tot[b] - tot[a]).slice(0, 4);
   if (!names.length) return '—';
-  const sc = S.settings.clfScope || 'project', col = (n) => S.classes.find((c) => c.name === n)?.color || '#999';
+  const sc = S.settings.clfScope || 'project', col = (n) => validHexColor(S.classes.find((c) => c.name === n)?.color, '#999999');
   return `<table class="dtable mtab"><thead><tr><th></th>${CLF_SCOPES.map((k) => `<th${k === sc ? ' class="on"' : ''}>${t('l.scope.' + k)}</th>`).join('')}</tr></thead><tbody>${
     names.map((n) => `<tr><td class="txt"><span class="swatch" style="background:${col(n)}"></span>${esc(n)}</td>${CLF_SCOPES.map((k) => `<td${k === sc ? ' class="on"' : ''}>${P[k] ? Math.round((P[k].probs[n] || 0) * 100) + '%' : '—'}</td>`).join('')}</tr>`).join('')}${
     CLF_SCOPES.some((k) => P[k]?.novel) ? `<tr><td class="txt" colspan="4">${t('obj.novelBy', { m: CLF_SCOPES.filter((k) => P[k]?.novel).map((k) => t('l.scope.' + k)).join(', ') })}</td></tr>` : ''}</tbody></table>`;
@@ -2115,7 +2118,7 @@ function renderLearn() {
   $('clfScope').onchange = (e) => { S.settings.clfScope = e.target.value; markDirty(); learnNow(); };
   const pending = s ? [...s.objects.values()].filter((o) => status(o) === 'predicted').length : 0;
   const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([id, n]) => {
-    const c = clsById(id); return c ? `<div><span><span class="swatch" style="background:${c.color}"></span>${esc(c.name)}</span><em>${n}</em></div>` : '';
+    const c = clsById(id); return c ? `<div><span><span class="swatch" style="background:${validHexColor(c.color, '#777777')}"></span>${esc(c.name)}</span><em>${n}</em></div>` : '';
   }).join('');
   $('learnStats').innerHTML = total ? `
     <div class="stat"><div><b>${total}</b><span>${t('l.examples')}</span></div>
@@ -2134,7 +2137,7 @@ function renderResults() {
   const eff = effClassArray(s); let nObj = 0; for (const o of s.objects.values()) if (eff[o.id] >= 0) nObj++;
   const ppu = pxPerCm(s), area = v / (ppu * ppu) / UNIT_TO_CM[s.units] ** 2;
   const bars = S.classes.map((c, k) => ({ c, p: v ? (cls[k] / v) * 100 : 0 })).filter((x) => x.p > 0).sort((a, c) => c.p - a.p)
-    .map(({ c, p }) => `<div><span>${esc(c.name)}<i style="width:${Math.max(2, p)}%;background:${c.color}"></i></span><em>${fmt(p, 2)}%</em></div>`).join('');
+    .map(({ c, p }) => `<div><span>${esc(c.name)}<i style="width:${Math.max(2, p)}%;background:${validHexColor(c.color, '#777777')}"></i></span><em>${fmt(p, 2)}%</em></div>`).join('');
   sum.innerHTML = `
     <div class="stat"><div><b>${fmt(v ? (b / v) * 100 : null, 1)}%</b><span>${t('r.mean')}</span></div>
       <div><b>${fmt(area, area < 10 ? 2 : 0)}</b><span>${t('r.area')} (${s.units}²)</span></div>

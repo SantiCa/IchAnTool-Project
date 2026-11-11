@@ -7,7 +7,7 @@ import { buildGeoLog, fetchImage, geoComputeSamples, geoFigureTracks, geoFigureV
 
 import { UNIT_TO_CM, hasId, interpAge, topAt } from './core.js';
 import { vec } from './learn.js';
-import { buildLogSVG, buildRangeSVG, taxaOptions, invertModel, extraTicks, noDataDefs, mergedStyle, noDataGaps, noDataRect, rowsRange, verticalTicks } from './log.js';
+import { buildLogSVG, buildRangeSVG, taxaOptions, invertModel, extraTicks, noDataDefs, mergedStyle, noDataGaps, noDataRect, rowsRange, validHexColor, verticalTicks } from './log.js';
 import { t } from './i18n.js';
 import { LOCMAP_DEFAULTS, buildLocMapSVG, lmFitBBox, lmUtmZone, lmZoom } from './locmap.js';
 
@@ -42,7 +42,7 @@ const figTabLabel = (tb) => {
 export function renderFigTabs() {
   const box = $('figTabs'); if (!box) return;
   const many = S.figTabs.length > 1;
-  box.innerHTML = S.figTabs.map((tb) => `<span class="figtab${tb.id === S.figTab ? ' on' : ''}" role="tab" tabindex="0" aria-selected="${tb.id === S.figTab}" data-ftab="${tb.id}" title="${esc(t('fig.tab.rename'))}"><span class="ftl">${esc(figTabLabel(tb))}</span>${many ? `<button type="button" class="ftx" data-ftabdel="${tb.id}" aria-label="${esc(t('fig.tab.del'))}" title="${esc(t('fig.tab.del'))}">×</button>` : ''}</span>`).join('')
+  box.innerHTML = S.figTabs.map((tb) => `<span class="figtab${tb.id === S.figTab ? ' on' : ''}" role="tab" tabindex="0" aria-selected="${tb.id === S.figTab}" data-ftab="${esc(tb.id)}" title="${esc(t('fig.tab.rename'))}"><span class="ftl">${esc(figTabLabel(tb))}</span>${many ? `<button type="button" class="ftx" data-ftabdel="${esc(tb.id)}" aria-label="${esc(t('fig.tab.del'))}" title="${esc(t('fig.tab.del'))}">×</button>` : ''}</span>`).join('')
     + `<button type="button" class="figtabadd" data-ftabadd title="${esc(t('fig.tab.add'))}" aria-label="${esc(t('fig.tab.add'))}">+</button>`;
 }
 function activateFigTab(id) {
@@ -140,7 +140,7 @@ const traceViews = (F) => (F.tviews?.length ? F.tviews : [F.img === 'orig' ? (F.
 /** Scale bar of a tile: 'bar' (filled), 'ticks' (alternating segments), 'line' (line with end ticks) or 'none'. */
 function traceScale(X, y, T, pxPerCm, sc) {
   const style = sc.style || 'bar'; if (style === 'none') return '';
-  const col = sc.color || '#ffffff', ink = sc.ink || '#000000', len = sc.len > 0 ? +sc.len : niceBar(pxPerCm, T * 0.45), bw = len * pxPerCm;
+  const col = validHexColor(sc.color, '#ffffff'), ink = validHexColor(sc.ink, '#000000'), len = sc.len > 0 ? +sc.len : niceBar(pxPerCm, T * 0.45), bw = len * pxPerCm;
   const pos = sc.pos || 'bl', bx = pos.endsWith('r') ? X + T - 6 - bw : X + 6, by = pos.startsWith('t') ? y + 22 : y + T - 12;
   const txt = `<text x="${(pos.endsWith('r') ? bx + bw : bx).toFixed(1)}" y="${(by - 3).toFixed(1)}" text-anchor="${pos.endsWith('r') ? 'end' : 'start'}" fill="${col}" stroke="${ink}" stroke-width="0.25" font-size="10" font-weight="600">${len < 1 ? +(len * 10).toFixed(2) + ' mm' : +len.toFixed(2) + ' cm'}</text>`;
   if (style === 'line') return `<path d="M${bx.toFixed(1)} ${by - 2}v6M${bx.toFixed(1)} ${by + 1}h${bw.toFixed(1)}M${(bx + bw).toFixed(1)} ${by - 2}v6" stroke="${ink}" stroke-width="2.6" fill="none"/><path d="M${bx.toFixed(1)} ${by - 2}v6M${bx.toFixed(1)} ${by + 1}h${bw.toFixed(1)}M${(bx + bw).toFixed(1)} ${by - 2}v6" stroke="${col}" stroke-width="1.2" fill="none"/>${txt}`;
@@ -155,6 +155,7 @@ function figInk() { const st = mergedStyle(colView('figure').style); return { te
 function tracesSVG() {
   const INK = figInk();
   const F = S.fig, T = F.tile, gap = 12, vgap = 4, labW = 190, rows = [], views = traceViews(F), sc = F.scale || {};
+  const scCol = validHexColor(sc.color, '#ffffff'), scInk = validHexColor(sc.ink, '#000000');
   for (const c of S.classes) {
     if (!c.counts && c.id !== 'undet') continue;
     const list = classTraces(c.id), keys = F.picks[c.id]?.length ? F.picks[c.id] : [];
@@ -167,18 +168,18 @@ function tracesSVG() {
   const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="IBM Plex Sans, Arial, sans-serif" font-size="11"><rect width="${W}" height="${H}" fill="${INK.bg}"/>`];
   if (nv > 1) for (let k = 0; k < maxN; k++) views.forEach((v, vi) => parts.push(`<text x="${labW + k * (TW + gap) + vi * (T + vgap) + T / 2}" y="12" text-anchor="middle" fill="${INK.sub}" font-size="10">${esc(t('fig.tv.' + v))}</text>`));
   rows.forEach((r, ri) => {
-    const y = head + 6 + ri * rowH;
-    parts.push(`<rect x="8" y="${y + 4}" width="10" height="10" fill="${r.c.color}"/><text x="24" y="${y + 13}" font-size="13" font-style="${r.c.plain ? 'normal' : 'italic'}" font-weight="600" fill="${INK.text}">${esc(r.c.name)}</text>`);
+    const y = head + 6 + ri * rowH, col = validHexColor(r.c.color, '#777777');
+    parts.push(`<rect x="8" y="${y + 4}" width="10" height="10" fill="${col}"/><text x="24" y="${y + 13}" font-size="13" font-style="${r.c.plain ? 'normal' : 'italic'}" font-weight="600" fill="${INK.text}">${esc(r.c.name)}</text>`);
     parts.push(`<text x="24" y="${y + 29}" fill="${INK.sub}">${t('fig.nOf', { n: r.chosen.length, m: classTraces(r.c.id).length })}</text>`);
     r.chosen.forEach((x, k) => {
-      let tc0 = null;
+      /** @type {ReturnType<typeof traceCanvas> | null} */ let tc0 = null;
       views.forEach((v, vi) => {
         const [img, out, iso, mask] = TRACE_VIEWS[v], tc = traceCanvas(x.s, x.o, T, img, out, iso, mask), X = labW + k * (TW + gap) + vi * (T + vgap);
         const ox = X + (T - tc.canvas.width) / 2, oy = y + (T - tc.canvas.height) / 2; tc0 ||= tc;
         parts.push(`<rect x="${X}" y="${y}" width="${T}" height="${T}" fill="${img === 'none' || iso ? '#ffffff' : '#f0f0ee'}"${img === 'none' || iso ? ' stroke="#d9dedc" stroke-width="0.6"' : ''}/><image x="${ox.toFixed(1)}" y="${oy.toFixed(1)}" width="${tc.canvas.width}" height="${tc.canvas.height}" href="${tc.canvas.toDataURL(mask || img === 'none' ? 'image/png' : 'image/jpeg', 0.92)}"/>`);
-        if (vi === 0 || sc.all) parts.push(traceScale(X, y, T, tc.pxPerCm, { ...sc, ...((img === 'none' || iso) && (sc.color || '#ffffff').toLowerCase() === '#ffffff' ? { color: sc.ink || '#000000', ink: '#ffffff' } : {}) }));
+        if (vi === 0 || sc.all) parts.push(traceScale(X, y, T, tc.pxPerCm, { ...sc, color: scCol, ink: scInk, ...((img === 'none' || iso) && scCol.toLowerCase() === '#ffffff' ? { color: scInk, ink: '#ffffff' } : {}) }));
       });
-      parts.push(`<text x="${labW + k * (TW + gap) + TW / 2}" y="${y + T + 13}" text-anchor="middle" fill="${INK.sub}" font-size="10">${esc(x.s.name)} · ${fmt(tc0.depth, 3)} ${tc0.units}</text>`);
+      if (tc0) parts.push(`<text x="${labW + k * (TW + gap) + TW / 2}" y="${y + T + 13}" text-anchor="middle" fill="${INK.sub}" font-size="10">${esc(x.s.name)} · ${fmt(tc0.depth, 3)} ${esc(tc0.units)}</text>`);
     });
   });
   parts.push('</svg>');
@@ -334,7 +335,8 @@ function coreFigSize(D) {
 function figSymbol(kind, px, py, color, xMax = 1e9, legend = false, k = 1) {
   const F = S.fig, kk = legend ? 1 : k * (+F.markScale || 1);
   if (kk !== 1) return `<g transform="translate(${px.toFixed(1)} ${py.toFixed(1)}) scale(${+kk.toFixed(3)}) translate(${(-px).toFixed(1)} ${(-py).toFixed(1)})">${figSymbol(kind, px, py, color, px + (xMax - px) / kk, legend, 1 / (+F.markScale || 1))}</g>`;
-  const f = (v) => v.toFixed(1), c = color, halo = F.markStroke === 'none' ? 'stroke="none"' : `stroke="${F.markStroke || '#fff'}" stroke-width="${F.markStrokeW ?? 0.8}"`;   // V0.23: border of the marker
+  const f = (v) => v.toFixed(1), c = validHexColor(color, '#777777'), strokeCol = F.markStroke === 'none' ? 'none' : validHexColor(F.markStroke, '#ffffff'), strokeW = Number.isFinite(+F.markStrokeW) ? +F.markStrokeW : 0.8;
+  const halo = strokeCol === 'none' ? 'stroke="none"' : `stroke="${strokeCol}" stroke-width="${strokeW}"`;   // V0.23: border of the marker
   if (kind === 'arrow') {
     if (legend) return `<path d="M${f(px + 5)} ${f(py - 6)}L${f(px - 3)} ${f(py + 1)}" stroke="${c}" stroke-width="1.6"/><path d="M${f(px - 4)} ${f(py + 2)}l5 -1l-2.6 -3z" fill="${c}"/>`;
     const lx = Math.min(xMax, px + 20);
@@ -364,8 +366,8 @@ export function arrowMarksSVG(tr, X, W, y) {
       else if (ov === 'merge') { if (!prev.txt.split(', ').includes(l.txt)) prev.txt += ', ' + l.txt; }
       /* 'hide': the arrow stays, its label is left out */
     }
-    const halo = F.labelHalo === false ? '' : ' stroke="#fff" stroke-width="2.6" paint-order="stroke"';
-    for (const l of out2) out.push(`<text x="${l.lx}" y="${l.ly.toFixed(1)}" font-weight="700" font-size="${fs}" fill="${F.labelColor || '#1c2422'}"${halo}>${esc(l.txt)}</text>`);
+    const halo = F.labelHalo === false ? '' : ' stroke="#fff" stroke-width="2.6" paint-order="stroke"', labelCol = validHexColor(F.labelColor, '#1c2422');
+    for (const l of out2) out.push(`<text x="${l.lx}" y="${l.ly.toFixed(1)}" font-weight="700" font-size="${fs}" fill="${labelCol}"${halo}>${esc(l.txt)}</text>`);
   }
   return out.join('');
 }
@@ -374,7 +376,7 @@ function sectionsSVG() {
   if (!S.sections.length) return null;
   const F = S.fig, D0 = compositeData(), D = { ...D0, axis: 'depth' };
   const { from, to } = secFigRange(D);
-  const panels = FIG_PANELS.filter((p) => F.panels.includes(p)); if (!panels.length) return null;
+  const panels = FIG_PANELS.filter((p) => Array.isArray(F.panels) && F.panels.includes(p)); if (!panels.length) return null;
   const { W, H } = secFigSize(D), gap = 16, x0 = 62, top = 44, tr = figTraces(D, from, to);
   const legend = S.classes.filter((c) => c.id !== 'artifact' && (tr.some((q) => q.name === c.name) || S.sections.some((s) => [...s.objects.values()].some((o) => effClassId(o) === c.id))));
   const ab = clsAbbr(), perRow = Math.max(1, Math.floor((x0 + panels.length * (W + gap)) / 190)), legH = legend.length ? Math.ceil(legend.length / perRow) * 16 + 18 : 0;
@@ -396,9 +398,9 @@ function sectionsSVG() {
   });
   out.push(`<text x="${x0}" y="${top + H + 18}" fill="${INK.sub}">${esc(curCore()?.name || S.name)} · ${+from.toPrecision(6)}–${+to.toPrecision(6)} ${esc(D.base)}</text>`);
   legend.forEach((c, i) => {
-    const lx = 8 + (i % perRow) * 190, ly = top + H + 30 + Math.floor(i / perRow) * 16;
-    const symOnly = F.panels.includes('arrows') && (F.markStyle || 'arrowLabel') !== 'arrowLabel';
-    out.push(`${symOnly ? figSymbol(F.markStyle, lx + 5, ly + 9, c.color, 1e9, true) : `<rect x="${lx}" y="${ly}" width="10" height="10" fill="${c.color}"/>`}<text x="${lx + 14}" y="${ly + 9}" fill="${INK.text}">${symOnly ? '' : `<tspan font-weight="700">${esc(ab.get(c.name))}</tspan> `}<tspan font-style="${c.plain ? 'normal' : 'italic'}">${esc(c.name)}</tspan></text>`);
+    const lx = 8 + (i % perRow) * 190, ly = top + H + 30 + Math.floor(i / perRow) * 16, col = validHexColor(c.color, '#777777');
+    const symOnly = Array.isArray(F.panels) && F.panels.includes('arrows') && (F.markStyle || 'arrowLabel') !== 'arrowLabel';
+    out.push(`${symOnly ? figSymbol(F.markStyle, lx + 5, ly + 9, col, 1e9, true) : `<rect x="${lx}" y="${ly}" width="10" height="10" fill="${col}"/>`}<text x="${lx + 14}" y="${ly + 9}" fill="${INK.text}">${symOnly ? '' : `<tspan font-weight="700">${esc(ab.get(c.name))}</tspan> `}<tspan font-style="${c.plain ? 'normal' : 'italic'}">${esc(c.name)}</tspan></text>`);
   });
   out.push('</svg>');
   return out.join('');
@@ -479,47 +481,49 @@ export function renderFigPanel() {
   $('figOrient').value = orientOf(F) === 'h' ? 'h' : 'v'; $('figOrientBox').hidden = ['map', 'locmap'].includes(F.type);   // V0.51
   if (F.type === 'traces') {
     const cls = S.classes.filter((c) => classTraces(c.id).length);
-    box.innerHTML = `${figWinHTML()}<div class="grid2"><label class="f"><span>${t('fig.n')}</span><input type="number" id="figN" min="1" max="20" value="${F.n}"></label>
+    const scCol = validHexColor(F.scale?.color, '#ffffff'), scInk = validHexColor(F.scale?.ink, '#000000');
+    box.innerHTML = `${figWinHTML()}<div class="grid2"><label class="f"><span>${t('fig.n')}</span><input type="number" id="figN" min="1" max="20" value="${esc(F.n)}"></label>
       <label class="f"><span>${t('fig.pick')}</span><select id="figPick">${['largest', 'typical', 'spread'].map((k) => `<option value="${k}" ${k === F.pick ? 'selected' : ''}>${t('fig.pick.' + k)}</option>`).join('')}</select></label>
-      <label class="f"><span>${t('fig.tile')}</span><input type="number" id="figTile" min="60" max="400" step="10" value="${F.tile}"></label>
+      <label class="f"><span>${t('fig.tile')}</span><input type="number" id="figTile" min="60" max="400" step="10" value="${esc(F.tile)}"></label>
       <label class="f"><span>${t('log.imgMode')}</span><select id="figImg"><option value="enh" ${F.img === 'enh' ? 'selected' : ''}>${t('log.enh')}</option><option value="orig" ${F.img === 'orig' ? 'selected' : ''}>${t('log.orig')}</option></select></label></div>
       <label class="chk"><input type="checkbox" id="figOutline" ${F.outline ? 'checked' : ''}><span>${t('fig.outline')}</span></label>
       <div class="f"><span>${t('fig.tviews')}</span><div class="chk2">${Object.keys(TRACE_VIEWS).map((v) => `<label class="chk"><input type="checkbox" data-tview="${v}" ${traceViews(F).includes(v) ? 'checked' : ''}><span>${t('fig.tv.' + v)}</span></label>`).join('')}</div></div>
       <div class="grid2"><label class="f"><span>${t('fig.sc.style')}</span><select id="figScStyle">${['bar', 'ticks', 'line', 'none'].map((v) => `<option value="${v}" ${(F.scale?.style || 'bar') === v ? 'selected' : ''}>${t('fig.sc.' + v)}</option>`).join('')}</select></label>
       <label class="f"><span>${t('fig.sc.pos')}</span><select id="figScPos">${['bl', 'br', 'tl', 'tr'].map((v) => `<option value="${v}" ${(F.scale?.pos || 'bl') === v ? 'selected' : ''}>${t('fig.sc.p.' + v)}</option>`).join('')}</select></label>
-      <label class="f"><span>${t('fig.sc.len')}</span><input type="number" id="figScLen" min="0" step="any" value="${F.scale?.len ?? ''}" placeholder="${t('fig.auto2')}"></label>
-      <label class="f"><span>${t('fig.sc.div')}</span><input type="number" id="figScDiv" min="2" max="10" step="1" value="${F.scale?.div ?? 4}"></label>
-      <label class="f"><span>${t('fig.sc.colors')}</span><span class="row"><input type="color" id="figScColor" value="${F.scale?.color || '#ffffff'}"><input type="color" id="figScInk" value="${F.scale?.ink || '#000000'}"></span></label>
+      <label class="f"><span>${t('fig.sc.len')}</span><input type="number" id="figScLen" min="0" step="any" value="${esc(F.scale?.len ?? '')}" placeholder="${esc(t('fig.auto2'))}"></label>
+      <label class="f"><span>${t('fig.sc.div')}</span><input type="number" id="figScDiv" min="2" max="10" step="1" value="${esc(F.scale?.div ?? 4)}"></label>
+      <label class="f"><span>${t('fig.sc.colors')}</span><span class="row"><input type="color" id="figScColor" value="${esc(scCol)}"><input type="color" id="figScInk" value="${esc(scInk)}"></span></label>
       <label class="chk" style="align-self:end"><input type="checkbox" id="figScAll" ${F.scale?.all ? 'checked' : ''}><span>${t('fig.sc.all')}</span></label></div>
       <button class="btn small" id="figAuto">${t('fig.auto')}</button>
-      ${cls.map((c) => { const list = classTraces(c.id).sort((a, b) => b.o.area - a.o.area).slice(0, 60), sel = new Set(F.picks[c.id] || []);
-        return `<div class="figcls"><b><span class="swatch" style="background:${c.color}"></span>${esc(c.name)}</b><span class="note">${t('fig.chosen', { n: sel.size, m: classTraces(c.id).length })}</span>
-          <div class="thumbs" data-cls="${c.id}">${list.map((x) => `<label title="${esc(x.s.name)} · ${fmt(depthAtRow(x.s, x.o.bbox[1]), 3)} ${x.s.units}"><input type="checkbox" data-key="${x.key}" ${sel.has(x.key) ? 'checked' : ''}><canvas data-thumb="${x.key}" width="56" height="56"></canvas></label>`).join('')}</div></div>`; }).join('') || `<p class="note">${t('fig.noTraces')}</p>`}`;
+      ${cls.map((c) => { const list = classTraces(c.id).sort((a, b) => b.o.area - a.o.area).slice(0, 60), sel = new Set(Array.isArray(F.picks?.[c.id]) ? F.picks[c.id] : []);
+        const col = validHexColor(c.color, '#777777');
+        return `<div class="figcls"><b><span class="swatch" style="background:${col}"></span>${esc(c.name)}</b><span class="note">${t('fig.chosen', { n: sel.size, m: classTraces(c.id).length })}</span>
+          <div class="thumbs" data-cls="${esc(c.id)}">${list.map((x) => `<label title="${esc(x.s.name)} · ${fmt(depthAtRow(x.s, x.o.bbox[1]), 3)} ${esc(x.s.units)}"><input type="checkbox" data-key="${esc(x.key)}" ${sel.has(x.key) ? 'checked' : ''}><canvas data-thumb="${esc(x.key)}" width="56" height="56"></canvas></label>`).join('')}</div></div>`; }).join('') || `<p class="note">${t('fig.noTraces')}</p>`}`;
     for (const cv of box.querySelectorAll('canvas[data-thumb]')) {
       const [sid, oid] = cv.dataset.thumb.split(':'), s = S.sections.find((q) => q.id === sid), o = s?.objects.get(+oid); if (!o) continue;
       const tc = traceCanvas(s, o, 56, F.img, false); const ctx = cv.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 56, 56); ctx.drawImage(tc.canvas, (56 - tc.canvas.width) / 2, (56 - tc.canvas.height) / 2);
     }
   } else if (F.type === 'sections') {
     const D = compositeData(), base = D.base;
-    box.innerHTML = `${figWinHTML()}<div class="grid2"><label class="f"><span>${t('fig.panelW')}</span><input type="number" id="figPanelW" min="10" max="600" step="10" value="${F.panelW}"></label>
-      <label class="f"><span>${t('fig.panelH')}</span><input type="number" id="figPanelH" min="50" max="4000" step="50" value="${F.panelH}"></label></div>
+    box.innerHTML = `${figWinHTML()}<div class="grid2"><label class="f"><span>${t('fig.panelW')}</span><input type="number" id="figPanelW" min="10" max="600" step="10" value="${esc(F.panelW)}"></label>
+      <label class="f"><span>${t('fig.panelH')}</span><input type="number" id="figPanelH" min="50" max="4000" step="50" value="${esc(F.panelH)}"></label></div>
       <label class="chk"><input type="checkbox" id="figKeepRatio" ${view.keepRatio ? 'checked' : ''}><span>${t('fig.keepRatio')}</span></label><p class="note" id="figRatioNote"></p>
-      <div class="f"><span>${t('fig.panels')}</span><div class="chk2">${FIG_PANELS.map((p) => `<label class="chk"><input type="checkbox" data-panel="${p}" ${F.panels.includes(p) ? 'checked' : ''}><span>${t('fig.p.' + p)}</span></label>`).join('')}</div></div>
+      <div class="f"><span>${t('fig.panels')}</span><div class="chk2">${FIG_PANELS.map((p) => `<label class="chk"><input type="checkbox" data-panel="${p}" ${Array.isArray(F.panels) && F.panels.includes(p) ? 'checked' : ''}><span>${t('fig.p.' + p)}</span></label>`).join('')}</div></div>
       <div class="grid2"><label class="f"><span>${t('fig.markStyle')}</span><select id="figMarkStyle">${['arrowLabel', 'arrow', 'triDown', 'tri', 'circle', 'square', 'star', 'cross'].map((v) => `<option value="${v}" ${(F.markStyle || 'arrowLabel') === v ? 'selected' : ''}>${t('fig.ms.' + v)}</option>`).join('')}</select></label>
       <label class="f"><span>${t('fig.overlap')}</span><select id="figOverlap" ${(F.markStyle || 'arrowLabel') !== 'arrowLabel' ? 'disabled' : ''}>${['keep', 'shift', 'merge', 'hide'].map((v) => `<option value="${v}" ${(F.overlap || 'keep') === v ? 'selected' : ''}>${t('fig.ov.' + v)}</option>`).join('')}</select></label></div>
-      <label class="f"><span>${t('fig.alpha')}</span><input type="range" id="figAlpha" min="0.1" max="0.9" step="0.05" value="${F.alpha}"></label>
-      <label class="f" title="${esc(t('fig.minAreaTip'))}"><span>${t('fig.minArea')}</span><input type="number" id="figMinArea" min="0" step="10" value="${F.minArea}"></label>
+      <label class="f"><span>${t('fig.alpha')}</span><input type="range" id="figAlpha" min="0.1" max="0.9" step="0.05" value="${esc(F.alpha)}"></label>
+      <label class="f" title="${esc(t('fig.minAreaTip'))}"><span>${t('fig.minArea')}</span><input type="number" id="figMinArea" min="0" step="10" value="${esc(F.minArea)}"></label>
       <label class="chk"><input type="checkbox" id="figHideExcl" ${F.hideExcl ? 'checked' : ''}><span>${t('log.hideExcl')}</span></label>
       <details class="mini"><summary>${t('ar.title')}</summary>${arrowFormHTML()}</details>
       <p class="note">${t('fig.secNote')}</p>`;
     syncSecFigSize();
   } else if (F.type === 'range') {
-    box.innerHTML = `${figWinHTML()}<label class="f"><span>${t('log.height')}</span><input type="number" id="figRangeH" min="300" max="6000" step="50" value="${F.rangeH}"></label>
+    box.innerHTML = `${figWinHTML()}<label class="f"><span>${t('log.height')}</span><input type="number" id="figRangeH" min="300" max="6000" step="50" value="${esc(F.rangeH)}"></label>
       <label class="f"><span>${t('fig.axisFig')}</span><select id="figRangeAxis"><option value="depth" ${view.axis !== 'age' ? 'selected' : ''}>${t('log.depth')}</option><option value="age" ${view.axis === 'age' ? 'selected' : ''} ${S.age.model ? '' : 'disabled'}>${t('log.age')}</option></select></label>
       ${taxaFormHTML(taxaOptions(F.taxaStyles?.range, { range: true, style: view.style || {}, display: F.rangeDisplay, source: F.rangeSrc || 'all' }))}
       ${(F.taxaStyles?.range?.source || F.rangeSrc || 'all') === 'all' ? `<label class="chk"><input type="checkbox" id="figRangeHollow" ${F.rangeHollow !== false ? 'checked' : ''}><span>${t('fig.ptsHollow')}</span></label>` : ''}
       <details class="mini"><summary>${t('fig.taxonSymbols')}</summary>${S.classes.filter((c) => c.id !== 'artifact').map((c) => `<label class="f"><span>${esc(c.name)}</span><select data-taxon-symbol="${esc(c.id)}">${['triDown','tri','circle','square','diamond','star','cross'].map((v) => `<option value="${v}" ${(c.symbol || 'triDown') === v ? 'selected' : ''}>${t('fig.ms.' + v)}</option>`).join('')}</select></label>`).join('')}</details>
-      <label class="f"><span>${t('fig.rangeColW')}</span><input type="number" id="figRangeColW" min="16" max="200" step="2" value="${F.rangeColW || 30}"></label>
+      <label class="f"><span>${t('fig.rangeColW')}</span><input type="number" id="figRangeColW" min="16" max="200" step="2" value="${esc(F.rangeColW || 30)}"></label>
       <label class="chk"><input type="checkbox" id="figRangeTotal" ${F.rangeTotal ? 'checked' : ''}><span>${t('log.total')}</span></label><p class="note">${t('fig.rangeNote')}</p>`;   // V0.51: taxa shown and column width
   } else if (F.type === 'core') {
     const tr = view.tracks, names = [...new Set(S.records.flatMap((r) => r.series.map((x) => x.name)))], shown = view.records || S.records.flatMap((r) => r.series.filter((x) => x.show).map((x) => x.name));
@@ -528,8 +532,8 @@ export function renderFigPanel() {
       ${taxaFormHTML(taxaOptions(F.taxaStyles?.core ?? view.style?.taxa, { style: view.style || {} }))}
       <div class="f"><span>${t('fig.tracks')}</span><div class="chk2">${Object.keys(trLab).map((k) => `<label class="chk"><input type="checkbox" data-ftrack="${k}" ${(k === 'marks' ? tr[k] !== false : tr[k]) ? 'checked' : ''}><span>${esc(trLab[k])}</span></label>`).join('')}</div></div>
       ${names.length ? `<div class="f"><span>${t('fig.recs')}</span><div class="chk2">${names.map((n) => `<label class="chk"><input type="checkbox" data-frec="${esc(n)}" ${shown.includes(n) ? 'checked' : ''}><span>${esc(n)}</span></label>`).join('')}</div></div>` : ''}
-      <div class="grid2"><label class="f"><span>${t('fig.coreImgW')}</span><input type="number" id="figCoreImgW" min="10" max="600" step="10" value="${F.coreImgW || 70}"></label>
-      <label class="f"><span>${t('log.height')}</span><input type="number" id="figCoreH" min="200" max="6000" step="100" value="${F.coreH}"></label></div>
+      <div class="grid2"><label class="f"><span>${t('fig.coreImgW')}</span><input type="number" id="figCoreImgW" min="10" max="600" step="10" value="${esc(F.coreImgW || 70)}"></label>
+      <label class="f"><span>${t('log.height')}</span><input type="number" id="figCoreH" min="200" max="6000" step="100" value="${esc(F.coreH)}"></label></div>
       <label class="chk"><input type="checkbox" id="figKeepRatio" ${view.keepRatio ? 'checked' : ''}><span>${t('fig.keepRatio')}</span></label><p class="note" id="figRatioNote"></p>
       <div class="f"><span>${t('log.panels')}</span><div class="chk2">${FIG_PANELS.map((q) => `<label class="chk"><input type="checkbox" data-corep="${q}" ${(view.imgPanels || []).includes(q) ? 'checked' : ''}><span>${t('fig.p.' + q)}</span></label>`).join('')}</div></div>
       <label class="chk"><input type="checkbox" id="figCoreHideExcl" ${view.hideExcl ? 'checked' : ''}><span>${t('log.hideExcl')}</span></label>
@@ -541,12 +545,12 @@ export function renderFigPanel() {
   else if (F.type === 'geolog') {
     const core = figGeoCore(F), names = geoFigureVars(core, view.axis), shown = figGeoFeatures(F), tracks = geoFigureTracks(view);
     const trackLabels = { image: t('log.image'), total: t('log.total'), species: t('log.species'), BI: 'BI', ii: 'ii', manual: t('log.manual'), secs: t('log.secs'), marks: t('color.marks') };
-    box.innerHTML = `<label class="f"><span>${t('geo.core')}</span><select id="figGeoCore">${S.cores.map((c) => `<option value="${c.id}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+    box.innerHTML = `<label class="f"><span>${t('geo.core')}</span><select id="figGeoCore">${S.cores.map((c) => `<option value="${esc(c.id)}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
       <details class="mini" open><summary>${t('fig.recs')}</summary><div class="chk2">${names.map((n) => `<label class="chk"><input type="checkbox" data-fgeo="${esc(n)}" ${shown.includes(n) ? 'checked' : ''}><span>${esc(n)}</span></label>`).join('') || '—'}</div>
       <button type="button" class="btn small" id="figGeoReset" ${F.geoFeatures == null ? 'disabled' : ''}>${t('fig.geoReset')}</button></details>
       <div class="f"><span>${t('fig.tracks')}</span><div class="chk2">${Object.entries(trackLabels).map(([key, label]) => `<label class="chk"><input type="checkbox" data-fgeo-track="${key}" ${tracks[key] ? 'checked' : ''} ${core?.sections?.length ? '' : 'disabled'}><span>${esc(label)}</span></label>`).join('')}</div></div>
       ${taxaFormHTML(taxaOptions(F.taxaStyles?.geolog, { style: { ...view.style, colHide: [] } }))}
-      <div class="grid2">${['from', 'to', 'height'].map((key) => `<label class="f"><span>${t(key === 'height' ? 'log.height' : 'fig.' + key)}</span><input type="number" data-fgeo-field="${key}" step="${key === 'height' ? '50' : 'any'}" ${key === 'height' ? 'min="200" max="6000"' : ''} value="${esc(view[key] ?? '')}" placeholder="${key === 'height' ? '700' : t('fig.auto2')}"></label>`).join('')}</div>
+      <div class="grid2">${['from', 'to', 'height'].map((key) => `<label class="f"><span>${t(key === 'height' ? 'log.height' : 'fig.' + key)}</span><input type="number" data-fgeo-field="${key}" step="${key === 'height' ? '50' : 'any'}" ${key === 'height' ? 'min="200" max="6000"' : ''} value="${esc(view[key] ?? '')}" placeholder="${esc(key === 'height' ? '700' : t('fig.auto2'))}"></label>`).join('')}</div>
       <div data-figure-style>${colOrderHTML('figure')}<details class="mini"><summary>${t('st.title')}</summary>${verticalStyleHTML(view.style || {})}${colorsFormHTML(view.style || {}, 'geo')}${axesFormHTML(null, view, names)}</details></div>
       <button type="button" class="btn small ghost" id="figGeoCompositionReset">${t('fig.geoCompositionReset')}</button><p class="note">${t('fig.geoNote')}</p>`;
   } else if (F.type === 'locmap') box.innerHTML = locmapPanelHTML();
@@ -619,7 +623,14 @@ const LM_BASES = {
   streets: { svc: 'World_Street_Map', attr: 'Esri, HERE, Garmin, OpenStreetMap contributors (World Street Map)' },
   ocean: { svc: 'Ocean/World_Ocean_Base', attr: 'Esri, Garmin, GEBCO, NOAA NGDC (World Ocean Base)' },
 };
-const lmSet = () => { const F = S.fig; F.loc = { ...LOCMAP_DEFAULTS, ...(F.loc || {}), labels: { ...LOCMAP_DEFAULTS.labels, ...(F.loc?.labels || {}) } }; return F.loc; };
+const LM_COLOR_KEYS = ['land', 'sea', 'gridColor', 'textColor', 'subColor', 'bgColor', 'pointColor', 'pointStroke'];
+const lmSet = () => {
+  const F = S.fig, raw = F.loc && typeof F.loc === 'object' && !Array.isArray(F.loc) ? F.loc : {};
+  const loc = { ...LOCMAP_DEFAULTS, ...raw, labels: { ...LOCMAP_DEFAULTS.labels, ...(raw.labels && typeof raw.labels === 'object' ? raw.labels : {}) } };
+  for (const k of LM_COLOR_KEYS) loc[k] = validHexColor(loc[k], LOCMAP_DEFAULTS[k]);
+  F.loc = loc;
+  return F.loc;
+};
 const lmPoints = () => S.cores.filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lon)).map((c) => ({ name: c.name, lat: c.lat, lon: c.lon }));
 const lmBgCache = new Map();
 /** Raster base of exactly the frame, asked to Esri in the map CRS (EPSG:4326, 3857 or 326xx/327xx), as a data URL. */
@@ -650,15 +661,15 @@ function locmapPanelHTML() {
   const st = lmSet(), b = st.bbox || lmFitBBox(lmPoints(), st.margin), auto = lmUtmZone((b[0] + b[2]) / 2);
   const opt = (k, vals, lab) => `<select data-lm="${k}">${vals.map((v) => `<option value="${v}" ${String(st[k]) === String(v) ? 'selected' : ''}>${lab(v)}</option>`).join('')}</select>`;
   const chk = (k, path = k) => `<label class="chk"><input type="checkbox" data-lm="${path}" ${(path.startsWith('labels.') ? st.labels[path.slice(7)] : st[k]) ? 'checked' : ''}><span>${t('lm.' + k)}</span></label>`;
-  const num = (k, min, max, stp) => `<label class="f"><span>${t('lm.' + k)}</span><input type="number" data-lm="${k}" min="${min}" max="${max}" step="${stp}" value="${st[k] ?? ''}" placeholder="${t('fig.auto2')}"></label>`;
+  const num = (k, min, max, stp) => `<label class="f"><span>${t('lm.' + k)}</span><input type="number" data-lm="${k}" min="${min}" max="${max}" step="${stp}" value="${esc(st[k] ?? '')}" placeholder="${esc(t('fig.auto2'))}"></label>`;
   const pos = (k) => opt(k, ['tl', 'tr', 'bl', 'br'], (v) => t('lm.pos.' + v));
   return `<p class="note" id="lmNote">${t('lm.intro', { n: lmPoints().length })}</p>
     <details class="mini" open><summary>${t('lm.view')}</summary>
       <label class="f"><span>${t('lm.base')}</span>${opt('base', Object.keys(LM_BASES), (v) => t('lm.b.' + v))}</label>
-      <label class="f"><span>${t('lm.baseOpacity')}</span><input type="range" data-lm="baseOpacity" min="0.2" max="1" step="0.05" value="${st.baseOpacity}"></label>
+      <label class="f"><span>${t('lm.baseOpacity')}</span><input type="range" data-lm="baseOpacity" min="0.2" max="1" step="0.05" value="${esc(st.baseOpacity)}"></label>
       <div class="grid2">${['W', 'S', 'E', 'N'].map((q, i) => `<label class="f"><span>${t('lm.bb.' + q)}</span><input type="number" data-lm="bbox.${i}" step="any" value="${+b[i].toFixed(4)}"></label>`).join('')}</div>
-      <div class="row" style="gap:4px;flex-wrap:wrap">${[['in', '＋'], ['out', '－'], ['w', '◀'], ['n', '▲'], ['s', '▼'], ['e', '▶']].map(([k, ic]) => `<button class="btn small" type="button" data-lmz="${k}" title="${t('lm.z.' + k)}" aria-label="${t('lm.z.' + k)}">${ic}</button>`).join('')}<button class="btn small" type="button" data-lmz="fit">${t('lm.z.fit')}</button></div>
-      <div class="grid2"><label class="f"><span>${t('lm.width')}</span><input type="number" data-lm="width" min="300" max="3000" step="50" value="${st.width}"></label>
+      <div class="row" style="gap:4px;flex-wrap:wrap">${[['in', '＋'], ['out', '－'], ['w', '◀'], ['n', '▲'], ['s', '▼'], ['e', '▶']].map(([k, ic]) => `<button class="btn small" type="button" data-lmz="${k}" title="${esc(t('lm.z.' + k))}" aria-label="${esc(t('lm.z.' + k))}">${ic}</button>`).join('')}<button class="btn small" type="button" data-lmz="fit">${t('lm.z.fit')}</button></div>
+      <div class="grid2"><label class="f"><span>${t('lm.width')}</span><input type="number" data-lm="width" min="300" max="3000" step="50" value="${esc(st.width)}"></label>
       <label class="f"><span>${t('lm.aspect')}</span>${opt('aspect', ['auto', '1:1', '4:3', '3:2', '16:9', 'A4', 'A4v'], (v) => (v === 'auto' ? t('lm.aspectAuto') : v === 'A4' ? 'A4 ↔' : v === 'A4v' ? 'A4 ↕' : v))}</label></div>
     </details>
     <details class="mini" open><summary>${t('lm.crsT')}</summary>
@@ -669,12 +680,12 @@ function locmapPanelHTML() {
     <details class="mini" open><summary>${t('lm.gridT')}</summary>
       ${chk('grid')}
       <div class="grid2"><label class="f"><span>${t('lm.gridType')}</span>${opt('gridType', st.crs === 'EPSG:4326' ? ['auto'] : ['auto', 'geo'], (v) => t('lm.g.' + v))}</label>
-      <label class="f"><span>${t(st.crs === 'EPSG:4326' || st.gridType === 'geo' ? 'lm.stepDeg' : 'lm.stepM')}</span><input type="number" data-lm="gridStep" min="0" step="any" value="${st.gridStep ?? ''}" placeholder="${t('fig.auto2')}"></label></div>
+      <label class="f"><span>${t(st.crs === 'EPSG:4326' || st.gridType === 'geo' ? 'lm.stepDeg' : 'lm.stepM')}</span><input type="number" data-lm="gridStep" min="0" step="any" value="${esc(st.gridStep ?? '')}" placeholder="${esc(t('fig.auto2'))}"></label></div>
       <div class="f"><span>${t('lm.sides')}</span><div class="chk2">${['top', 'bottom', 'left', 'right'].map((q) => `<label class="chk"><input type="checkbox" data-lm="labels.${q}" ${st.labels[q] ? 'checked' : ''}><span>${t('lm.side.' + q)}</span></label>`).join('')}</div>
       <div class="row" style="gap:4px"><button class="btn small" type="button" data-lmz="allSides">${t('mp.all')}</button><button class="btn small" type="button" data-lmz="noSides">${t('mp.none')}</button></div></div>
       ${st.crs === 'EPSG:4326' || st.gridType === 'geo' ? `<label class="f"><span>${t('lm.fmt')}</span>${opt('coordFmt', ['dd', 'dms'], (v) => t('lm.f.' + v))}</label>` : `<label class="f"><span>${t('lm.unit')}</span>${opt('metricUnit', ['m', 'km'], (v) => v)}</label><p class="note">${t('lm.metricNote')}</p>`}
-      <div class="grid2">${num('labelSize', 6, 24, 1)}<label class="f"><span>${t('lm.gridColor')}</span><input type="color" data-lm="gridColor" value="${st.gridColor}"></label></div>
-      <div class="grid2">${['textColor', 'subColor', 'bgColor'].map((k) => `<label class="f"><span>${t('color.' + k)}</span><input type="color" data-lm="${k}" value="${esc(st[k] || LOCMAP_DEFAULTS[k])}"></label>`).join('')}</div>
+      <div class="grid2">${num('labelSize', 6, 24, 1)}<label class="f"><span>${t('lm.gridColor')}</span><input type="color" data-lm="gridColor" value="${esc(st.gridColor)}"></label></div>
+      <div class="grid2">${['textColor', 'subColor', 'bgColor'].map((k) => `<label class="f"><span>${t('color.' + k)}</span><input type="color" data-lm="${k}" value="${esc(st[k])}"></label>`).join('')}</div>
       ${chk('ticks')}${chk('rotateSide')}${chk('gridDash')}
     </details>
     <details class="mini"><summary>${t('lm.elemT')}</summary>
@@ -683,8 +694,8 @@ function locmapPanelHTML() {
     </details>
     <details class="mini"><summary>${t('lm.coresT')}</summary>
       <div class="grid2"><label class="f"><span>${t('lm.symbol')}</span>${opt('symbol', ['circle', 'square', 'triangle', 'diamond', 'star'], (v) => t('lm.s.' + v))}</label>${num('pointSize', 2, 20, 1)}
-      <label class="f"><span>${t('lm.pointColor')}</span><input type="color" data-lm="pointColor" value="${st.pointColor}"></label><label class="f"><span>${t('lm.land')}</span><input type="color" data-lm="land" value="${st.land}"></label>
-      <label class="f"><span>${t('lm.sea')}</span><input type="color" data-lm="sea" value="${st.sea}"></label>${num('coreLabelSize', 6, 24, 1)}</div>
+      <label class="f"><span>${t('lm.pointColor')}</span><input type="color" data-lm="pointColor" value="${esc(st.pointColor)}"></label><label class="f"><span>${t('lm.land')}</span><input type="color" data-lm="land" value="${esc(st.land)}"></label>
+      <label class="f"><span>${t('lm.sea')}</span><input type="color" data-lm="sea" value="${esc(st.sea)}"></label>${num('coreLabelSize', 6, 24, 1)}</div>
       ${chk('coreLabels')}${chk('coast')}
     </details>
     <details class="mini" open><summary>${t('lm.outT')}</summary>

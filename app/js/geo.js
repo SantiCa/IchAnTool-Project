@@ -630,7 +630,10 @@ export function mapSummary(samples, preds, cores, { a0, a1, mode, feature = 0, r
   });
 }
 
-const esc2 = (s) => String(s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m]);
+const esc2 = (s) => {
+  try { return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]); }
+  catch { return ''; }
+};
 
 /** Diverging colour (blue–cream–red) for z values clipped at ±2. */
 export function divColor(v) {
@@ -733,7 +736,12 @@ function scaleBarKm(bbox, P, maxPx = 160) {
  * bg.href2 (optional) is drawn on top clipped to the land polygons (e.g. aerial photo over a bathymetry).
  */
 export function buildMapSVG(o) {
-  const st = { ...MAP_STYLE, ...(o.style || {}) }, bg = o.bg || null;
+  const raw = o.style && typeof o.style === 'object' && !Array.isArray(o.style) ? o.style : {};
+  const st = { ...MAP_STYLE, ...raw }, bg = o.bg || null;
+  const hexRe = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
+  for (const k of ['labelColor', 'pointColor', 'stroke', 'land', 'sea', 'textColor', 'subColor', 'bgColor']) {
+    if (typeof st[k] !== 'string' || !hexRe.test(st[k])) st[k] = MAP_STYLE[k];
+  }
   const [x0, y0, x1, y1] = o.bbox, F = mapFrame(o.bbox, st.proj || 'plate'), { W, H, top, bottom, P } = F;
   const xy = (lon, lat) => P(lon, lat).map((v) => v.toFixed(1)).join(' ');
   const linear = F.kind === 'plate' || F.kind === 'mercator'; // grid cells stay rectangles

@@ -1167,11 +1167,15 @@ pointer/depth mapping and export renderers retain their existing contracts. The
 
 Colours can be edited and restored to defaults: bioturbation bars `#e7c9a5` and line `#a85f1c`, BI and ii bars
 `#c98a4b`, manual indices and text `#1c2422`, subtitle and section boundaries `#5b6763`, frames `#9aa5a1`,
-grid `#e3e8e6`, and background `#ffffff`. Ichnotaxon, record and interval category colours remain data-specific. The
-text, subtitle and background colours of the core-column style also apply to the sections figure, the trace gallery
-and the title and caption added around any exported figure. The multiproxy map and the location map have their own
-text (`#1c2422`), subtitle (`#5b6763`) and background (`#ffffff`) colours. Colours read from a project are used only
-if they are hex colours (`#rgb` or `#rrggbb`); any other value falls back to its default.
+grid `#e3e8e6`, background `#ffffff`, and no-data fill `#f2f2f0` and hatching `#b9bdbb`. Ichnotaxon, record and
+interval category colours remain data-specific. The text, subtitle and background colours of the core-column style also
+apply to the sections figure, the trace gallery and the title and caption added around any exported figure. The
+multiproxy map (`MAP_STYLE`) and the location map (`LOCMAP_DEFAULTS`) have their own text (`#1c2422`), subtitle
+(`#5b6763`), background (`#ffffff`), land, sea and point colours. Presentation, no-data (`ndColor`, `ndLine`), marker
+stroke, class, record, interval-band and map colours read from a project are validated against 3- or 6-digit hexadecimal
+notation (`^#[0-9a-f]{3}([0-9a-f]{3})?$/i`, `log.js::validHexColor, mergedStyle`) before rendering DOM controls or
+exported SVGs; any other value falls back to its respective style default, and interpolated control, label and track
+attributes are escaped.
 
 | Column | Content | Horizontal scale |
 |--------|---------|------------------|
@@ -1182,11 +1186,11 @@ if they are hex colours (`#rgb` or `#rrggbb`); any other value falls back to its
 | Interval bands | one band per layer of described intervals, and the automatic classification (§18) | — |
 
 Dashed lines mark the top of each section. NO DATA intervals (§3.2) are drawn with a configurable style (`ndShow`,
-`ndFill` = hatched/solid/none, `ndColor`, `ndLine`, `ndLabel`, `ndText`, `ndImage` = also over the images;
-`log.js::ND_STYLE, noDataGaps, noDataRect`). The order and visibility of columns are set with `style.colOrder` and
-`style.colHide` (nothing is deleted; `log.js::orderCols`). Figures inherit the column settings until a presentation
-override is edited (§20.1.1). Ichnotaxa can be hidden from drawing (`style.speciesHide`). Axes, ticks and labels are edited as
-described in §20.8.
+`ndFill` = `hatch` / `solid` / `none`, `ndColor` `#f2f2f0`, `ndLine` `#b9bdbb`, `ndLabel`, `ndText`, `ndImage` = also
+over the images; `log.js::ND_STYLE, noDataDefs, noDataGaps, noDataRect`). The order and visibility of columns are set
+with `style.colOrder` and `style.colHide` (nothing is deleted; `log.js::orderCols`). Figures inherit the column settings
+until a presentation override is edited (§20.1.1). Ichnotaxa can be hidden from drawing (`style.speciesHide`). Axes,
+ticks and labels are edited as described in §20.8.
 
 ### 15.6 Reading values with the cursor, column widths and pop-up help
 - **Reading cursor** (core column and multiproxy curves): moving the mouse over the plot draws a line at that height;

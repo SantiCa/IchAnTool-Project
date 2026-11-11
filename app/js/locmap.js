@@ -144,7 +144,10 @@ export function lmNorthAngle(fr, px, py) {
 
 /* ── SVG ── */
 
-const lmEsc = (s) => String(s ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m]);
+const lmEsc = (s) => {
+  try { return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]); }
+  catch { return ''; }
+};
 function lmSymbol(sym, x, y, r, attrs) {
   const f = (v) => v.toFixed(1);
   if (sym === 'square') return `<rect x="${f(x - r * 0.89)}" y="${f(y - r * 0.89)}" width="${f(r * 1.78)}" height="${f(r * 1.78)}" ${attrs}/>`;
@@ -166,8 +169,13 @@ function lmCross(fn, level, n = 240) {
  * Returns {svg, frame, crs, bbox}.
  */
 export function buildLocMapSVG(o) {
-  const st = { ...LOCMAP_DEFAULTS, ...(o.settings || {}), labels: { ...LOCMAP_DEFAULTS.labels, ...(o.settings?.labels || {}) } };
-  const pts = (o.points || []).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+  const raw = o?.settings && typeof o.settings === 'object' && !Array.isArray(o.settings) ? o.settings : {};
+  const st = { ...LOCMAP_DEFAULTS, ...raw, labels: { ...LOCMAP_DEFAULTS.labels, ...(raw.labels && typeof raw.labels === 'object' ? raw.labels : {}) } };
+  const hexRe = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
+  for (const k of ['land', 'sea', 'gridColor', 'textColor', 'subColor', 'bgColor', 'pointColor', 'pointStroke']) {
+    if (typeof st[k] !== 'string' || !hexRe.test(st[k])) st[k] = LOCMAP_DEFAULTS[k];
+  }
+  const pts = (Array.isArray(o?.points) ? o.points : []).filter((p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lon));
   const bbox = st.bbox || lmFitBBox(pts, st.margin), cLon = (bbox[0] + bbox[2]) / 2, cLat = (bbox[1] + bbox[3]) / 2;
   const crs = lmCRS(st.crs, { zone: st.utmZone || lmUtmZone(cLon), south: st.utmSouth ?? cLat < 0 });
   const aspect = { auto: 'auto', '1:1': 1, '4:3': 0.75, '3:2': 2 / 3, '16:9': 0.5625, A4: 210 / 297, A4v: 297 / 210 }[st.aspect] ?? 'auto';

@@ -9,7 +9,7 @@ import { FIG_PANELS, arrowMarksSVG, axisErr, coreRatio, editSVGLabels, figTraces
 
 import { UNIT_TO_CM, interpAge, topAt } from './core.js';
 import { validSavedRegion } from './edit.js';
-import { LOG_STYLE, ND_STYLE, taxaOptions, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
+import { LOG_STYLE, ND_STYLE, mergedStyle, taxaOptions, validHexColor, buildLogSVG, compositeRows, guessAxisColumn, invertModel, orderCols, rowsRange, toAxis, windowCSV } from './log.js';
 import { t } from './i18n.js';
 import { buildNavigationLayers, NavigationPreviewCache } from './navpreview.js';
 import { figureViewOf, editFigureView } from './figview.js';
@@ -197,32 +197,35 @@ export function logRecords(D, lv = S.logView, records = S.records, selected = nu
 
 /** V0.23: which image panels the core column shows and how wide the image is. */
 function renderImgPanelsForm() {
-  const lv = S.logView, st = lv.style || {}, on = new Set(lv.imgPanels || []), asp = st.imgAspect || 'keep';
+  const lv = S.logView, st = lv.style || {}, on = new Set(Array.isArray(lv.imgPanels) ? lv.imgPanels : []), asp = st.imgAspect || 'keep';
   $('logImgPanels').innerHTML = `<div class="f"><span>${t('log.panels')}</span><div class="chk2">${FIG_PANELS.map((p) => `<label class="chk"><input type="checkbox" data-imgp="${p}" ${on.has(p) ? 'checked' : ''}><span>${t('fig.p.' + p)}</span></label>`).join('')}</div><p class="note">${t('log.panelsNote')}</p></div>
     <div class="grid2" style="grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)"><label class="f"><span>${t('log.imgAspect')}</span><select data-st="imgAspect"><option value="keep" ${asp === 'keep' ? 'selected' : ''}>${t('log.asp.keep')}</option><option value="fixed" ${asp === 'fixed' ? 'selected' : ''}>${t('log.asp.fixed')}</option></select></label>
-    ${asp === 'keep' ? `<label class="f"><span>${t('log.imgStretch')}</span><input type="number" data-st="imgStretch" min="0.05" step="0.1" value="${st.imgStretch ?? ''}" placeholder="1"></label>` : `<label class="f"><span>${t('log.imgW')}</span><input type="number" data-st="imgW" min="8" max="600" step="2" value="${st.imgW ?? ''}" placeholder="64"></label>`}</div>`;
+    ${asp === 'keep' ? `<label class="f"><span>${t('log.imgStretch')}</span><input type="number" data-st="imgStretch" min="0.05" step="0.1" value="${esc(st.imgStretch ?? '')}" placeholder="1"></label>` : `<label class="f"><span>${t('log.imgW')}</span><input type="number" data-st="imgW" min="8" max="600" step="2" value="${esc(st.imgW ?? '')}" placeholder="64"></label>`}</div>`;
 }
 /** V0.23: NO DATA and marker fields of the column style (shared by the core column and the figures). */
 export function ndFormHTML(st) {
-  const q = { ...ND_STYLE, ...st };
+  const raw = st && typeof st === 'object' && !Array.isArray(st) ? st : {};
+  const q = mergedStyle(raw);
+  const stroke = validHexColor(raw.markStroke, '#ffffff');
   return `<div class="f"><span>${t('nd.title')}</span><div class="grid2">
     <label class="f"><span>${t('nd.fill')}</span><select data-st="ndFill">${['hatch', 'solid', 'none'].map((v) => `<option value="${v}" ${q.ndFill === v ? 'selected' : ''}>${t('nd.f.' + v)}</option>`).join('')}</select></label>
-    <label class="f"><span>${t('nd.colors')}</span><span class="row"><input type="color" data-st="ndColor" value="${q.ndColor}"><input type="color" data-st="ndLine" value="${q.ndLine}"></span></label>
+    <label class="f"><span>${t('nd.colors')}</span><span class="row"><input type="color" data-st="ndColor" value="${esc(q.ndColor)}"><input type="color" data-st="ndLine" value="${esc(q.ndLine)}"></span></label>
     <label class="f"><span>${t('nd.text')}</span><input type="text" data-st="ndText" value="${esc(q.ndText || '')}" placeholder="${esc(t('log.noData'))}"></label>
     <span></span></div><div class="chk2"><label class="chk"><input type="checkbox" data-st="ndShow" ${q.ndShow ? 'checked' : ''}><span>${t('nd.show')}</span></label><label class="chk"><input type="checkbox" data-st="ndLabel" ${q.ndLabel ? 'checked' : ''}><span>${t('nd.label')}</span></label><label class="chk"><input type="checkbox" data-st="ndImage" ${q.ndImage ? 'checked' : ''}><span>${t('nd.image')}</span></label></div></div>
     <div class="f"><span>${t('mk.title')}</span><div class="grid2">
-    <label class="f"><span>${t('mk.size')}</span><input type="number" data-st="markSize" min="0.2" max="5" step="0.1" value="${st.markSize ?? ''}" placeholder="1"></label>
-    <label class="f"><span>${t('mk.stroke')}</span><span class="row"><input type="color" data-st="markStroke" value="${st.markStroke && st.markStroke !== 'none' ? st.markStroke : '#ffffff'}"><input type="number" data-st="markStrokeW" min="0" max="4" step="0.2" value="${st.markStrokeW ?? ''}" placeholder="0.8" style="width:60px" title="${esc(t('mk.strokeW'))}"></span></label></div></div>`;
+    <label class="f"><span>${t('mk.size')}</span><input type="number" data-st="markSize" min="0.2" max="5" step="0.1" value="${esc(raw.markSize ?? '')}" placeholder="1"></label>
+    <label class="f"><span>${t('mk.stroke')}</span><span class="row"><input type="color" data-st="markStroke" value="${esc(stroke)}"><input type="number" data-st="markStrokeW" min="0" max="4" step="0.2" value="${esc(raw.markStrokeW ?? '')}" placeholder="0.8" style="width:60px" title="${esc(t('mk.strokeW'))}"></span></label></div></div>`;
 }
 /** V0.23: markers and labels of the arrows panel (section figure and core column). */
 export function arrowFormHTML() {
-  const F = S.fig, ex = new Set(F.arrowExcl || []);
+  const F = S.fig, ex = new Set(Array.isArray(F.arrowExcl) ? F.arrowExcl : []);
+  const stroke = validHexColor(F.markStroke, '#ffffff'), labelColor = validHexColor(F.labelColor, '#1c2422');
   return `<div class="grid2"><label class="f"><span>${t('ar.src')}</span><select id="figArrowSrc">${['all', 'marks', 'objects'].map((v) => `<option value="${v}" ${(F.arrowSrc || 'all') === v ? 'selected' : ''}>${t('ar.src.' + v)}</option>`).join('')}</select></label>
-    <label class="f"><span>${t('ar.objScale')}</span><input type="number" id="figObjScale" min="0.2" max="3" step="0.1" value="${F.objScale ?? 1}"></label>
-    <label class="f"><span>${t('mk.size')}</span><input type="number" id="figMarkScale" min="0.2" max="5" step="0.1" value="${F.markScale ?? 1}"></label>
-    <label class="f"><span>${t('mk.stroke')}</span><span class="row"><input type="color" id="figMarkStroke" value="${F.markStroke && F.markStroke !== 'none' ? F.markStroke : '#ffffff'}"><input type="number" id="figMarkStrokeW" min="0" max="4" step="0.2" value="${F.markStrokeW ?? 0.8}" style="width:60px" title="${esc(t('mk.strokeW'))}"></span></label>
-    <label class="f"><span>${t('ar.labelSize')}</span><input type="number" id="figLabelSize" min="5" max="30" step="1" value="${F.labelSize ?? 10}"></label>
-    <label class="f"><span>${t('ar.labelColor')}</span><span class="row"><input type="color" id="figLabelColor" value="${F.labelColor || '#1c2422'}"><label class="chk"><input type="checkbox" id="figLabelHalo" ${F.labelHalo !== false ? 'checked' : ''}><span>${t('ar.halo')}</span></label></span></label></div>
+    <label class="f"><span>${t('ar.objScale')}</span><input type="number" id="figObjScale" min="0.2" max="3" step="0.1" value="${esc(F.objScale ?? 1)}"></label>
+    <label class="f"><span>${t('mk.size')}</span><input type="number" id="figMarkScale" min="0.2" max="5" step="0.1" value="${esc(F.markScale ?? 1)}"></label>
+    <label class="f"><span>${t('mk.stroke')}</span><span class="row"><input type="color" id="figMarkStroke" value="${esc(stroke)}"><input type="number" id="figMarkStrokeW" min="0" max="4" step="0.2" value="${esc(F.markStrokeW ?? 0.8)}" style="width:60px" title="${esc(t('mk.strokeW'))}"></span></label>
+    <label class="f"><span>${t('ar.labelSize')}</span><input type="number" id="figLabelSize" min="5" max="30" step="1" value="${esc(F.labelSize ?? 10)}"></label>
+    <label class="f"><span>${t('ar.labelColor')}</span><span class="row"><input type="color" id="figLabelColor" value="${esc(labelColor)}"><label class="chk"><input type="checkbox" id="figLabelHalo" ${F.labelHalo !== false ? 'checked' : ''}><span>${t('ar.halo')}</span></label></span></label></div>
     <div class="f"><span>${t('ar.excl')}</span><div class="chk2">${S.classes.filter((c) => c.id !== 'artifact').map((c) => `<label class="chk"><input type="checkbox" data-arex="${esc(c.id)}" ${ex.has(c.id) ? 'checked' : ''}><span>${esc(c.name)}</span></label>`).join('')}</div></div>`;
 }
 
@@ -281,7 +284,7 @@ export function renderLog() {
 /* Column presentation; explicit view arguments keep figure profiles separate from analysis views. */
 const AGE_TO_KA = { a: 0.001, ka: 1, Ma: 1000 };
 export function logStyleOf(D, lv = S.logView, ageUnits = S.age.units) {
-  const st = { ...LOG_STYLE, ...(lv.style || {}) };
+  const st = mergedStyle(lv?.style);
   let unit, f = 1;
   if (D.axis === 'age') { unit = st.yUnitAge && AGE_TO_KA[st.yUnitAge] && AGE_TO_KA[ageUnits] ? st.yUnitAge : ageUnits; f = AGE_TO_KA[ageUnits] / (AGE_TO_KA[unit] || AGE_TO_KA[ageUnits] || 1) || 1; }
   else { unit = st.yUnit && UNIT_TO_CM[st.yUnit] ? st.yUnit : D.base; f = UNIT_TO_CM[D.base] / UNIT_TO_CM[unit]; }
@@ -299,10 +302,10 @@ export function editableColView(kind) {
   return colView(kind);
 }
 export function colOrderHTML(kind) {
-  const lv = colView(kind), st = lv.style || {}, hide = new Set(st.colHide || []);
-  const cols = orderCols(lastCols[kind].map((c) => ({ ...c })), { colOrder: st.colOrder });
+  const lv = colView(kind), st = lv.style || {}, hide = new Set(Array.isArray(st.colHide) ? st.colHide : []);
+  const cols = orderCols((lastCols[kind] || []).map((c) => ({ ...c })), { colOrder: st.colOrder });
   const li = (c) => `<li draggable="true" data-colid="${esc(c.id)}"><span class="grip" aria-hidden="true">⋮⋮</span><label class="chk"><input type="checkbox" data-colshow="${esc(c.id)}" ${hide.has(c.id) ? '' : 'checked'}><span title="${esc(c.title || c.id)}">${esc(c.title || c.id)}</span></label><button type="button" class="btn small ghost" data-colmv="-1" aria-label="${esc(t('co.up'))}">↑</button><button type="button" class="btn small ghost" data-colmv="1" aria-label="${esc(t('co.down'))}">↓</button></li>`;
-  return `<div class="f" data-colord="${kind}"><span>${t('co.title')}</span>${cols.length ? `<ol class="colord">${cols.map(li).join('')}</ol><p class="note">${t('co.note')}</p>` : `<p class="note">${t('co.empty')}</p>`}</div>`;
+  return `<div class="f" data-colord="${esc(kind)}"><span>${t('co.title')}</span>${cols.length ? `<ol class="colord">${cols.map(li).join('')}</ol><p class="note">${t('co.note')}</p>` : `<p class="note">${t('co.empty')}</p>`}</div>`;
 }
 /** After a chart is built: remember its columns and refresh the list if the set of columns changed. */
 export function syncColOrder(kind, columns) {
@@ -350,13 +353,13 @@ const COLOR_FIELDS = {
   geo: ['barColor', 'lineColor', 'textColor', 'subColor', 'frameColor', 'gridColor', 'bgColor'],
 };
 export function colorsFormHTML(style, kind) {
-  const st = { ...LOG_STYLE, ...style };
-  return `<div class="f"><span>${t('color.title')}</span><div class="grid2">${COLOR_FIELDS[kind].map((key) => `<label class="f"><span>${t('color.' + key)}</span><input type="color" data-st="${key}" value="${esc(st[key])}"></label>`).join('')}</div><button type="button" class="btn small" data-colreset="${kind}">${t('color.reset')}</button><p class="note">${t('color.note')}</p></div>`;
+  const st = mergedStyle(style), fields = COLOR_FIELDS[kind] || COLOR_FIELDS.log;
+  return `<div class="f"><span>${t('color.title')}</span><div class="grid2">${fields.map((key) => `<label class="f"><span>${t('color.' + key)}</span><input type="color" data-st="${key}" value="${esc(st[key])}"></label>`).join('')}</div><button type="button" class="btn small" data-colreset="${esc(kind)}">${t('color.reset')}</button><p class="note">${t('color.note')}</p></div>`;
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-colreset]'); if (!b) return;
   const kind = b.dataset.colreset, figure = !!b.closest('[data-figure-style]'), lv = editableColView(figure ? 'figure' : kind);
-  lv.style ||= {}; for (const key of COLOR_FIELDS[kind]) delete lv.style[key];
+  lv.style ||= {}; for (const key of COLOR_FIELDS[kind] || COLOR_FIELDS.log) delete lv.style[key];
   markDirty();
   if (figure) { renderFigPanel(); scheduleFigure(); }
   else if (kind === 'geo') { $('geoStyleForm').innerHTML = ''; renderGeoLogs(); }
@@ -364,11 +367,11 @@ document.addEventListener('click', (e) => {
 });
 /** V0.69: ruler-style vertical scale — number, long, medium and short ticks, each with its own interval and length. */
 export function tickFieldsHTML(st) {
-  const f = (k, step, min, ph) => `<label class="f"><span>${t('st.' + k)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${st[k] ?? ''}" placeholder="${ph}"></label>`;
+  const f = (k, step, min, ph) => `<label class="f"><span>${t('st.' + k)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${esc(st?.[k] ?? '')}" placeholder="${esc(ph)}"></label>`;
   const none = t('st.none'), auto = t('fig.auto2'), au = t('st.auto');
   return `${f('yStep', 'any', 0, au)}${f('yDiv', 1, 1, au)}${f('yMajor', 'any', 0, none)}${f('yMedium', 'any', 0, none)}${f('yMinor', 'any', 0, none)}<span></span>
     ${f('yLabelLen', 0.5, 0.5, 6)}${f('yMajorLen', 0.5, 0.5, 6)}${f('yMediumLen', 0.5, 0.5, 4.5)}${f('yMinorLen', 0.5, 0.5, 3)}
-    <div class="f" style="grid-column:1/-1"><span>${t('st.ruler')}</span><span class="row"><input type="number" data-rulern step="any" min="0" value="${rulerN}" placeholder="1" style="max-width:6em"><button type="button" class="btn small" data-rulerbtn title="${esc(t('st.rulerTip'))}">${t('st.rulerGo')}</button></span></div>
+    <div class="f" style="grid-column:1/-1"><span>${t('st.ruler')}</span><span class="row"><input type="number" data-rulern step="any" min="0" value="${esc(rulerN)}" placeholder="1" style="max-width:6em"><button type="button" class="btn small" data-rulerbtn title="${esc(t('st.rulerTip'))}">${t('st.rulerGo')}</button></span></div>
     <p class="note" style="grid-column:1/-1;margin:0">${t('st.tickHelp')}</p>`;
 }
 /* V0.74: one-click ruler scale. The panel is redrawn after every change, so each field is looked up again. */
@@ -385,7 +388,7 @@ document.addEventListener('click', (e) => {
   }
 });
 export function styleFormHTML(showTaxa = true, lv = S.logView, kind = 'log') {
-  const st = { ...LOG_STYLE, ...(lv.style || {}) }, num = (k, lab, step = 'any', min = 0) => `<label class="f"><span>${t(lab)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${st[k] ?? ''}" placeholder="${t('fig.auto2')}"></label>`;
+  const st = mergedStyle(lv?.style), num = (k, lab, step = 'any', min = 0) => `<label class="f"><span>${t(lab)}</span><input type="number" data-st="${k}" step="${step}" min="${min}" value="${esc(st[k] ?? '')}" placeholder="${esc(t('fig.auto2'))}"></label>`;
   const chk = (k, lab) => `<label class="chk"><input type="checkbox" data-st="${k}" ${st[k] ? 'checked' : ''}><span>${t(lab)}</span></label>`;
   const sel = (k, lab, opts) => `<label class="f"><span>${t(lab)}</span><select data-st="${k}">${opts.map(([v, l]) => `<option value="${v}" ${String(st[k] ?? '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
   return `${colOrderHTML(kind)}<div class="grid2">
@@ -455,7 +458,8 @@ export function axesFormHTML(only = null, lv = S.logView, recNames = null) {
   const ax = lv.style?.axes || {}, W = lv.colW || {};
   const recs = recNames || [...new Set(S.records.flatMap((r) => r.series.map((x) => x.name)))];
   const figureTaxa = mode === 'fig' && lv !== S.logView ? S.fig.taxaStyles?.[S.fig.type] : null;
-  const sep = (figureTaxa || lv.style?.taxa)?.layout === 'separate' || (!(figureTaxa || lv.style?.taxa) && lv.style?.speciesMode === 'separate'), spHide = new Set(lv.style?.speciesHide || []);
+  const sep = (figureTaxa || lv.style?.taxa)?.layout === 'separate' || (!(figureTaxa || lv.style?.taxa) && lv.style?.speciesMode === 'separate');
+  const spHide = new Set(Array.isArray(lv.style?.speciesHide) ? lv.style.speciesHide : []);
   const spCols = sep ? S.classes.filter((c) => c.counts !== false && c.id !== 'artifact' && !spHide.has(c.name)).map((c) => ['sp:' + c.name, c.name, 70]) : [['species', t('log.species'), 150]];
   const cols = [['secs', t('log.secs'), 40], ['total', t('log.total'), 150], ...spCols, ['BI', 'BI', 46], ['ii', 'ii', 46], ...recs.map((n) => ['rec:' + n, n, 120])];
   /* V0.75: the settings of the two percentage columns (title, shape of the bioturbation column, divisions) live in their table rows. */
@@ -467,11 +471,11 @@ export function axesFormHTML(only = null, lv = S.logView, recNames = null) {
     const shape = id === 'total' ? `<label class="f"><span>${t('st.totalStyle')}</span><select data-st="totalStyle">${['barsline', 'bars', 'line', 'points'].map((v) => `<option value="${v}" ${(stl.totalStyle || 'barsline') === v ? 'selected' : ''}>${t('st.ts.' + v)}</option>`).join('')}</select></label>` : '';
     return `<tr class="axsub"><td></td><td colspan="8"><span style="display:grid;gap:6px;width:270px;max-width:100%;text-align:left"><label class="f"><span>${t(lab)}</span><input type="text" data-st="${title}" value="${esc(stl[title] || '')}" placeholder="${esc(t(ph))}"></label>${shape}</span></td></tr>`;
   };
-  const cell = (id, k, ph, step = 'any') => `<input type="number" data-ax="${esc(id)}" data-k="${k}" step="${step}" value="${ax[id]?.[k] ?? ''}" placeholder="${ph}" aria-label="${esc(id + ' ' + k)}" style="width:100%;min-width:54px">`;
+  const cell = (id, k, ph, step = 'any') => `<input type="number" data-ax="${esc(id)}" data-k="${k}" step="${step}" value="${esc(ax[id]?.[k] ?? '')}" placeholder="${esc(ph)}" aria-label="${esc(id + ' ' + k)}" style="width:100%;min-width:54px">`;
   return `<div class="f"><span>${t('st.axes')}</span><div style="overflow-x:auto"><table class="axtab" style="font-size:11px;border-collapse:collapse;width:100%">
     <tr><th></th><th>${t('st.ax.w')}</th><th>${t('st.ax.min')}</th><th>${t('st.ax.max')}</th><th>${t('st.ax.div')}</th><th>${t('st.ax.dec')}</th><th>${t('edit.step')}</th><th title="${esc(t('st.ax.revTip'))}">⇄</th><th title="${esc(t('st.ax.logTip'))}">log</th></tr>
     ${cols.filter(([id]) => !only || only.includes(id)).map(([id, name, w]) => `<tr><td title="${esc(name)}" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</td>
-      <td><input type="number" data-axw="${esc(id)}" min="30" max="600" step="10" value="${W[id] ?? ''}" placeholder="${w}" style="width:100%"></td>
+      <td><input type="number" data-axw="${esc(id)}" min="30" max="600" step="10" value="${esc(W[id] ?? '')}" placeholder="${esc(w)}" style="width:100%"></td>
       <td>${cell(id, 'min', 'auto')}</td><td>${cell(id, 'max', 'auto')}</td><td>${cell(id, 'div', pct(id) ? String(pctDiv) : 'auto', 1)}</td><td>${cell(id, 'dec', 'auto', 1)}</td><td>${cell(id, 'step', 'auto')}</td>
       <td><input type="checkbox" data-ax="${esc(id)}" data-k="rev" ${ax[id]?.rev ? 'checked' : ''}></td>
       <td><input type="checkbox" data-ax="${esc(id)}" data-k="log" ${ax[id]?.log ? 'checked' : ''}></td></tr>${sub(id)}`).join('')}
@@ -560,11 +564,11 @@ export function addRecordFromTable(name, tab, xCol, axis, yCols) {
 
 export function renderRecList() {
   $('recList').innerHTML = S.records.map((r) => `
-    <div class="rec" data-id="${r.id}">
-      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(r.name)}</b><button class="btn small ghost" data-del="1" aria-label="${t('a11y.delete')}">✕</button></div>
+    <div class="rec" data-id="${esc(r.id)}">
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(r.name)}</b><button class="btn small ghost" data-del="1" aria-label="${esc(t('a11y.delete'))}">✕</button></div>
       <span class="note">${t(r.axis === 'age' ? 'log.age' : 'log.depth')} · ${r.series[0]?.x.length || 0} ${t('log.points')}</span>
       ${r.series.map((s, i) => `<div class="row srow"><label class="chk"><input type="checkbox" data-s="${i}" data-k="show" ${s.show ? 'checked' : ''}><span>${esc(s.name)}</span></label>
-        <input type="color" data-s="${i}" data-k="color" value="${s.color}" aria-label="${t('a11y.color')}">
+        <input type="color" data-s="${i}" data-k="color" value="${esc(validHexColor(s.color, REC_COLORS[i % REC_COLORS.length]))}" aria-label="${esc(t('a11y.color'))}">
         <label class="chk note"><input type="checkbox" data-s="${i}" data-k="reverse" ${s.reverse ? 'checked' : ''}>${t('log.reverse')}</label></div>`).join('')}
     </div>`).join('') || `<p class="note">${t('log.noRecords')}</p>`;
 }

@@ -123,6 +123,26 @@ export async function verifyFigureComposition(browser, url, { screenshots = fals
     assert.equal(await page.evaluate(() => window.ichantool.S.fig.views.core.style.bgColor), '#eef4ee');
     await click(`[data-ftab="${secondTab}"] .ftl`);
     assert.equal(await page.evaluate(() => window.ichantool.S.fig.views.log.style.bgColor), '#ffdddd');
+    const colourSafety = await page.evaluate(() => {
+      const I = window.ichantool;
+      I.S.logView.style = { ...(I.S.logView.style || {}), ndColor: '"/><script>window.__xss=1</script>', ndLine: '" onmouseover="window.__xss=2', markStroke: 'bad', bgColor: '"/><img src=x onerror=window.__xss=3>' };
+      I.S.fig.markStroke = '"/><script>window.__xss=4</script>';
+      I.S.fig.labelColor = '" onload="window.__xss=5';
+      I.S.fig.loc = { gridColor: '"/><script>', land: 123, sea: 'red', pointColor: null };
+      I.setMode('log');
+      for (const t of ['core', 'log', 'range', 'sections', 'locmap', 'traces']) {
+        I.S.fig.type = t;
+        I.setMode('fig');
+      }
+      const ndColorInput = document.querySelector('#logStyle [data-st="ndColor"]')?.value;
+      const ndLineInput = document.querySelector('#logStyle [data-st="ndLine"]')?.value;
+      const injected = document.querySelectorAll('#logStyle script, #logStyle img, #figOpts script, #figOpts img, #logSvg script, #figOut script').length;
+      return { ndColorInput, ndLineInput, expectedNdColor: '#f2f2f0', expectedNdLine: '#b9bdbb', injected, xss: window.__xss ?? null };
+    });
+    assert.equal(colourSafety.ndColorInput, colourSafety.expectedNdColor);
+    assert.equal(colourSafety.ndLineInput, colourSafety.expectedNdLine);
+    assert.equal(colourSafety.injected, 0);
+    assert.equal(colourSafety.xss, null);
     assert.deepEqual(errors, []);
     console.log('Figure composition: independent types/tabs, read-only analysis views, nonlinear age images/marks, tracks, styles, save/reload, reset and exports verified.');
   } catch (error) {

@@ -190,7 +190,7 @@ test('V0.51: ichnotaxa distribution as symmetric curves, column width and hidden
 });
 
 test('figure colours: hex colours are used, anything else falls back to the default', async () => {
-  const { mergedStyle, LOG_STYLE } = await import('../../app/js/log.js');
+  const { mergedStyle, LOG_STYLE, ND_STYLE, noDataDefs, noDataRect, validHexColor } = await import('../../app/js/log.js');
   const st = mergedStyle({ bgColor: '#000000', textColor: '"/><script>x</script>', gridColor: 'red' });
   assert.equal(st.bgColor, '#000000');
   assert.equal(st.textColor, LOG_STYLE.textColor);
@@ -198,4 +198,189 @@ test('figure colours: hex colours are used, anything else falls back to the defa
   const { svg } = buildLogSVG({ from: 0, to: 10, height: 200, rows: [], classes: [], records: [], tracks: { total: true }, style: { bgColor: '#101010', textColor: '<b>' }, title: 'T' });
   assert.match(svg, /fill="#101010"/);
   assert.doesNotMatch(svg, /<b>/);
+
+  // Valid short (#rgb) and full (#rrggbb) hex colours are preserved for ndColor, ndLine and LOG_STYLE colours
+  for (const [ndColor, ndLine, barColor] of [['#abc', '#DEF', '#09f'], ['#123456', '#aBcDeF', '#fedcba']]) {
+    const valid = mergedStyle({ ndColor, ndLine, barColor, markStroke: ndColor });
+    assert.equal(valid.ndColor, ndColor);
+    assert.equal(valid.ndLine, ndLine);
+    assert.equal(valid.barColor, barColor);
+    assert.equal(valid.markStroke, ndColor);
+    assert.match(noDataDefs(valid), new RegExp(`fill="${ndColor}"`));
+    assert.match(noDataDefs(valid), new RegExp(`stroke="${ndLine}"`));
+    const rectSolid = noDataRect({ ...valid, ndFill: 'solid', ndText: 'Gap <1>' }, 10, 50, 20, 40, 'No data');
+    assert.match(rectSolid, /fill="url\(#nodata\)"/);
+    assert.match(rectSolid, /Gap &lt;1&gt;/);
+  }
+  assert.equal(mergedStyle({ markStroke: 'none' }).markStroke, 'none');
+
+  // Invalid strings and non-string types fall back to the actual ND_STYLE defaults (#f2f2f0 / #b9bdbb)
+  const malformed = [
+    '"/><script>alert(1)</script>',
+    '" onmouseover="alert(1)" data-x="',
+    "' onclick='alert(1)'",
+    'red',
+    'rgb(0,0,0)',
+    '#12',
+    '#1234',
+    '#12345',
+    '#1234567',
+    '#gggggg',
+    'url(#evil)',
+    '',
+    null,
+    undefined,
+    123,
+    true,
+    ['#123456'],
+    { toString: () => '#123456' },
+    Object.create(null),
+  ];
+  for (const bad of malformed) {
+    assert.equal(validHexColor(bad, ND_STYLE.ndColor), ND_STYLE.ndColor);
+    const m = mergedStyle({ ndColor: bad, ndLine: bad, bgColor: bad, textColor: bad, markStroke: bad, ndFill: bad, fontSize: bad });
+    assert.equal(m.ndColor, ND_STYLE.ndColor);
+    assert.equal(m.ndLine, ND_STYLE.ndLine);
+    assert.equal(m.bgColor, LOG_STYLE.bgColor);
+    assert.equal(m.textColor, LOG_STYLE.textColor);
+    assert.equal(m.markStroke, bad === undefined ? undefined : '#ffffff');
+    assert.equal(m.ndFill, 'hatch');
+    assert.equal(m.fontSize, bad === null ? null : typeof bad === 'number' && bad > 0 ? bad : LOG_STYLE.fontSize);
+    const defs = noDataDefs({ ndColor: bad, ndLine: bad, ndFill: 'hatch' });
+    const rect = noDataRect({ ndColor: bad, ndLine: bad, ndFill: 'solid', ndText: '"/><script>x</script>' }, 0, 40, 0, 30, 'NO DATA');
+    assert.match(defs, new RegExp(`fill="${ND_STYLE.ndColor}"`));
+    assert.match(defs, new RegExp(`stroke="${ND_STYLE.ndLine}"`));
+    assert.match(rect, /fill="url\(#nodata\)"/);
+    assert.doesNotMatch(defs + rect, /<script|"\s*onmouseover|'\s*onclick|url\(#evil\)/i);
+  }
+
+  // Exported log and range SVGs reject untrusted colours across styles, classes, records, bands and marks while preserving scientific arrays
+  const rows = [
+    { a0: 0, a1: 5, pct: 25, classPct: [25], BI: 2, ii: 3, BIm: 1, iim: 2 },
+    { a0: 5, a1: 10, pct: null, classPct: [null], BI: null, ii: null, BIm: null, iim: null },
+  ];
+  const rowsSnapshot = structuredClone(rows);
+  const classes = [{ name: 'Chondrites"><script>', color: '"/><script>alert(1)</script>', symbol: '"/><script>', index: 0, counts: true }];
+  const classesSnap = structuredClone(classes);
+  const logOut = buildLogSVG({
+    from: 0,
+    to: 10,
+    height: 240,
+    rows,
+    classes,
+    tracks: { total: true, species: true, BI: true, ii: true, manual: true },
+    records: [{ name: 'Rec"><img src=x onerror=alert(1)>', color: '" onload="alert(1)', pts: [[1, 2], [9, 4]] }],
+    marks: [{ a: 2, xf: 0.5, color: '"/><script>', symbol: '"/><script>', abbr: 'Ch"x' }],
+    idList: [{ a0: 0, a1: 5, items: [{ name: 'Ch', abbr: 'Ch', color: '"/><script>' }] }],
+    legendClasses: [{ name: 'Ch', color: '"/><script>' }],
+    bands: [{ key: 'fam:"/><script>', title: 'Events', segs: [{ a0: 0, a1: 5, label: 'lowox', color: '"/><script>' }] }],
+    bandLegend: [{ name: 'Low ox', color: '"/><script>' }],
+    shade: [{ a0: 0, a1: 5, color: '"/><script>' }],
+    shadeLanes: [[{ a0: 0, a1: 5, color: '"/><script>' }]],
+    style: {
+      ndColor: '" onload="alert(1)',
+      ndLine: '"/><script>alert(2)</script>',
+      ndFill: 'hatch',
+      barColor: '" onmouseover="alert(3)',
+      markStroke: '" onclick="alert(4)',
+      colOrder: 'not-an-array',
+      colHide: 'not-an-array',
+      speciesHide: 'not-an-array',
+    },
+  });
+  const rangeOut = buildRangeSVG({
+    from: 0,
+    to: 10,
+    height: 200,
+    rows,
+    classes,
+    points: [{ a: 2, index: 0, kind: 'mark' }],
+    total: true,
+    style: {
+      ndColor: '" onload="alert(1)',
+      ndLine: '"/><script>alert(2)</script>',
+      barColor: '" onmouseover="alert(3)',
+      colOrder: null,
+      colHide: 42,
+    },
+  });
+  for (const svg of [logOut.svg, rangeOut.svg]) {
+    assert.doesNotMatch(svg, /<script|<img|"\s*on(?:load|mouseover|click|error)=|'\s*on(?:load|mouseover|click|error)=/i);
+    assert.match(svg, new RegExp(`fill="${ND_STYLE.ndColor}"`));
+    assert.match(svg, new RegExp(`stroke="${ND_STYLE.ndLine}"`));
+  }
+  assert.deepEqual(rows, rowsSnapshot);
+  assert.equal(classes[0].color, classesSnap[0].color);
+  assert.equal(classes[0].index, classesSnap[0].index);
+});
+
+test('column and figure style form builders validate ndColor, ndLine and presentation colours', async () => {
+  const fs = await import('node:fs');
+  const vm = await import('node:vm');
+  const { LOG_STYLE, ND_STYLE, mergedStyle, taxaOptions, validHexColor, orderCols } = await import('../../app/js/log.js');
+  const { buildMapSVG, MAP_STYLE } = await import('../../app/js/geo.js');
+  const src = fs.readFileSync(new URL('../../app/js/columns.js', import.meta.url), 'utf8');
+  const extract = (name) => {
+    const start = src.indexOf(`export function ${name}(`);
+    assert.ok(start >= 0, `Missing ${name} in columns.js`);
+    let depth = 0, i = src.indexOf('{', start);
+    for (; i < src.length; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}' && --depth === 0) return src.slice(start, i + 1).replace(/^export /, '');
+    }
+    throw new Error(`Unclosed ${name}`);
+  };
+  const colorFieldsBlock = /const COLOR_FIELDS = \{[\s\S]*?\};/.exec(src)[0];
+  const esc = (s) => { try { return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]); } catch { return ''; } };
+  const S = {
+    logView: { style: {} },
+    fig: { type: 'log', arrowExcl: 'not-an-array', markStroke: '"/><script>alert(1)</script>', labelColor: '" onload="alert(2)', markStrokeW: '"><img src=x>', objScale: '"><script>', markScale: '" onclick="x', labelSize: '"><svg>' },
+    classes: [{ id: 'ch"><script>', name: 'Chondrites"><script>', color: '"/><script>' }],
+    records: [],
+  };
+  const ctx = vm.createContext({
+    LOG_STYLE, ND_STYLE, mergedStyle, taxaOptions, validHexColor, orderCols, esc, S,
+    t: (k) => k, rulerN: '"/><script>',
+    colOrderHTML: (kind) => `<div data-colord="${esc(kind)}"></div>`,
+    speciesFormHTML: () => '', taxaFormHTML: () => '', axesFormHTML: () => '',
+  });
+  vm.runInContext(`${colorFieldsBlock}\n${extract('ndFormHTML')}\n${extract('arrowFormHTML')}\n${extract('colorsFormHTML')}\n${extract('tickFieldsHTML')}\n${extract('styleFormHTML')}`, ctx);
+
+  for (const bad of ['"/><script>alert(1)</script>', '" onmouseover="alert(1)', 'red', '#1234', null, 123, ['#123456'], Object.create(null)]) {
+    const ndHtml = ctx.ndFormHTML({ ndColor: bad, ndLine: bad, markStroke: bad, markSize: '"/><script>', markStrokeW: '" onload="x', ndText: '"/><script>' });
+    assert.match(ndHtml, new RegExp(`data-st="ndColor" value="${ND_STYLE.ndColor}"`));
+    assert.match(ndHtml, new RegExp(`data-st="ndLine" value="${ND_STYLE.ndLine}"`));
+    assert.match(ndHtml, /data-st="markStroke" value="#ffffff"/);
+    assert.doesNotMatch(ndHtml, /<script|"\s*onmouseover|"\s*onload=/i);
+
+    const colHtml = ctx.colorsFormHTML({ bgColor: bad, textColor: bad, barColor: bad }, 'log"><script>');
+    assert.match(colHtml, new RegExp(`data-st="bgColor" value="${LOG_STYLE.bgColor}"`));
+    assert.match(colHtml, new RegExp(`data-st="textColor" value="${LOG_STYLE.textColor}"`));
+    assert.doesNotMatch(colHtml, /<script|"\s*onmouseover|"\s*onload=/i);
+
+    const stHtml = ctx.styleFormHTML(false, { style: { ndColor: bad, ndLine: bad, bgColor: bad, fontSize: '"/><script>' } }, 'log');
+    assert.match(stHtml, new RegExp(`data-st="ndColor" value="${ND_STYLE.ndColor}"`));
+    assert.match(stHtml, new RegExp(`data-st="ndLine" value="${ND_STYLE.ndLine}"`));
+    assert.doesNotMatch(stHtml, /<script|"\s*onmouseover|"\s*onload=/i);
+  }
+  const validNd = ctx.ndFormHTML({ ndColor: '#abc', ndLine: '#123456', markStroke: '#fed' });
+  assert.match(validNd, /data-st="ndColor" value="#abc"/);
+  assert.match(validNd, /data-st="ndLine" value="#123456"/);
+  assert.match(validNd, /data-st="markStroke" value="#fed"/);
+
+  const arrowHtml = ctx.arrowFormHTML();
+  assert.match(arrowHtml, /id="figMarkStroke" value="#ffffff"/);
+  assert.match(arrowHtml, /id="figLabelColor" value="#1c2422"/);
+  assert.doesNotMatch(arrowHtml, /<script|<img|<svg|"\s*onload=|"\s*onclick=/i);
+
+  const mapSvg = buildMapSVG({
+    bbox: [-10, 35, -5, 40],
+    points: [{ name: 'Core"><script>', lon: -8, lat: 37, n: 1, dominant: 'lowox', fraction: 0.8 }],
+    mode: 'class',
+    colors: { lowox: '#2b6f8f' },
+    style: { bgColor: '"/><script>', sea: 'red', land: 123, textColor: null, stroke: '" onload="alert(1)', labelColor: '#gggggg' },
+  });
+  assert.doesNotMatch(mapSvg, /<script|onload=/i);
+  assert.match(mapSvg, new RegExp(`fill="${MAP_STYLE.bgColor}"`));
+  assert.match(mapSvg, new RegExp(`fill="${MAP_STYLE.sea}"`));
 });

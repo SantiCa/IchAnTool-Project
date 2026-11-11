@@ -7,7 +7,7 @@ import { $, S, fetchAsset, fmt, sec, uid } from './state.js';
 import { DELIVERY, armed, busy, compositeMarks, compositeTaxonPoints, cropState, endCrop, esc, finalTestsHTML, holdoutHTML, holdoutIds, loadLib, makeCore, markDirty, openCoreDlg, refreshAllCores, refreshCoreData, renderCoreBar, runFinalGeo, safe, saveFile, scheduleFloat, toast, updateTip, view, withProv, zoomAt } from './app.js';
 import { axesFormHTML, colOrderHTML, colorsFormHTML, columnImages, compositeData, logStyleOf, mode, scheduleLog, syncColOrder } from './columns.js';
 import { interpAge, parseAgeModel, toCSV } from './core.js';
-import { buildLogSVG, compositeRows, decodeText, parseTable } from './log.js';
+import { buildLogSVG, compositeRows, decodeText, mergedStyle, parseTable, validHexColor } from './log.js';
 import { renderFigure, verticalStyleHTML } from './figures.js';
 import { INTERP_DEFAULT, INTERP_METHODS, RAMPS, colorRange, contourLevels, contourSegments, interpolate, maskLand, rampColor } from './interp.js';
 import { frameRatio, panelPrefs, placeSplitters, savePanels } from './panels.js';
@@ -319,23 +319,23 @@ function renderGeoPanel() {
   const tree = layerTree();
   { const id = 'band:fam:' + g.activeLayer, hidden = (S.geo.view.style?.colHide || []).includes(id);   // V0.33: family visible in the charts
     $('geoLayerShow').checked = !hidden; }
-  $('geoLayerSel').innerHTML = tree.map(({ layer, depth }) => `<option value="${layer.id}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(layer.name)}</option>`).join('');
+  $('geoLayerSel').innerHTML = tree.map(({ layer, depth }) => `<option value="${esc(layer.id)}" ${layer.id === g.activeLayer ? 'selected' : ''}>${'  '.repeat(depth)}${depth ? '↳ ' : ''}${esc(layer.name)}</option>`).join('');
   $('geoLayerName').value = L?.name || '';
-  $('geoLayerParent').innerHTML = `<option value="">${t('geo.noParent')}</option>` + g.layers.filter((l) => L && l.id !== L.id && !isDescendant(l.id, L.id)).map((l) => `<option value="${l.id}" ${l.id === L?.parent ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
+  $('geoLayerParent').innerHTML = `<option value="">${t('geo.noParent')}</option>` + g.layers.filter((l) => L && l.id !== L.id && !isDescendant(l.id, L.id)).map((l) => `<option value="${esc(l.id)}" ${l.id === L?.parent ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
   const resizeName = esc(t('gx.resizeClassName'));
-  $('geoLabels').innerHTML = (L?.cats || []).map((c, i) => `<li data-id="${c.id}" class="${c.id === g.activeCat ? 'active' : ''}">
-    <input type="color" value="${c.color}" aria-label="${esc(t('mp.color'))}">
+  $('geoLabels').innerHTML = (L?.cats || []).map((c, i) => `<li data-id="${esc(c.id)}" class="${c.id === g.activeCat ? 'active' : ''}">
+    <input type="color" value="${esc(validHexColor(c.color, GROUP_COLORS[i % GROUP_COLORS.length]))}" aria-label="${esc(t('mp.color'))}">
     <input class="name" type="text" value="${esc(c.name)}" title="${esc(c.name)}" aria-label="${esc(t('geo.cats'))}">
     <button class="geo-name-handle" type="button" ${i ? 'tabindex="-1"' : ''} title="${resizeName}" aria-label="${resizeName}"></button>
     <span class="cnt" title="${esc(t('gx.tip.catCount'))}">${g.intervals.filter((q) => q.cat === c.id).length}</span>
     <button class="del" title="${esc(t('gx.delCat'))}" aria-label="${esc(t('gx.delCat'))}">✕</button></li>`).join('');
-  const lopts = (sel) => (L?.cats || []).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  const lopts = (sel) => (L?.cats || []).map((c) => `<option value="${esc(c.id)}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const names = geoRT.featNames.length ? geoRT.featNames : st.features;
   const fopts = (sel) => names.map((k) => `<option ${k === sel ? 'selected' : ''}>${esc(k)}</option>`).join('');
   const rules = g.rules.map((r, ri) => [r, ri]).filter(([r]) => r.layer === g.activeLayer);
   $('geoRules').innerHTML = rules.map(([r, ri]) => `<div class="rec rule" data-r="${ri}">
       <div class="row" style="flex-wrap:nowrap"><label class="chk"><input type="checkbox" data-k="enabled" ${r.enabled !== false ? 'checked' : ''}></label><select data-k="cat">${lopts(r.cat)}</select><button class="btn small ghost" data-act="delrule">✕</button></div>
-      ${r.conds.map((c, ci) => `<div class="row cond" data-c="${ci}" style="flex-wrap:nowrap"><select data-k="feature">${fopts(c.feature)}</select><select data-k="op">${['z>', 'z<', '>', '<'].map((o) => `<option ${o === c.op ? 'selected' : ''}>${o}</option>`).join('')}</select><input type="number" step="any" data-k="value" value="${c.value}"><button class="btn small ghost" data-act="delcond">✕</button></div>`).join('')}
+      ${r.conds.map((c, ci) => `<div class="row cond" data-c="${ci}" style="flex-wrap:nowrap"><select data-k="feature">${fopts(c.feature)}</select><select data-k="op">${['z>', 'z<', '>', '<'].map((o) => `<option ${o === c.op ? 'selected' : ''}>${o}</option>`).join('')}</select><input type="number" step="any" data-k="value" value="${esc(c.value)}"><button class="btn small ghost" data-act="delcond">✕</button></div>`).join('')}
       <button class="btn small" data-act="addcond">${t('geo.addCond')}</button></div>`).join('') || `<p class="note">${t('geo.noRules')}</p>`;
   $('geoUseRules').checked = st.useRules;
   renderClassifiers();
@@ -657,9 +657,9 @@ export function buildGeoLog(core, features = null, options = null) {
     if (tracks.image) { images = columnImages(D, from, to, height, options.imageView || S.logView); image = images[0]; }
   }
   const presentation = options ? logStyleOf({ axis, base: core.units || 'm' }, view, core.ageModel?.units || 'ka') : null;
-  const style = presentation?.style || { ...view.style };
-  if (features != null && !options?.style) style.colHide = (style.colHide || []).filter((id) => !id.startsWith('rec:'));
-  const visibleBands = bands.filter((b) => !style.colHide?.includes('band:' + b.key));
+  const style = presentation?.style || mergedStyle(view.style);
+  if (features != null && !options?.style) style.colHide = (Array.isArray(style.colHide) ? style.colHide : []).filter((id) => !id.startsWith('rec:'));
+  const visibleBands = bands.filter((b) => !(Array.isArray(style.colHide) && style.colHide.includes('band:' + b.key)));
   const res = buildLogSVG({
     title: core.name, subtitle: t('geo.subtitleLogs', { n: geoRT.samples.filter((s) => s.core === core.id).length, step: st.step }),
     axisLabel: presentation?.label || (axis === 'age' ? `${t('r.age')} (${core.ageModel?.units || 'ka'})` : `${t('r.depth')} (${core.units || 'm'})`),
@@ -680,7 +680,7 @@ export function renderGeoLogs() {
   renderGeoMarkHint();
   const core = geoCore(g.view.core) || S.cores[0];
   if (core) g.view.core = core.id;
-  $('geoCoreSel').innerHTML = S.cores.map((c) => `<option value="${c.id}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  $('geoCoreSel').innerHTML = S.cores.map((c) => `<option value="${esc(c.id)}" ${c === core ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const log = buildGeoLog(core);
   syncColOrder('geo', log?.res.columns || []);
   if (!$('geoColumnsForm').innerHTML) $('geoColumnsForm').innerHTML = colOrderHTML('geo');
@@ -773,7 +773,8 @@ export function logInteract(box, res, ctx) {
       if (c.key === 'band') {
         const b = bandOf.get(c.id), sg = b?.segs.find((q) => q.a0 <= a && a < q.a1);
         const lab = ctx.bandText?.(c.bkey, a) ?? (!sg ? '—' : sg.label === '__ok' ? t('gx.hitOk') : sg.label === '__bad' ? t('gx.hitBad') : geoCat(sg.label)?.name ?? sg.name ?? '—');
-        rows.push(`<tr class="${col === c ? 'on' : ''}"><td>${sg?.color ? `<span class="sw" style="background:${sg.color}"></span>` : ''}${esc(c.title)}</td><td>${esc(lab)}</td></tr>`);
+        const swCol = sg?.color ? validHexColor(sg.color, '#777777') : '';
+        rows.push(`<tr class="${col === c ? 'on' : ''}"><td>${swCol ? `<span class="sw" style="background:${swCol}"></span>` : ''}${esc(c.title)}</td><td>${esc(lab)}</td></tr>`);
       } else if (c.key === 'rec') {
         const R = recs.get(c.title), v = R ? recordAt(R.r.pts, a, R.gap) : null;
         rows.push(`<tr class="${col === c ? 'on' : ''}"><td>${esc(c.title)}</td><td>${digits(v)}</td></tr>`);
@@ -810,14 +811,14 @@ function renderIntervalList(core) {
     if (!ivs.length) continue;
     rows.push(`<div class="ivhead" style="padding-left:${depth * 14}px">${depth ? '↳ ' : ''}<b>${esc(layer.name)}</b> <span class="note">(${ivs.length})</span></div>`);
     for (const q of ivs) {
-      const c = geoCat(q.cat);
-      rows.push(`<div class="row ivrow ${q.auto ? 'auto' : ''} ${q.id === geoSelIv ? 'sel' : ''}" data-id="${q.id}" style="padding-left:${depth * 14}px"><span class="swatch" style="background:${c?.color}"></span>
-        <select data-k="cat">${layer.cats.map((k) => `<option value="${k.id}" ${k.id === q.cat ? 'selected' : ''}>${esc(k.name)}</option>`).join('')}</select>
+      const c = geoCat(q.cat), col = validHexColor(c?.color, '#777777');
+      rows.push(`<div class="row ivrow ${q.auto ? 'auto' : ''} ${q.id === geoSelIv ? 'sel' : ''}" data-id="${esc(q.id)}" style="padding-left:${depth * 14}px"><span class="swatch" style="background:${col}"></span>
+        <select data-k="cat">${layer.cats.map((k) => `<option value="${esc(k.id)}" ${k.id === q.cat ? 'selected' : ''}>${esc(k.name)}</option>`).join('')}</select>
         <input type="number" step="any" data-k="from" value="${+q.from.toPrecision(6)}"><input type="number" step="any" data-k="to" value="${+q.to.toPrecision(6)}">
         <span class="note" title="${esc(t(q.axis === 'age' ? 'log.age' : 'log.depth'))}">${q.axis === 'age' ? esc(S.age.units || 'ka') : esc(core.units || 'm')}</span>
         ${geoRT.orphans.has(q.id) ? `<span class="warn" title="${esc(t('geo.orphan', { p: geoLayer(layer.parent)?.name || '' }))}">⚠</span>` : ''}
-        ${q.auto ? `<button class="btn small ghost" data-ok="${q.id}" title="${esc(t('geo.confirmAuto'))}">✓</button>` : ''}
-        <button class="btn small ghost" data-del="${q.id}">✕</button></div>`);
+        ${q.auto ? `<button class="btn small ghost" data-ok="${esc(q.id)}" title="${esc(t('geo.confirmAuto'))}">✓</button>` : ''}
+        <button class="btn small ghost" data-del="${esc(q.id)}">✕</button></div>`);
     }
   }
   $('geoIntervals').innerHTML = rows.join('') || `<p class="note">${t('geo.noIntervals')}</p>`;
@@ -906,7 +907,7 @@ function axisUnit() { return geoLast.axis === 'age' ? S.age.units || 'ka' : geoL
 function famPop(cx, cy, q) {
   const g = S.geo, L = geoLayer(q.layer); if (!L) return;
   const qa = intervalsOnAxis([q], geoLast.axis, geoLast.core)[0] || q;
-  const cats = L.cats.map((c) => `<button class="popcat ${c.id === q.cat ? 'on' : ''}" data-pop="cat" data-v="${c.id}"><span class="sw" style="background:${c.color}"></span>${esc(c.name)}</button>`).join('');
+  const cats = L.cats.map((c) => `<button class="popcat ${c.id === q.cat ? 'on' : ''}" data-pop="cat" data-v="${esc(c.id)}"><span class="sw" style="background:${validHexColor(c.color, '#777777')}"></span>${esc(c.name)}</button>`).join('');
   ivPop(cx, cy, `<h4>${esc(L.name)} <span class="note">${fmtA(qa.from)}–${fmtA(qa.to)} ${esc(axisUnit())}</span></h4>
     ${q.auto ? `<p class="note">${t('cl.pending')}</p>` : ''}
     <div class="popcats">${cats || `<p class="note">${t('cl.noCats')}</p>`}</div>
@@ -930,7 +931,7 @@ function autoPop(cx, cy, bkey, a) {
   const st = S.geo.settings, core = geoLast.core, segs = segmentsFor(core.id, (i) => r.preds[i]?.label, geoLast.axis, st.step);
   const seg = segs.find((q) => a >= q.a0 && a < q.a1), cat = geoCat(seg?.label);
   ivPop(cx, cy, `<h4>⚙ ${esc(c.name)} → ${esc(L.name)}</h4>
-    <p>${cat ? `<span class="sw" style="background:${cat.color}"></span>${esc(cat.name)} · ${fmtA(seg.a0)}–${fmtA(seg.a1)} ${esc(axisUnit())}` : t('gx.unsure')}</p>
+    <p>${cat ? `<span class="sw" style="background:${validHexColor(cat.color, '#777777')}"></span>${esc(cat.name)} · ${fmtA(seg.a0)}–${fmtA(seg.a1)} ${esc(axisUnit())}` : t('gx.unsure')}</p>
     <div class="popcol">${seg ? `<button class="btn small primary" data-pop="one">${t('cl.copyOne', { f: L.name })}</button>` : ''}
     <button class="btn small" data-pop="all">${t('cl.copyAll', { f: L.name })}</button><button class="btn small ghost" data-pop="close">${t('help.close')}</button></div>
     <p class="note">${t('cl.copyNote')}</p>`,
@@ -1125,8 +1126,8 @@ export function mapStyleUI(boxId, get, set, redraw) {
   }
   box.dataset.built = lang();
   const chk = (k, l) => `<label class="chk"><input type="checkbox" data-k="${k}" ${st[k] ? 'checked' : ''}><span>${t(l)}</span></label>`;
-  const col = (k, l) => `<label class="f"><span>${t(l)}</span><input type="color" data-k="${k}" value="${esc(st[k])}"></label>`;
-  const num = (k, l, a, b, s) => `<label class="f"><span>${t(l)}</span><input type="number" data-k="${k}" min="${a}" max="${b}" step="${s}" value="${st[k]}"></label>`;
+  const col = (k, l) => `<label class="f"><span>${t(l)}</span><input type="color" data-k="${k}" value="${esc(validHexColor(st[k], MAP_STYLE[k] || '#000000'))}"></label>`;
+  const num = (k, l, a, b, s) => `<label class="f"><span>${t(l)}</span><input type="number" data-k="${k}" min="${a}" max="${b}" step="${s}" value="${esc(st[k])}"></label>`;
   const ext = view || ['', '', '', ''];
   box.innerHTML = `<details><summary>${t('ms.title')}</summary><div class="msgrid">
     <label class="f"><span>${t('ms.bg')}</span><select data-k="bg">${Object.keys(MAP_BG).map((k) => `<option value="${k}" ${k === st.bg ? 'selected' : ''}>${t('ms.bg.' + k)}</option>`).join('')}</select></label>
@@ -1136,7 +1137,7 @@ export function mapStyleUI(boxId, get, set, redraw) {
     ${num('size', 'ms.size', 0.3, 4, 0.1)}${chk('sizeByFraction', 'ms.sizeFrac')}${col('pointColor', 'ms.pointColor')}${col('stroke', 'ms.stroke')}
     ${chk('labels', 'ms.labels')}${num('labelSize', 'ms.labelSize', 6, 30, 1)}${col('labelColor', 'ms.labelColor')}${chk('halo', 'ms.halo')}${chk('labelValue', 'ms.labelValue')}
     ${col('land', 'ms.land')}${col('sea', 'ms.sea')}${col('textColor', 'color.textColor')}${col('subColor', 'color.subColor')}${col('bgColor', 'color.bgColor')}${chk('graticule', 'ms.grat')}${chk('scaleBar', 'ms.scale')}${chk('north', 'ms.north')}
-    <label class="f"><span>${t('ms.extent')}</span><span class="row">${[0, 1, 2, 3].map((i) => `<input type="number" step="any" data-e="${i}" value="${ext[i]}">`).join('')}</span></label>
+    <label class="f"><span>${t('ms.extent')}</span><span class="row">${[0, 1, 2, 3].map((i) => `<input type="number" step="any" data-e="${i}" value="${esc(ext[i])}">`).join('')}</span></label>
     <div class="zbtn"><button class="btn small" data-z="in" title="Zoom +">＋</button><button class="btn small" data-z="out" title="Zoom −">－</button><button class="btn small" data-z="fit">${t('ms.fit')}</button><button class="btn small" data-z="reset">${t('ms.reset')}</button></div>
     <p class="note" style="margin:0;flex-basis:100%">${t('ms.zoomHelp')}<span class="msload"></span></p></div></details>`;
   box.onchange = (e) => {
@@ -1206,7 +1207,13 @@ export async function exportMapPNG(build, name, width) {
 }
 
 // project map: style and extent are saved with the project (S.geo.map.style, S.geo.map.view)
-const geoMapStyle = () => (S.geo.map.style = { ...MAP_STYLE, ...(S.geo.map.style || {}) });
+const geoMapStyle = () => {
+  const raw = S.geo.map.style && typeof S.geo.map.style === 'object' && !Array.isArray(S.geo.map.style) ? S.geo.map.style : {};
+  const st = { ...MAP_STYLE, ...raw };
+  for (const k of ['labelColor', 'pointColor', 'stroke', 'land', 'sea', 'textColor', 'subColor', 'bgColor']) st[k] = validHexColor(st[k], MAP_STYLE[k]);
+  S.geo.map.style = st;
+  return st;
+};
 let geoAutoBBox = null;
 function refreshProjectMaps() { renderGeoMap(); scheduleFloat(); if (mode === 'fig') renderFigure(); }
 const geoMapGet = () => ({ style: geoMapStyle(), view: S.geo.map.view || null, auto: geoAutoBBox });
@@ -1217,7 +1224,7 @@ function renderGeoModel() {
   let cmp = '';
   if (g.classifiers.length) {
     const rows = g.classifiers.flatMap((c) => c.targets.map((lid) => { const r = geoRT.runs.get(c.id)?.byTarget.get(lid), cv = r?.cv;
-      return `<tr data-c="${c.id}" data-l="${lid}" class="${c === curC && lid === st.target ? 'sel' : ''}"><td>⚙ ${esc(c.name)}</td><td>${esc(geoLayer(lid)?.name || '')}</td><td>${t('geo.m.name.' + c.method)}</td>
+      return `<tr data-c="${esc(c.id)}" data-l="${esc(lid)}" class="${c === curC && lid === st.target ? 'sel' : ''}"><td>⚙ ${esc(c.name)}</td><td>${esc(geoLayer(lid)?.name || '')}</td><td>${t('geo.m.name.' + c.method)}</td>
         <td>${cv ? fmt(cv.balancedAccuracy * 100, 1) + ' %' : r?.error ? `<span class="warn">${t(r.error)}</span>` : '—'}</td><td>${cv ? fmt(cv.accuracy * 100, 1) + ' %' : '—'}</td><td>${r?.model?.n ?? '—'}</td></tr>`; })).join('');
     cmp = `<h3>${t('cl.compare')}</h3><div class="tablewrap"><table class="cmpt"><thead><tr><th>${t('cl.clf')}</th><th>${t('cl.family')}</th><th>${t('cl.model')}</th><th title="${esc(t('gx.baccTip'))}">${t('geo.bacc')}</th><th title="${esc(t('gx.accTip'))}">${t('geo.acc')}</th><th>n</th></tr></thead><tbody>${rows}</tbody></table></div><p class="note">${t('cl.compareNote')}</p>`;
   } else { box.innerHTML = `<p class="note">${t('cl.empty')}</p><button class="btn primary" id="geoModelNew">${t('cl.add')}</button>`; $('geoModelNew').onclick = () => newClassifier(); return; }
@@ -1226,7 +1233,7 @@ function renderGeoModel() {
   const mc = geoRT.model?.isNum || (curC ? clfCols(curC).map((j) => j < (geoRT.nNum ?? 0)) : []), nn = mc.filter(Boolean).length;
   let html = cmp + `<h3>⚙ ${esc(curC?.name || '')} → ${esc(target?.name || '')}</h3><p class="note">${t('geo.modelIntro', { l: esc(target?.name || ''), v: nn, c: mc.length - nn })}</p>`;
   html += `<div class="stat"><div data-tip="${esc(t('gx.tip.samples'))}"><b>${geoRT.samples.length}</b><span>${t('geo.samples')}</span></div><div data-tip="${esc(t('gx.tip.byIv'))}"><b>${nInt}</b><span>${t('geo.byIntervals')}</span></div><div data-tip="${esc(t('gx.tip.byRule'))}"><b>${nRule}</b><span>${t('geo.byRules')}</span></div></div>`;
-  html += `<div class="bars">${Object.entries(counts).map(([id, n]) => { const c = geoCat(id); return `<div><span><span class="swatch" style="background:${c?.color}"></span>${esc(c?.name || id)}</span><em>${n}</em></div>`; }).join('')}</div>`;
+  html += `<div class="bars">${Object.entries(counts).map(([id, n]) => { const c = geoCat(id); return `<div><span><span class="swatch" style="background:${validHexColor(c?.color, '#777777')}"></span>${esc(c?.name || id)}</span><em>${n}</em></div>`; }).join('')}</div>`;
   if (!geoRT.model || !geoRT.preds.length) { box.innerHTML = html + `<p class="note">${t(geoRT.model ? 'geo.retrain' : 'geo.notTrained')}</p><button class="btn primary" id="geoModelTrain">${t('geo.modelTrain')}</button>`; $('geoModelTrain').onclick = () => curC && geoTrain(false, curC.id); return; }
   html += `<h3>${t('geo.m.name.' + geoRT.model.kind)} · ${t('geo.trainedOn', { n: geoRT.model.n ?? '' })}${geoRT.model.kind === 'mlp' ? ` · ${t('cl.mlpInfo', { s: geoRT.model.sizes.join('–'), e: geoRT.model.epochs })}` : ''}</h3>`;
   if (geoRT.cv) {
@@ -1237,7 +1244,7 @@ function renderGeoModel() {
     if (nRule) html += `<p class="note">${t('cv.rules')}</p>`;
     html += `<div class="tablewrap"><table><thead><tr><th data-tip="${esc(t('gx.cmTip'))}">${t('geo.trueVsPred')}</th>${cv.classes.map((c) => `<th>${name(c)}</th>`).join('')}<th>${t('geo.recall')}</th></tr></thead><tbody>${cv.classes.map((c, i) => `<tr><th>${name(c)}</th>${cv.cm[i].map((v, j) => `<td style="${i === j ? 'font-weight:600' : ''}" data-tip="${esc(t(i === j ? 'gx.cmOk' : 'gx.cmBad', { n: v, a: geoCat(c)?.name || c, b: geoCat(cv.classes[j])?.name || cv.classes[j] }))}">${v}</td>`).join('')}<td data-tip="${esc(t('gx.recallTip', { a: geoCat(c)?.name || c, p: fmt((cv.perClass[i].recall ?? 0) * 100, 0) }))}">${fmt((cv.perClass[i].recall ?? 0) * 100, 0)}%</td></tr>`).join('')}</tbody></table></div>`;
     html += `<p class="note">${t('geo.cvNote')}</p>`;
-  } else html += `<p class="note">${t('geo.kmeansNote')}</p>${geoRT.model.classes.map((c) => `<label class="f"><span><span class="swatch" style="background:${geoCat(c)?.color}"></span>${c}</span><input type="text" data-group="${c}" value="${esc(S.geo.groupNames[c] || '')}" placeholder="${t('geo.groupName')}"></label>`).join('')}`;
+  } else html += `<p class="note">${t('geo.kmeansNote')}</p>${geoRT.model.classes.map((c) => `<label class="f"><span><span class="swatch" style="background:${validHexColor(geoCat(c)?.color, '#777777')}"></span>${esc(c)}</span><input type="text" data-group="${esc(c)}" value="${esc(S.geo.groupNames[c] || '')}" placeholder="${esc(t('geo.groupName'))}"></label>`).join('')}`;
   if (geoRT.model.importance) {
     const imp = geoRT.model.features.map((k, j) => [k, geoRT.model.importance[j]]).sort((a, b) => b[1] - a[1]);
     html += `<h3>${t('geo.importance')}</h3><div class="bars">${imp.map(([k, v]) => `<div><span>${esc(k)}<i style="width:${Math.max(2, v * 100)}%;background:var(--accent)"></i></span><em>${fmt(v * 100, 1)}%</em></div>`).join('')}</div><p class="note">${t('geo.importanceNote')}</p>`;

@@ -45,8 +45,28 @@ test('V0.43: frame, scale, north convergence and SVG with labels on chosen sides
   assert.match(d.svg, /°\d\d′[NSEW]?/);
 });
 
-test('location map uses its text and background colours', () => {
-  const r = buildLocMapSVG({ settings: { textColor: '#123456', bgColor: '#fefefe' }, points: [{ name: 'A', lon: -4, lat: 36 }, { name: 'B', lon: -3, lat: 37 }], title: 'T' });
+test('location map uses its text and background colours and rejects malformed colour strings', async () => {
+  const { LOCMAP_DEFAULTS } = await import('../../app/js/locmap.js');
+  const r = buildLocMapSVG({ settings: { textColor: '#123456', bgColor: '#fefefe', sea: '#abc' }, points: [{ name: 'A', lon: -4, lat: 36 }, { name: 'B', lon: -3, lat: 37 }], title: 'T' });
   assert.match(r.svg ?? r, /fill="#fefefe"/);
+  assert.match(r.svg ?? r, /fill="#abc"/);
   assert.match(r.svg ?? r, /<text[^>]*fill="#123456"[^>]*>T</);
+  const bad = buildLocMapSVG({
+    settings: {
+      textColor: '"/><script>alert(1)</script>',
+      bgColor: '" onload="alert(1)',
+      sea: 'red',
+      land: '#12345',
+      gridColor: 123,
+      pointColor: null,
+      pointStroke: ['bad'],
+    },
+    points: [{ name: 'A', lon: -4, lat: 36 }],
+    land: [[-5, 35, -3, 35, -3, 37, -5, 37]],
+    title: 'Map',
+  });
+  assert.doesNotMatch(bad.svg, /<script|onload=/i);
+  assert.match(bad.svg, new RegExp(`fill="${LOCMAP_DEFAULTS.bgColor}"`));
+  assert.match(bad.svg, new RegExp(`fill="${LOCMAP_DEFAULTS.sea}"`));
+  assert.match(bad.svg, new RegExp(`fill="${LOCMAP_DEFAULTS.land}"`));
 });
