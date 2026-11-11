@@ -2122,6 +2122,10 @@ Implementation: `storage.js` and the *projects* block of `app.js`.
   program, closing with unsaved changes waits for the save to finish. If it fails (or the storage is unavailable),
   the window remains open and a dialog offers to retry, export the project as a `.sedcoretool` package or close
   without saving; changes made during a save are also kept pending.
+- Project navigation, exports and desktop closing wait for the internal save, then request the folder copy in
+  the background. They do not wait for external folder I/O. Closing may interrupt an unfinished folder copy;
+  completed file replacements and the last complete manifest remain available, and an authorised folder copy
+  is scheduled again at startup. The save indicator distinguishes pending folder work from a completed copy.
 - Every 10 saves the storage quota is checked (`navigator.storage.estimate`) and the user is warned above 80 %.
 - Errors that are not caught, and those of long operations, are shown in a notice (at most one every 5 s) instead of
   being lost in the console.
@@ -2168,16 +2172,33 @@ Dropbox; Chrome and Edge, and the desktop program), one folder per project:
   and, of older ones, the first of each month for 12 months; the rest are deleted;
 - `sedcoretool_ajustes.json` — the user settings.
 
-A copy is made 20 s after each change and when switching projects; each copy also writes every other project
-modified since the previous copy. If it fails it is retried after 1, 2 and 3 minutes. At start-up the program warns if
+A copy is requested 20 s after each change and in the background when switching projects; each copy also writes
+every other project modified since the previous copy. Attempts share one in-flight promise per renderer:
+timers, retries and manual actions cannot start competing writers in that renderer. The run captures its current
+project and destination before yielding. Its completion watermark is its start time, and projects updated at
+that time are eligible again; saves during I/O leave another copy pending. Selecting a destination resets the
+watermark so all stored projects are eligible, even if they have not changed since the previous folder copy.
+Read failures in the library propagate as backup failures rather than silently omitting projects.
+If it fails it is retried after 1, 2 and 3 minutes. At start-up the program warns if
 there are changes and the copy has not run for more than 7 days or needs reactivating. The folder handle is stored in
-IndexedDB; the browser asks to confirm permission in each session (**Reactivate automatic backup**).
+IndexedDB; the browser may ask to confirm permission again (**Reactivate automatic backup**). An already
+authorised folder is scheduled at startup so changes left pending by closing can be copied without a new edit.
+Backup errors retain their reason in the status. Missing permission methods, denied permission and thrown or
+rejected permission requests leave recovery controls available and explain how to select the folder again.
+Overlapping activation or picker actions are suppressed until that action finishes.
+
+Electron answers `file-system-access-restricted` with `deny`. This settles a restricted directory request
+without granting access to the protected location; choose a dedicated subfolder instead. Electron requires
+the application to answer this event ([session API](https://www.electronjs.org/docs/latest/api/session#event-file-system-access-restricted),
+[permission-context implementation](https://github.com/electron/electron/blob/v45.2.2/shell/browser/file_system_access/file_system_access_permission_context.cc)).
 
 Folder images use `<section id>__<image key><ext>` names. When an original image is replaced, the new stored key
 gets a different file; earlier manifests and daily history keep referencing the previous image. Originals still
 only in memory get a fresh identifier for each backup attempt. Existing folder copies with `<section id><ext>`
 image names remain readable. Old image files are retained because daily history may reference them. Project ZIP
 exports continue to use `images/<section id><ext>`.
+If a referenced original cannot be found in memory or image storage, copying/exporting fails with the image's
+name instead of substituting an empty file. A failed folder copy does not publish its new project manifest.
 
 File System Access `createWritable()` stages a replacement and publishes it when `close()` succeeds; the existing
 file remains readable before that commit. `app.js::writeText` aborts the writable on a write or close failure and
@@ -2196,6 +2217,16 @@ pending edits, blocked project switching, failed import
 replacement, user-triggered retries, and reopening the previous and retried saves in a separate page with their
 images. OPFS exercises the native writable commit contract without requiring an interactive folder picker;
 these checks do not simulate physical power loss or synchronisation-provider behaviour.
+
+The same interrupted-save regression runs in hidden Electron windows with an isolated profile. Delayed manifest
+writes verify single-writer retry coordination and local navigation while the copy is blocked. Saves during a
+copy must reach a later automatic pass; a new destination must include unchanged projects. Missing/throwing and
+denied permission requests must show recovery guidance without an uncaught error. The Electron bootstrap also
+injects the restricted-directory event and requires its callback to settle. This tests event wiring, not an
+interactive native picker or a real cloud/network failure. See the
+[desktop backup audit](diagnostics/desktop-backup-audit-2026-11-11.md) for reproduction scope and remaining limits.
+The [backup-control regression](../tests/e2e/backup-controls.mjs) also checks the served and standalone builds
+without module imports, using an injected folder implementation for failed writes and permission recovery.
 
 **Open project folder…** opens a project folder (or a parent folder with several projects), so another computer can
 work on a project kept in a shared folder.

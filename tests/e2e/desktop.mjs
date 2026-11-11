@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { verifyInterruptedSaves } from './interrupted-saves.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const requireDesktop = createRequire(path.join(root, 'desktop/package.json'));
@@ -76,6 +77,14 @@ try {
   assert.ok(desktop.ort, 'bundled ONNX runtime');
   assert.ok(desktop.csp, 'CSP present');
   assert.deepEqual(desktop.rejected, [403, 403, 403, 403, 403], 'desktop protocol rejects outside and malformed paths');
+  let backupWindow = 0;
+  const backupBrowser = { newPage: async () => {
+    const url = `app://corantool/app/index.html?backup-test=${++backupWindow}`;
+    await p.evaluate((url) => { window.open(url, '_blank'); }, url);
+    const target = await run.browser.waitForTarget((target) => target.url() === url);
+    return target.page();
+  } };
+  await verifyInterruptedSaves(backupBrowser, 'app://corantool/app/index.html');
   // Optional real-model/network checks use a local pinned ONNX file and a fixed public map extent.
   // CI remains independent of external services and a large model download.
   if (process.env.SEDCORETOOL_VISION_MODEL) {

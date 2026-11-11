@@ -106,6 +106,9 @@ U-Net on the computer.
    If saving fails, the last complete save is preserved and your pending changes stay open. Use **Retry save**
    before opening another project, or export the current project to keep a separate copy. If the folder copy fails,
    use **Reactivate automatic backup** to retry it.
+   If permission cannot be restored, use **Choose automatic backup folder…** to select the folder again.
+   In the desktop program, choose a dedicated subfolder if a system folder is rejected. Slow folder copies
+   run in the background after the local save, so you can continue navigating or export a project.
    A project with an invalid analysis region or broken mask references opens for inspection, with a warning in
    the affected section. Edits are temporary and a project export keeps the original data.
 

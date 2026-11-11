@@ -46,6 +46,12 @@ function handleAppRequest(req, { webRoot = WEB, pathMod = path, fetchFile } = {}
   return fetchFile ? fetchFile(file) : require('electron').net.fetch(pathToFileURL(file).toString());
 }
 
+function setupSessionPermissions(ses) {
+  ses.setPermissionRequestHandler((_wc, perm, cb) => cb(['persistent-storage', 'clipboard-sanitized-write', 'fileSystem'].includes(perm)));
+  // Electron leaves a restricted picker pending unless the application answers this event.
+  ses.on('file-system-access-restricted', (_event, _details, callback) => callback('deny'));
+}
+
 if (process.versions.electron) {
   const { app, BrowserWindow, protocol, net, shell, session, ipcMain } = require('electron');
 
@@ -74,7 +80,7 @@ if (process.versions.electron) {
   app.whenReady().then(() => {
     protocol.handle('app', (req) => handleAppRequest(req, { fetchFile: (file) => net.fetch(pathToFileURL(file).toString()) }));
     // keep the project library: ask Chromium to treat the storage as persistent
-    session.defaultSession.setPermissionRequestHandler((_wc, perm, cb) => cb(['persistent-storage', 'clipboard-sanitized-write', 'fileSystem'].includes(perm)));
+    setupSessionPermissions(session.defaultSession);
     setupTrainer();
     createWindow();
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
@@ -98,4 +104,4 @@ if (process.versions.electron) {
   }
 }
 
-module.exports = { APP_HOST, WEB, isWithinRoot, resolveAppPath, handleAppRequest };
+module.exports = { APP_HOST, WEB, isWithinRoot, resolveAppPath, handleAppRequest, setupSessionPermissions };

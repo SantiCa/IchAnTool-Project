@@ -26,7 +26,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.132';
+export const DELIVERY = 'V0.133';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -2969,7 +2969,7 @@ let storageOK = false, loading = false, dirty = false, saveTimer = 0;
 let saveSt = 'off';
 function setSaveState(st) {
   saveSt = st;
-  const local = st === 'saved' && storageOK && backupState !== 'ok';
+  const local = st === 'saved' && storageOK && (backupState !== 'ok' || backupPending || backupPromise);
   const key = local ? (backupState === 'none' ? 'save.local' : 'save.localPending') : 'save.' + st;
   const el = $('saveState'); el.textContent = t(key); el.dataset.state = st; el.title = local ? t('save.localTip') : '';
   if (local) el.dataset.backup = backupState; else delete el.dataset.backup;   // warning colour only; data-state stays 'saved'
@@ -3031,7 +3031,11 @@ async function checkQuota() {
   } catch { /* not available */ }
 }
 let saveCount = 0;
-async function flushSave() { if (savePromise) await savePromise; if (dirty) await saveToDB(); if (backupPending) await backupNow(); }
+async function flushSave() {
+  if (savePromise) await savePromise;
+  if (dirty) await saveToDB();
+  if (backupPending) void backupNow();
+}
 /** Do not replace live state when the last save failed or newer edits are still pending. */
 async function canLeaveProject() {
   if (!S.id && !S.cores.length) return true;   // Startup preferences are not an open project to preserve.
@@ -3283,6 +3287,7 @@ async function startup() {
 // file per project, a daily history and the user settings; (3) on-demand full backup files.
 
 let backupDir = null, backupState = 'none', lastBackup = 0, backupTimer = 0, backupPending = false, persisted = false;
+let backupPromise = null, backupRevision = 0, backupError = '', choosingBackup = false, reactivatingBackup = false;
 const fsSupported = () => typeof window.showDirectoryPicker === 'function';
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -3299,6 +3304,7 @@ async function initBackups() {
       const perm = await backupDir.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
       backupState = perm === 'granted' ? 'ok' : 'needs';
     } else if (backupDir) backupState = 'needs';
+    if (backupState === 'ok') scheduleBackup();
   }
   renderBackupState();
 }
@@ -3306,13 +3312,18 @@ async function initBackups() {
 function renderBackupState() {
   const when = lastBackup ? new Date(lastBackup).toLocaleString(lang(), { dateStyle: 'short', timeStyle: 'short' }) : '—';
   const dir = backupDir?.name ? `«${backupDir.name}»` : '';
-  $('bkStatus').textContent = t('bk.' + backupState, { dir, when });
+  const status = t('bk.' + backupState, { dir, when });
+  $('bkStatus').textContent = backupError ? t('bk.failure', { status, e: backupError }) : status;
   $('bkStatus').dataset.state = backupState;
+  $('bkStatus').setAttribute('aria-busy', String(Boolean(backupPromise)));
   $('bkPersist').textContent = t(persisted ? 'bk.persistOn' : 'bk.persistOff');
   $('bkChoose').hidden = !fsSupported();
+  $('bkChoose').toggleAttribute('disabled', choosingBackup);
   $('bkNoFs').hidden = fsSupported();
   $('bkReactivate').hidden = !['needs', 'error'].includes(backupState);
   $('bkReactivateTop').hidden = !['needs', 'error'].includes(backupState);
+  $('bkReactivate').toggleAttribute('disabled', reactivatingBackup);
+  $('bkReactivateTop').toggleAttribute('disabled', reactivatingBackup);
   if (saveSt === 'saved') setSaveState('saved');
 }
 
@@ -3339,8 +3350,15 @@ async function writeProjectFolder(root, d) {
 /** Open a project folder written by writeProjectFolder (or its parent with several projects). */
 async function openProjectFolder() {
   let dir; try { dir = await window.showDirectoryPicker({ id: 'corantool-project', mode: 'read' }); } catch (e) { if (e?.name !== 'AbortError') toast(e.message || String(e)); return; }
+  /** @type {FileSystemDirectoryHandle[]} */
   const dirs = [];
-  try { await dir.getFileHandle('project.json'); dirs.push(dir); } catch { for await (const h of dir.values()) if (h.kind === 'directory') { try { await h.getFileHandle('project.json'); dirs.push(h); } catch { /* not a project */ } } }
+  try { await dir.getFileHandle('project.json'); dirs.push(dir); }
+  catch {
+    for await (const h of dir.values()) if (h.kind === 'directory') {
+      const folder = /** @type {FileSystemDirectoryHandle} */ (h);
+      try { await folder.getFileHandle('project.json'); dirs.push(folder); } catch { /* not a project */ }
+    }
+  }
   if (!dirs.length) { toast(t('bk.noFolderProject')); return; }
   const files = [];
   for (const d of dirs) {
@@ -3361,28 +3379,44 @@ async function writeText(dir, name, text) {
 
 function scheduleBackup() {
   if (backupState !== 'ok' && backupState !== 'error') return;
+  backupRevision++;
   backupPending = true; clearTimeout(backupTimer); backupTimer = setTimeout(backupNow, 20000);
+  if (saveSt === 'saved') setSaveState('saved');
 }
 
 let backupRetries = 0;
-async function backupNow() {
+function backupNow() {
   clearTimeout(backupTimer);
-  if ((backupState !== 'ok' && backupState !== 'error') || !backupDir) return;
-  try {
-    const since = lastBackup;
-    if (!projectPreview && (S.sections.length || S.records.length)) await writeProjectFolder(backupDir, serialize());
-    // V0.38: every other project changed since the last copy is copied too (not only the open one)
-    if (storageOK) for (const m of await listProjects().catch(() => [])) {
-      if (m.id === S.id || !(m.updated > since)) continue;
-      const d = await getProject(m.id).catch(() => null); if (d) await writeProjectFolder(backupDir, d);
+  if (backupPromise) return backupPromise;
+  if ((backupState !== 'ok' && backupState !== 'error') || !backupDir) return Promise.resolve();
+  const root = backupDir, revision = backupRevision, since = lastBackup, started = Date.now();
+  backupPromise = (async () => {
+    try {
+      // Capture live state before yielding; switching projects must not change this run's source or destination.
+      const current = !projectPreview && (S.sections.length || S.records.length) ? serialize() : null;
+      const settings = JSON.stringify(settingsBundle(), null, 1);
+      if (current) await writeProjectFolder(root, current);
+      if (storageOK) for (const m of await listProjects()) {
+        if (m.id === current?.id || m.updated < since) continue;
+        const d = await getProject(m.id); if (d) await writeProjectFolder(root, d);
+      }
+      await writeText(root, 'sedcoretool_ajustes.json', settings);
+      if (root !== backupDir) return;
+      // Edits saved during I/O belong to a later pass, even when their timestamps precede completion.
+      lastBackup = started; backupPending = revision !== backupRevision; backupRetries = 0; backupState = 'ok'; backupError = '';
+      await setPref('lastBackup', lastBackup);
+    } catch (e) {
+      if (root !== backupDir) return;
+      backupPending = true; backupState = 'error'; backupError = e?.message || String(e); console.error(e);
+      if (backupRetries++ < 3) backupTimer = setTimeout(backupNow, 60000 * backupRetries);
     }
-    await writeText(backupDir, 'sedcoretool_ajustes.json', JSON.stringify(settingsBundle(), null, 1));
-    lastBackup = Date.now(); backupPending = false; backupRetries = 0; backupState = 'ok'; setPref('lastBackup', lastBackup).catch(() => {});
-  } catch (e) {
-    backupPending = true; backupState = 'error'; console.error(e);
-    if (backupRetries++ < 3) backupTimer = setTimeout(backupNow, 60000 * backupRetries);   // V0.38: retried after 1, 2 and 3 min
-  }
-  renderBackupState();
+  })().finally(() => {
+    backupPromise = null;
+    if (root !== backupDir || (backupPending && backupState === 'ok')) backupTimer = setTimeout(backupNow, 20000);
+    renderBackupState();
+  });
+  $('bkStatus').setAttribute('aria-busy', 'true');
+  return backupPromise;
 }
 /** V0.38: warning when the automatic copy is set but has not run for a week (or needs reactivating) and there are changes. */
 async function checkBackupAge() {
@@ -3391,23 +3425,46 @@ async function checkBackupAge() {
   if (newest > lastBackup && (backupState === 'needs' || Date.now() - lastBackup > 7 * 864e5)) toast(t('bk.old', { d: lastBackup ? Math.floor((Date.now() - lastBackup) / 864e5) : '?' }), 9000);
 }
 
-$('bkChoose').addEventListener('click', async () => {
+async function chooseBackupDirectory() {
+  if (choosingBackup) return;
+  choosingBackup = true; renderBackupState();
   try {
-    backupDir = await window.showDirectoryPicker({ id: 'ichantool-backup', mode: 'readwrite' });
+    const selected = await window.showDirectoryPicker({ id: 'ichantool-backup', mode: 'readwrite' });
+    backupDir = selected; lastBackup = 0; backupPending = true; backupRevision++; backupRetries = 0; backupError = '';
     await setPref('backupDir', backupDir).catch(() => {});
+    await setPref('lastBackup', 0).catch(() => {});
     backupState = 'ok'; await backupNow();
   } catch (e) { if (e?.name !== 'AbortError') toast(e.message || String(e)); }
-  renderBackupState();
-});
-for (const id of ['bkReactivate', 'bkReactivateTop']) $(id).addEventListener('click', async () => {
-  if (!backupDir) return;
-  const perm = await backupDir.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
-  backupState = perm === 'granted' ? 'ok' : 'needs';
-  if (backupState === 'ok') await backupNow(); else renderBackupState();
-});
+  finally { choosingBackup = false; renderBackupState(); }
+}
+$('bkChoose').addEventListener('click', chooseBackupDirectory);
+async function reactivateBackup() {
+  if (!backupDir || reactivatingBackup) return;
+  reactivatingBackup = true; renderBackupState();
+  try {
+    if (typeof backupDir.requestPermission !== 'function') throw new Error(t('bk.chooseAgain'));
+    const perm = await backupDir.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') throw new Error(t('bk.chooseAgain'));
+    backupState = 'ok'; backupError = ''; backupRetries = 0;
+    await backupNow();
+  } catch (e) {
+    backupState = 'needs'; backupPending = true; backupError = e?.message || String(e);
+    toast(t('bk.reactivateFailed', { e: backupError }), 10000);
+  } finally { reactivatingBackup = false; renderBackupState(); }
+}
+for (const id of ['bkReactivate', 'bkReactivateTop']) $(id).addEventListener('click', reactivateBackup);
 
 /* ── V0.8: shareable package (.sedcoretool, before V0.52 .corantool = ZIP with project.json and the original images at full resolution) ── */
 const imgExt = (f) => (/\.[a-z0-9]{2,5}$/i.exec(f.name || '')?.[0] || (/png/.test(f.type) ? '.png' : /tif/.test(f.type) ? '.tif' : '.jpg'));
+async function projectImageSource(file, ranged = false) {
+  if (file.blob) return file.blob;
+  if (file.key) {
+    const stored = await getImage(file.key, ranged);
+    if (stored) return stored;
+  }
+  if (file.bytes || file.b64) return new Blob([file.bytes ? new Uint8Array(file.bytes) : b64decode(file.b64)]);
+  throw new Error(t('err.missingImage', { name: file.name || file.key || '?' }));
+}
 /** Folder copies use immutable image names so a failed manifest write cannot change the previous save's images. */
 function projectForExport(d, prefix = '', immutableImages = false) {
   const p = JSON.parse(JSON.stringify(d, (k, v) => (v instanceof Blob ? undefined : v))), images = [];
@@ -3416,7 +3473,7 @@ function projectForExport(d, prefix = '', immutableImages = false) {
     const f = src.get(q.id) || q.file;
     const imageId = immutableImages ? `${q.id}__${f.key || uid()}` : q.id;
     const path = `images/${imageId}${imgExt(f)}`;
-    images.push({ path: prefix + path, get: async (ranged = false) => f.blob || (f.key ? await getImage(f.key, ranged) : null) || new Blob([f.bytes ? new Uint8Array(f.bytes) : f.b64 ? b64decode(f.b64) : new Uint8Array()]) });
+    images.push({ path: prefix + path, get: (ranged = false) => projectImageSource(f, ranged) });
     q.file = { name: f.name, type: f.type, path };
   }
   return { json: p, images };

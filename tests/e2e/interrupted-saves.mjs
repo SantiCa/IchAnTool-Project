@@ -40,6 +40,7 @@ export async function verifyInterruptedSaves(browser, url) {
       const { markDirty } = await import('./js/app.js');
       const { DEFAULT_FILTERS, DEFAULT_DETECT } = await import('./js/imageproc.js');
       const checks = {}, originalPut = IDBObjectStore.prototype.put, logError = console.error;
+      let checkpoint = 'initial image and local-save checks';
       console.error = () => {};
       const pause = () => new Promise((resolve) => setTimeout(resolve, 100));
       const canvas = document.createElement('canvas'); canvas.width = 8; canvas.height = 8;
@@ -123,12 +124,13 @@ export async function verifyInterruptedSaves(browser, url) {
         await I.loadProject(retried);
         checks.databaseReopens = I.S.notes === retried.notes && I.S.sections[0].name === 'Pending section' && I.S.sections[0].exclude[7] === 1;
 
+        checkpoint = 'folder preservation and retry';
         // Real OPFS writes use the same File System Access writable/commit contract as a picked folder.
         const root = await navigator.storage.getDirectory();
         const folderName = 'interrupted-saves-test';
         await root.removeEntry(folderName, { recursive: true }).catch(() => {});
         const folder = await root.getDirectoryHandle(folderName, { create: true });
-        let failure = null, aborted = 0;
+        let failure = null, aborted = 0, heldWrite = null, heldEntries = 0;
         const streams = [];
         const wrapDirectory = (dir) => ({
           name: dir.name, kind: dir.kind, queryPermission: async () => 'granted', requestPermission: async () => 'granted',
@@ -143,6 +145,7 @@ export async function verifyInterruptedSaves(browser, url) {
                 const stream = await handle.createWritable(); streams.push(stream);
                 const write = stream.write.bind(stream), close = stream.close.bind(stream), abort = stream.abort.bind(stream);
                 stream.write = async (chunk) => {
+                  if (name === 'project.json' && heldWrite) { heldEntries++; await heldWrite; }
                   await write(chunk);
                   if (name === failure?.name && failure.stage === 'write') throw new Error('simulated write failure');
                 };
@@ -163,7 +166,8 @@ export async function verifyInterruptedSaves(browser, url) {
           document.getElementById('bkChoose').click();
           for (let i = 0; i < 200; i++) {
             await new Promise((resolve) => setTimeout(resolve, 20));
-            if (document.getElementById('bkStatus').dataset.state === (failure ? 'error' : 'ok')) return;
+            if (!document.getElementById('bkChoose').disabled
+              && document.getElementById('bkStatus').dataset.state === (failure ? 'error' : 'ok')) return;
           }
           throw new Error('backup status timeout');
         };
@@ -205,12 +209,103 @@ export async function verifyInterruptedSaves(browser, url) {
           const recovered = JSON.parse(await readManifest());
           checks.folderRetry = recovered.notes === 'Folder pending close' && document.getElementById('bkStatus').dataset.state === 'ok';
           checks.folderReopens = await window.reopenInterruptedSave(projectDir.name, latest);
+
+          // Missing storage must never be published as an empty original image.
+          checkpoint = 'missing original image';
+          const goodManifest = await readManifest(), savedFile = I.S.sections[0].file;
+          I.S.sections[0].file = { ...savedFile, key: 'missing-backup-image' };
+          failure = { name: 'unused', stage: 'missing-image' };
+          try {
+            await chooseBackup();
+            checks.missingImagePreservesManifest = await readManifest() === goodManifest;
+            checks.missingImageReported = document.getElementById('bkStatus').textContent.includes(savedFile.name);
+          } finally { I.S.sections[0].file = savedFile; failure = null; }
+          await chooseBackup();
+
+          // Saving while a copy is in flight must schedule a later snapshot, not mark the edits backed up.
+          checkpoint = 'edits during folder I/O';
+          const nativeTimeout = window.setTimeout;
+          window.setTimeout = (fn, delay, ...args) => nativeTimeout(fn, delay === 20000 ? 25 : delay, ...args);
+          let releasePendingCopy;
+          heldWrite = new Promise((resolve) => { releasePendingCopy = resolve; });
+          try {
+            document.getElementById('bkChoose').click();
+            for (let i = 0; i < 100 && !heldEntries; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+            I.S.notes = 'Saved during folder I/O'; markDirty(); await I.saveToDB();
+            checks.inFlightEditShownPending = document.getElementById('saveState').dataset.backup === 'ok';
+            heldWrite = null; releasePendingCopy();
+            checks.inFlightEditsCopiedAutomatically = false;
+            for (let i = 0; i < 200; i++) {
+              await new Promise((resolve) => setTimeout(resolve, 10));
+              if (document.getElementById('bkStatus').getAttribute('aria-busy') === 'true') continue;
+              if (JSON.parse(await readManifest()).notes === 'Saved during folder I/O') {
+                checks.inFlightEditsCopiedAutomatically = true; break;
+              }
+            }
+          } finally { heldWrite = null; releasePendingCopy(); window.setTimeout = nativeTimeout; }
+          for (let i = 0; i < 200 && document.getElementById('bkChoose').disabled; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+          heldEntries = 0;
+
+          // A slow folder must not spawn competing writers or block a locally saved project switch.
+          checkpoint = 'slow folder navigation';
+          failure = { name: 'project.json', stage: 'write' };
+          await chooseBackup(); failure = null;
+          let releaseWrite, showHomePromise;
+          heldWrite = new Promise((resolve) => { releaseWrite = resolve; });
+          try {
+            document.getElementById('bkReactivate').click();
+            for (let i = 0; i < 100 && !heldEntries; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+            checks.slowBackupStarted = heldEntries === 1;
+            document.getElementById('bkReactivateTop').click();
+            await pause();
+            checks.singleFolderWriter = heldEntries === 1;
+            showHomePromise = I.showHome(); await pause();
+            checks.slowFolderDoesNotBlockHome = !document.getElementById('home').hidden;
+            document.getElementById('newProjOpen').click();
+            document.getElementById('newProjName').value = 'During slow folder backup';
+            document.getElementById('newProjBtn').click();
+            for (let i = 0; i < 100 && I.S.id === fixture.id; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+            checks.slowFolderDoesNotBlockLocalSwitch = I.S.id !== fixture.id;
+          } finally { heldWrite = null; releaseWrite(); }
+          await showHomePromise;
+          for (let i = 0; i < 200 && I.S.id === fixture.id; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+          await I.saveToDB();
+          for (let i = 0; i < 200 && document.getElementById('bkReactivate').disabled; i++) await new Promise((resolve) => setTimeout(resolve, 10));
+
+          // A restored handle may no longer expose/request permission; recovery must remain actionable.
+          checkpoint = 'permission recovery';
+          window.showDirectoryPicker = async () => ({ ...wrapDirectory(folder), requestPermission: undefined });
+          await chooseBackup();
+          document.getElementById('bkReactivate').click(); await pause();
+          checks.missingPermissionMethodReported = document.getElementById('bkStatus').dataset.state === 'needs'
+            && document.getElementById('toast').textContent.includes('carpeta');
+          window.showDirectoryPicker = async () => ({ ...wrapDirectory(folder), requestPermission() { throw new DOMException('Folder permission expired', 'NotAllowedError'); } });
+          await chooseBackup();
+          document.getElementById('bkReactivateTop').click(); await pause();
+          checks.permissionExceptionReported = document.getElementById('bkStatus').dataset.state === 'needs'
+            && document.getElementById('toast').textContent.includes('Folder permission expired');
+          window.showDirectoryPicker = async () => ({ ...wrapDirectory(folder), requestPermission: async () => 'denied' });
+          await chooseBackup();
+          document.getElementById('bkReactivate').click(); await pause();
+          checks.deniedPermissionReported = document.getElementById('bkStatus').dataset.state === 'needs'
+            && document.getElementById('toast').textContent.includes('carpeta');
+          window.showDirectoryPicker = async () => wrapDirectory(folder);
+          await chooseBackup();
+          checks.folderCanBeSelectedAgain = document.getElementById('bkStatus').dataset.state === 'ok';
+          const replacementFolder = await folder.getDirectoryHandle('replacement-destination', { create: true });
+          checkpoint = 'new backup destination';
+          window.showDirectoryPicker = async () => wrapDirectory(replacementFolder);
+          await chooseBackup();
+          const copiedProject = await replacementFolder.getDirectoryHandle(projectDir.name);
+          const copiedManifest = JSON.parse(await (await (await copiedProject.getFileHandle('project.json')).getFile()).text());
+          checks.newDestinationIncludesUnchangedProjects = copiedManifest.notes === 'Saved during folder I/O';
         } finally {
           window.showDirectoryPicker = picker;
           for (const stream of streams) await stream.abort().catch(() => {});
           await root.removeEntry(folderName, { recursive: true });
         }
-      } finally { IDBObjectStore.prototype.put = originalPut; console.error = logError; }
+      } catch (error) { throw new Error(`${checkpoint}: ${error?.stack || error}`); }
+      finally { IDBObjectStore.prototype.put = originalPut; console.error = logError; }
       return checks;
     });
     for (const [name, passed] of Object.entries(results)) assert.equal(passed, true, name + ': ' + JSON.stringify(results));

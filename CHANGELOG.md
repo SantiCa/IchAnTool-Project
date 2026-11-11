@@ -10,6 +10,13 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.133 — 2026-11-11
+
+- Keep slow automatic folder copies from blocking project navigation, exports or closing after the local project has saved; serialize backup attempts and retain edits made during a running copy.
+- Explain backup failures and permission recovery, allow folder reselection, and copy all saved projects to a newly selected destination. Reject restricted desktop folder requests promptly so the picker can recover.
+- Extend interrupted-save verification to the desktop runtime, including delayed writes, retry coordination and backup permission failures.
+- Stop a folder copy or export if an original image is missing instead of publishing an empty substitute; preserve the last complete folder manifest.
+
 ## V0.132 — 2026-11-11
 
 - Repair the technical reference's source-code table and place experimental Python counting with the library API, linking it from the contents and its validation evidence from the validation section.

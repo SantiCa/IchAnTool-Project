@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { verifyUnetModel } from './unet-model.mjs';
 import { verifyInterruptedSaves } from './interrupted-saves.mjs';
+import { verifyBackupControls } from './backup-controls.mjs';
 import { verifyNavigationPreview, verifyLegacyNavigation } from './navigation-preview.mjs';
 import { verifyNavigationPreviewCache } from './navigation-preview-cache.mjs';
 import { verifyFirstRun } from './first-run.mjs';
@@ -35,6 +36,7 @@ try {
   await verifyLegacyNavigation(b, URL);
   await verifyNavigationPreviewCache(b, URL);
   await verifyInterruptedSaves(b, URL);
+  await verifyBackupControls(b, URL);
   await verifyDataTable(b, URL);
   await verifyTableViewport(b, URL);
   await verifyTaxonFigures(b, URL);

@@ -218,6 +218,31 @@ The planning commit remains local on master until an authorised push. No audit f
     skipped without ONNX/Torch; 124 Node tests). File tests cover the browser's staged-write contract; physical
     power loss and external folder synchronisation are outside the automated simulation.
 
+  - [x] **M1.2.1 - Desktop backup recovery audit.** [V0.133](../CHANGELOG.md#v0133--2026-11-11).
+        Authorised by the maintainer on
+        11 November 2026 after repeated hangs and failed backup reactivation when starting from `desktop`.
+        Editor: Codex; author verification, no independent reviewer assigned.
+    - Scope: reproduce backup coordination, permission recovery and project-navigation waits on synthetic
+      data, then verify the normal desktop example/detection/save/restart workflow. No private project access.
+    - Acceptance: one folder writer per renderer, local navigation independent of slow external writes,
+      pending edits copied after an in-flight run, all stored projects eligible in a new destination,
+      actionable missing/denied/failed permission recovery and a settled restricted-folder event.
+      Preserve the last good manifest/images and the existing failed-local-save navigation guard.
+    - Delivered: coordinated background copies retain in-flight edits and refresh new destinations; recovery
+      errors explain folder reselection, missing originals abort instead of producing empty images, and
+      restricted Electron requests receive a denial callback. Local failed-save guards remain in place.
+    - Verified: 227 Python tests (six optional/permission skips), 199 Node tests, JavaScript types, Ruff,
+      version consistency, whitespace, standalone build, full Chrome smoke (356 traces, identical reload),
+      offline backup controls and actual Electron backup/detection/save/restart checks. The
+      [audit report](diagnostics/desktop-backup-audit-2026-11-11.md) separates reproduced failures, source findings
+      and native-picker/cloud/private-project limits. Local commit on master; GitHub handoff needs an
+      authorised push. M1.2.2 records remaining hang diagnosis and the unverified local-save concurrency path.
+  - [ ] **M1.2.2 - Diagnose remaining desktop hangs if reported.** Capture the triggering action, project
+        dimensions, terminal/renderer error and whether the process is busy or waiting. Reproduce with public
+        or synthetic data before attributing a memory, GPU or computation cause. The focused backup audit
+        does not establish the cause of every hang reported by the maintainer. Reproduce the multiple-waiter
+        `saveToDB` path flagged by source review before changing its concurrency controller.
+
 ### M2 - Large projects and responsive display
 
 The first-run project-entry blocker found while preparing M2.2 is corrected in
