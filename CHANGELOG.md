@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.132 — 2026-11-11
+
+- Repair the technical reference's source-code table and place experimental Python counting with the library API, linking it from the contents and its validation evidence from the validation section.
+
 ## V0.131 — 2026-11-11
 
 - Correct the technical reference and paper to describe existing Python exclusion support in the API, command line and batch processing, distinguishing interactive drawing and no-data expansion and linking the validation evidence.

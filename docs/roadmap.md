@@ -46,7 +46,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 | AUD-10 | Standalone import/export stripping has a restricted syntax contract | M5.5 |
 | AUD-11 | Missing-tag allegation not confirmed; currently referenced major tags exist | Verification note below; M5.1 release checks |
 | AUD-12 | Python exclusion support and application-only drawing/noDataPad differences documented in [V0.131](../CHANGELOG.md#v0131--2026-11-11) | M5.2.1 |
-| AUD-13 | Language-table row and experimental-count section are misplaced | M5.2.2 |
+| AUD-13 | Source-code table and experimental-count navigation repaired in [V0.132](../CHANGELOG.md#v0132--2026-11-11) | M5.2.2 |
 | AUD-14 | Addressed incrementally by R1/R2; composition dependencies and further strict modules remain candidates | M5.4 and R2 |
 
 AUD-11 verification used `git ls-remote --tags` against the official `actions/*` repositories on
@@ -521,11 +521,25 @@ existing projects retain failed-save protection. Performance evidence is collect
       version consistency, whitespace and the added local documentation links. No new tests or E2E run are
       needed for this documentation/version-only delivery. Local commit on master; GitHub retrieval requires
       an authorised push. Next priority candidate: M5.2.2 technical-document navigation.
-  - [ ] **M5.2.2 - Repair technical-document navigation (AUD-13).** Put the `i18n.js` row inside the
+  - [x] **M5.2.2 - Repair technical-document navigation (AUD-13).** [V0.132](../CHANGELOG.md#v0132--2026-11-11).
+        Put the `i18n.js` row inside the
         repository table and move experimental counting out of the References section.
+    - Authorised by the maintainer on 11 November 2026. Editor: Codex; author verification, no independent
+      reviewer assigned.
     - Acceptance: the repository table renders as one table; algorithm details belong with the Python
       analysis description and verification evidence is linked from §31. Check headings, contents and links;
       preserve formulas, current defaults and the distinction between opt-in and default counting.
+    - Delivered: the source-code map contains one table including `i18n.js`; experimental counting is a
+      subsection of §25.2, linked from the contents with its existing anchor preserved. §31.1 links the
+      counterbalanced evidence and counting regressions. Contents lists have explicit paragraph separation.
+      Algorithm text, formulas, bounds, defaults, rollback and bibliography are preserved; counting stays opt-in.
+    - Verified: rendered Markdown has one source table with all 28 module rows; the counting subsection is
+      inside the library API, and all local manual links/fragments resolve. Compared relocated algorithm text,
+      main section headings and bibliography with the previous delivery. Required checks pass: 227 Python
+      tests (six optional/permission skips), 198 Node tests, JavaScript types, Ruff, version consistency and
+      whitespace. No new tests or E2E run are needed for this documentation/version-only delivery.
+    - Handoff: local commit on master; GitHub retrieval requires an authorised push. Next priority candidate:
+      M3.3.3 manifest escaping/editing reproduction, requiring separate authorisation.
 - [x] **M5.3 - JavaScript type checking.** Check critical modules strictly and detect new diagnostics across
       the application. [V0.92](../CHANGELOG.md#v092--2026-11-09)
 - [ ] **M5.4 - Reduce legacy JavaScript type diagnostics.** Replace the baseline entries with checked contracts

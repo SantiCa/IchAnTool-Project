@@ -11,15 +11,18 @@ The document describes the current version; the history of changes is in [`CHANG
 ## Contents
 
 **Part I — Overview**
+
 1. What SedCoreTool is: the program and the Python package
 
 **Part II — Core definitions (shared by the program and the Python package)**
+
 2. Conventions: orientation, analysis area and depth scale
 3. Bioturbation percentage per interval
 4. Bioturbation indices (BI and ii)
 5. Age model
 
 **Part III — The program: working with core images**
+
 6. Importing images: working resolution and cropping
 7. Image enhancement
 8. Automatic trace detection
@@ -31,6 +34,7 @@ The document describes the current version; the history of changes is in [`CHANG
 14. Identification mode (presence only)
 
 **Part IV — The program: core column, data and multiproxy analysis**
+
 15. Core column
 16. External records
 17. Data tab
@@ -38,18 +42,23 @@ The document describes the current version; the history of changes is in [`CHANG
 19. Maps of the multiproxy analysis
 
 **Part V — The program: figures**
+
 20. Figures
 
 **Part VI — The program: projects, storage and sharing**
+
 21. How a project is organised
 22. Storage, automatic saving and memory
 23. Sharing, backups and settings
 24. Exported files and file formats
 
 **Part VII — The Python package**
-25. The `sedcoretool` Python package
+
+25. [The `sedcoretool` Python package](#25-the-sedcoretool-python-package)
+    - [Experimental Python row counts (library API, §25.2)](#experimental-python-row-counts)
 
 **Part VIII — Desktop program, distribution and engineering**
+
 26. Desktop program
 27. Offline single file
 28. Repository engineering and security
@@ -57,6 +66,7 @@ The document describes the current version; the history of changes is in [`CHANG
 30. Training project, help cards and guided tour
 
 **Part IX — Validation and limits**
+
 31. Validation
 32. Known limitations
 33. Reproducibility
@@ -170,12 +180,12 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 | `multiproxy.js` | Multiproxy tool: numeric records, interval layers, classifiers, composite-log readout, manual classification, maps | — |
 | `figures.js` | Figures panel: representative traces, interpreted core, logs, sections, range chart, location map | — |
 | `app.js` | Interface, tools, drawing, files | — |
+| `i18n.js` | Interface texts in Spanish and English | — |
 
 The interface modules (`state.js`, `columns.js`, `panels.js`, `datatab.js`, `figures.js`, `multiproxy.js`, `app.js`) import from each other; circular imports are safe because
 the imported names are only used inside functions, never while a module is being loaded. A top-level `let` is assigned
 only in the module that declares it. Event wiring that must run in a fixed order is wrapped in an `init…()` function
 (for example `initMultiproxy`) that `app.js` calls where that code used to run.
-| `i18n.js` | Interface texts in Spanish and English | — |
 
 `unetmodel.js` imports only the scientific `unet.js` module. `app.js` creates one controller and injects
 ONNX runtime acquisition, section enumeration, pixels per centimetre, model identifiers and progress.
@@ -2400,6 +2410,20 @@ section.add_age(model_depth=[0, 150], model_age=[0, 12.5])
 to_csv([section], "S1_bioturbation.csv")
 ```
 
+#### Experimental Python row counts
+
+`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded multi-row label histograms in `analyze_mask`.
+The default remains the established per-class reductions. Blocks contain at most 64 rows and 65,536
+pixels; very wide images use single-row column chunks. Each pixel's integer key is
+`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into
+row/class counts and accumulates across column chunks. Total bioturbation sums positive-label counts;
+class counts use the corresponding column. Interval sums, division order, boundaries, exclusions and
+configurable index schemes follow the same analysis path. Overlapping boolean layers retain the
+established calculation. Integer scratch scales with the bounded block, not the full image; the retained
+histogram requires `8 * rows * (classes + 1)` bytes. Reverse-strided inputs are copied only per block.
+Unset the variable to roll back; promotion and flag removal require a subsequent decision. No Rust or
+additional runtime dependency is needed. See [validation and measured scope](#311-automated-tests).
+
 #### Image loading budget
 
 `load_image` and `load_mask` use a fixed budget of **768 MiB** for estimated pixel buffers per load. They
@@ -2717,6 +2741,15 @@ is also checked against integer-arithmetic edges at 68.5 rows. Python's explicit
 handling remain covered. Tests of the profiling harness verify cropped/remapped labels, exclusions,
 partial bins, disagreement reporting and weighted CPU-sample attribution.
 
+**Experimental Python counting.** The [counterbalanced comparison](benchmarks/M3.1.5.md) records exact
+numerical equivalence and measured performance acceptance on the reference workloads for the
+[opt-in row-counting algorithm](#experimental-python-row-counts). The
+[counting regression tests](../tests/test_count_experiment.py) compare complete default/experimental
+results exactly, including exclusions, absent classes, custom index schemes, fractional/partial bins,
+and overlapping-layer fallback. Separate histogram checks cover noncontiguous inputs and bounded scratch.
+Performance acceptance is limited to the measured reference workloads; the established per-class
+reductions remain the default.
+
 **Exclusion support.** [Python exclusion and batch tests](../tests/test_batch.py) verify the ratio of summed
 bioturbated to valid pixels, the minimum-valid no-data rule, exclusion dimensions, manifest exclusions,
 `analyze --exclude` and `--label-mask --exclude-value`. [API boundary tests](../tests/test_core.py) also cover
@@ -2871,18 +2904,3 @@ node tests/e2e/smoke.mjs               # browser end-to-end test
   Geological Society* 150, 141–148.
 - Zuiderveld, K. (1994). Contrast limited adaptive histogram equalization. In: Heckbert, P. (ed.), *Graphics Gems IV*,
   Academic Press, 474–485.
-
-### Experimental Python row counts
-
-`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded multi-row label histograms in `analyze_mask`.
-The default remains the established per-class reductions. Blocks contain at most 64 rows and 65,536
-pixels; very wide images use single-row column chunks. Each pixel's integer key is
-`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into
-row/class counts and accumulates across column chunks. Total bioturbation sums positive-label counts;
-class counts use the corresponding column. Interval sums, division order, boundaries, exclusions and
-configurable index schemes follow the same analysis path. Overlapping boolean layers retain the
-established calculation. Integer scratch scales with the bounded block, not the full image; the retained
-histogram requires `8 * rows * (classes + 1)` bytes. Reverse-strided inputs are copied only per block.
-The [counterbalanced comparison](benchmarks/M3.1.5.md) records exact numerical equivalence and measured
-performance acceptance on the reference workloads. Unset the variable to roll back; promotion and
-flag removal require a subsequent decision. No Rust or additional runtime dependency is needed.
