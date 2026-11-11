@@ -41,6 +41,10 @@ try {
   await verifyMultiproxyFigure(b, URL);
   await verifyFigureComposition(b, URL);
   await p.goto(URL, { waitUntil: 'networkidle0' });
+  assert.equal(await p.evaluate(async () => {
+    const app = await import('./js/app.js'), depth = await import('./js/sectiondepth.js');
+    return ['pxPerCm', 'depthAtRow', 'rowAtDepth'].every((name) => app[name] === depth[name]);
+  }), true, 'app.js must preserve the original depth-selector exports');
   await p.evaluate(() => document.getElementById('openTest').click());
   await until(() => window.ichantool?.S.sections.length === 6 && window.ichantool.S.sections.every((s) => s.objects.size > 0));
   await until(() => document.getElementById('saveState').dataset.state === 'saved');

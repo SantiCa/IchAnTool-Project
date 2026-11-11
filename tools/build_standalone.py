@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
-ORDER = ["core.js", "edit.js", "imageproc.js", "learn.js", "unet.js", "unetmodel.js", "vision.js", "log.js", "storage.js", "zip.js", "tiff.js", "i18n.js", "state.js", "geo.js", "locmap.js", "interp.js", "plot.js", "sheet.js", "exportio.js", "tableview.js", "figview.js", "navpreview.js", "columns.js", "panels.js", "datatab.js", "figures.js", "multiproxy.js", "app.js"]
+ORDER = ["core.js", "sectiondepth.js", "edit.js", "imageproc.js", "learn.js", "unet.js", "unetmodel.js", "vision.js", "log.js", "storage.js", "zip.js", "tiff.js", "i18n.js", "state.js", "geo.js", "locmap.js", "interp.js", "plot.js", "sheet.js", "exportio.js", "tableview.js", "figview.js", "navpreview.js", "columns.js", "panels.js", "datatab.js", "figures.js", "multiproxy.js", "app.js"]
 EXAMPLES = ROOT / "examples"
 # Files the app loads with fetchAsset(path); embedded so the single file works offline.
 # V0.50: no sample data in the download (no test core, example images, demos nor tutorial): only the public-domain
@@ -28,6 +28,11 @@ TOP_DECL = re.compile(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|class|const|l
 
 def strip_module(src: str) -> str:
     src = re.sub(r"^import\s[^;]*;\s*$", "", src, flags=re.M)
+    # Local unaliased export lists preserve the original bindings in the concatenated scope.
+    ident = r"[A-Za-z_$][\w$]*"
+    src = re.sub(rf"^export\s+\{{\s*{ident}(?:\s*,\s*{ident})*\s*,?\s*\}};\s*$", "", src, flags=re.M)
+    if re.search(r"^export\s*\{", src, flags=re.M):
+        raise ValueError("Unsupported export list: use local unaliased names and a semicolon")
     return re.sub(r"^export\s+", "", src, flags=re.M)
 
 

@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.126 — 2026-11-11
+
+- Separate shared depth and pixel-scale calculations from the interface, preserving existing exports, fractional interval boundaries and project measurements.
+- Keep standalone HTML compatible with local named export lists and reject unsupported lists during construction.
+
 ## V0.125 — 2026-11-11
 
 - Incorporate the technical audit into the roadmap with prioritised safety, data-integrity, documentation and modularity tasks, distinguishing confirmed source observations from findings requiring reproduction.

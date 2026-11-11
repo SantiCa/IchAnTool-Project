@@ -1,5 +1,7 @@
 // SedCoreTool web (antes CorAnTool e IchAnTool) — application (UI, state, tools, rendering, files).
 import { rleValid, interpAgeRange, baconToAgeText, BI, II, UNIT_TO_CM, idsAt, topAt, hasId, stackIndex, codeFor, withoutId, renameId, compactStacks, rowCounts, binRows, parseAgeModel, parseAgeModelDetailed, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
+import { pxPerCm, depthAtRow, rowAtDepth } from './sectiondepth.js';
+export { pxPerCm, depthAtRow, rowAtDepth };
 import { withProvenance, ageModelText, bioturbationTable, objectsTable } from './exportio.js';
 
 import { DEFAULT_FILTERS, FILTER_PRESETS, DEFAULT_DETECT, traceSeparation, localSeparability, applyFilters, detectMask, components, regionGrow, polygonPixels, objectStats, features, rotate90, downsampleRGBA, autoLevels, gammaForMedian } from './imageproc.js';
@@ -24,7 +26,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.125';
+export const DELIVERY = 'V0.126';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -258,13 +260,6 @@ function enhanceAsync(s) {
   const input = s.orig16 || orig, { w, h } = s;
   return offload('filters', { rgba: input, w, h, f }, () => applyFilters(input, w, h, f)).then((r) => { if (s._eg === gen && s.orig === orig) s.enh = r; return s._eg === gen; });
 }
-
-export function pxPerCm(s) {
-  const span = (s.bottom - s.top) * UNIT_TO_CM[s.units];
-  return span > 0 ? (s.roi.y1 - s.roi.y0) / span : 1;
-}
-export const depthAtRow = (s, row) => s.top + ((row - s.roi.y0) / (s.roi.y1 - s.roi.y0)) * (s.bottom - s.top);
-export const rowAtDepth = (s, d) => s.roi.y0 + ((d - s.top) / (s.bottom - s.top)) * (s.roi.y1 - s.roi.y0);
 
 /* ───────────── image files ───────────── */
 
@@ -738,9 +733,12 @@ function runDetection() {
 }
 
 /* ───────────── V0.15: U-Net (model trained with `sedcoretool unet train`, run with ONNX Runtime Web) ───────────── */
-const unetController = createUnetController({
+/** @returns {import('./state.js').SectionState[]} */
+function unetSections() { return S.cores.flatMap((c) => c.sections); }
+const unetController = /** @type {typeof createUnetController<import('./state.js').SectionState>} */ (createUnetController)({
   getRuntime: async () => { await loadOrt(); return window.ort; },
-  sections: () => S.cores.flatMap((c) => c.sections), pixelsPerCm: pxPerCm, id: uid,
+  sections: unetSections,
+  pixelsPerCm: pxPerCm, id: uid,
   progress: (k, n) => { $('detectStatus').textContent = t('u.progress', { k, n }); },
 });
 const unetKey = (s) => unetController.key(s);

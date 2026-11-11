@@ -23,7 +23,8 @@ the planning update is delivered in [V0.125](../CHANGELOG.md#v0125--2026-11-11).
 The findings below were checked against V0.124 source and existing tasks. This is source triage, not
 an independent security review or a completed reproduction of every reported defect. The audit's
 implementation checklist, suggested dependency versions and agent assignments are not execution authority.
-All new tasks are pending authorisation; no editor or reviewer is assigned.
+Tasks without a subsequent authorisation recorded below remain pending; incorporation alone assigns no
+editor or reviewer and does not authorise implementation.
 
 Proposed order: address desktop path containment, untrusted presentation values and preservation of trained
 models first (M0.4, M0.5, M3.2.3); correct scientific documentation next (M5.2.1–M5.2.2); then validate manifest,
@@ -46,7 +47,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 | AUD-11 | Missing-tag allegation not confirmed; currently referenced major tags exist | Verification note below; M5.1 release checks |
 | AUD-12 | Python exclusion support contradicts the limitations list and paper text | M5.2.1 |
 | AUD-13 | Language-table row and experimental-count section are misplaced | M5.2.2 |
-| AUD-14 | Partly addressed by R1 in V0.124; selector dependencies and additional strict modules remain candidates | M5.4 and R2 |
+| AUD-14 | Addressed incrementally by R1/R2; composition dependencies and further strict modules remain candidates | M5.4 and R2 |
 
 AUD-11 verification used `git ls-remote --tags` against the official `actions/*` repositories on
 11 November 2026. The workflow references resolve: checkout v7 `3d3c42e`, setup-python v7 `6d4fd22`,
@@ -455,6 +456,7 @@ existing projects retain failed-save protection. Performance evidence is collect
   - AUD-14: R1 already adds `unetmodel.js` to strict checking in V0.124. Evaluate `figview.js`, `navpreview.js`,
     `exportio.js`, `tableview.js` and `edit.js` one at a time. Accept only checked contracts with no new
     diagnostics; prune resolved baseline entries without regenerating a baseline that admits new errors.
+    R2 adds strict checking of `sectiondepth.js` in V0.126 without adding diagnostics.
   - On the next TypeScript upgrade, migrate the deprecated `moduleResolution: "node"` setting and check
     both typecheck configurations and the diagnostic baseline against the new compiler.
 - [ ] **M5.5 - Enforce the standalone module syntax contract (AUD-10).** Make unsupported module syntax
@@ -464,6 +466,8 @@ existing projects retain failed-save protection. Performance evidence is collect
     actionable diagnostics and no false positives from ordinary strings/comments. Preserve top-level name
     collision checks and dependency order; verify the result from `file://`. Compare standard-library checks
     with a parser only if needed, documenting dependency/offline costs before adding one.
+  - R2 adds the local unaliased export-list support needed for compatibility exports, with explicit errors
+    for unsupported lists. The broader import/re-export/dynamic-import and lexical-validation work remains pending.
 
 ## Existing backlog
 
@@ -572,13 +576,26 @@ existing projects retain failed-save protection. Performance evidence is collect
       is isolated from concurrent main-page OPFS image reads; console failures now include error stacks.
     - Local delivery on master; GitHub handoff requires authorised push. Further model-lifecycle or
       DINOv2 extraction requires a separate phase.
-  - [ ] **R2 - Decouple shared depth selectors (AUD-14).** Inspect consumers of `pxPerCm`, `depthAtRow`
+  - [x] **R2 - Decouple shared depth selectors (AUD-14).** [V0.126](../CHANGELOG.md#v0126--2026-11-11).
+        Authorised on 11 November 2026;
+        editor: Codex; author verification, no independent reviewer assigned. Inspect consumers of `pxPerCm`, `depthAtRow`
         and `rowAtDepth` before choosing the next small extraction. Avoid moving calculation into a
         DOM-dependent state module merely to shorten app.js. Treat composition/class selectors as later
         candidates after their state dependencies are understood.
     - Acceptance: explicit inputs and checked contracts, preserved existing callers/re-exports where needed,
       exact ROI/depth/unit behaviour, no new import cycle, standalone name/order checks and served/offline
       regressions. Do not claim that this alone removes all current interface import cycles.
+    - Delivered: pure `sectiondepth.js` imports only core.js and owns ROI depth/row/physical-scale mapping.
+      Columns and figures consume it directly; app.js re-exports the same bindings for compatibility.
+      The generic U-Net section contract preserves custom consumers and explicitly types the application
+      section metadata. No runtime arithmetic, scientific default or project format changes.
+    - Verified: exact shared fractional fixtures, endpoints/units/extrapolation and 1,000 generated inverse
+      mappings (1e-9 absolute row tolerance on the bounded test domain, not a changed scientific tolerance).
+      227 Python tests (six optional/permission skips), 161 Node tests, strict/all-module types, Ruff,
+      version consistency, standalone build and full Chrome smoke pass (356 traces, identical saved reload).
+      App export identity is checked in the browser; standalone U-Net wiring and all three figure regressions
+      pass directly from file. Local delivery on master; GitHub handoff requires authorised push.
+      Composition/class selectors and remaining interface cycles are separate pending candidates.
 
 
 ## Further ichnological parameters

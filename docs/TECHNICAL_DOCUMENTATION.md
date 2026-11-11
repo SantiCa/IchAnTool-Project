@@ -144,6 +144,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 | File | Content | Pure |
 |------|---------|:----:|
 | `core.js` | Intervals, indices, age model, CSV, RLE encoding, overlapping-trace stacks | ✓ |
+| `sectiondepth.js` | Pure ROI depth/row conversion and pixels per centimetre; independent of interface/state | Yes |
 | `imageproc.js` | Enhancement, detection, connected components, magic wand, lasso, descriptors, rotation, downsampling | ✓ |
 | `edit.js` | Editing algorithms: scissors, merging, undo records, project migration | ✓ |
 | `learn.js` | Ichnotaxa classifier (k-NN with novelty rejection; Random Forest and Bayes wrappers), evaluation, final-test metrics | ✓ |
@@ -237,7 +238,20 @@ The resolution in pixels per centimetre, needed for physical sizes, is:
 
     ppcm = R / ((bottom − top) · f)      with f = 0.1 (mm), 1 (cm) or 100 (m)
 
-Implementation: `depth.py::pixel_depths`, `app.js::depthAtRow` and `pxPerCm`.
+Implementation: `depth.py::pixel_depths` and `sectiondepth.js::depthAtRow`, `rowAtDepth`, `pxPerCm`.
+The selectors receive section depth endpoints, units and ROI explicitly; they import only `core.js`.
+Columns and figures import the selectors directly. `app.js` imports and re-exports the same function
+bindings to preserve existing module callers. `depthAtRow(s, row)` takes an absolute working-image row
+coordinate (a pixel centre is `y0 + r + 0.5`), while its inverse returns that same coordinate:
+
+    depthAtRow(s, row) = top + ((row - y0) / R) * (bottom - top)
+    rowAtDepth(s, z)   = y0 + ((z - top) / (bottom - top)) * R
+
+Coordinates outside the ROI extrapolate linearly. `pxPerCm` returns 1 when its evaluated centimetre span
+is not positive; the coordinate conversions use ordinary JavaScript division for degenerate geometry,
+which can yield non-finite values. These selectors do not validate or repair saved geometry. Their strict
+contracts also supply the application's pixel scale to the generic U-Net controller; cache enumeration
+accepts unloaded sections, and the existing pixel-loading service makes pixels resident before inference.
 
 Pixels are assumed square (same scale horizontally and vertically), which holds for photographs and corrected line
 scans. If they were not, physical areas would carry a constant factor, but percentages would not change, because
@@ -2491,6 +2505,15 @@ contains no sample data. Background workers are not available from `file://`, so
 main thread (identical results). Because some browsers isolate `file://` tabs, the floating panel (§21.3) replaces
 separate windows where needed.
 
+### Standalone compatibility exports
+
+The standalone generator strips local, unaliased named export lists terminated by semicolons, including
+multiline lists. The original declarations remain once in the concatenated scope. Aliased lists, export-from
+lists and unterminated lists are rejected with an actionable error; this limited support does not implement
+a full JavaScript module parser. Existing import stripping and top-level name/dependency-order checks
+still apply. `sectiondepth.js` follows `core.js` and precedes its consumers in `ORDER`.
+
+
 ## 28. Repository engineering and security
 
 **Performance baseline.** The [M0.1 benchmark](benchmarks/M0.1.md) measures browser project opening, IndexedDB
@@ -2521,7 +2544,7 @@ Current fixture/scientific hashes identify sections by source-order index, exclu
 while retaining masks, assignments and interval arrays. This canonicalisation changes no project data.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
-in strict mode on `core.js`, `state.js`, `imageproc.js` and `unetmodel.js`. JSDoc describes the shared contracts, and consumers
+in strict mode on `core.js`, `state.js`, `imageproc.js`, `unetmodel.js` and `sectiondepth.js`. JSDoc describes the shared contracts, and consumers
 such as `columns.js` use those types through ordinary JavaScript imports. The second pass checks all application
 modules with ES2022, `allowJs`, `checkJs` and `noEmit`. The `checks` CI job runs both passes on pushes and
 pull requests.
