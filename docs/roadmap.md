@@ -16,6 +16,32 @@ Keep task IDs stable. The changelog records what shipped.
 
 ## Milestones toward 1.0
 
+### Capacity, advanced statistics and radiographs
+
+The maintainer requested this planning extension on 12 November 2026, delivered in
+[V0.138](../CHANGELOG.md#v0138--2026-11-12). It defines pending development and implementation phases;
+it does not claim these capabilities are available or start their implementation. No editor or reviewer is
+assigned to the new tasks. The maintainer chooses implementation priority and which capabilities are required
+for 1.0; the existing audit priority remains in place until explicitly revised.
+
+| Goal | Tasks | Dependencies and proposed sequence |
+|---|---|---|
+| Fluid work with individual images of several gigabytes | M2.3.1–M2.3.5 | Establish real file/decoded-size benchmarks, then bounded tile access, viewing, analysis and saving. |
+| Faster calculations with a responsive interface | M3.1.6–M3.1.7, M4.1.1–M4.1.2 | Review the measured NumPy path and worker scheduling before conditional Rust/Wasm or GPU experiments. |
+| An implemented advanced-statistics module | M6.1–M6.6 | Define data/method contracts, implement validated methods, then integrate reproducible analyses and exports. |
+| Radiographs alongside core photographs and records | M7.1–M7.4 | Inventory formats, preserve source samples, align depth coordinates, then integrate measurements and figures. |
+
+Within this extension, M2.3.1 is the first performance-planning candidate. M6.1 and M7.1 define independent
+scientific/input contracts and need separate authorisation. Large radiographs depend on M2.3's bounded image
+path. Each phase must be small enough to review and roll back independently; statistical methods are added
+one at a time. Retain the current implementation as the default during major experiments and define flag
+removal only after acceptance. Benchmarks use public or generated data; unpublished images are not committed.
+
+Planning delivery verification: 267 Python tests passed (six optional/permission skips), 218 Node tests,
+JavaScript types, Ruff, version consistency, whitespace and standalone build pass. No analysis, interface or
+save implementation changes; no new tests or repeated browser E2E are needed. Local delivery on `master`;
+GitHub retrieval requires an authorised push. M3.3.1 remains the existing audit's next priority candidate.
+
 ### Audit triage and proposed priority
 
 The maintainer requested incorporation of the supplied V0.123 technical audit on 11 November 2026;
@@ -393,6 +419,44 @@ existing projects retain failed-save protection. Performance evidence is collect
     - Local delivery on `master`; GitHub handoff needs an authorised push. The next roadmap phase is M3.1
       analysis profiling; no further workstream is started here.
 
+- [ ] **M2.3 - Multi-gigabyte image workflows.** Extend the measured M2.2 scope to individual source files
+      of several gigabytes and larger decoded rasters, including native grayscale/16-bit images. Raising
+      the current input/memory limits alone is not an implementation of this task.
+  - [ ] **M2.3.1 - Define fixtures, hardware and responsiveness targets.** Build deterministic 2, 4 and 8 GiB
+        source-file cases, plus compressed cases whose decoded rasters exceed those sizes. Record dimensions,
+        channels, bit depth, compression, tile/strip layout and exact encoded/decoded byte counts separately.
+        Compare local-SSD hosts with 16/32 GiB RAM, documenting browser and desktop differences and storage quotas.
+    - Acceptance: reproduce opening, first useful preview, cold/cached pan/zoom, editing, analysis, export and
+      save/reopen with process-tree RSS, temporary-disk usage, copies and CPU/I/O attribution. Initial proposed
+      targets are cached-navigation p95 frame time <=33 ms, control response <=100 ms and cancellation
+      acknowledgement <=250 ms. Ratify achievable targets and an absolute working-memory/cache budget on
+      named hardware before implementation; report cold loading and analysis throughput separately.
+  - [ ] **M2.3.2 - Bounded image source and multiresolution tiles.** Read supported TIFF/BigTIFF regions on
+        demand and generate/reuse a disk-backed pyramid without decoding the full raster into memory. Define
+        a cancellable conversion path for non-random-access sources and a source/cache identity contract.
+    - Acceptance: sampled native pixels, dimensions and coordinates match independent references exactly;
+      peak working memory follows the declared tile budget rather than full raster size. Handle corrupt
+      tiles, oversized declarations, interruption and exhausted disk space. Preserve originals and existing
+      supported inputs; compare dependency, distribution and offline costs before selecting a decoder.
+  - [ ] **M2.3.3 - Responsive tiled viewer and editing.** Load visible tiles with bounded prefetch/cache,
+        level-of-detail selection, background decoding and cancellation of obsolete viewport requests.
+        Store masks/exclusions and editing history in bounded chunks; keep full-resolution coordinates.
+    - Acceptance: meet M2.3.1's agreed responsiveness/RSS targets during repeated pan/zoom and edits; evict
+      buffers and worker/GPU resources predictably. Verify depth mapping, overlaps, exclusions, undo/redo,
+      invalidation and identical exported masks. A lower-resolution preview must not silently change analysis.
+  - [ ] **M2.3.4 - Analysis and export beyond resident memory.** Stream counting, filtering, detection,
+        U-Net tiling and exports in independently delivered operations. Define filter halos, border rules
+        and cross-tile object merging before replacing a whole-image operation.
+    - Acceptance: exact integer masks/counts and reference-equivalent scientific results at predeclared
+      tolerances, including objects crossing tile seams, fractional intervals and exclusions. Bound scratch
+      memory, expose progress/cancellation and verify that cancellation publishes no partial result as complete.
+  - [ ] **M2.3.5 - Large-project storage and recovery.** Stream original-image import, project packaging,
+        backup and recovery with bounded buffers; make portable-copy versus external-source references
+        explicit, with checksums and missing/moved-source recovery. Treat generated pyramids as disposable caches.
+    - Acceptance: reopen multi-gigabyte projects with unchanged source bytes, masks and results; preserve
+      the last good save after quota, disk-full, interrupted transfer and partial-cache failures. Verify
+      legacy projects and portable exports in supported runtimes; document browser-specific limits.
+
 ### M3 - Analysis and learned segmentation
 
 - [ ] **M3.1 - Analysis performance.** Profile Python and JavaScript before optimising shared algorithms.
@@ -462,6 +526,19 @@ existing projects retain failed-save protection. Performance evidence is collect
       version consistency and standalone build. Local delivery on master; GitHub handoff requires an
       authorised push. Next candidate: accept default promotion after reviewing the measured scope and
       broader workload needs; flag removal remains a separate decision.
+  - [ ] **M3.1.6 - Review promotion of the measured NumPy counting path.** Review M3.1.5's accepted workload
+        results and extend coverage to representative overlaps, class counts, strided masks and radiograph-sized
+        tiles before proposing a default change. Preserve the current rollback path and scientific contract.
+    - Acceptance: matched end-to-end latency/RSS measurements, exact counts/indices and documented numerical
+      parity; no universal speed claim from the original two fixtures. Promotion and flag removal remain
+      separate maintainer decisions. This planning entry does not resume the earlier conditional Rust sequence.
+  - [ ] **M3.1.7 - Cancellable background calculation and bounded reuse.** Profile and move selected costly
+        browser operations into workers with explicit buffer ownership, bounded concurrency, progress and
+        cancellation. Evaluate dependency-aware reuse of counts, derived series and map grids after edits.
+    - Acceptance: the interface meets agreed response/cancellation targets while calculations run; stale jobs
+      cannot overwrite newer edits/results. Include worker startup, buffer transfers and cache memory in
+      end-to-end comparisons; require identical outputs and correct invalidation on every relevant input.
+      Compare worker-only JavaScript with M4.1.1 before adding a native kernel.
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU
@@ -560,6 +637,20 @@ existing projects retain failed-save protection. Performance evidence is collect
 
 - [ ] **M4.1 - Targeted experiments.** Evaluate WebAssembly, GPU rendering or alternative tabular storage when
       a measured bottleneck justifies it. Compare performance, compatibility and maintenance costs.
+  - [ ] **M4.1.1 - Conditional Rust/Wasm image kernel.** Select one measured hotspot such as preview reduction,
+        mask traversal or connected components. Compare existing JavaScript, worker-only JavaScript and a small
+        Rust/Wasm kernel; compare native Python bindings only if the same operation justifies sharing the kernel.
+    - Acceptance: define the numerical contract and inputs first, count all buffer copies/bridge overhead,
+      and preserve existing Python/JavaScript APIs and legacy scientific references. Initial promotion target:
+      >=25% lower end-to-end median latency on each selected representative workload and <=10% peak-RSS growth,
+      subject to M2.3's stricter absolute budget where applicable. Record build, installer, offline HTML,
+      platform-testing and dependency costs. Keep a default-off experiment and working fallback; stop if the
+      target fails. No broad language migration or new backend is selected by this roadmap update.
+  - [ ] **M4.1.2 - Conditional GPU display or computation.** After separating CPU, I/O and rendering costs,
+        evaluate GPU tile display or one suitable numerical operation only where profiling justifies it.
+    - Acceptance: compare with the best accepted CPU path, include upload/readback and GPU memory, handle
+      device loss with CPU fallback, and validate deterministic/exact outputs or justified tolerances before
+      implementation. Training-provider changes and GPU rendering are separate experiments.
 
 ### M5 - Release readiness
 
@@ -623,6 +714,70 @@ existing projects retain failed-save protection. Performance evidence is collect
     with a parser only if needed, documenting dependency/offline costs before adding one.
   - R2 adds the local unaliased export-list support needed for compatibility exports, with explicit errors
     for unsupported lists. The broader import/re-export/dynamic-import and lexical-validation work remains pending.
+
+### M6 - Advanced-statistics module
+
+- [ ] **M6.1 - Data and method contracts.** Define an analysis dataset from selected cores, proxies,
+      ichnological results and event families, with depth/age coordinates, units, missingness, provenance and
+      an immutable input snapshot. Specify transformations, compositional variables and independent sampling
+      units before selecting methods. Assess browser/offline implementations and an optional local Python
+      backend, documenting availability and dependency costs without silent method substitution.
+  - Acceptance: explicit alignment/resampling rules, reproducible filters and transformations, memory limits,
+    cancellation and a method registry with assumptions, outputs and predeclared reference tolerances.
+- [ ] **M6.2 - Exploratory and association methods.** Implement descriptive/robust summaries, distributions,
+      outlier diagnostics and Pearson/Spearman/Kendall association with effective sample counts, missing-data
+      handling and uncertainty. Add inspectable plots linked to the selected observations and cores.
+  - Acceptance: hand-computed and independent reference fixtures, constants/ties/missingness/unequal units,
+    no mutation of measurements and explicit warnings when independence assumptions are unsuitable.
+- [ ] **M6.3 - Multivariate analysis.** Implement PCA and hierarchical clustering with explicit scaling,
+      distance/linkage choices, explained variance, scores/loadings and sensitivity to variable selection.
+      Reuse current clustering/classifier machinery where appropriate instead of duplicating its definitions.
+  - Acceptance: reproducible reference results, rank-deficient/collinear and missing-data cases, permutation
+    and sign ambiguities handled in validation, and clear separation of exploratory groups from known classes.
+- [ ] **M6.4 - Inference and statistical models.** Add regression/GLM and selected group-comparison methods,
+      effect sizes, confidence intervals, multiple-testing correction and seeded bootstrap/permutation tests.
+      Define blocked or core-level resampling for stratigraphic autocorrelation and repeated observations.
+  - Acceptance: assumptions/diagnostics and independent sample counts accompany outputs; synthetic null and
+    known-effect tests check calibration. Prevent leakage when choosing variables/scaling and evaluating models;
+    document supported designs and validate each method independently before making it available.
+- [ ] **M6.5 - Down-core and age-series statistics.** Develop cross-correlation, change-point and spectral
+      analyses in separate deliveries, with an explicit treatment of uneven spacing, gaps, detrending,
+      autocorrelation and age-model uncertainty. Do not infer causality from correlation or classification.
+  - Acceptance: recover known synthetic signals/change depths within declared resolution, test null/aliasing
+    cases and report uncertainty/sensitivity to resampling and age models. Define computational limits first.
+- [ ] **M6.6 - Program integration and reproducible delivery.** Implement the statistics workspace with
+      explicit input selection, transformations, method settings, progress/cancellation and saved analysis runs.
+      Export result tables and SVG/PNG figures with input identity, method/version, parameters and random seed.
+  - Acceptance: restore the same analysis after project reload, preserve source data and existing workflows,
+    invalidate or label outdated results after edits, and verify served/desktop/offline capabilities explicitly.
+    Deliver validated methods incrementally; do not wait for every proposed method to release the first module.
+
+### M7 - Radiographs and multimodal core images
+
+- [ ] **M7.1 - Radiograph input and metadata contract.** Inventory public/owner-approved examples and define
+      a first 2-D format matrix: native grayscale TIFF/BigTIFF and relevant exported image formats, bit depth,
+      intensity polarity, pixel spacing, orientation and depth coverage. Evaluate DICOM only if actual sources
+      require it; record decoder, metadata, dependency and offline constraints before implementation.
+  - Acceptance: approved fixtures with known raw samples/dimensions and metadata, invalid/unsupported-input
+    behaviour, storage estimates and a versioned modality schema. Keep 3-D CT volumes outside this first scope.
+- [ ] **M7.2 - Import and radiograph viewer.** Attach radiographs as an additional modality of a core/section,
+      retaining the original bytes/native intensities. Provide grayscale window/level, inversion and display
+      controls without overwriting calibrated values; use M2.3 for sources beyond resident memory.
+  - Acceptance: exact raw sample preservation, high-bit-depth and orientation fixtures, bounded viewing,
+    project save/reload and recovery. Previous single-photo projects retain their appearance and results.
+- [ ] **M7.3 - Optical/radiograph alignment.** Add physical-scale and depth tie points, side-by-side and
+      overlay inspection, cropping/registration controls and explicit handling of unequal resolution, gaps,
+      distortion and partial section coverage. Map depth to age through the same selected-core age model.
+  - Acceptance: independent known-coordinate fixtures establish alignment error limits before implementation;
+    original coordinates remain recoverable and display transforms cannot silently alter analysis depths.
+    Persist transformations, calibration provenance and uncertainty independently for each modality.
+- [ ] **M7.4 - Radiograph measurements and figures.** Implement reproducible intensity/texture profiles,
+      modality-specific annotations and selected analysis-region measurements; integrate them as labelled
+      records/image tracks in Data, Multiproxy, statistics and publication figures.
+  - Acceptance: reference profiles and region measurements, explicit raw/display/calibrated value distinctions,
+    source identity and units in exports, synchronized optical/radiograph depth windows and SVG/PNG output.
+    Radiographic contrast must not be treated automatically as density, ichnotaxon identity or bioturbation
+    percentage without its own calibration/validation. Validate any such interpretation as a separate method.
 
 ## Existing backlog
 
@@ -783,4 +938,5 @@ existing projects retain failed-save protection. Performance evidence is collect
 
 ## Further ichnological parameters
 - [ ] Ichnodiversity, burrow size, tiering and cross-cutting relationships
-- [ ] CT and X-ray image support
+- [ ] 2-D radiograph support is scoped in M7.1–M7.4 above. Scope 3-D CT volumes separately after those
+      input, storage and calibration contracts have been evaluated.

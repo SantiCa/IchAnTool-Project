@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.138 — 2026-11-12
+
+- Expand the roadmap with staged development for multi-gigabyte images, responsive calculations, conditional Rust/Wasm/GPU acceleration, an advanced-statistics module and radiograph integration.
+- Define proposed performance targets, scientific validation, storage/recovery requirements and dependencies. These are planned capabilities; the current application behaviour is unchanged.
+
 ## V0.137 — 2026-11-12
 
 - Preserve literal names and paths such as `NA`, `NULL` and `N/A` when reading batch manifests; only empty fields trigger missing-value handling and defaults.
