@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.127 — 2026-11-11
+
+- Confine desktop `app://corantool` requests to files inside the packaged web root, rejecting sibling-prefix traversal, encoded path separators, Windows drive or UNC paths and malformed URL escapes while preserving normal application assets and floating windows.
+
 ## V0.126 — 2026-11-11
 
 - Separate shared depth and pixel-scale calculations from the interface, preserving existing exports, fractional interval boundaries and project measurements.

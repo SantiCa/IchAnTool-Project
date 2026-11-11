@@ -2481,6 +2481,12 @@ Code: `desktop/` (Electron 45.2.1, packaged with electron-builder 26.18.0).
 
 - **What it runs:** the `app/` code, served through the private scheme `app://` (so ES modules, IndexedDB and fetch
   work as on a web server), plus the Natural Earth coastline used by maps. Downloads contain no sample data.
+  `desktop/main.js::resolveAppPath` and `isWithinRoot` require the `app://corantool` origin, decode the URL path once,
+  reject malformed percent-escapes, NUL bytes, encoded or literal backslashes, encoded slashes (`%2f`, `%5c`), colons
+  (Windows drive and stream forms) and directory URLs, and verify with `path.relative` that the resolved target lies
+  strictly inside `desktop/web` rather than matching by string prefix alone. Unencoded `/../` and `/%2e%2e/` segments
+  at the URL root are clamped to `/` by standard URL parsing before reaching filesystem resolution and therefore map
+  inside `desktop/web`.
 - **Memory:** the JavaScript memory limit is 75 % of the computer's RAM, between 2 and 32 GB
   (`--max-old-space-size`), although Electron limits each window to about 4 GB of JavaScript objects (pointer
   compression). Images (ArrayBuffers) are outside that limit; beyond physical RAM the operating system pages memory to

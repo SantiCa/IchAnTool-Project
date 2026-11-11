@@ -63,11 +63,19 @@ try {
     trainer: await window.corantoolDesktop.trainer.status(),
     ort: (await fetch('vendor/ort/ort.wasm.min.js')).ok,
     csp: !!document.querySelector('meta[http-equiv="Content-Security-Policy"]'),
+    rejected: await Promise.all([
+      'app://corantool/..%2fweb-sibling/secret.txt',
+      'app://corantool/..%5cweb-sibling%5csecret.txt',
+      'app://corantool/..%2fmain.js',
+      'app://corantool/C:%5cWindows%5cwin.ini',
+      'app://corantool/%E0%A4%A',
+    ].map(async (u) => (await fetch(u)).status)),
   }));
   assert.equal(desktop.origin, 'app://corantool');
   assert.ok(!desktop.trainer.busy, 'trainer is idle');
   assert.ok(desktop.ort, 'bundled ONNX runtime');
   assert.ok(desktop.csp, 'CSP present');
+  assert.deepEqual(desktop.rejected, [403, 403, 403, 403, 403], 'desktop protocol rejects outside and malformed paths');
   // Optional real-model/network checks use a local pinned ONNX file and a fixed public map extent.
   // CI remains independent of external services and a large model download.
   if (process.env.SEDCORETOOL_VISION_MODEL) {

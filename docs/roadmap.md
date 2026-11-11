@@ -35,7 +35,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 | Audit ID | Disposition after source review | Roadmap task |
 |---|---|---|
 | AUD-01 | Previous model artifacts are removed before preparation; already tracked | M3.2.3 |
-| AUD-02 | Prefix-only containment check exists; reproduce reachable URL/path cases before claiming exploitability | M0.4 |
+| AUD-02 | Prefix-only containment check replaced with directory-boundary and URL validation in [V0.127](../CHANGELOG.md#v0127--2026-11-11) | M0.4 |
 | AUD-03 | Unescaped no-data colours and inconsistent validation paths exist; audit the actual defaults and consumers | M0.5 |
 | AUD-04 | Palette parser assumes six hexadecimal digits | M3.3.1 |
 | AUD-05 | Fractional bin size still has an integer annotation | M3.3.2 |
@@ -98,12 +98,27 @@ The planning commit remains local on master until an authorised push. No audit f
         and CLI. Report both filenames and dimensions for mismatched exclusion images.
         [V0.102](../CHANGELOG.md#v0102--2026-11-09)
 
-- [ ] **M0.4 - Bound desktop protocol paths (AUD-02).** Replace prefix-only containment with a
+- [x] **M0.4 - Bound desktop protocol paths (AUD-02).** [V0.127](../CHANGELOG.md#v0127--2026-11-11).
+      Authorised by the maintainer on 11 November 2026. Replace prefix-only containment with a
       directory-boundary-aware check in `desktop/main.js`, after reproducing URL parsing and decoding.
   - Acceptance: requests resolving outside the web root cannot reach files, including sibling-prefix
     directories, encoded separators/traversal, Windows drive/UNC forms and malformed escapes. Legitimate
     assets and the existing `app://corantool` origin keep working. Cover platform path semantics and
     Electron protocol behaviour; distinguish a rejected request from one already normalised by URL parsing.
+  - Reproduced before patching: unencoded `/../` and `/%2e%2e/` at the URL root are clamped to `/` by
+    standard URL parsing (`new URL`), mapping inside `desktop/web`; percent-encoded separators (`..%2f`,
+    `%2e%2e%2f`, `..%5c`) survive URL parsing and, after `decodeURIComponent`, escaped `desktop/web` into
+    sibling-prefix directories (`web-sibling/...`) under the old `file.startsWith(WEB)` check, while
+    malformed percent-escapes threw `URIError`.
+  - Delivered: `isWithinRoot`, `resolveAppPath` and `handleAppRequest` in `desktop/main.js` validate the
+    `app://corantool` origin, decode once with `URIError` handling, reject NUL bytes, encoded/literal
+    separators (`%2f`, `%5c`, `\`), colons/Windows drive/UNC/device forms and directory URLs, and enforce
+    strict directory containment via `path.resolve` and `path.relative`. Window-open and trainer IPC origin
+    checks reuse `resolveAppPath`.
+  - Verified across POSIX and Windows path semantics and on a temporary filesystem with sibling-prefix and
+    parent sentinels (`tests/app/desktop-protocol.test.mjs`, `tests/e2e/desktop.mjs`). Required Python, Node,
+    typecheck, Ruff, version and standalone checks pass. Local delivery on `master`; GitHub handoff requires
+    an authorised push. Next candidate in priority order: M0.5.
 - [ ] **M0.5 - Validate untrusted presentation colours (AUD-03).** Review no-data colour merging and
       all affected DOM/SVG consumers in `log.js`, `columns.js` and shared figure controls.
   - Acceptance: validate both `ndColor` and `ndLine` against supported hex forms, escape interpolated
