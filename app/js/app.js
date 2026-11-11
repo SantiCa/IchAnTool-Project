@@ -13,6 +13,7 @@ import { evalColumn, formulaRefs, fillLinear } from './sheet.js';
 import { TaxonModel, evaluateModels, finalTestMetrics, independentExternalExamples, descriptorSig, vec, FEATURES } from './learn.js';
 import { splitPieces, mergeKeeper, sameTaxonGroups, swapHistoryPixels, trimEditHistory, upgradeProject, validSavedRegion, hasBrokenMaskRefs } from './edit.js';
 import { t, lang, setLang, applyI18n, fxText } from './i18n.js';
+import { initializeDiagnostics, diagnosticEvent, diagnosticOperation, renderDiagnosticStatus } from './diagnostics.js';
 import { zipFiles, unzipBlob } from './zip.js';
 import { decodeTiffBlocks } from './tiff.js';
 import { IGNORE, doubtful, trainingMask, cropRGBA } from './unet.js';
@@ -26,7 +27,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.133';
+export const DELIVERY = 'V0.134';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -727,9 +728,9 @@ function mergeObjects(list, group = '') {
 
 function runDetection() {
   const s = sec(); if (!s) return;
-  if (s.detect.method !== 'unet') { busy(() => withPixels(s, detectSection)); return; }
+  if (s.detect.method !== 'unet') { busy(() => withPixels(s, detectSection), 'detect'); return; }
   if (!unetController.model) { $('detectStatus').textContent = t('u.noModel'); return; }
-  busy(() => withPixels(s, async (x) => { await unetProb(x); await detectSection(x); }));
+  busy(() => withPixels(s, async (x) => { await unetProb(x); await detectSection(x); }), 'detect');
 }
 
 /* ───────────── V0.15: U-Net (model trained with `sedcoretool unet train`, run with ONNX Runtime Web) ───────────── */
@@ -2895,6 +2896,7 @@ let readOnlyProject = false;
 let projectPreview = null;
 
 async function loadProject(p) {
+  const finishDiagnostic = diagnosticOperation('project.load');
   const source = p;
   blankStart = false;
   resetState(); loading = true; loadMigrated = false; clearTimeout(saveTimer);
@@ -2930,6 +2932,7 @@ async function loadProject(p) {
     console.error(err); loading = false; clearTimeout(saveTimer);
     resetState(); blankStart = true; dirty = false; readOnlyProject = false; setSaveState('off');
     toast(t('load.failed', { e: err?.message || String(err) }), 9000);
+    finishDiagnostic(err);
     return false;
   } finally { loading = false; }
   if (readOnlyProject) setTimeout(() => { setSaveState('off'); toast(t('load.newer', { v: p.delivery || p.version }), 10000); }, 300);
@@ -2943,6 +2946,7 @@ async function loadProject(p) {
   dirty = false; setSaveState(storageOK && !projectPreview ? 'saved' : 'off');
   if (loadMigrated) markDirty();   // V0.1: move images of older projects to the image store
   renderComments();
+  finishDiagnostic();
 }
 
 function resetState() {
@@ -2995,6 +2999,7 @@ async function saveToDB() {
   clearTimeout(saveTimer);
   if (savePromise) { await savePromise.catch(() => {}); if (!dirty && !savePromise) return; }
   savePromise = (async () => {
+    const finishDiagnostic = diagnosticOperation('save');
     try {
       setSaveState('saving'); dirty = false;
       await storePendingImages();
@@ -3005,8 +3010,10 @@ async function saveToDB() {
       try { localStorage.setItem('ichantool.last', S.id); } catch { /* storage blocked */ }
       lastSaveError = null;
       setSaveState(dirty ? 'dirty' : 'saved'); scheduleBackup();
+      finishDiagnostic();
     } catch (e) {
       dirty = true; lastSaveError = e; setSaveState('error'); console.error(e);
+      finishDiagnostic(e);
       if (e?.name === 'QuotaExceededError') toast(t('save.quota'));
     }
   })();
@@ -3335,17 +3342,23 @@ async function writeProjectFolder(root, d) {
   const dir = await root.getDirectoryHandle(`${safe(d.name)}__${d.id}`, { create: true }), imgs = await dir.getDirectoryHandle('images', { create: true });
   const e = projectForExport(d, '', true);
   for (const im of e.images) {
+    diagnosticEvent('operation.start', { operation: 'backup.image' });
     const name = im.path.slice('images/'.length);
     const source = await im.get(true);
     const fh = await imgs.getFileHandle(name, { create: true });
-    if ((await fh.getFile()).size === source.size) continue;
+    if ((await fh.getFile()).size === source.size) { diagnosticEvent('operation.end', { operation: 'backup.image' }); continue; }
     await source.stream().pipeTo(await fh.createWritable());
+    diagnosticEvent('operation.end', { operation: 'backup.image' });
   }
   const text = JSON.stringify(e.json);
+  diagnosticEvent('operation.start', { operation: 'backup.manifest' });
   await writeText(dir, 'project.json', text);
+  diagnosticEvent('operation.end', { operation: 'backup.manifest' });
   const hist = await dir.getDirectoryHandle('historial', { create: true });
+  diagnosticEvent('operation.start', { operation: 'backup.history' });
   await writeText(hist, `${today()}.json`, text);
   await rotateHistory(hist).catch(() => { /* rotation is best effort */ });
+  diagnosticEvent('operation.end', { operation: 'backup.history' });
 }
 /** Open a project folder written by writeProjectFolder (or its parent with several projects). */
 async function openProjectFolder() {
@@ -3390,6 +3403,7 @@ function backupNow() {
   if (backupPromise) return backupPromise;
   if ((backupState !== 'ok' && backupState !== 'error') || !backupDir) return Promise.resolve();
   const root = backupDir, revision = backupRevision, since = lastBackup, started = Date.now();
+  const finishDiagnostic = diagnosticOperation('backup');
   backupPromise = (async () => {
     try {
       // Capture live state before yielding; switching projects must not change this run's source or destination.
@@ -3400,17 +3414,21 @@ function backupNow() {
         if (m.id === current?.id || m.updated < since) continue;
         const d = await getProject(m.id); if (d) await writeProjectFolder(root, d);
       }
+      diagnosticEvent('operation.start', { operation: 'backup.settings' });
       await writeText(root, 'sedcoretool_ajustes.json', settings);
+      diagnosticEvent('operation.end', { operation: 'backup.settings' });
       if (root !== backupDir) return;
       // Edits saved during I/O belong to a later pass, even when their timestamps precede completion.
       lastBackup = started; backupPending = revision !== backupRevision; backupRetries = 0; backupState = 'ok'; backupError = '';
       await setPref('lastBackup', lastBackup);
     } catch (e) {
+      finishDiagnostic(e);
       if (root !== backupDir) return;
       backupPending = true; backupState = 'error'; backupError = e?.message || String(e); console.error(e);
       if (backupRetries++ < 3) backupTimer = setTimeout(backupNow, 60000 * backupRetries);
     }
   })().finally(() => {
+    finishDiagnostic();
     backupPromise = null;
     if (root !== backupDir || (backupPending && backupState === 'ok')) backupTimer = setTimeout(backupNow, 20000);
     renderBackupState();
@@ -3428,19 +3446,21 @@ async function checkBackupAge() {
 async function chooseBackupDirectory() {
   if (choosingBackup) return;
   choosingBackup = true; renderBackupState();
+  const finishDiagnostic = diagnosticOperation('backup.choose');
   try {
     const selected = await window.showDirectoryPicker({ id: 'ichantool-backup', mode: 'readwrite' });
     backupDir = selected; lastBackup = 0; backupPending = true; backupRevision++; backupRetries = 0; backupError = '';
     await setPref('backupDir', backupDir).catch(() => {});
     await setPref('lastBackup', 0).catch(() => {});
     backupState = 'ok'; await backupNow();
-  } catch (e) { if (e?.name !== 'AbortError') toast(e.message || String(e)); }
-  finally { choosingBackup = false; renderBackupState(); }
+  } catch (e) { finishDiagnostic(e); if (e?.name !== 'AbortError') toast(e.message || String(e)); }
+  finally { finishDiagnostic(); choosingBackup = false; renderBackupState(); }
 }
 $('bkChoose').addEventListener('click', chooseBackupDirectory);
 async function reactivateBackup() {
   if (!backupDir || reactivatingBackup) return;
   reactivatingBackup = true; renderBackupState();
+  const finishDiagnostic = diagnosticOperation('backup.reactivate');
   try {
     if (typeof backupDir.requestPermission !== 'function') throw new Error(t('bk.chooseAgain'));
     const perm = await backupDir.requestPermission({ mode: 'readwrite' });
@@ -3448,9 +3468,10 @@ async function reactivateBackup() {
     backupState = 'ok'; backupError = ''; backupRetries = 0;
     await backupNow();
   } catch (e) {
+    finishDiagnostic(e);
     backupState = 'needs'; backupPending = true; backupError = e?.message || String(e);
     toast(t('bk.reactivateFailed', { e: backupError }), 10000);
-  } finally { reactivatingBackup = false; renderBackupState(); }
+  } finally { finishDiagnostic(); reactivatingBackup = false; renderBackupState(); }
 }
 for (const id of ['bkReactivate', 'bkReactivateTop']) $(id).addEventListener('click', reactivateBackup);
 
@@ -4263,12 +4284,13 @@ export function withProv(csv) {
 }
 export function toast(msg, ms = 3200) { const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => (el.hidden = true), ms); }
 
-export async function busy(fn) {
+export async function busy(fn, operation = 'work') {
+  const finishDiagnostic = diagnosticOperation(operation);
   $('busy').hidden = false;
   await new Promise((r) => setTimeout(r, 30));
   try { await fn(); }
-  catch (err) { console.error(err); toast(t('err.generic', { e: err?.message || String(err) }), 8000); }   // V0.36: errors are shown
-  finally { $('busy').hidden = true; }
+  catch (err) { finishDiagnostic(err); console.error(err); toast(t('err.generic', { e: err?.message || String(err) }), 8000); }   // V0.36: errors are shown
+  finally { finishDiagnostic(); $('busy').hidden = true; }
 }
 /* V0.36: errors nobody caught are shown instead of being lost (once every 5 s at most) */
 let lastErrToast = 0;
@@ -4318,6 +4340,7 @@ function applyLanguage() {
   $('langBtn').textContent = lang() === 'es' ? 'EN' : 'ES';
   renderRecList(); updateProjHeader(); scheduleLog(0); scheduleGeo(0);
   requestRender();
+  renderDiagnosticStatus();
 }
 $('langBtn').addEventListener('click', () => { setLang(lang() === 'es' ? 'en' : 'es'); applyLanguage(); });
 let singleKeys = true; try { singleKeys = localStorage.getItem('ichantool.keys') !== 'off'; } catch { /* storage blocked */ }
@@ -4332,7 +4355,16 @@ new ResizeObserver(resizeCanvases).observe(vp);
 buildForms(); applyLanguage(); syncSettingsForm();
 setTool('select'); setBrush(10); $('wandTol').value = S.wandTol; $('tolOut').textContent = S.wandTol; $('ovAlpha').value = S.ovAlpha * 100;
 resizeCanvases();
-startup();
+initializeDiagnostics({
+  snapshot: () => {
+    const section = sec();
+    return { mode: $('home').hidden ? mode : 'home', tool: S.tool, cores: S.cores.length, sections: S.sections.length,
+      width: section?.w || 0, height: section?.h || 0, objects: section?.objects.size || 0,
+      saveState: saveSt, backupState, backupPending };
+  },
+  openHome: showHome,
+});
+const startupReady = startup();
 
 // Exposed for automated tests.
-window.ichantool = { S, saveToDB, renderProjects, showHome, runDetection, analyze, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II, geoRT, geoTrain, renderGeo, loadGeoDemo };
+window.ichantool = { S, ready: startupReady, saveToDB, renderProjects, showHome, runDetection, analyze, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II, geoRT, geoTrain, renderGeo, loadGeoDemo };

@@ -114,6 +114,14 @@ U-Net on the computer.
 
 The built-in help and guided tour explain each step. The downloads contain no sample data.
 
+To investigate a desktop failure, open the project screen and expand **Temporary diagnostics**. Enable
+**Record actions and failures for seven days**, then work normally. If the program hangs, restart it and
+use **Export diagnostic log…** to save a `.jsonl` file for inspection. Recording is off by default, has a
+visible indicator when active and stops after seven days. Untick the option to stop sooner, or use
+**Stop and delete log**. The log stays on your computer, retains at most 4 MiB of recent events and excludes
+typed text, names, paths, images and project contents. No automatic upload occurs. See the
+[diagnostic scope and limits](docs/TECHNICAL_DOCUMENTATION.md#261-temporary-operating-diagnostics).
+
 In the **Sections** panel, **Optimised navigation preview** starts enabled and uses a separate thumbnail
 cache for the section navigator. Disable it to use the previous renderer for the current session; reloading
 enables it again. This display choice is not saved in projects. See the

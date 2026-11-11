@@ -4,6 +4,7 @@
 //   beyond physical RAM the operating system pages memory to disk (SSD) as for any program.
 // - Projects are stored in IndexedDB inside the user-data folder (on disk), not in a browser profile.
 const { Trainer } = require('./trainer');
+const { DiagnosticsLog, diagnosticError, safeDiagnosticEvent } = require('./diagnostics');
 const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
@@ -53,7 +54,8 @@ function setupSessionPermissions(ses) {
 }
 
 if (process.versions.electron) {
-  const { app, BrowserWindow, protocol, net, shell, session, ipcMain } = require('electron');
+  const { app, BrowserWindow, protocol, net, shell, session, ipcMain, dialog } = require('electron');
+  const fromApp = (event) => Boolean(event?.senderFrame && resolveAppPath(event.senderFrame.url));
 
   const heapMB = Math.max(2048, Math.min(32768, Math.floor((os.totalmem() / 2 ** 20) * 0.75)));
   app.commandLine.appendSwitch('js-flags', `--max-old-space-size=${heapMB}`);
@@ -77,22 +79,88 @@ if (process.versions.electron) {
     return win;
   }
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     protocol.handle('app', (req) => handleAppRequest(req, { fetchFile: (file) => net.fetch(pathToFileURL(file).toString()) }));
     // keep the project library: ask Chromium to treat the storage as persistent
     setupSessionPermissions(session.defaultSession);
     setupTrainer();
+    await setupDiagnostics();
     createWindow();
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+  async function setupDiagnostics() {
+    const log = new DiagnosticsLog({ directory: path.join(app.getPath('userData'), 'diagnostics'), version: app.getVersion(), runtime: process.versions });
+    await log.ready;
+    if (log.isEnabled()) log.record({ type: 'session.start' });
+    let lastEnabled = log.isEnabled();
+    const heartbeats = new Map();
+    const publishStatus = async () => {
+      const status = await log.status(); lastEnabled = status.enabled;
+      for (const win of BrowserWindow.getAllWindows()) {
+        try { if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send('diagnostics:statusChanged', status); }
+        catch { /* A closing window no longer needs the status. */ }
+      }
+      return status;
+    };
+    const handle = (channel, work) => ipcMain.handle(channel, (event, ...args) => {
+      if (!fromApp(event)) throw new Error('forbidden');
+      return work(event, ...args);
+    });
+    handle('diagnostics:status', () => log.status());
+    handle('diagnostics:setEnabled', async (_event, enabled) => { await log.setEnabled(enabled); return publishStatus(); });
+    handle('diagnostics:clear', async () => { await log.clear(); return publishStatus(); });
+    handle('diagnostics:export', async (event) => {
+      const parent = BrowserWindow.fromWebContents(event.sender);
+      const chosen = await dialog.showSaveDialog(parent, {
+        defaultPath: `SedCoreTool-diagnostics-${new Date().toISOString().slice(0, 10)}.jsonl`,
+        filters: [{ name: 'JSON Lines', extensions: ['jsonl'] }],
+      });
+      if (chosen.canceled || !chosen.filePath) return { saved: false };
+      await log.exportTo(chosen.filePath);
+      return { saved: true };
+    });
+    ipcMain.on('diagnostics:event', (event, payload) => {
+      if (!fromApp(event) || !log.isEnabled()) return;
+      const safe = safeDiagnosticEvent(payload); if (!safe) return;
+      if (safe.type === 'renderer.heartbeat') heartbeats.set(event.sender.id, Date.now());
+      log.record({ ...safe, windowId: event.sender.id });
+    });
+    app.on('browser-window-created', (_event, win) => {
+      const windowId = win.webContents.id;
+      log.record({ type: 'window.open', windowId }); heartbeats.set(windowId, Date.now());
+      win.on('unresponsive', () => log.record({ type: 'renderer.unresponsive', windowId }));
+      win.on('responsive', () => log.record({ type: 'renderer.responsive', windowId }));
+      win.webContents.on('render-process-gone', (_event, details) => log.record({ type: 'renderer.gone', windowId, reason: details.reason, exitCode: details.exitCode }));
+      win.webContents.on('did-fail-load', (_event, errorCode) => log.record({ type: 'renderer.loadFailed', windowId, exitCode: errorCode }));
+      win.on('closed', () => { heartbeats.delete(windowId); log.record({ type: 'window.closed', windowId }); });
+    });
+    app.on('child-process-gone', (_event, details) => log.record({ type: 'process.gone', processType: details.type, reason: details.reason, exitCode: details.exitCode }));
+    const sampler = setInterval(() => {
+      if (lastEnabled !== log.isEnabled()) void publishStatus();
+      if (!log.isEnabled()) return;
+      try {
+        const metrics = app.getAppMetrics();
+        log.record({ type: 'process.sample', mainRssBytes: process.memoryUsage().rss,
+          workingSetKb: metrics.reduce((sum, metric) => sum + metric.memory.workingSetSize, 0),
+          rendererWorkingSetKb: metrics.filter((metric) => metric.type === 'Tab').reduce((sum, metric) => sum + metric.memory.workingSetSize, 0),
+          cpuPercent: metrics.reduce((sum, metric) => sum + metric.cpu.percentCPUUsage, 0),
+          silenceMs: Math.max(0, ...[...heartbeats.values()].map((last) => Date.now() - last)),
+        });
+      } catch { /* A diagnostic sample must not stop the program. */ }
+    }, 5000);
+    sampler.unref();
+    process.on('uncaughtExceptionMonitor', (error) => {
+      try { log.record({ type: 'process.error', ...diagnosticError(error) }); } catch { /* Preserve the original fatal-error behaviour. */ }
+    });
+  }
 
   /* V0.17: U-Net training on this computer (see trainer.js). The Python source travels as an extra resource. */
   function setupTrainer() {
     const pySrc = app.isPackaged ? path.join(process.resourcesPath, 'python') : path.join(__dirname, 'python');
     const send = (type, data) => { for (const w of BrowserWindow.getAllWindows()) w.webContents.send('trainer:event', type, data); };
     const tr = new Trainer({ root: path.join(app.getPath('userData'), 'trainer'), pySrc, send });
-    const fromApp = (e) => Boolean(e && e.senderFrame && resolveAppPath(e.senderFrame.url));   // only the program's own pages
     const handle = (ch, fn) => ipcMain.handle(ch, (e, ...a) => { if (!fromApp(e)) throw new Error('forbidden'); return fn(...a); });
     handle('trainer:status', () => tr.status());
     handle('trainer:install', () => tr.install());

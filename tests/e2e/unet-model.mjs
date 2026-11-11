@@ -25,6 +25,9 @@ export async function verifyUnetModel(browser, url) {
   });
   try {
     await page.goto(url, { waitUntil: 'networkidle0' });
+    await page.waitForFunction(() => window.ichantool);
+    await page.evaluate(() => window.ichantool.ready);
+    await page.waitForSelector('#newProjOpen', { visible: true });
     await page.click('#newProjOpen'); await page.type('#newProjName', 'U-Net controller regression'); await page.click('#newProjBtn');
     await page.waitForFunction(() => window.ichantool.S.id && document.getElementById('home').hidden);
     await page.evaluate(async () => {

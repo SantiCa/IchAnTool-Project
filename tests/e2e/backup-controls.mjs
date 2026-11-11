@@ -7,6 +7,7 @@ export async function verifyBackupControls(browser, url) {
   try {
     await page.goto(url, { waitUntil: 'networkidle0' });
     await page.waitForFunction(() => window.ichantool && !document.getElementById('home').hidden);
+    assert.equal(await page.$eval('#diagBox', (element) => element.hidden), true, 'desktop diagnostics stay hidden without a desktop bridge');
     await page.click('#newProjOpen'); await page.type('#newProjName', 'Backup controls'); await page.click('#newProjBtn');
     await page.waitForFunction(() => window.ichantool.S.id && document.getElementById('saveState').dataset.state === 'saved');
     const checks = await page.evaluate(async () => {

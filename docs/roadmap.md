@@ -243,6 +243,31 @@ The planning commit remains local on master until an authorised push. No audit f
         does not establish the cause of every hang reported by the maintainer. Reproduce the multiple-waiter
         `saveToDB` path flagged by source review before changing its concurrency controller.
 
+  - [x] **M1.2.3 - Temporary desktop operating diagnostics.** [V0.134](../CHANGELOG.md#v0134--2026-11-11).
+        Authorised by the maintainer
+        on 11 November 2026 to record application use while investigating failures. Editor: Codex;
+        author verification, no independent reviewer assigned.
+    - Scope: opt-in, local, bounded diagnostics across renderer failures and application restarts; activation,
+      visible state, export, stop and clear controls. No raw messages, typed text, project contents or images.
+    - Acceptance: off by default, automatic seven-day expiry, maximum two 2 MiB log files and 256 pending
+      events, allowlisted technical fields, non-blocking recording, origin-checked IPC, atomic configuration
+      and export replacement. Verify redaction, bounded storms, write/export failure, restart, real renderer
+      crash and unchanged saved scientific state. Browser/offline builds keep these desktop controls hidden.
+    - Rollback: disable recording or stop and clear it; no project format or storage key changes. Remove the
+      instrumentation and controls in a separate delivery after the maintainer accepts the hang diagnosis.
+      M1.2.2 remains the follow-up for interpreting the captured failure; adding a recorder does not resolve it.
+    - Delivered: desktop controls and active indicator; filtered JSONL records in the application data folder;
+      operation/backup stage markers, heartbeat, main-process resource and native failure events. No dependency,
+      project format or default analysis change. Startup completion is exposed to automated checks to avoid
+      premature clicks and redundant native-window navigation through the close guard.
+    - Verified: 227 Python tests (six optional/permission skips), 208 Node tests, strict/all-module types,
+      Ruff, version consistency, whitespace and standalone build. Full Chrome smoke passes (356 traces,
+      identical reload); offline backup controls keep diagnostics hidden. Actual Electron testing verifies
+      opt-in, synthetic private-text redaction, foreign-origin rejection, a real renderer crash, restart,
+      export, stop, clear and exact preserved saved scientific state. Required packaging includes both modules.
+    - Handoff: local delivery on master; an authorised push is needed for GitHub retrieval. The maintainer
+      must enable recording and export the retained log after a real failure so M1.2.2 can identify its cause.
+
 ### M2 - Large projects and responsive display
 
 The first-run project-entry blocker found while preparing M2.2 is corrected in

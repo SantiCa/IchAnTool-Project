@@ -1,6 +1,14 @@
-// V0.17: bridge between the app page and the desktop program (training on this computer). Nothing else is exposed.
+// Narrow bridges for local training and opt-in technical diagnostics; no arbitrary filesystem access.
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('corantoolDesktop', {
+  diagnostics: {
+    status: () => ipcRenderer.invoke('diagnostics:status'),
+    setEnabled: (enabled) => ipcRenderer.invoke('diagnostics:setEnabled', enabled),
+    record: (event) => ipcRenderer.send('diagnostics:event', event),
+    export: () => ipcRenderer.invoke('diagnostics:export'),
+    clear: () => ipcRenderer.invoke('diagnostics:clear'),
+    onStatus: (callback) => { const listener = (_event, status) => callback(status); ipcRenderer.on('diagnostics:statusChanged', listener); return () => ipcRenderer.removeListener('diagnostics:statusChanged', listener); },
+  },
   trainer: {
     status: () => ipcRenderer.invoke('trainer:status'),
     install: () => ipcRenderer.invoke('trainer:install'),

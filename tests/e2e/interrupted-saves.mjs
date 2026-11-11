@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 /** Exercise real IndexedDB transactions and staged filesystem writes with deterministic failures. */
-export async function verifyInterruptedSaves(browser, url) {
+export async function verifyInterruptedSaves(browser, url, { navigate = true } = {}) {
   const page = await browser.newPage(), errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   try {
@@ -9,7 +9,7 @@ export async function verifyInterruptedSaves(browser, url) {
       const reader = await browser.newPage();
       reader.on('pageerror', (error) => errors.push(error.message));
       try {
-        await reader.goto(url, { waitUntil: 'networkidle0' });
+        if (navigate) await reader.goto(url, { waitUntil: 'networkidle0' });
         return await reader.evaluate(async (source, expected) => {
           const I = window.ichantool, storage = await import('./js/storage.js');
           let saved, image;
@@ -33,7 +33,7 @@ export async function verifyInterruptedSaves(browser, url) {
         }, source, expected);
       } finally { await reader.close(); }
     });
-    await page.goto(url, { waitUntil: 'networkidle0' });
+    if (navigate) await page.goto(url, { waitUntil: 'networkidle0' });
     await page.waitForFunction(() => window.ichantool);
     const results = await page.evaluate(async () => {
       const I = window.ichantool, storage = await import('./js/storage.js');

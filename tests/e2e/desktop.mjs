@@ -8,6 +8,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { verifyInterruptedSaves } from './interrupted-saves.mjs';
+import { startDesktopDiagnosticCheck, crashDesktopDiagnosticCheck, finishDesktopDiagnosticCheck } from './desktop-diagnostics.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const requireDesktop = createRequire(path.join(root, 'desktop/package.json'));
@@ -82,9 +83,14 @@ try {
     const url = `app://corantool/app/index.html?backup-test=${++backupWindow}`;
     await p.evaluate((url) => { window.open(url, '_blank'); }, url);
     const target = await run.browser.waitForTarget((target) => target.url() === url);
-    return target.page();
+    const page = await target.page();
+    await page.waitForFunction(() => document.readyState === 'complete' && window.ichantool);
+    await page.evaluate(() => window.ichantool.ready);
+    return page;
   } };
-  await verifyInterruptedSaves(backupBrowser, 'app://corantool/app/index.html');
+  // These native windows already navigated; a second navigation invokes Electron's close-on-unload guard.
+  await verifyInterruptedSaves(backupBrowser, 'app://corantool/app/index.html', { navigate: false });
+  await startDesktopDiagnosticCheck(p, profile);
   // Optional real-model/network checks use a local pinned ONNX file and a fixed public map extent.
   // CI remains independent of external services and a large model download.
   if (process.env.SEDCORETOOL_VISION_MODEL) {
@@ -140,6 +146,12 @@ try {
   run = await start();
   await run.page.waitForFunction(() => window.ichantool.S.sections.length === 6, { timeout: 60000 });
   assert.equal(await run.page.evaluate(signature), edited, 'pending edit survived a full process restart');
+  await crashDesktopDiagnosticCheck(run.page, profile);
+  run.browser.disconnect(); run.child.kill(); await run.exited; run = null;
+  run = await start();
+  await run.page.waitForFunction(() => window.ichantool.S.sections.length === 6, { timeout: 60000 });
+  assert.equal(await run.page.evaluate(signature), edited, 'saved edit survived the renderer failure');
+  await finishDesktopDiagnosticCheck(run.page, profile);
   assert.deepEqual(errors, [], 'renderer errors');
   await close(run); run = null;
   console.log('Desktop E2E ok: app://, CSP, bundled ORT, trainer IPC, detection and pending save across restart');

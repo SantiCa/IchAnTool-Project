@@ -181,6 +181,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 | `figures.js` | Figures panel: representative traces, interpreted core, logs, sections, range chart, location map | — |
 | `app.js` | Interface, tools, drawing, files | — |
 | `i18n.js` | Interface texts in Spanish and English | — |
+| `diagnostics.js` | Optional desktop diagnostic controls, static control IDs and technical operation events | — |
 
 The interface modules (`state.js`, `columns.js`, `panels.js`, `datatab.js`, `figures.js`, `multiproxy.js`, `app.js`) import from each other; circular imports are safe because
 the imported names are only used inside functions, never while a module is being loaded. A top-level `let` is assigned
@@ -2593,14 +2594,70 @@ Code: `desktop/` (Electron 45.2.1, packaged with electron-builder 26.18.0).
   disk.
 - **Data:** projects are stored in IndexedDB inside the program's data folder, with persistent storage. On first run
   after the rename, an existing `CorAnTool` data folder is kept in use (§1.5).
-- **Training module:** see §9.3. The page reaches only the six trainer functions through `window.corantoolDesktop`,
-  and the main process accepts calls only from `app://` pages. External links open in the system browser.
+- **Desktop bridges:** the page reaches the trainer (§9.3) and temporary diagnostics (§26.1) through narrow
+  `window.corantoolDesktop` methods. Main-process IPC accepts calls only from validated application asset URLs.
+  External links open in the system browser.
 - **Closing:** closing the window with pending changes waits for the save to finish (§22.2).
 - **Platforms:** Windows 10/11 x64 (NSIS installer and portable), macOS 13 or later (universal dmg for Intel and Apple
   Silicon; Electron dropped macOS 12) and Linux x64 (AppImage and deb). Builds are not code-signed, so the operating
   system may ask for confirmation the first time. Building needs Node ≥ 22.12.
 - **Version and file names:** the executable's version is `0.<n>.0` and files are named
   `SedCoreTool-V0.<n>-<system>-<architecture>.<ext>`; the offline file is `SedCoreTool_V0.<n>.html`.
+
+### 26.1 Temporary operating diagnostics
+
+Implementation: `desktop/diagnostics.js` (bounded local log and field filtering), `desktop/main.js` (IPC and
+native lifecycle/resource events), `desktop/preload.js` (narrow bridge), `app/js/diagnostics.js` (controls,
+static control IDs, heartbeats and operation callbacks). This facility is desktop-only and off by default.
+The browser and standalone HTML contain the shared interface module but keep its controls hidden without
+the diagnostics bridge. No telemetry service, crash uploader, screen recording or extra dependency is used.
+
+**Activation and retention.** Explicit activation stores an expiry seven days after that action in
+`userData/diagnostics/state.json`. Only schema 1 and an unexpired timestamp no more than seven days ahead
+are accepted. State parsing reads at most 4,097 bytes and rejects oversized input. Restarting continues an
+unexpired activation; it does not extend the expiry. Stopping persists expiry zero. Clearing stops recording
+and removes only `state.json`, `current.jsonl` and `previous.jsonl`; projects and separately exported logs stay.
+A visible header indicator opens the diagnostic controls from other working modes.
+
+`current.jsonl` rotates into `previous.jsonl` before an append would exceed 2 MiB. Each file stays within
+that limit, retaining at most 4 MiB of recent event data in addition to the small activation state. A queue
+of at most 256 events feeds one asynchronous append loop; overflow is counted as `log.dropped`. A diagnostic
+write failure disables recording for the running process and is shown independently of project saving.
+Configuration and explicit exports use uniquely named temporary files and atomic replacement; failed
+replacement preserves the last good destination. Reads for export are capped at each log's size limit.
+
+**Recorded fields.** Entries contain a main-process timestamp, sequence, random session identifier, program
+version and an allowlisted event type. Session starts also record numeric Node/Electron/Chromium versions.
+The renderer reports only control IDs present before saved projects load, fixed shortcut names outside text
+fields, working mode/tool, section dimensions and counts, save/backup states, and operation start/end/error
+markers with identifiers and elapsed milliseconds. Save, load, detection, generic busy work, folder selection,
+permission recovery and backup stages are instrumented. Error records retain a recognised error class and up
+to eight known JavaScript module basenames with line/column numbers. Raw error messages and full stacks,
+URLs, directory paths, project IDs/names, selected files, labels, notes, field values, pointer coordinates,
+images, masks and measurements are excluded. The main process applies its own allowlist to renderer payloads.
+
+Every five seconds an active renderer sends a heartbeat with visibility and timer delay. The main process
+independently samples its RSS in bytes and process working sets in Electron-reported kilobytes, summed CPU percentages and
+time since the oldest open window heartbeat. Hidden-window throttling can also delay a heartbeat: silence is
+not proof of a hang. Native unresponsive/responsive, renderer termination, child-process failure and failed
+load events are recorded without URLs. Main uncaught exceptions are observed without replacing the existing
+fatal-error handling. These are diagnostic samples, not M0.1 performance benchmarks; instrumentation can
+affect timings. See the [Electron metrics API](https://www.electronjs.org/docs/latest/api/app#appgetappmetrics),
+[memory units](https://www.electronjs.org/docs/latest/api/structures/memory-info)
+and [Node exception monitor](https://nodejs.org/api/process.html#event-uncaughtexceptionmonitor).
+
+**Recovery and export.** The log is outside the renderer, so a renderer crash does not clear already written
+events. After restarting, export produces JSON Lines with a format/runtime header and the retained events
+from the previous and current files. The native save dialog chooses the only export destination; renderer IPC
+cannot supply arbitrary filesystem paths. There is no automatic network transfer. Events still queued at
+abrupt process termination and data not flushed by the operating system may be lost. A fully unresponsive
+main process or exhausted disk can prevent further recording. The recorder does not alter save/recovery
+decisions or scientific results, and it does not automatically diagnose the cause of a failure.
+
+**Lifecycle.** Untick recording for rollback, or stop and clear it. This temporary facility remains behind
+the explicit opt-in until the maintainer accepts the failure diagnosis, after which its removal is a separate
+delivery. `window.ichantool.ready` exposes the existing startup promise to automated checks so native test
+windows can finish loading without a redundant navigation through the desktop close guard.
 
 ## 27. Offline single file
 
@@ -2747,6 +2804,14 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 ## 31. Validation
 
 ### 31.1 Automated tests
+
+**Temporary diagnostics.** Node tests cover default-off activation, persisted expiry, redaction, two-file
+rotation, queue overflow, independent write failure, bounded reads and atomic export failure. The real
+Electron test enables recording through the interface, uses synthetic private-text canaries, rejects foreign
+origin control, deliberately crashes a renderer, restarts the process and exports the recovered log. It checks
+that error/operation/UI events survive without the canary text or paths, and that stopping/clearing works while
+the saved public-core state remains unchanged. Browser/offline backup controls verify that diagnostics stay
+hidden without the desktop bridge. Physical power loss and exhaustive native crash coverage are not simulated.
 
 **Desktop model preservation.** Trainer regressions inject preparation/training/evaluation failures, partial
 generation copies, partial reference writes and failed reference replacement. Normal `readModel` and model-list

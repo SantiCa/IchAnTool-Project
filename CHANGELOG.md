@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.134 — 2026-11-11
+
+- Add optional temporary desktop diagnostics for control use, save/backup operations, error locations, memory samples and unresponsive or failed windows, with a visible recording indicator.
+- Keep the bounded log locally across restarts, expire recording after seven days, and provide export, stop and clear controls. Exclude typed text, project contents, images, names, paths and raw error messages; nothing is uploaded automatically.
+
 ## V0.133 — 2026-11-11
 
 - Keep slow automatic folder copies from blocking project navigation, exports or closing after the local project has saved; serialize backup attempts and retain edits made during a running copy.
