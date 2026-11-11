@@ -2750,3 +2750,15 @@ node tests/e2e/smoke.mjs               # browser end-to-end test
   Geological Society* 150, 141–148.
 - Zuiderveld, K. (1994). Contrast limited adaptive histogram equalization. In: Heckbert, P. (ed.), *Graphics Gems IV*,
   Academic Press, 474–485.
+
+### Experimental Python row counts
+
+`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded per-row label histograms in `analyze_mask`.
+The default remains the established per-class reductions. Each row is processed in column chunks of
+at most 65,536 pixels, valid labels are selected and `numpy.bincount` accumulates an int64 row/class
+histogram. Total bioturbation sums positive-label counts; class counts use the corresponding column.
+Interval sums, division order, boundaries, exclusions and configurable index schemes follow the same
+analysis path. Overlapping boolean layers retain the established calculation. Scratch is bounded by
+the chunk size; the retained histogram requires `8 * rows * (classes + 1)` bytes.
+The [experiment report](benchmarks/M3.1.4.md) records exact numerical equivalence and failed performance
+acceptance. Unset the variable to roll back; promotion/removal requires a subsequent decision.

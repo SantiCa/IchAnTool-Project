@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.122 — 2026-11-11
+
+- Add an opt-in bounded Python counting experiment with exact reference results; retain the established default because the synthetic workload misses the performance target.
+- Publish baseline and experimental measurements on the public and synthetic cores.
+
 ## V0.121 — 2026-11-11
 
 - Align Python's centimetre-to-row conversion with the application so fractional intervals use identical row boundaries and indices, with matching percentages within the documented numerical tolerance.

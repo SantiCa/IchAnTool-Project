@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -73,6 +74,18 @@ def _validate_min_valid(min_valid: float) -> float:
     return min_valid
 
 
+
+def _label_row_counts(mask: np.ndarray, valid: np.ndarray, n_classes: int) -> np.ndarray:
+    """Bounded histogram scratch: at most 65,536 pixels per block plus row/class counts."""
+    rows, width = mask.shape
+    counts = np.zeros((rows, n_classes + 1), dtype=np.int64)
+    # Column chunks also bound scratch for very wide images.
+    for row in range(rows):
+        for col in range(0, width, 65536):
+            labels = mask[row, col:col + 65536][valid[row, col:col + 65536]]
+            counts[row] += np.bincount(labels.astype(np.intp), minlength=n_classes + 1)
+    return counts
+
 def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "cm",
                  bin_px: float = 1, bin_cm: float | None = None, class_names: Sequence[str] | None = None,
                  schemes: Sequence[IndexScheme] = DEFAULT_SCHEMES, exclude: np.ndarray | None = None,
@@ -139,22 +152,28 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
     r0 = np.array([a for a, _ in rng], dtype=float)
     r1 = np.array([b for _, b in rng], dtype=float)
     step = (bottom - top) / n_rows
+    histogram = (_label_row_counts(mask, valid, len(names))
+                 if layers is None and os.environ.get('SEDCORETOOL_EXPERIMENTAL_COUNTS') == '1' else None)
     v = _bin_sums(valid.sum(axis=1), rng)
     ok = (v > 0) & (v >= min_valid * (r1 - r0) * n_cols)
     with np.errstate(invalid="ignore", divide="ignore"):
         def pct(hit: np.ndarray) -> np.ndarray:
             return np.where(ok, 100 * _bin_sums((hit & valid).sum(axis=1), rng) / v, np.nan)
 
+        def histogram_pct(values):
+            return np.where(ok, 100 * _bin_sums(values, rng) / v, np.nan)
+
         cols = {
             "depth_top": top + r0 * step,
             "depth_bottom": top + r1 * step,
             "depth": top + (r0 + r1) / 2 * step,
             "valid_pct": 100 * v / ((r1 - r0) * n_cols),
-            "bioturbation_pct": pct(mask > 0),
+            "bioturbation_pct": (pct(mask > 0) if histogram is None else histogram_pct(histogram[:, 1:].sum(axis=1))),
         }
         if len(names) > 1:
             for label, cname in enumerate(names, start=1):
-                cols[f"{cname}_pct"] = pct(layers[label - 1] if layers is not None else mask == label)
+                cols[f"{cname}_pct"] = (pct(layers[label - 1] if layers is not None else mask == label)
+                                        if histogram is None else histogram_pct(histogram[:, label]))
     df = pd.DataFrame(cols)
     for scheme in schemes:
         idx = pd.Series(scheme.classify(df["bioturbation_pct"].to_numpy()), dtype="Int64")

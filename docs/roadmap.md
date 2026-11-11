@@ -275,11 +275,18 @@ existing projects retain failed-save protection. Performance evidence is collect
     - Required checks pass: 215 Python tests (six optional/permission skips), 153 Node tests, types, Ruff,
       version consistency and standalone build. Local delivery on `master`; GitHub handoff needs an
       authorised push. Recalculate affected fractional Python results from V0.120 or earlier.
-  - [ ] **M3.1.4 - Row/class-count performance experiment.** Proposed next phase; requires maintainer
-        authorisation. Compare bounded counting alternatives with the corrected M3.1.3 inputs and the
+  - [x] **M3.1.4 - row/class-count performance experiment.** Authorised on 11 November 2026;
+        editor: Codex; author verification, no independent reviewer. [Contract](benchmarks/M3.1.4.md). Compare bounded counting alternatives with the corrected M3.1.3 inputs and the
         existing public APIs. Predeclare latency and memory targets before implementation; preserve exact
         row boundaries, configurable index precedence, overlap/exclusion behaviour and legacy results.
         Do not select an acceleration technology or promote a replacement without measured acceptance.
+    - Completed experiment in [V0.122](../CHANGELOG.md#v0122--2026-11-11): bounded NumPy row histograms
+      remain opt-in via `SEDCORETOOL_EXPERIMENTAL_COUNTS=1`. [Evidence and failed acceptance](benchmarks/M3.1.4.md).
+      All scientific fingerprints match; synthetic API latency worsens 3.9/5.2%, so no promotion.
+      Public timing is confounded by background load. Memory remains within the declared limit.
+      Checks: 217 Python tests on both paths (six skips), 153 Node tests, types, Ruff, version, standalone.
+      Local delivery on master; authorised push needed for GitHub handoff. A multi-row prototype and
+      counterbalanced measurements are a separate candidate requiring authorisation.
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU

@@ -1,0 +1,47 @@
+{
+  "baseline_flag": false,
+  "experiment_flag": true,
+  "rows": [
+    {
+      "case": "u1385",
+      "bin_cm": 2,
+      "baseline_ms": 725.4849000019021,
+      "experiment_ms": 293.0589999887161,
+      "reduction_pct": 59.60508619987159,
+      "rss_ratio": 1.0111303764192627,
+      "latency_pass": true,
+      "memory_pass": true
+    },
+    {
+      "case": "u1385",
+      "bin_cm": 1.37,
+      "baseline_ms": 571.2888999987626,
+      "experiment_ms": 286.81379999034107,
+      "reduction_pct": 49.79531372113789,
+      "rss_ratio": 1.0111303764192627,
+      "latency_pass": true,
+      "memory_pass": true
+    },
+    {
+      "case": "synthetic",
+      "bin_cm": 2,
+      "baseline_ms": 553.6439999996219,
+      "experiment_ms": 575.3082000010181,
+      "reduction_pct": -3.9130199191919512,
+      "rss_ratio": 1.0003271418705246,
+      "latency_pass": false,
+      "memory_pass": true
+    },
+    {
+      "case": "synthetic",
+      "bin_cm": 1.37,
+      "baseline_ms": 562.0297999994364,
+      "experiment_ms": 591.5313000004971,
+      "reduction_pct": -5.249098891391579,
+      "rss_ratio": 1.0003271418705246,
+      "latency_pass": false,
+      "memory_pass": true
+    }
+  ],
+  "accepted": false
+}

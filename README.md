@@ -244,3 +244,8 @@ If you use SedCoreTool, please cite the version you used; GitHub shows the citat
 
 GPL-3.0-or-later — see [LICENSE](LICENSE). Bundled libraries and fonts keep their own licences; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Python developers can opt into the bounded counting experiment with
+`SEDCORETOOL_EXPERIMENTAL_COUNTS=1`; unset it to restore the default calculation.
+The experiment does not meet the performance acceptance target on all reference workloads.
+See the [measurements and limitations](docs/benchmarks/M3.1.4.md).
