@@ -22,6 +22,55 @@ from sedcoretool.depth import depth_to_age, pixel_depths
 EXAMPLE = Path(__file__).parents[1] / "examples" / "data" / "idealized_core_0-500cm.jpg"
 
 
+@pytest.mark.parametrize("case", json.loads((Path(__file__).parent / "fixtures/fractional-boundaries.json").read_text()))
+def test_centimetre_conversion_matches_shared_boundary_fixtures(case):
+    # Fixed cross-runtime edges include both measured 1.49 m sections, adjacent
+    # representable bin_cm values, all supported units and default/integer bins.
+    rows = case["rows"]
+    mask = (np.arange(rows) % 3).astype(np.uint8)[:, None]
+    exclude = np.zeros_like(mask, dtype=bool)
+    exclude[:70] = True
+    result = analyze_mask(mask, case["top"], case["bottom"], units=case["units"],
+                          bin_cm=case["bin_cm"], exclude=exclude, class_names=["a", "b"])
+    assert result.bin_px == case["bin_px"]
+    expected_ranges = list(zip(case["edges"][:-1], case["edges"][1:]))
+    assert pipeline.bin_edges(rows, result.bin_px) == expected_ranges
+    assert pipeline.bin_edges(rows, result.bin_px, False) == (
+        expected_ranges[:-1] if pipeline._edge(len(expected_ranges), result.bin_px) > rows else expected_ranges)
+    step = (case["bottom"] - case["top"]) / rows
+    np.testing.assert_array_equal(result.data.depth_top, case["top"] + np.array(case["edges"][:-1]) * step)
+    np.testing.assert_array_equal(result.data.depth_bottom, case["top"] + np.array(case["edges"][1:]) * step)
+    # Explicit bin_px callers remain equivalent, including missing and class values.
+    expected = analyze_mask(mask, case["top"], case["bottom"], units=case["units"],
+                            bin_px=case["bin_px"], exclude=exclude, class_names=["a", "b"])
+    pd.testing.assert_frame_equal(result.data, expected.data, check_exact=True)
+    if case["bin_cm"] in (1, 2):
+        previous_px = case["bin_cm"] * rows / ((case["bottom"] - case["top"]) * case["factor"])
+        previous = analyze_mask(mask, case["top"], case["bottom"], units=case["units"],
+                                bin_px=previous_px, exclude=exclude, class_names=["a", "b"])
+        pd.testing.assert_frame_equal(result.data, previous.data, check_exact=True)
+
+
+def test_half_row_and_adjacent_floats_keep_half_up_edges():
+    for px, first in [(np.nextafter(68.5, -np.inf), 68), (68.5, 69), (np.nextafter(68.5, np.inf), 69)]:
+        assert pipeline.bin_edges(140, px)[0] == (0, first)
+    # Canonical 68.5-row bins have exact integer-arithmetic half-up edges.
+    assert pipeline.bin_edges(7450, 68.5) == [
+        ((137 * j + 1) // 2, min(7450, (137 * (j + 1) + 1) // 2)) for j in range(109)]
+
+
+def test_fractional_boundary_includes_the_half_row_in_scientific_results():
+    mask = np.zeros((7450, 1), dtype=np.uint8)
+    mask[68] = 1
+    result = analyze_mask(mask, 1.5, 2.99, units="m", bin_cm=1.37)
+    first = result.data.iloc[0]
+    assert result.bin_px == 68.5
+    assert first.depth_bottom == 1.5138
+    assert first.bioturbation_pct == 100 / 69
+    assert first.BI == 1 and first.ii == 2
+    assert result.data.iloc[1].bioturbation_pct == 0
+
+
 def test_indices_match_v21_tiers():
     p = np.array([0, 0.5, 3, 20, 50, 80, 95, 100])
     assert BI_TAYLOR_GOLDRING.classify(p).tolist() == [0, 0, 1, 2, 3, 4, 5, 6]

@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.121 — 2026-11-11
+
+- Align Python's centimetre-to-row conversion with the application so fractional intervals use identical row boundaries and indices, with matching percentages within the documented numerical tolerance.
+- Verify public and synthetic reference cores at 2 and 1.37 cm, half-row boundaries and neighbouring floating-point values, while preserving the historical regression and explicit pixel intervals.
+
 ## V0.120 — 2026-11-10
 
 - Publish reproducible interval-analysis profiles on the public and synthetic reference cores, distinguishing fresh pixel counts from reused browser counts and measuring the public Python API.

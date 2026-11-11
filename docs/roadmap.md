@@ -239,7 +239,7 @@ existing projects retain failed-save protection. Performance evidence is collect
       Preserve configurable interval boundaries and regression results.
   - [x] **M3.1.1 - Vectorise Python index classification.** Compile interval maps and preserve custom
         scheme precedence. [V0.89](../CHANGELOG.md#v089--2026-11-09)
-  - [ ] **M3.1.2 - In review: profile shared interval analysis.** Authorised by the maintainer on
+  - [x] **M3.1.2 - Profile shared interval analysis.** Authorised by the maintainer on
         10 November 2026; editor: Codex; verification: reproducible author measurements and automated checks.
         Measurement/report delivered in [V0.120](../CHANGELOG.md#v0120--2026-11-10), following the
         [contract, diagnostic amendment and evidence](benchmarks/M3.1.2.md). No independent reviewer assigned.
@@ -248,13 +248,16 @@ existing projects retain failed-save protection. Performance evidence is collect
       Separate CPU profiles identify row/class counting as the subsequent performance candidate.
     - The original 1.37 cm public-case parity criterion fails: conversion operation order moves half-row
       boundaries by one row in sections 2 and 4, affecting 216 intervals, two BI values and one ii value.
-      Full arrays and failed parity remain explicit in the report; scientific acceptance is pending M3.1.3.
-      The synthetic fractional case passes. No analysis implementation or tolerance changes.
+      Full arrays and failed parity remain explicit in the original report. Scientific acceptance is resolved
+      by M3.1.3 in [V0.121](../CHANGELOG.md#v0121--2026-11-11). The original profiling delivery changed no
+      analysis implementation or tolerance.
     - Checks pass: 193 Python tests (six optional/permission skips), 152 Node tests, types, Ruff, version
       consistency and standalone build. The browser driver verifies normal save/reload fixture preparation.
-      Delivery is local on `master`; GitHub handoff requires an authorised push.
-  - [ ] **M3.1.3 - Ready: align fractional interval boundaries.** Proposed next phase; requires maintainer
-        authorisation. Define and document one canonical centimetre-to-row conversion order in Python and
+      V0.120 is available on `origin/master` at `33e811d`; its correction follows below.
+  - [x] **M3.1.3 - Align fractional interval boundaries.** [V0.121](../CHANGELOG.md#v0121--2026-11-11).
+        Authorised by the maintainer on
+        11 November 2026; editor: Codex; verification: shared regressions and fixture parity, no independent
+        reviewer assigned. Define and document one canonical centimetre-to-row conversion order in Python and
         JavaScript before optimising either path. Keep the documented half-up bin-edge rule.
     - Acceptance: exact cross-language row boundaries at half rows and adjacent floating-point values;
       both M0.1 fixtures pass 2/1.37 cm parity at the unchanged 1e-9 tolerance with exact indices/missing
@@ -263,6 +266,20 @@ existing projects retain failed-save protection. Performance evidence is collect
     - After correction, define a separately authorised row/class-count performance experiment using the
       matching inputs, bounded memory, current public API and configurable index schemes. No acceleration
       technology or algorithm replacement is selected in the profiling delivery.
+    - Delivered: Python divides rows by centimetre span before multiplying by interval thickness, matching
+      the application's existing order. The half-up rule and 1e-9 tolerance are unchanged. Shared fixed tests
+      cover measured sections, adjacent floats, units, default/integer bins and hand-computed scientific values.
+      [Validation and raw evidence](benchmarks/M3.1.3.md): fourteen browser/Python trial pairs pass both
+      2/1.37 cm cases, with exact indices/missing values, M0.1 inputs/results and save/reload checks.
+      All application result hashes and three unaffected Python case/interval hashes match V0.120 exactly.
+    - Required checks pass: 215 Python tests (six optional/permission skips), 153 Node tests, types, Ruff,
+      version consistency and standalone build. Local delivery on `master`; GitHub handoff needs an
+      authorised push. Recalculate affected fractional Python results from V0.120 or earlier.
+  - [ ] **M3.1.4 - Row/class-count performance experiment.** Proposed next phase; requires maintainer
+        authorisation. Compare bounded counting alternatives with the corrected M3.1.3 inputs and the
+        existing public APIs. Predeclare latency and memory targets before implementation; preserve exact
+        row boundaries, configurable index precedence, overlap/exclusion behaviour and legacy results.
+        Do not select an acceleration technology or promote a replacement without measured acceptance.
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU

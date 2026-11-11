@@ -1,6 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { BI, II, classify, rowCounts, binRows, parseAgeModel, parseAgeModelDetailed, interpAge, rleEncode, rleDecode, toCSV } from '../../app/js/core.js';
+
+test('centimetre intervals preserve shared half-row and adjacent-float boundaries', () => {
+  const fixtures = JSON.parse(readFileSync(new URL('../fixtures/fractional-boundaries.json', import.meta.url), 'utf8'));
+  for (const c of fixtures) {
+    const binPx = c.bin_cm * (c.rows / ((c.bottom - c.top) * c.factor));
+    assert.equal(binPx, c.bin_px);
+    const counts = { nRows: c.rows, nCols: 1, nClasses: 0,
+      valid: new Uint32Array(c.rows).fill(1), bio: new Uint32Array(c.rows), cls: new Uint32Array(0) };
+    const bins = binRows(counts, { top: c.top, bottom: c.bottom, binPx });
+    assert.deepEqual([0, ...bins.map(b => b.r1)], c.edges);
+    assert.deepEqual(bins.map(b => b.r0), c.edges.slice(0, -1));
+  }
+  const counts = { nRows: 140, nCols: 1, nClasses: 0,
+    valid: new Uint32Array(140).fill(1), bio: new Uint32Array(140), cls: new Uint32Array(0) };
+  for (const [binPx, first] of [[68.49999999999999, 68], [68.5, 69], [68.50000000000001, 69]]) {
+    assert.equal(binRows(counts, { top: 0, bottom: 140, binPx })[0].r1, first);
+  }
+  const valid = new Uint32Array(7450).fill(1), bio = new Uint32Array(7450);
+  bio[68] = 1;
+  const bins = binRows({ nRows: 7450, nCols: 1, nClasses: 0, valid, bio, cls: new Uint32Array(0) },
+    { top: 1.5, bottom: 2.99, binPx: 1.37 * (7450 / ((2.99 - 1.5) * 100)) });
+  assert.equal(bins[0].dBottom, 1.5138);
+  assert.ok(Math.abs(bins[0].pct - 100 / 69) <= 1e-9);
+  assert.equal(bins[0].BI, 1); assert.equal(bins[0].ii, 2);
+  assert.equal(bins[1].pct, 0);
+});
 
 test('age models: conflicting depths rejected with a reason, bad ranges dropped, empty ages skipped', () => {
   assert.deepEqual(parseAgeModel('depth;age\n0;0\n10;\n20;200').age, [0, 200]);

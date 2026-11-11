@@ -120,7 +120,10 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
     if bin_cm is not None:
         if bin_cm <= 0:
             raise ValueError("bin_cm must be positive")
-        bin_px = bin_cm * mask.shape[0] / ((bottom - top) * _unit_factor(units))
+        # Match app.js::pxPerCm/binRowsOf: divide first, then multiply. Reassociation
+        # can move a half-row boundary and change percentages and indices.
+        px_per_cm = mask.shape[0] / ((bottom - top) * _unit_factor(units))
+        bin_px = bin_cm * px_per_cm
     if bin_px < 1:
         raise ValueError("bin_px must be >= 1 (interval thinner than one pixel row)")
     n_rows, n_cols = mask.shape

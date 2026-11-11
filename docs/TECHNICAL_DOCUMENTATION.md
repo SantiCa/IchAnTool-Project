@@ -250,6 +250,11 @@ section it becomes a number of rows per interval:
 
     N = max(1, binCm · ppcm)          (ppcm = rows per cm of the analysis area, §2.3)
 
+Both runtimes evaluate `span_cm = (bottom - top) * f`, then `ppcm = R / span_cm`, then
+`bin_cm * ppcm`, in this order with binary64 arithmetic. Multiplying `bin_cm * R` before dividing
+is not equivalent at half-row boundaries. No decimal rounding or epsilon is applied before binning.
+Python rejects intervals below one row instead of clamping them; explicit `bin_px` bypasses the conversion.
+
 `N` may be fractional. Interval `j` spans the rows
 
     [⌊j·N + ½⌋, min(⌊(j+1)·N + ½⌋, R))
@@ -2603,18 +2608,17 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 
 ### 31.1 Automated tests
 
-**Shared-analysis validation.** The [M3.1.2 profile](benchmarks/M3.1.2.md#fractional-boundary-finding) verifies
-both M0.1 reference cases at 2 cm with the original 1e-9 absolute tolerance and exact BI/ii/missing values.
-At 1.37 cm, public sections 2 and 4 have a reproducible one-row boundary disagreement: JavaScript computes
-`bin_cm * (n_rows / span_cm)`, while Python computes `(bin_cm * n_rows) / span_cm`. Values immediately around
-a half-row can round differently. In section 2, 68.5 versus 68.49999999999999 rows gives a first endpoint
-of 1.5138 versus 1.5136 m. This changes some percentages and indices and is a known parity limitation;
-the tolerance is not widened. The report retains both result arrays and the failed scientific-parity flag.
-The synthetic 1.37 cm case passes. Tests of the profiling harness verify cropped/remapped labels,
-exclusions, partial bins, disagreement reporting and weighted CPU-sample attribution.
+**Shared-analysis validation.** The [fractional-boundary validation](benchmarks/M3.1.3.md) checks both
+M0.1 reference cases at 2 and 1.37 cm with an absolute tolerance of 1e-9 and exact BI/ii/missing values.
+Shared fixed fixtures cover the 7,450-row public sections, all supported depth units, adjacent representable
+interval thicknesses, and default/integer intervals. Row boundaries must match exactly; the half-up rule
+is also checked against integer-arithmetic edges at 68.5 rows. Python's explicit `bin_px` path and partial-bin
+handling remain covered. Tests of the profiling harness verify cropped/remapped labels, exclusions,
+partial bins, disagreement reporting and weighted CPU-sample attribution.
 
-**97 program tests, 19 Python tests** (17 run always; 2 are skipped when the optional `onnx`/`torch` dependencies are
-missing), a browser end-to-end test in the tests workflow and a desktop end-to-end test in the desktop build workflow (§28).
+The program and Python suites are complemented by a browser end-to-end test in the tests workflow and a
+desktop end-to-end test in the desktop build workflow (§28). Optional dependency and filesystem-permission
+checks may be skipped when the required capability is unavailable; delivery reports record these separately.
 
 - **Python** (`tests/test_core.py`, `tests/test_unet.py`): index tiers, percentages and intervals on hand-computed
   cases, incomplete last interval, multi-class by colour, grey and RGB input, depth and age, the reference image, the

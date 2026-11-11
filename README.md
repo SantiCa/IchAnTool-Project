@@ -166,6 +166,10 @@ CSV and Excel results escape text that spreadsheet programs could interpret as f
 imports apply the [project ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#231-project-packages-sedcoretool) and [U-Net ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#92-training-data-and-training-python-package).
 If a project package reports a CRC mismatch, use an intact copy of the package.
 
+Centimetre intervals use the same row boundaries in Python and the application. When updating Python from
+V0.120 or earlier, rerun analyses with fractional pixel intervals: corrected half-row boundaries can change
+percentages and indices. See the [interval definition](docs/TECHNICAL_DOCUMENTATION.md#32-per-interval).
+
 Use lossless formats (PNG, TIFF) for masks. The complete API, command line and U-Net commands are described in the
 [technical documentation](docs/TECHNICAL_DOCUMENTATION.md#25-the-sedcoretool-python-package).
 Python image and mask loading reports an error before decoding if a file exceeds its estimated 768 MiB
