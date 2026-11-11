@@ -444,6 +444,27 @@ existing projects retain failed-save protection. Performance evidence is collect
 - [ ] Dedicated horizontal layout for each figure type
 - [ ] Simultaneous editing of a shared project
 - [ ] `app.js` split into smaller modules
+  - [x] **R1 - Extract U-Net session controller.** [V0.124](../CHANGELOG.md#v0124--2026-11-11).
+        Authorised on 11 November 2026;
+        editor: Codex; automated author verification, no independent reviewer assigned.
+        Extract loading, model ownership, probability/cache keys and ONNX tensor adaptation into a DOM-free
+        module with injected runtime, section enumeration, scale, identifiers and progress. Keep UI wiring,
+        engine loading (shared with DINOv2), desktop training and scientific tiling in their existing layers.
+        Acceptance: no imports back to app.js, strict types without new baseline diagnostics, exact probability
+        arrays and cache semantics, unchanged current/legacy project workflows, served/standalone inference
+        wiring and required delivery checks. This is a small extraction with no default/format change;
+        broader lifecycle changes and further module extraction remain separate phases.
+    - Delivered: `unetmodel.js` has no DOM/app.js dependency and strict contracts. Scientific tiling,
+      cache keys, model failure/replacement and existing file/desktop entry points retain their behaviour.
+      Remaining JavaScript diagnostics fall from 894 to 887 without extending the baseline.
+    - Verified: 223 Python tests (six optional/permission skips), 157 Node tests, strict/all-module types,
+      Ruff, version consistency, standalone build, full Chrome smoke (356 traces and identical saved reload),
+      and served/standalone U-Net integration with deterministic injected runtime. No real ONNX provider or
+      desktop training run is added to this extraction's verification. Storage-fallback fault injection
+      is isolated from concurrent main-page OPFS image reads; console failures now include error stacks.
+    - Local delivery on master; GitHub handoff requires authorised push. Further model-lifecycle or
+      DINOv2 extraction requires a separate phase.
+
 
 ## Further ichnological parameters
 - [ ] Ichnodiversity, burrow size, tiering and cross-cutting relationships

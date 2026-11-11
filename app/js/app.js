@@ -13,7 +13,8 @@ import { splitPieces, mergeKeeper, sameTaxonGroups, swapHistoryPixels, trimEditH
 import { t, lang, setLang, applyI18n, fxText } from './i18n.js';
 import { zipFiles, unzipBlob } from './zip.js';
 import { decodeTiffBlocks } from './tiff.js';
-import { UNET_DEFAULTS, IGNORE, predictProb, doubtful, trainingMask, cropRGBA } from './unet.js';
+import { IGNORE, doubtful, trainingMask, cropRGBA } from './unet.js';
+import { createUnetController } from './unetmodel.js';
 import { VISION_MODEL, visionFeatureId, traceWindow, traceInput, pickEmbedding } from './vision.js';
 import { coresFromLongTable, applyCatalogue, coreAges, intervalsOnAxis, intervalsFromTable, fitModel, buildMapSVG, mapBBox, predictProba, MAP_STYLE, MAP_SYMBOLS, fitBBoxAspect, validMapCoords } from './geo.js';
 import { $, APP, APP_NAMES, CLF_SCOPES, ML_DEFAULT, S, VERSION, clsById, defaultClasses, fetchAsset, fmt, hex, hideMissingExamples, keyOf, sec, uid } from './state.js';
@@ -23,7 +24,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.123';
+export const DELIVERY = 'V0.124';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -732,13 +733,17 @@ function mergeObjects(list, group = '') {
 function runDetection() {
   const s = sec(); if (!s) return;
   if (s.detect.method !== 'unet') { busy(() => withPixels(s, detectSection)); return; }
-  if (!UNET) { $('detectStatus').textContent = t('u.noModel'); return; }
+  if (!unetController.model) { $('detectStatus').textContent = t('u.noModel'); return; }
   busy(() => withPixels(s, async (x) => { await unetProb(x); await detectSection(x); }));
 }
 
 /* ───────────── V0.15: U-Net (model trained with `sedcoretool unet train`, run with ONNX Runtime Web) ───────────── */
-let UNET = null;   // { session, cfg, name, id }
-const unetKey = (s) => UNET ? `${UNET.id}|${s.roi.x0},${s.roi.y0},${s.roi.x1},${s.roi.y1}|${s.w}x${s.h}|${pxPerCm(s).toFixed(4)}` : '';
+const unetController = createUnetController({
+  getRuntime: async () => { await loadOrt(); return window.ort; },
+  sections: () => S.cores.flatMap((c) => c.sections), pixelsPerCm: pxPerCm, id: uid,
+  progress: (k, n) => { $('detectStatus').textContent = t('u.progress', { k, n }); },
+});
+const unetKey = (s) => unetController.key(s);
 async function loadOrt() {
   if (window.ort) return;
   const where = await loadLib('ort/ort.wasm.min.js');
@@ -755,13 +760,9 @@ async function loadUnet(files) {
 async function loadUnetBytes(bytes, json, name) {
   await busy(async () => {
     try {
-      await loadOrt();
-      const cfg = { ...UNET_DEFAULTS, ...(json ? JSON.parse(json) : {}) };
-      const session = await window.ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] });
-      UNET = { session, cfg, name, id: uid() };
-      for (const s of S.cores.flatMap((c) => c.sections)) s._unet = null;
+      await unetController.load(bytes, json, name);
       toast(t('u.loaded', { n: name }));
-    } catch (e) { UNET = null; toast(t('u.loadErr') + ' ' + (e?.message || e)); }
+    } catch (e) { toast(t('u.loadErr') + ' ' + (e?.message || e)); }
     renderDetectForm();
   });
 }
@@ -892,15 +893,7 @@ async function startTrain(resume) {
   } catch (e) { TR.log.push('✕ ' + (String(e?.message || e).includes('cancelled') ? t('tr.cancelled') : e?.message || e)); TR.running = false; renderTrain(); }
 }
 /** Probability map of bioturbation for the section (cached until the model, the analysis area or the scale change). */
-async function unetProb(s) {
-  const key = unetKey(s); if (s._unet?.key === key) return s._unet;
-  const { session, cfg } = UNET, inName = session.inputNames[0], outName = session.outputNames[0];
-  const run = async (data, T) => { const r = await session.run({ [inName]: new window.ort.Tensor('float32', data, [1, 3, T, T]) }); const o = r[outName]; return { data: o.data, channels: o.dims[1] }; };
-  const scale = cfg.pxPerCm ? cfg.pxPerCm / pxPerCm(s) : 1;
-  const res = await predictProb(run, s.orig, s.w, s.h, s.roi, cfg, scale, (k, n) => { $('detectStatus').textContent = t('u.progress', { k, n }); });
-  s._unet = { key, prob: res.prob };
-  return s._unet;
-}
+function unetProb(s) { return unetController.probability(s); }
 
 async function detectSection(s) {
   {
@@ -2281,7 +2274,7 @@ function renderDetectForm() {
   for (const [k] of DETECT_SLIDERS) { const v = p[k] ?? DEFAULT_DETECT[k]; $('d-' + k).value = v; $('do-' + k).textContent = v; }
   $('dMethod').value = p.method; $('dPol').value = p.polarity; $('dFill').checked = !!p.fillHoles;
   const u = p.method === 'unet'; $('unetBox').hidden = !u; $('dPolBox').hidden = u;   // V0.15
-  $('unetName').textContent = UNET ? t('u.model', { n: UNET.name, c: (UNET.cfg.classes || []).join(', '), p: UNET.cfg.pxPerCm ? fmt(UNET.cfg.pxPerCm, 3) : '—' }) : t('u.noModel');
+  $('unetName').textContent = unetController.model ? t('u.model', { n: unetController.model.name, c: (unetController.model.cfg.classes || []).join(', '), p: unetController.model.cfg.pxPerCm ? fmt(unetController.model.cfg.pxPerCm, 3) : '—' }) : t('u.noModel');
   document.querySelectorAll('#detectCtl [data-only]').forEach((el) => (el.hidden = !!el.dataset.only && el.dataset.only !== p.method));
 }
 function renderBinNote() {

@@ -3,6 +3,7 @@
 // Opens the IODP test core, detects, undoes, saves, reloads and compares; fails on any page error.
 // V0.49: also compares the web analysis of the idealized core (browser JPEG decoder) with the V2.1 reference CSV.
 import assert from 'node:assert/strict';
+import { verifyUnetModel } from './unet-model.mjs';
 import { verifyInterruptedSaves } from './interrupted-saves.mjs';
 import { verifyNavigationPreview, verifyLegacyNavigation } from './navigation-preview.mjs';
 import { verifyNavigationPreviewCache } from './navigation-preview-cache.mjs';
@@ -16,14 +17,19 @@ const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'pup
 
 const URL = process.env.APP_URL || 'http://localhost:8765/app/index.html';
 const b = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox'], defaultViewport: { width: 1440, height: 900 } });
-const p = await b.newPage(), errs = [];
+const p = await b.newPage(), errs = [], consoleChecks = [];
 p.on('pageerror', (e) => errs.push(e.message));
-p.on('console', (m) => { if (m.type() === 'error' && !/404|Failed to load resource|simulated quota exceeded/.test(m.text())) errs.push(m.text()); });
+p.on('console', (m) => {
+  if (m.type() !== 'error' || /404|Failed to load resource|simulated quota exceeded/.test(m.text())) return;
+  consoleChecks.push(Promise.all(m.args().map((arg) => arg.evaluate((value) => value?.stack || String(value))
+    .catch(() => m.text()))).then((details) => { errs.push(details.join(' ') || m.text()); }));
+});
 p.on('dialog', (d) => d.accept());
 const W = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (fn, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await p.evaluate(fn)) return; await W(500); } throw new Error('timeout: ' + fn); };
 const fail = (m) => { console.error('E2E FAIL:', m); process.exitCode = 1; };
 try {
+  await verifyUnetModel(b, URL);
   await verifyFirstRun(b, URL);
   await verifyNavigationPreview(b, URL);
   await verifyLegacyNavigation(b, URL);
@@ -303,8 +309,14 @@ try {
   assert.ok(enhancedTiff.orig[0] === enhancedTiff.orig[1] && enhancedTiff.enh[0] < enhancedTiff.enh[1],
     'worker enhancement uses low bits after reopening the TIFF: ' + JSON.stringify(enhancedTiff));
 
-  // Force the IndexedDB fallback, verify cross-chunk reads and fail a replacement mid-write.
-  const fallback = await p.evaluate(async () => {
+  // Isolate storage fault injection from the main page's pending OPFS image reads.
+  const fallbackContext = await b.createBrowserContext();
+  try {
+    const fallbackPage = await fallbackContext.newPage();
+    fallbackPage.on('pageerror', (e) => errs.push(e.message));
+    await fallbackPage.goto(URL, { waitUntil: 'networkidle0' });
+    // Force the IndexedDB fallback, verify cross-chunk reads and fail a replacement mid-write.
+    const fallback = await fallbackPage.evaluate(async () => {
     const { putImage, getImage } = await import('./js/storage.js');
     Object.defineProperty(navigator.storage, 'getDirectory', { configurable: true, value: undefined });
     const boundary = 4 * 1024 * 1024, key = 'e2e-image-fallback';
@@ -333,8 +345,9 @@ try {
       }).then(() => getImage('e2e-legacy-image'));
       return [failed, ...sample, ...new Uint8Array(await legacy.arrayBuffer())];
     } finally { delete navigator.storage.getDirectory; }
-  });
-  assert.deepEqual(fallback, [true, 14, 27, 42, 81]);
+    });
+    assert.deepEqual(fallback, [true, 14, 27, 42, 81]);
+  } finally { await fallbackContext.close(); }
 
   const across = await p.evaluate(async () => {
     const { putLite } = await import('./js/storage.js');
@@ -566,6 +579,7 @@ try {
     legacyPreview: true, sourcePreserved: true, currentPreview: true, healthyOverlap: true,
     undoClear: true, undoMerge: true, redoMerge: true, nativeShortcuts: true, undoClass: true, invalidatedRedo: true, healthySave: true,
     intactZipOpened: true, crcChecks: [true, true], replacePrompts: 0 });
+  await Promise.all(consoleChecks);
   if (errs.length) fail('page errors: ' + errs.join(' | '));
   console.log(process.exitCode ? 'E2E finished with failures' : `E2E ok (${first} traces in the first section; reload identical)`);
 } catch (e) { fail(e.stack || e.message); } finally { await b.close(); }

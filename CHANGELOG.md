@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.124 — 2026-11-11
+
+- Separate U-Net model sessions and probability caching from the interface, preserving file loading, detection and desktop-trained model use.
+- Add strict controller contracts and regression checks for loading errors, cache invalidation and identical inference in the browser and offline HTML.
+
 ## V0.123 — 2026-11-11
 
 - Improve the opt-in Python counting experiment with bounded multi-row histograms; reduce median API time by about 60% on the public reference core and 30% on the synthetic core in an alternating comparison, with less than 1% higher median worker peak memory.

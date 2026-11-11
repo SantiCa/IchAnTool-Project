@@ -156,6 +156,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 | `exportio.js` | Tables written to files and records read from tables | ✓ |
 | `zip.js` | Minimal ZIP writer and reader for project packages | ✓ |
 | `unet.js` | U-Net tiling, normalisation, blending and resampling (same rules as the Python package) | ✓ |
+| `unetmodel.js` | U-Net session ownership, model loading and probability-cache orchestration with injected runtime services | Yes (no DOM) |
 | `vision.js` | Pre-trained vision model (DINOv2): input window and embedding | partly |
 | `worker.js` | Background worker that runs enhancement and detection off the interface thread | — |
 | `storage.js` | Project library in IndexedDB | — |
@@ -174,6 +175,16 @@ the imported names are only used inside functions, never while a module is being
 only in the module that declares it. Event wiring that must run in a fixed order is wrapped in an `init…()` function
 (for example `initMultiproxy`) that `app.js` calls where that code used to run.
 | `i18n.js` | Interface texts in Spanish and English | — |
+
+`unetmodel.js` imports only the scientific `unet.js` module. `app.js` creates one controller and injects
+ONNX runtime acquisition, section enumeration, pixels per centimetre, model identifiers and progress.
+The controller owns the loaded model and creates WASM sessions; successful replacement invalidates the
+probability cache of every project section. Load failure clears the active model. Cache keys
+combine model identity, ROI, image dimensions and four-decimal pixel scale; inference writes a new cache
+only after completion. The interface retains file picking, translated messages, busy state, detection,
+rendering and desktop training. Runtime loading stays shared with DINOv2. ONNX input/output names and
+float32 NCHW tensors adapt to the existing tiling engine. The module has strict checked contracts and no
+import of app.js or access to browser globals; it is included after unet.js in the standalone build.
 
 Python package (`src/sedcoretool/`): `io.py` (images and masks), `segmentation.py` (masks from a threshold, a
 colour palette or a U-Net), `pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
@@ -2510,7 +2521,7 @@ Current fixture/scientific hashes identify sections by source-order index, exclu
 while retaining masks, assignments and interval arrays. This canonicalisation changes no project data.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
-in strict mode on `core.js`, `state.js` and `imageproc.js`. JSDoc describes the shared contracts, and consumers
+in strict mode on `core.js`, `state.js`, `imageproc.js` and `unetmodel.js`. JSDoc describes the shared contracts, and consumers
 such as `columns.js` use those types through ordinary JavaScript imports. The second pass checks all application
 modules with ES2022, `allowJs`, `checkJs` and `noEmit`. The `checks` CI job runs both passes on pushes and
 pull requests.
@@ -2615,6 +2626,16 @@ interval thicknesses, and default/integer intervals. Row boundaries must match e
 is also checked against integer-arithmetic edges at 68.5 rows. Python's explicit `bin_px` path and partial-bin
 handling remain covered. Tests of the profiling harness verify cropped/remapped labels, exclusions,
 partial bins, disagreement reporting and weighted CPU-sample attribution.
+
+**U-Net controller validation.** Node tests check loading defaults and failure semantics, exact binary/scaled
+and multiclass probabilities against the scientific tiling engine, tensor input/output names and dimensions,
+progress, cache reuse and invalidation across model/ROI/dimensions/scale changes. Browser tests drive normal
+file selection and detection in both served and standalone HTML with an injected deterministic ONNX runtime;
+they verify exact probability values, unchanged masks/results, replacement and load failure. These tests
+verify runtime adaptation and interface wiring, not a trained model's accuracy or a real provider's execution.
+The full browser smoke suite also checks current/legacy projects, image storage, saving and figure export.
+Storage fallback fault injection uses an isolated empty browser context so it cannot disable OPFS during
+the main page's pending image reads.
 
 The program and Python suites are complemented by a browser end-to-end test in the tests workflow and a
 desktop end-to-end test in the desktop build workflow (§28). Optional dependency and filesystem-permission

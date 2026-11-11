@@ -78,6 +78,7 @@ export function toProbs(out, C, n, logits = true) {
  * Probability of bioturbation over the ROI. `run(input, tile)` returns { data, channels } for one tile (logits or
  * probabilities as cfg.output says). `scale` = model px/cm ÷ image px/cm (1 = no resampling).
  * Returns { prob: Float32Array(w·h) (0 outside the ROI), cls: Uint8Array(w·h) | null (argmax class 1..C−1 for C > 1) }.
+ * @param {((done: number, total: number) => void) | null} onTile
  */
 export async function predictProb(run, rgba, w, h, roi, cfg = {}, scale = 1, onTile = null) {
   const c = { ...UNET_DEFAULTS, ...cfg }, T = c.tile;

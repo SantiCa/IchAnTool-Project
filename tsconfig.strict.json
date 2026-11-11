@@ -6,6 +6,7 @@
   },
   "include": [
     "app/js/core.js",
+    "app/js/unetmodel.js",
     "app/js/state.js",
     "app/js/imageproc.js",
     "tools/browser-globals.d.ts"
