@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.125 — 2026-11-11
+
+- Incorporate the technical audit into the roadmap with prioritised safety, data-integrity, documentation and modularity tasks, distinguishing confirmed source observations from findings requiring reproduction.
+- Reuse existing trainer tasks and record verified action tags and the U-Net extraction already delivered; application behaviour is unchanged.
+
 ## V0.124 — 2026-11-11
 
 - Separate U-Net model sessions and probability caching from the interface, preserving file loading, detection and desktop-trained model use.

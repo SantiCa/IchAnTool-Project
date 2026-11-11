@@ -16,6 +16,47 @@ Keep task IDs stable. The changelog records what shipped.
 
 ## Milestones toward 1.0
 
+### Audit triage and proposed priority
+
+The maintainer requested incorporation of the supplied V0.123 technical audit on 11 November 2026;
+the planning update is delivered in [V0.125](../CHANGELOG.md#v0125--2026-11-11).
+The findings below were checked against V0.124 source and existing tasks. This is source triage, not
+an independent security review or a completed reproduction of every reported defect. The audit's
+implementation checklist, suggested dependency versions and agent assignments are not execution authority.
+All new tasks are pending authorisation; no editor or reviewer is assigned.
+
+Proposed order: address desktop path containment, untrusted presentation values and preservation of trained
+models first (M0.4, M0.5, M3.2.3); correct scientific documentation next (M5.2.1–M5.2.2); then validate manifest,
+palette and training reproducibility contracts, build safety and trainer dependencies. Type-only corrections,
+further modularisation and LAS metadata policy follow as separate small deliveries. This priority supplements
+the milestone grouping below; it does not start any implementation or authorise a release.
+
+| Audit ID | Disposition after source review | Roadmap task |
+|---|---|---|
+| AUD-01 | Previous model artifacts are removed before preparation; already tracked | M3.2.3 |
+| AUD-02 | Prefix-only containment check exists; reproduce reachable URL/path cases before claiming exploitability | M0.4 |
+| AUD-03 | Unescaped no-data colours and inconsistent validation paths exist; audit the actual defaults and consumers | M0.5 |
+| AUD-04 | Palette parser assumes six hexadecimal digits | M3.3.1 |
+| AUD-05 | Fractional bin size still has an integer annotation | M3.3.2 |
+| AUD-06 | Double escaping is not established: leading apostrophes are unchanged by spreadsheet_text; validate marked-row editing/round trips | M3.3.3 |
+| AUD-07 | LAS uses ASCII replacement; choose an explicit metadata policy before changing output | M3.3.4 |
+| AUD-08 | Training seeds process-global random generators | M3.2.5 |
+| AUD-09 | Managed trainer constraints are already pending; do not adopt untested example version caps | M3.2.4 |
+| AUD-10 | Standalone import/export stripping has a restricted syntax contract | M5.5 |
+| AUD-11 | Missing-tag allegation not confirmed; currently referenced major tags exist | Verification note below; M5.1 release checks |
+| AUD-12 | Python exclusion support contradicts the limitations list and paper text | M5.2.1 |
+| AUD-13 | Language-table row and experimental-count section are misplaced | M5.2.2 |
+| AUD-14 | Partly addressed by R1 in V0.124; selector dependencies and additional strict modules remain candidates | M5.4 and R2 |
+
+AUD-11 verification used `git ls-remote --tags` against the official `actions/*` repositories on
+11 November 2026. The workflow references resolve: checkout v7 `3d3c42e`, setup-python v7 `6d4fd22`,
+setup-node v7 `949feb2`, upload-artifact v7 `cf430e0`, download-artifact v8 `9000827`.
+Tag existence does not prove runner compatibility or successful workflows. Verify the supported CI/build
+matrix before release under M5.1; do not downgrade actions solely on the audit's older version examples.
+This delivery changes planning and version metadata only. Required Python/Node/type/Ruff/version checks
+and the standalone build pass; the unchanged interface/save implementation does not require a new E2E run.
+The planning commit remains local on master until an authorised push. No audit fix is marked complete here.
+
 ### M0 - Baseline and project safety
 
 - [x] **M0.1 - Reproducible performance baseline.** Benchmark and original measurements delivered in
@@ -55,6 +96,21 @@ Keep task IDs stable. The changelog records what shipped.
   - [x] **M0.3.3 - Validate Python analysis inputs.** Validate finite thresholds from 0 to 1 in the API
         and CLI. Report both filenames and dimensions for mismatched exclusion images.
         [V0.102](../CHANGELOG.md#v0102--2026-11-09)
+
+- [ ] **M0.4 - Bound desktop protocol paths (AUD-02).** Replace prefix-only containment with a
+      directory-boundary-aware check in `desktop/main.js`, after reproducing URL parsing and decoding.
+  - Acceptance: requests resolving outside the web root cannot reach files, including sibling-prefix
+    directories, encoded separators/traversal, Windows drive/UNC forms and malformed escapes. Legitimate
+    assets and the existing `app://corantool` origin keep working. Cover platform path semantics and
+    Electron protocol behaviour; distinguish a rejected request from one already normalised by URL parsing.
+- [ ] **M0.5 - Validate untrusted presentation colours (AUD-03).** Review no-data colour merging and
+      all affected DOM/SVG consumers in `log.js`, `columns.js` and shared figure controls.
+  - Acceptance: validate both `ndColor` and `ndLine` against supported hex forms, escape interpolated
+    attributes, and test malformed strings/types from saved projects. No injected attribute or element
+    appears in controls or exported SVG; invalid values fall back to the actual `ND_STYLE` defaults.
+    Preserve valid short/full hex colours, legacy projects, figure settings and scientific arrays.
+    The audit's listed default and description of the current colour loop differ from this source;
+    derive the patch and tests from actual merge/render paths rather than copying the proposed fix.
 
 #### M0.1 acceptance criteria
 
@@ -317,6 +373,7 @@ existing projects retain failed-save protection. Performance evidence is collect
       Regression tests run in the existing Python CI matrix, including Windows; required delivery checks pass.
   - [ ] **M3.2.3 - Preserve the last working U-Net model.** Starting a fresh desktop training run
         with an existing name removes the published artifacts before preparation succeeds.
+        AUD-01 confirms the already tracked risk; prioritise this alongside M0.4/M0.5.
     - **Approach.** Prepare and train in a staging location. Publish a complete model and metadata
       together so readers see a consistent version, and retain the previous version on failure.
     - **Acceptance.** Inject failures during preparation, training and publication, and test
@@ -327,6 +384,7 @@ existing projects retain failed-save protection. Performance evidence is collect
       platforms and decide whether evaluation must succeed before a replacement becomes visible.
   - [ ] **M3.2.4 - Reproduce the managed trainer environment.** The optional desktop installer
         downloads dependencies whose versions can vary between installations.
+        This includes AUD-09; select constraints from tested configurations, not the audit's example caps.
     - **Approach.** Document training-related network access in `SECURITY.md` and define tested
       dependency constraints for the supported Python, CPU and CUDA configurations.
     - **Acceptance.** Document the downloads and when they occur. Verify that two clean installs
@@ -336,6 +394,36 @@ existing projects retain failed-save protection. Performance evidence is collect
       `SECURITY.md` and the trainer installation checks.
     - **Decision before implementation.** Define the supported environment matrix and how its
       constraints are updated and tested.
+
+  - [ ] **M3.2.5 - Isolate caller random state during training (AUD-08).** Review Python, NumPy and
+        Torch CPU/device seeding in `unet/train.py`, including model initialisation and data loaders.
+    - Acceptance: caller random streams are preserved on success, failure and cancellation, while seeded
+      training and checkpoint resume remain reproducible. Use local generators or scoped state restoration
+      where framework operations require global generators. Exercise supported CPU/device paths without
+      weakening the existing determinism contract or changing scientific defaults silently.
+
+### M3.3 - Python input and export contracts
+
+- [ ] **M3.3.1 - Define palette hex input forms (AUD-04).** Decide and document support for short
+      `#rgb` alongside full `#rrggbb` in `segmentation.py`, including whitespace and invalid-input handling.
+  - Acceptance: named palette entries using equivalent supported hex/RGB forms produce exactly the same
+    masks and class ordering. Malformed forms raise clear errors; existing valid palette calls remain valid.
+- [ ] **M3.3.2 - Describe fractional bin sizes accurately (AUD-05).** Align `CoreSection.bin_px`'s
+      annotation with the existing float-valued API and documented fractional boundary rules.
+  - Acceptance: inspect public annotations/documentation and retain fractional-bin and legacy numerical
+    regressions. This is a type correction, not a new conversion or rounding algorithm.
+- [ ] **M3.3.3 - Verify manifest escaping and manual editing (AUD-06).** Reproduce the generated CSV,
+      spreadsheet/text-editor edit and `read_manifest` round trip before changing the format.
+  - Acceptance: preserve exact paths/names beginning with apostrophes, `-`, `+`, `=`, `@`, whitespace and
+    ordinary text, including mixed values in the same marked row and unmarked user manifests. Retain formula
+    protection and numeric depths. Document `__sedcoretool_csv_escape__` / `apostrophe-v1` and supported
+    editing rules; give existing generated manifests a compatibility path if encoding changes are needed.
+    Source review alone does not confirm the audit's double-escape claim; close it with reproduction evidence.
+- [ ] **M3.3.4 - Choose LAS ASCII metadata policy (AUD-07).** Decide how non-ASCII names, headers and
+      units are represented before replacing the current ASCII substitution in `export.py`.
+  - Acceptance: document predictable transliteration/rejection/warning behaviour, test accented and
+    non-transliterable text and possible naming collisions, preserve numeric curves and valid LAS 2.0 syntax.
+    Avoid silently treating all Unicode symbols as equivalent to accent removal.
 
 ### M4 - Optional acceleration
 
@@ -350,12 +438,32 @@ existing projects retain failed-save protection. Performance evidence is collect
 - [ ] **M5.2 - Scientific validation and documentation.** Complete the release requirements in
       [Validation](#validation) and the relevant user guidance. The maintainer decides when to declare 1.0
       and publish it.
+  - [ ] **M5.2.1 - Correct exclusion-layer claims (AUD-12).** Reconcile technical-documentation
+        limitations (§32) and the paper's numerical description with current Python API/CLI/batch support.
+    - Acceptance: remove the false application-only limitation, use actual API and CLI names
+      (`analyze_mask`, `--exclude`, `--exclude-value`), and retain real differences such as absent Python
+      `noDataPad`. Link existing validation evidence without claiming parity outside its tested scope.
+  - [ ] **M5.2.2 - Repair technical-document navigation (AUD-13).** Put the `i18n.js` row inside the
+        repository table and move experimental counting out of the References section.
+    - Acceptance: the repository table renders as one table; algorithm details belong with the Python
+      analysis description and verification evidence is linked from §31. Check headings, contents and links;
+      preserve formulas, current defaults and the distinction between opt-in and default counting.
 - [x] **M5.3 - JavaScript type checking.** Check critical modules strictly and detect new diagnostics across
       the application. [V0.92](../CHANGELOG.md#v092--2026-11-09)
 - [ ] **M5.4 - Reduce legacy JavaScript type diagnostics.** Replace the baseline entries with checked contracts
       as the corresponding modules are changed.
+  - AUD-14: R1 already adds `unetmodel.js` to strict checking in V0.124. Evaluate `figview.js`, `navpreview.js`,
+    `exportio.js`, `tableview.js` and `edit.js` one at a time. Accept only checked contracts with no new
+    diagnostics; prune resolved baseline entries without regenerating a baseline that admits new errors.
   - On the next TypeScript upgrade, migrate the deprecated `moduleResolution: "node"` setting and check
     both typecheck configurations and the diagnostic baseline against the new compiler.
+- [ ] **M5.5 - Enforce the standalone module syntax contract (AUD-10).** Make unsupported module syntax
+      fail at build time rather than producing an HTML file that fails from disk.
+  - Acceptance: fixtures cover supported multiline imports and comments, residual imports/exports,
+    export lists/re-exports and relative dynamic imports. Support or explicitly reject each construct with
+    actionable diagnostics and no false positives from ordinary strings/comments. Preserve top-level name
+    collision checks and dependency order; verify the result from `file://`. Compare standard-library checks
+    with a parser only if needed, documenting dependency/offline costs before adding one.
 
 ## Existing backlog
 
@@ -464,6 +572,13 @@ existing projects retain failed-save protection. Performance evidence is collect
       is isolated from concurrent main-page OPFS image reads; console failures now include error stacks.
     - Local delivery on master; GitHub handoff requires authorised push. Further model-lifecycle or
       DINOv2 extraction requires a separate phase.
+  - [ ] **R2 - Decouple shared depth selectors (AUD-14).** Inspect consumers of `pxPerCm`, `depthAtRow`
+        and `rowAtDepth` before choosing the next small extraction. Avoid moving calculation into a
+        DOM-dependent state module merely to shorten app.js. Treat composition/class selectors as later
+        candidates after their state dependencies are understood.
+    - Acceptance: explicit inputs and checked contracts, preserved existing callers/re-exports where needed,
+      exact ROI/depth/unit behaviour, no new import cycle, standalone name/order checks and served/offline
+      regressions. Do not claim that this alone removes all current interface import cycles.
 
 
 ## Further ichnological parameters
