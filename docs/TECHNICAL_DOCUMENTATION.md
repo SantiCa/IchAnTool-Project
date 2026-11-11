@@ -789,16 +789,45 @@ graphics card.
 3. **Data:** the same ZIP as "U-Net training data", built in memory. The user marks each core as Auto, Validation or
    Test (`--val`, `--test` of `prepare`); Auto follows the rule of `prepare`.
 4. **Run:** `prepare` → `train --progress-json` (one JSON line per epoch: epoch, loss, validation Dice, best Dice and
-   its epoch, device) → `evaluate` on the test cores if there are any. Everything goes to
-   `<user data>/trainer/runs/<name>`; the model to `trainer/models/<name>.onnx` and `.json`.
-5. **Stop and resume:** after every epoch `<name>.ckpt` is atomically replaced (network, optimiser, scheduler,
+   its epoch, device) → `evaluate` on the test cores if there are any. Fresh attempts write ZIP, prepared tiles,
+   checkpoint, weights, candidate ONNX/JSON and evaluation into
+   `<user data>/trainer/staging/<name>.pending`. The suffix-free Python output prefix is `model`, independently
+   of dots in the user-facing model name. The previously published model stays available throughout the run.
+5. **Stop and resume:** after every epoch `model.ckpt` is atomically replaced (network, optimiser, scheduler,
    epoch, best Dice, history and patience). The best weights for that checkpoint can be recovered if writing
    stops between committing the checkpoint and publishing the best weights. Resume continues from the checkpoint
    with the same tiles (`train --resume`). The result is not
    bit-identical to an uninterrupted run (the random order of augmentations is not saved); this is recorded in the
-   model's history.
-6. **When it finishes:** the model is loaded in Detection. The model list shows the validation Dice and, if there
-   were test cores, the test Dice.
+   model's history. Cancellation stops the child and prevents subsequent steps or publication. A failed attempt
+   with a checkpoint remains resumable even if candidate ONNX/JSON files already exist. Resume clears those
+   candidate outputs and regenerates them from the checkpoint. Starting fresh discards only that name's staged
+   attempt, including its checkpoint; published generations and legacy files are preserved.
+6. **Publication:** successful training, a nonempty ONNX, object-valued JSON metadata and, when test cores exist,
+   successful evaluation are required. Evaluation has no additional minimum-score gate. ONNX, JSON and optional
+   test evaluation are copied into a new `trainer/models/<name>.versions/<generation UUID>/` directory as
+   `model.onnx`, `model.json` and `evaluation_test.json`. Only then is `<name>.current` replaced: it contains
+   `{"version":1,"generation":"<UUID>","runId":"<UUID>"}`. The JSON is written to an exclusive temporary file
+   in the same directory, flushed and renamed over the reference without deleting the previous reference first.
+   A failed copy, write or replacement leaves the old reference active. Readers resolve it once and use the
+   immutable generation for both model files and the displayed test score, so they cannot see mixed versions.
+7. **When it finishes:** the model is loaded in Detection through the same `readModel(name)` IPC contract.
+   The model list shows the validation Dice and, if there were test cores, that generation's test Dice. A run
+   without test cores has no inherited test score. Its staged run UUID matches the active reference and is
+   no longer shown as unfinished. An explicit API resume starts a new attempt UUID using the same checkpoint.
+
+**Compatibility and recovery.** Models without a `.current` reference still use `models/<name>.onnx` and
+`.json`, with any evaluation in `runs/<name>/evaluation_test.json`. Legacy checkpoints and best weights are
+copied into staging for resume, retaining their original basenames and Python pending-best recovery files;
+the original `runs/<name>/data` and ZIP are reused. The old files remain byte-identical. Published-reference
+UUIDs and staged model basenames are validated before resolving paths. Workspaces have their own `run.json`
+with `id`, `model` and `legacy`; filesystem locations are derived by the trainer, not taken from that JSON.
+An absent checkpoint cannot silently turn a Resume request into a fresh run.
+
+To use the current model outside the desktop program, copy both files from the generation selected by
+`<name>.current`; their ONNX/JSON format is unchanged. Previous generations, original legacy files and
+unreferenced copies from failed publications are retained, without automatic garbage collection. Reference
+replacement provides a single commit point on filesystems supporting atomic rename; this does not guarantee
+durability after power loss or coordinate simultaneous trainers in separate application processes.
 
 Security: the page can reach only six functions (`status`, `install`, `train`, `cancel`, `readModel`, `openFolder`)
 through `window.corantoolDesktop.trainer`, and the main process answers only calls that come from the program's own
@@ -2659,6 +2688,14 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 ## 31. Validation
 
 ### 31.1 Automated tests
+
+**Desktop model preservation.** Trainer regressions inject preparation/training/evaluation failures, partial
+generation copies, partial reference writes and failed reference replacement. Normal `readModel` and model-list
+calls, including reopened trainer instances, must retain byte-identical previous ONNX/JSON and matching scores.
+Tests cover successful replacement, no-test score reset, cancellation in each phase and between steps, actual
+child-process termination, staged/legacy checkpoint resume with pending-best weights, malformed candidates,
+path-containing manifests, dotted names and packaging of the model-store module. Training/evaluation subprocess
+outputs in these lifecycle tests are deterministic fixtures; they do not run PyTorch or validate ONNX predictions.
 
 **Map and figure presentation validation.** Node regressions compare malformed numeric map fields with
 the default SVG exactly, cover injection strings, non-finite values and non-primitive inputs, and verify

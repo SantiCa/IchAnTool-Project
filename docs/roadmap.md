@@ -34,7 +34,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 
 | Audit ID | Disposition after source review | Roadmap task |
 |---|---|---|
-| AUD-01 | Previous model artifacts are removed before preparation; already tracked | M3.2.3 |
+| AUD-01 | Retraining is staged and complete model/evaluation generations are published atomically in [V0.130](../CHANGELOG.md#v0130--2026-11-11) | M3.2.3 |
 | AUD-02 | Prefix-only containment check replaced with directory-boundary and URL validation in [V0.127](../CHANGELOG.md#v0127--2026-11-11) | M0.4 |
 | AUD-03 | No-data and presentation colours validated against `#rgb`/`#rrggbb` with attribute escaping in [V0.128](../CHANGELOG.md#v0128--2026-11-11) | M0.5 |
 | AUD-04 | Palette parser assumes six hexadecimal digits | M3.3.1 |
@@ -425,17 +425,30 @@ existing projects retain failed-save protection. Performance evidence is collect
     - Verified linked-output rejection, including Windows junctions, preservation of outside sentinels,
       exact image/mask pixels in binary and multiclass preparation, and unchanged train/validation/test cores.
       Regression tests run in the existing Python CI matrix, including Windows; required delivery checks pass.
-  - [ ] **M3.2.3 - Preserve the last working U-Net model.** Starting a fresh desktop training run
-        with an existing name removes the published artifacts before preparation succeeds.
-        AUD-01 confirms the already tracked risk; prioritise this alongside M0.4/M0.5.
-    - **Approach.** Prepare and train in a staging location. Publish a complete model and metadata
-      together so readers see a consistent version, and retain the previous version on failure.
+  - [x] **M3.2.3 - Preserve the last working U-Net model.** [V0.130](../CHANGELOG.md#v0130--2026-11-11).
+        Authorised by the maintainer
+        on 11 November 2026. Editor: Codex; author verification, no independent reviewer assigned.
+        Work on `fix/map-svg-style-safety`; merge into master remains deferred.
+    - **Approach.** Prepare/train in `staging/<name>.pending`. Publish immutable ONNX/JSON/evaluation
+      generations through one atomically replaced reference; retain old files and legacy readers.
     - **Acceptance.** Inject failures during preparation, training and publication, and test
       cancellation. The previous ONNX and JSON stay byte-identical and load through the normal
       model reader. A successful run exposes the new matching pair. Exercise the resume path.
-    - **Likely touchpoints.** `desktop/trainer.js` and `tests/app/trainer.test.mjs`.
-    - **Decision before implementation.** Choose the publication and resume strategy for supported
-      platforms and decide whether evaluation must succeed before a replacement becomes visible.
+    - **Publication/resume decision.** A required test-core evaluation must finish successfully before
+      publication, without a new score threshold. Resume uses staged tiles/checkpoints, or copies a legacy
+      checkpoint and best/pending-best weights while reusing its original prepared dataset. A new fresh
+      run discards only that name's staged attempt. Published generations remain untouched.
+    - **Verified.** 198 Node tests, including 32 trainer lifecycle/packaging cases; 227 Python tests (six
+      optional/permission skips); JavaScript types, Ruff, version consistency, whitespace and standalone build.
+      Real Electron E2E passes for app://, trainer IPC, detection and pending save across process restart.
+      Fault injection covers preparation, training, evaluation, partial model/reference writes, flush/replacement
+      failure and cancellation. Old ONNX/JSON bytes and matching scores survive through normal/reopened readers;
+      successful staged/legacy resumes publish a matching pair. No PyTorch training or real ONNX provider is run
+      by the new lifecycle fixtures; scientific Python and web algorithms are unchanged.
+    - **Handoff.** Local delivery on `fix/map-svg-style-safety`; GitHub retrieval requires an authorised push.
+      Merge into master remains deferred. Prior and unreferenced generations are retained without automatic
+      cleanup; power-loss durability and cross-process training locks are outside this delivery's guarantees.
+      Next priority candidate: M5.2.1 exclusion-layer documentation; no other implementation has started.
   - [ ] **M3.2.4 - Reproduce the managed trainer environment.** The optional desktop installer
         downloads dependencies whose versions can vary between installations.
         This includes AUD-09; select constraints from tested configurations, not the audit's example caps.

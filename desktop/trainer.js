@@ -7,9 +7,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawn, spawnSync } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
+const { ModelStore, safe, isRunId, readRecord, writeJSONAtomic } = require('./model-store');
 
 const WIN = process.platform === 'win32';
-const safe = (s) => String(s || 'model').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'model';
 
 class Trainer {
   /**
@@ -19,9 +20,10 @@ class Trainer {
    * python: optional interpreter that already has sedcoretool[unet] (skips the private environment; for tests).
    */
   constructor({ root, pySrc, send = () => {}, python = process.env.SEDCORETOOL_PYTHON || process.env.CORANTOOL_PYTHON || null }) {
-    Object.assign(this, { root, pySrc, send, fixedPython: python, child: null, busy: null });
-    fs.mkdirSync(path.join(root, 'models'), { recursive: true });
+    Object.assign(this, { root, pySrc, send, fixedPython: python, child: null, busy: null, cancelRequested: false });
+    this.modelStore = new ModelStore(root);
     fs.mkdirSync(path.join(root, 'runs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'staging'), { recursive: true });
   }
 
   get venv() { return path.join(this.root, 'venv'); }
@@ -76,14 +78,17 @@ class Trainer {
         }
       };
       p.stdout.on('data', feed); p.stderr.on('data', feed);
-      p.on('error', reject);
-      p.on('close', (code, signal) => { this.child = null; resolve(signal ? -1 : code); });
+      p.on('error', (error) => { if (this.child === p) this.child = null; reject(error); });
+      p.on('close', (code, signal) => { if (this.child === p) this.child = null; resolve(signal ? -1 : code); });
     });
   }
 
   async step(label, cmd, args) {
+    this.checkCancellation();
     this.send('log', `▸ ${label}`);
+    this.checkCancellation();
     const code = await this.run(cmd, args);
+    this.checkCancellation();
     if (code !== 0) throw new Error(code === -1 ? 'cancelled' : `${label}: exit code ${code}`);
   }
 
@@ -92,6 +97,7 @@ class Trainer {
     if (this.busy) throw new Error('busy');
     const sys = this.systemPython();
     if (!sys) throw new Error('python-missing');
+    this.cancelRequested = false;
     this.busy = 'install'; this.send('state', { busy: this.busy });
     try {
       if (!fs.existsSync(this.venvPython)) await this.step(`Python ${sys.version}: virtual environment`, sys.cmd, [...sys.args, '-m', 'venv', this.venv]);
@@ -109,58 +115,118 @@ class Trainer {
 
   /**
    * Train from the app's ZIP. opt = { zip (Uint8Array), name, val: [], test: [], epochs, pretrained, tile, overlap,
-   * encoder, resume }. Resume reuses the prepared tiles and the checkpoint of the same name.
+   * encoder, resume }. Work stays separate from published models, including when resuming a legacy checkpoint.
    */
   async train(opt) {
     if (this.busy) throw new Error('busy');
     const py = this.python(); if (!py) throw new Error('not-installed');
-    const name = safe(opt.name), run = path.join(this.root, 'runs', name), data = path.join(run, 'data');
-    const model = path.join(this.root, 'models', name);
-    this.busy = 'train'; this.send('state', { busy: this.busy, name });
+    const name = safe(opt.name);
+    this.cancelRequested = false;
+    this.busy = 'train';
     try {
-      const resume = !!opt.resume && fs.existsSync(path.join(data, 'dataset.json')) && fs.existsSync(model + '.ckpt');
+      this.send('state', { busy: this.busy, name });
+      this.checkCancellation();
+      const resume = !!opt.resume, run = this.prepareRun(name, resume), { data, model, zip } = run;
       if (!resume) {
-        fs.rmSync(run, { recursive: true, force: true }); fs.mkdirSync(run, { recursive: true });
-        for (const ext of ['.ckpt', '.pt', '.onnx', '.json']) fs.rmSync(model + ext, { force: true });
-        fs.writeFileSync(path.join(run, 'dataset.zip'), Buffer.from(opt.zip));
-        const a = ['-m', 'sedcoretool.cli', 'unet', 'prepare', path.join(run, 'dataset.zip'), data, '--tile', String(opt.tile || 512), '--overlap', String(opt.overlap || 64)];
+        fs.writeFileSync(zip, Buffer.from(opt.zip));
+        const a = ['-m', 'sedcoretool.cli', 'unet', 'prepare', zip, data, '--tile', String(opt.tile || 512), '--overlap', String(opt.overlap || 64)];
         if (opt.val?.length) a.push('--val', ...opt.val);
         if (opt.test?.length) a.push('--test', ...opt.test);
         await this.step('prepare', py, a);
       }
+      // A resumed attempt must generate a new pair, never publish stale outputs left by a failed export/evaluation.
+      for (const extension of ['.onnx', '.json']) fs.rmSync(model + extension, { force: true });
+      const ev = path.join(run.directory, 'evaluation_test.json');
+      fs.rmSync(ev, { force: true });
       const a = ['-m', 'sedcoretool.cli', 'unet', 'train', data, model, '--epochs', String(opt.epochs || 60), '--encoder', opt.encoder || 'resnet34', '--progress-json'];
       if (opt.pretrained === false) a.push('--no-pretrained');
       if (resume) a.push('--resume');
       await this.step(resume ? 'train (resume)' : 'train', py, a);
-      const ev = path.join(run, 'evaluation_test.json');
       const test = JSON.parse(fs.readFileSync(path.join(data, 'dataset.json'), 'utf8')).split.test.cores;
-      if (test.length) await this.step('evaluate (test cores)', py, ['-m', 'sedcoretool.cli', 'unet', 'evaluate', path.join(run, 'dataset.zip'), model + '.onnx', '--dataset', data, '-o', ev]);
-      this.send('done', { name, evaluation: fs.existsSync(ev) ? JSON.parse(fs.readFileSync(ev, 'utf8')) : null });
+      if (test.length) await this.step('evaluate (test cores)', py, ['-m', 'sedcoretool.cli', 'unet', 'evaluate', zip, model + '.onnx', '--dataset', data, '-o', ev]);
+      this.checkCancellation();
+      const evaluation = this.modelStore.publish({ name, base: model, runId: run.id, evaluationFile: test.length ? ev : null });
+      this.send('done', { name, evaluation });
       return name;
     } finally { this.busy = null; this.send('state', { busy: null }); }
   }
 
-  cancel() { if (this.child) this.child.kill(); }
+  checkCancellation() { if (this.cancelRequested) throw new Error('cancelled'); }
+
+  cancel() { if (this.busy) this.cancelRequested = true; if (this.child) this.child.kill(); }
+
+  pendingDirectory(name) {
+    const parent = path.resolve(this.root, 'staging'), directory = path.resolve(parent, `${safe(name)}.pending`);
+    if (path.dirname(directory) !== parent) throw new Error('Training workspace must remain inside staging');
+    return directory;
+  }
+
+  pendingRun(name) {
+    const directory = this.pendingDirectory(name), manifest = path.join(directory, 'run.json');
+    if (!fs.existsSync(manifest)) return null;
+    const info = readRecord(manifest);
+    if (!isRunId(info.id) || typeof info.model !== 'string' || safe(info.model) !== info.model || typeof info.legacy !== 'boolean') {
+      throw new Error(`Invalid training workspace: ${manifest}`);
+    }
+    const source = info.legacy ? path.join(this.root, 'runs', safe(name)) : directory;
+    return { directory, manifest, id: info.id, legacy: info.legacy,
+      data: path.join(source, 'data'), zip: path.join(source, 'dataset.zip'), model: path.join(directory, info.model) };
+  }
+
+  prepareRun(name, resume) {
+    const directory = this.pendingDirectory(name), manifest = path.join(directory, 'run.json');
+    if (!resume) {
+      // pendingDirectory checks the absolute parent before this recursive deletion; published files live elsewhere.
+      fs.rmSync(directory, { recursive: true, force: true });
+      fs.mkdirSync(directory);
+      writeJSONAtomic(manifest, { id: randomUUID(), model: 'model', legacy: false });
+    } else {
+      if (!this.pendingRun(name)) this.importLegacyRun(name);
+      const run = this.pendingRun(name);
+      if (!fs.existsSync(path.join(run.data, 'dataset.json')) || !fs.existsSync(run.model + '.ckpt')) throw new Error('No prepared checkpoint to resume');
+      // Even an explicit resume of a completed run becomes a separate unpublished attempt.
+      writeJSONAtomic(manifest, { id: randomUUID(), model: path.basename(run.model), legacy: run.legacy });
+    }
+    return this.pendingRun(name);
+  }
+
+  importLegacyRun(name) {
+    const source = path.join(this.root, 'models', name), data = path.join(this.root, 'runs', name, 'data', 'dataset.json');
+    if (!fs.existsSync(source + '.ckpt') || !fs.existsSync(data)) throw new Error('No prepared checkpoint to resume');
+    const directory = this.pendingDirectory(name);
+    fs.mkdirSync(directory);
+    try {
+      for (const extension of ['.ckpt', '.pt']) if (fs.existsSync(source + extension)) fs.copyFileSync(source + extension, path.join(directory, name + extension));
+      // Preserve Python's pending-best recovery: its checkpoint stores the original weight-file basename.
+      for (const file of fs.readdirSync(path.dirname(source))) if (file.startsWith(`.${name}.pt.`) && file.endsWith('.tmp')) {
+        fs.copyFileSync(path.join(path.dirname(source), file), path.join(directory, file));
+      }
+      writeJSONAtomic(path.join(directory, 'run.json'), { id: randomUUID(), model: name, legacy: true });
+    } catch (error) {
+      fs.rmSync(directory, { recursive: true, force: true });
+      throw error;
+    }
+  }
 
   /** Trained models: name, validation Dice, best epoch, date and test score if evaluated. */
   models() {
-    const dir = path.join(this.root, 'models');
-    return fs.readdirSync(dir).filter((f) => f.endsWith('.json') && fs.existsSync(path.join(dir, f.replace(/\.json$/, '.onnx')))).map((f) => {
-      const name = f.replace(/\.json$/, ''), j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-      const ev = path.join(this.root, 'runs', name, 'evaluation_test.json');
-      const test = fs.existsSync(ev) ? JSON.parse(fs.readFileSync(ev, 'utf8')).pooled : null;
-      return { name, valDice: j.valDice, bestEpoch: j.bestEpoch, split: j.split, date: fs.statSync(path.join(dir, f)).mtime.toISOString(), test };
-    }).sort((a, b) => (a.date < b.date ? 1 : -1));
+    return this.modelStore.list();
   }
 
   /** Files of a trained model, for loading it in the app. */
   readModel(name) {
-    const base = path.join(this.root, 'models', safe(name));
-    return { name: safe(name), onnx: fs.readFileSync(base + '.onnx'), json: fs.readFileSync(base + '.json', 'utf8') };
+    return this.modelStore.read(name);
   }
 
   /** A model whose last run stopped before the end (can be resumed). */
-  unfinished(name) { const b = path.join(this.root, 'models', safe(name)); return fs.existsSync(b + '.ckpt') && !fs.existsSync(b + '.onnx'); }
+  unfinished(name) {
+    name = safe(name);
+    const run = this.pendingRun(name);
+    if (run) return fs.existsSync(path.join(run.data, 'dataset.json')) && fs.existsSync(run.model + '.ckpt')
+      && this.modelStore.current(name).runId !== run.id;
+    const base = path.join(this.root, 'models', name);
+    return fs.existsSync(base + '.ckpt') && !fs.existsSync(base + '.onnx');
+  }
 }
 
 module.exports = { Trainer, safe };

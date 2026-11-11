@@ -183,6 +183,10 @@ mark an ignore value in a CLI label mask.
 desktop program (*Detection → U-Net → Train on this computer…*) or with `sedcoretool unet` — and then used as a
 detection method. No model trained on real cores is distributed yet.
 
+Desktop retraining keeps the last working model available until training and any required test-core evaluation
+finish successfully. **Resume** continues the pending checkpoint; starting a fresh run replaces that pending
+attempt. Use the model list to load the active version. See [desktop model storage and recovery](docs/TECHNICAL_DOCUMENTATION.md#93-training-on-the-computer-desktop-program).
+
 Training checks GPU memory and continues on CPU if the accelerator is unavailable or runs out of memory.
 Use `sedcoretool unet train DATA OUT --cpu-only` or `train(..., cpu_only=True)` to train on CPU without
 probing CUDA or Metal. The `predict` and `evaluate` subcommands also accept `--cpu-only`.

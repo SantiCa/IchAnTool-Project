@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.130 — 2026-11-11
+
+- Keep the last working desktop U-Net model available while retraining, including after preparation, training, evaluation, cancellation or publication failures.
+- Publish the ONNX, metadata and test evaluation together only after the complete run succeeds; resume pending checkpoints independently of the active model and keep older model files readable.
+
 ## V0.129 — 2026-11-11
 
 - Reject malformed numeric map presentation values before drawing or exporting SVG, restoring each field's default while preserving valid numeric settings and scientific measurements.
