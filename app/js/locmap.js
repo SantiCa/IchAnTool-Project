@@ -1,6 +1,7 @@
 // SedCoreTool web — V0.43: core location map (figure). DOM-free: coordinate reference systems (EPSG:4326, EPSG:3857,
 // UTM/WGS 84 with zone and hemisphere), map frame, geographic graticule or metric grid, edge labels (DD, DMS or
 // metres), scale bar, north arrow and the SVG. Names are prefixed (lm…) because the offline build joins all modules.
+import { finiteStyleNumber } from './log.js';
 
 const LM_D = Math.PI / 180, LM_A = 6378137, LM_F = 1 / 298.257223563;
 
@@ -171,6 +172,9 @@ function lmCross(fn, level, n = 240) {
 export function buildLocMapSVG(o) {
   const raw = o?.settings && typeof o.settings === 'object' && !Array.isArray(o.settings) ? o.settings : {};
   const st = { ...LOCMAP_DEFAULTS, ...raw, labels: { ...LOCMAP_DEFAULTS.labels, ...(raw.labels && typeof raw.labels === 'object' ? raw.labels : {}) } };
+  for (const k of ['margin', 'width', 'baseOpacity', 'gridWidth', 'labelSize', 'northSize', 'pointSize', 'coreLabelSize']) {
+    st[k] = finiteStyleNumber(st[k], LOCMAP_DEFAULTS[k]);
+  }
   const hexRe = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
   for (const k of ['land', 'sea', 'gridColor', 'textColor', 'subColor', 'bgColor', 'pointColor', 'pointStroke']) {
     if (typeof st[k] !== 'string' || !hexRe.test(st[k])) st[k] = LOCMAP_DEFAULTS[k];

@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.129 — 2026-11-11
+
+- Reject malformed numeric map presentation values before drawing or exporting SVG, restoring each field's default while preserving valid numeric settings and scientific measurements.
+- Verify each completed figure and its exported SVG against injected elements and event attributes, including multiproxy and location maps in browser and offline use.
+
 ## V0.128 — 2026-11-11
 
 - Validate no-data (`ndColor`, `ndLine`) and presentation colours against hexadecimal notation (`#rgb` and `#rrggbb`) across column logs, distribution charts, composite figures, location maps and multiproxy views, falling back to each style's defaults (`#f2f2f0` and `#b9bdbb` for no-data fill and hatching) when project values are malformed.

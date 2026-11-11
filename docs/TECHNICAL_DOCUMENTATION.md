@@ -1177,6 +1177,14 @@ notation (`^#[0-9a-f]{3}([0-9a-f]{3})?$/i`, `log.js::validHexColor, mergedStyle`
 exported SVGs; any other value falls back to its respective style default, and interpolated control, label and track
 attributes are escaped.
 
+Map renderers normalise numeric presentation fields with `log.js::finiteStyleNumber` before geometry or
+SVG interpolation. Finite numbers and nonempty strings that convert to finite numbers retain their numeric
+value, including zero; empty strings, non-finite values, booleans, objects and other types use the field's
+default without object coercion. Multiproxy maps check `bgOpacity`, `size` and `labelSize`. Location maps
+check `margin`, `width`, `baseOpacity`, `gridWidth`, `labelSize`, `northSize`, `pointSize` and `coreLabelSize`.
+Normalisation uses a local style copy and leaves saved inputs and scientific arrays unchanged. It does not
+change UI ranges, analysis settings, coordinate projections or depth/age calculations.
+
 | Column | Content | Horizontal scale |
 |--------|---------|------------------|
 | Bioturbation (%) | bar per interval and stepped outline | 0–100 % fixed |
@@ -2651,6 +2659,14 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 ## 31. Validation
 
 ### 31.1 Automated tests
+
+**Map and figure presentation validation.** Node regressions compare malformed numeric map fields with
+the default SVG exactly, cover injection strings, non-finite values and non-primitive inputs, and verify
+numeric strings, zero values and input preservation. The browser composition regression checks the core
+column and each of eight figure types sequentially. It waits until the current drawing replaces a sentinel
+and requires an SVG before inspecting controls and output for injected elements or event attributes.
+Each exported SVG is also parsed and checked, with exact scientific-array preservation. The same regression
+runs against the served application and standalone HTML; it does not rely on CSP blocking script execution.
 
 **Shared-analysis validation.** The [fractional-boundary validation](benchmarks/M3.1.3.md) checks both
 M0.1 reference cases at 2 and 1.37 cm with an absolute tolerance of 1e-9 and exact BI/ii/missing values.

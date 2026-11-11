@@ -173,6 +173,14 @@ export function traceSymbolPath(kind = 'triDown') {
 }
 const HEX_COLOR = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
 export const validHexColor = (value, fallback) => (typeof value === 'string' && HEX_COLOR.test(value) ? value : fallback);
+/** Read a finite presentation number without coercing objects, booleans or empty strings.
+ * @param {unknown} value @param {number} fallback
+ */
+export function finiteStyleNumber(value, fallback) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !value.trim())) return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
 let SYM = { k: 1, stroke: '#ffffff', sw: 0.8 };   // V0.23: marker size and border of the current figure
 const traceSymbol = (x, y, color, kind) => `<path transform="translate(${f2(x)} ${f2(y)})${SYM.k !== 1 ? ` scale(${f2(SYM.k)})` : ''}" d="${traceSymbolPath(kind)}" fill="${validHexColor(color, '#777777')}" stroke="${SYM.stroke === 'none' ? 'none' : validHexColor(SYM.stroke, '#ffffff')}" stroke-width="${f2(SYM.sw)}"/>`;
 /** V0.23: style of NO DATA intervals: show, fill (hatch / solid / none), colours and label. */

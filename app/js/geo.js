@@ -1,7 +1,7 @@
 // SedCoreTool web — multi-proxy geochemical interpretation (no DOM).
 // Cores → resampled samples → labels (intervals + rules) → machine learning → classes per sample → maps.
 import { parseAgeModel, interpAge } from './core.js';
-import { niceTicks } from './log.js';
+import { finiteStyleNumber, niceTicks } from './log.js';
 
 /* ───────── utilities ───────── */
 
@@ -738,6 +738,7 @@ function scaleBarKm(bbox, P, maxPx = 160) {
 export function buildMapSVG(o) {
   const raw = o.style && typeof o.style === 'object' && !Array.isArray(o.style) ? o.style : {};
   const st = { ...MAP_STYLE, ...raw }, bg = o.bg || null;
+  for (const k of ['bgOpacity', 'size', 'labelSize']) st[k] = finiteStyleNumber(st[k], MAP_STYLE[k]);
   const hexRe = /^#[0-9a-f]{3}([0-9a-f]{3})?$/i;
   for (const k of ['labelColor', 'pointColor', 'stroke', 'land', 'sea', 'textColor', 'subColor', 'bgColor']) {
     if (typeof st[k] !== 'string' || !hexRe.test(st[k])) st[k] = MAP_STYLE[k];

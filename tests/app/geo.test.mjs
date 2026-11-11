@@ -152,6 +152,24 @@ test('map summary and SVG', () => {
   assert.ok(svg.startsWith('<svg') && svg.includes('DEMO-15'));
 });
 
+test('map numeric styles reject attribute injection and invalid types without changing valid presentation', () => {
+  const options = { bbox: [-12, 34, -6, 39], points: [{ name: 'A', lat: 37, lon: -10, n: 0 }],
+    bg: { href: 'data:image/png;base64,AAAA' } };
+  const baseline = buildMapSVG(options);
+  const invalid = ['11" onmouseover="window.__xss=1', '1"/><g id="injected"/>', '', ' ', null, undefined,
+    true, false, NaN, Infinity, -Infinity, [], [11], {}, Object.create(null), { valueOf() { throw new Error('Do not coerce'); } }];
+  for (const key of ['bgOpacity', 'size', 'labelSize']) for (const value of invalid) {
+    const style = Object.freeze({ [key]: value });
+    assert.equal(buildMapSVG({ ...options, style }), baseline, `${key}: malformed values use the default`);
+    assert.strictEqual(style[key], value);
+  }
+  const numeric = { bgOpacity: 0, size: 1.5, labelSize: 14 };
+  assert.equal(buildMapSVG({ ...options, style: { bgOpacity: '0', size: '1.5', labelSize: '14' } }),
+    buildMapSVG({ ...options, style: numeric }));
+  assert.match(buildMapSVG({ ...options, style: numeric }), /opacity="0"/);
+  assert.match(buildMapSVG({ ...options, style: numeric }), /font-size="14"/);
+});
+
 test('labels: interval beats rule, intervals convert between axes; ratios and per-core scaling', async () => {
   const { featureSeries } = await import('../../app/js/geo.js');
   const c = { id: 'X', name: 'X', depth: [0, 1, 2, 3, 4], age: [0, 10, 20, 30, 40], proxies: { A: [1, 2, 3, 4, 50], B: [1, 1, 1, 2, 0] } };

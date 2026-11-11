@@ -70,3 +70,27 @@ test('location map uses its text and background colours and rejects malformed co
   assert.match(bad.svg, new RegExp(`fill="${LOCMAP_DEFAULTS.sea}"`));
   assert.match(bad.svg, new RegExp(`fill="${LOCMAP_DEFAULTS.land}"`));
 });
+
+test('location map numeric styles reject injection and invalid types while retaining numeric strings and zero', () => {
+  const settings = { base: 'raster' }, points = [{ name: 'A', lon: -4, lat: 36 }];
+  const options = { points, bg: { href: 'data:image/png;base64,AAAA' }, title: 'T' };
+  const baseline = buildLocMapSVG({ ...options, settings }).svg;
+  const invalid = ['11" onmouseover="window.__xss=1', '1"/><g id="injected"/>', '', ' ', null, undefined,
+    true, false, NaN, Infinity, -Infinity, [], [11], {}, Object.create(null), { valueOf() { throw new Error('Do not coerce'); } }];
+  for (const key of ['margin', 'width', 'baseOpacity', 'gridWidth', 'labelSize', 'northSize', 'pointSize', 'coreLabelSize']) {
+    for (const value of invalid) {
+      const raw = Object.freeze({ ...settings, [key]: value });
+      assert.equal(buildLocMapSVG({ ...options, settings: raw }).svg, baseline, `${key}: malformed values use the default`);
+      assert.strictEqual(raw[key], value);
+    }
+  }
+  const numeric = { ...settings, width: 800, baseOpacity: 0, gridWidth: 0, labelSize: 12,
+    pointSize: 5, coreLabelSize: 13, northSize: 1.2, margin: .3 };
+  const text = Object.fromEntries(Object.entries(numeric).map(([key, value]) => [key, String(value)]));
+  const result = buildLocMapSVG({ ...options, settings: numeric }).svg;
+  assert.equal(buildLocMapSVG({ ...options, settings: text }).svg, result);
+  assert.match(result, /opacity="0"/);
+  assert.match(result, /stroke-width="0"/);
+  assert.match(result, /font-size="12"/);
+  assert.match(result, /font-size="13"/);
+});

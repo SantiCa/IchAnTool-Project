@@ -146,6 +146,26 @@ The planning commit remains local on master until an authorised push. No audit f
     Required Python, Node, typecheck, Ruff, version and standalone checks pass. Local delivery on `master`;
     GitHub handoff requires an authorised push. Next candidate in priority order: M3.2.3.
 
+- [x] **M0.5.1 - Numeric map styles and completed figure safety checks.**
+      [V0.129](../CHANGELOG.md#v0129--2026-11-11).
+      Authorised by the maintainer on 11 November 2026 after review of V0.120–V0.128. Editor: Codex;
+      author verification, no independent reviewer assigned. Work on `fix/map-svg-style-safety`, as
+      explicitly requested; merge into master is deferred.
+  - Acceptance: normalise numeric multiproxy/location map presentation values before geometry/SVG output;
+    fall back to field defaults for malformed strings, non-finite values and non-primitive inputs while
+    retaining finite numeric settings, numeric strings and zero. Preserve saved inputs and exact scientific
+    arrays. Wait for each completed figure before inspecting DOM and exported SVG in served/offline builds.
+  - Reproduced: `labelSize` and `gridWidth` could inject SVG elements/event handlers. The previous colour
+    regression sampled stale output while `busy()` had not started rendering, skipping the six requested
+    figure types. Numeric style validation and sequential checks for eight types are delivered. The new
+    browser regression fails when either pre-fix map module is served, confirming detection of both cases.
+  - Verified: 227 Python tests (six optional/permission skips), 167 Node tests, JavaScript types, Ruff,
+    version consistency, whitespace, standalone build and full Chrome smoke (356 traces, identical reload).
+    Standalone U-Net and all three figure regressions pass from `file://`, including per-type safety/export
+    checks and exact scientific-array preservation. No new dependency or scientific calculation changes.
+  - Local delivery on `fix/map-svg-style-safety`; GitHub retrieval requires an authorised push of this
+    branch. Merge into master remains deferred to the maintainer. Next roadmap candidate: M3.2.3.
+
 #### M0.1 acceptance criteria
 
 - Document one command through `tools/benchmark.py` that exercises the application's normal browser paths

@@ -133,6 +133,8 @@ zones independently of Multiproxy and the core column. Age images require the se
 widths and image options. Distribution and section figures keep their own style and depth window. Settings
 are independent for each figure type and tab; **Restore inherited presentation** removes that type's
 presentation override. Existing projects inherit their previous presentation until you edit these controls.
+Malformed numeric map appearance settings fall back to their defaults when drawing or exporting figures;
+the project's measurements are preserved.
 
 ## Quick start (Python package)
 
