@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.131 — 2026-11-11
+
+- Correct the technical reference and paper to describe existing Python exclusion support in the API, command line and batch processing, distinguishing interactive drawing and no-data expansion and linking the validation evidence.
+
 ## V0.130 — 2026-11-11
 
 - Keep the last working desktop U-Net model available while retraining, including after preparation, training, evaluation, cancellation or publication failures.

@@ -61,8 +61,15 @@ ichnologists, palaeoceanographers, and core-analysis practitioners in academia a
 
 Both implementations share the same definitions. A label mask (0 = matrix, 1..n = objects or
 classes) is restricted to an analysis area. The bioturbated percentage of each depth interval of
-*N* pixel rows is the ratio of bioturbated to valid pixels. Excluded pixels (cracks, voids,
-samples; currently in the interactive program only) leave both terms. Each interval is assigned the depth of its centre, interpolated
+*N* pixel rows is the ratio of summed bioturbated to summed valid pixels. Excluded pixels (cracks, voids,
+samples) leave both terms in the program and the Python package. Python accepts a boolean exclusion array
+through `analyze_mask(..., exclude=...)`, an image through `sedcoretool analyze --exclude` or a batch
+manifest's `exclude` column, and an ignored label through `--label-mask --exclude-value`. Intervals below
+the minimum valid fraction have no data. Interactive exclusion drawing and optional expansion around
+no-data intervals (`noDataPad`) are specific to the program. The
+[technical reference](../docs/TECHNICAL_DOCUMENTATION.md#311-automated-tests) describes the exclusion tests
+and the scope and tolerances of the shared-analysis validation.
+Each interval is assigned the depth of its centre, interpolated
 linearly between the top and bottom depths of the analysis area. Percentages map to BI and ii
 through half-open tiers, and ages come from linear interpolation of a user age model.
 

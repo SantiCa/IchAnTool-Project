@@ -45,7 +45,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 | AUD-09 | Managed trainer constraints are already pending; do not adopt untested example version caps | M3.2.4 |
 | AUD-10 | Standalone import/export stripping has a restricted syntax contract | M5.5 |
 | AUD-11 | Missing-tag allegation not confirmed; currently referenced major tags exist | Verification note below; M5.1 release checks |
-| AUD-12 | Python exclusion support contradicts the limitations list and paper text | M5.2.1 |
+| AUD-12 | Python exclusion support and application-only drawing/noDataPad differences documented in [V0.131](../CHANGELOG.md#v0131--2026-11-11) | M5.2.1 |
 | AUD-13 | Language-table row and experimental-count section are misplaced | M5.2.2 |
 | AUD-14 | Addressed incrementally by R1/R2; composition dependencies and further strict modules remain candidates | M5.4 and R2 |
 
@@ -150,7 +150,7 @@ The planning commit remains local on master until an authorised push. No audit f
       [V0.129](../CHANGELOG.md#v0129--2026-11-11).
       Authorised by the maintainer on 11 November 2026 after review of V0.120–V0.128. Editor: Codex;
       author verification, no independent reviewer assigned. Work on `fix/map-svg-style-safety`, as
-      explicitly requested; merge into master is deferred.
+      explicitly requested; integrated into master with V0.130 on 11 November 2026.
   - Acceptance: normalise numeric multiproxy/location map presentation values before geometry/SVG output;
     fall back to field defaults for malformed strings, non-finite values and non-primitive inputs while
     retaining finite numeric settings, numeric strings and zero. Preserve saved inputs and exact scientific
@@ -163,8 +163,8 @@ The planning commit remains local on master until an authorised push. No audit f
     version consistency, whitespace, standalone build and full Chrome smoke (356 traces, identical reload).
     Standalone U-Net and all three figure regressions pass from `file://`, including per-type safety/export
     checks and exact scientific-array preservation. No new dependency or scientific calculation changes.
-  - Local delivery on `fix/map-svg-style-safety`; GitHub retrieval requires an authorised push of this
-    branch. Merge into master remains deferred to the maintainer. Next roadmap candidate: M3.2.3.
+  - Integrated into local `master` with V0.130 at `46a6dc6` on the maintainer's request of 11 November 2026.
+    GitHub retrieval requires an authorised push of master. M3.2.3 is delivered below.
 
 #### M0.1 acceptance criteria
 
@@ -428,7 +428,7 @@ existing projects retain failed-save protection. Performance evidence is collect
   - [x] **M3.2.3 - Preserve the last working U-Net model.** [V0.130](../CHANGELOG.md#v0130--2026-11-11).
         Authorised by the maintainer
         on 11 November 2026. Editor: Codex; author verification, no independent reviewer assigned.
-        Work on `fix/map-svg-style-safety`; merge into master remains deferred.
+        Work on `fix/map-svg-style-safety`; integrated into master on 11 November 2026.
     - **Approach.** Prepare/train in `staging/<name>.pending`. Publish immutable ONNX/JSON/evaluation
       generations through one atomically replaced reference; retain old files and legacy readers.
     - **Acceptance.** Inject failures during preparation, training and publication, and test
@@ -445,10 +445,10 @@ existing projects retain failed-save protection. Performance evidence is collect
       failure and cancellation. Old ONNX/JSON bytes and matching scores survive through normal/reopened readers;
       successful staged/legacy resumes publish a matching pair. No PyTorch training or real ONNX provider is run
       by the new lifecycle fixtures; scientific Python and web algorithms are unchanged.
-    - **Handoff.** Local delivery on `fix/map-svg-style-safety`; GitHub retrieval requires an authorised push.
-      Merge into master remains deferred. Prior and unreferenced generations are retained without automatic
-      cleanup; power-loss durability and cross-process training locks are outside this delivery's guarantees.
-      Next priority candidate: M5.2.1 exclusion-layer documentation; no other implementation has started.
+    - **Handoff.** Integrated into local `master` at `46a6dc6` on the maintainer's request of 11 November 2026;
+      GitHub retrieval requires an authorised push of master. Prior and unreferenced generations are retained
+      without automatic cleanup; power-loss durability and cross-process training locks are outside this delivery's guarantees.
+      Exclusion-layer documentation follows in M5.2.1.
   - [ ] **M3.2.4 - Reproduce the managed trainer environment.** The optional desktop installer
         downloads dependencies whose versions can vary between installations.
         This includes AUD-09; select constraints from tested configurations, not the audit's example caps.
@@ -505,11 +505,22 @@ existing projects retain failed-save protection. Performance evidence is collect
 - [ ] **M5.2 - Scientific validation and documentation.** Complete the release requirements in
       [Validation](#validation) and the relevant user guidance. The maintainer decides when to declare 1.0
       and publish it.
-  - [ ] **M5.2.1 - Correct exclusion-layer claims (AUD-12).** Reconcile technical-documentation
+  - [x] **M5.2.1 - Correct exclusion-layer claims (AUD-12).** [V0.131](../CHANGELOG.md#v0131--2026-11-11).
+        Reconcile technical-documentation
         limitations (§32) and the paper's numerical description with current Python API/CLI/batch support.
+    - Authorised by the maintainer's request to integrate V0.130 and continue the roadmap on 11 November
+      2026. Editor: Codex; author verification, no independent reviewer assigned.
     - Acceptance: remove the false application-only limitation, use actual API and CLI names
       (`analyze_mask`, `--exclude`, `--exclude-value`), and retain real differences such as absent Python
       `noDataPad`. Link existing validation evidence without claiming parity outside its tested scope.
+    - Delivered: §25.5 and §32 describe existing array/image/label exclusions, batch manifests and the
+      application-only drawing/noDataPad capabilities. The paper uses the same definition and links §31.1,
+      which identifies existing exclusion tests and limits the equivalence claims to their tested scope.
+      README guidance already describes exclusions correctly; no user workflow or scientific code changes.
+    - Verified: 227 Python tests (six optional/permission skips), 198 Node tests, JavaScript types, Ruff,
+      version consistency, whitespace and the added local documentation links. No new tests or E2E run are
+      needed for this documentation/version-only delivery. Local commit on master; GitHub retrieval requires
+      an authorised push. Next priority candidate: M5.2.2 technical-document navigation.
   - [ ] **M5.2.2 - Repair technical-document navigation (AUD-13).** Put the `i18n.js` row inside the
         repository table and move experimental counting out of the References section.
     - Acceptance: the repository table renders as one table; algorithm details belong with the Python

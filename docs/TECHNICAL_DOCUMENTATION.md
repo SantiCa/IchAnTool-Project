@@ -2462,12 +2462,16 @@ The U-Net workflow (§9.2), with its defaults:
 
 ### 25.5 Differences from the program
 - The package starts from a mask: it has no enhancement, detection, editing tools or ichnotaxa classifier.
-- The exclusion layer is read from an image (or a mask value), not drawn; `noDataPad` is not available.
+- Exclusions are supplied to `analyze_mask(..., exclude=...)` as a boolean array, to `sedcoretool analyze`
+  with `--exclude` as an image, or to batch processing through the manifest's `exclude` column. With
+  `--label-mask`, `--exclude-value` marks an ignored label in both `analyze` and `batch`; it can be combined
+  with an exclusion image. The package has no interactive exclusion drawing or `noDataPad` expansion (§3.2).
 - Its CSV files have no `#` provenance lines.
 - It does not read project files.
 
-Within those limits, results are identical to the program's for the same mask, exclusion, interval limits and
-depth scale (§31.1).
+The shared definitions apply to the same mask, exclusions, interval limits, depth scale and minimum valid
+fraction, with the program's `noDataPad` set to zero. The fixtures and reference workloads in §31.1 establish
+equivalence within their stated numerical tolerances; they do not validate every possible input or option.
 
 ### 25.6 Batch processing, multi-section cores and LAS
 Implementation: `batch.py`, `export.py::join_sections, to_las`.
@@ -2713,6 +2717,15 @@ is also checked against integer-arithmetic edges at 68.5 rows. Python's explicit
 handling remain covered. Tests of the profiling harness verify cropped/remapped labels, exclusions,
 partial bins, disagreement reporting and weighted CPU-sample attribution.
 
+**Exclusion support.** [Python exclusion and batch tests](../tests/test_batch.py) verify the ratio of summed
+bioturbated to valid pixels, the minimum-valid no-data rule, exclusion dimensions, manifest exclusions,
+`analyze --exclude` and `--label-mask --exclude-value`. [API boundary tests](../tests/test_core.py) also cover
+fully excluded intervals, minimum-valid endpoints and exact sparse-class results. The
+[program core tests](../tests/app/core.test.mjs) verify that excluded pixels leave the denominator, and the
+[shared fractional-boundary fixtures](../tests/fixtures/fractional-boundaries.json) exercise matching Python
+and JavaScript boundaries; Python also checks those boundaries with excluded rows. These checks cover the
+listed cases; Python has no equivalent of the program's optional `noDataPad` expansion.
+
 **U-Net controller validation.** Node tests check loading defaults and failure semantics, exact binary/scaled
 and multiclass probabilities against the scientific tiling engine, tensor input/output names and dimensions,
 progress, cache reuse and invalidation across model/ROI/dimensions/scale changes. Browser tests drive normal
@@ -2785,7 +2798,8 @@ The percentage difference comes from the JPEG decoder (§3.4), not from the meth
 5. **Linear scale per section:** expansion or compression of the core within a section is not corrected.
 6. **Memory:** about 13 bytes per pixel across layers while a section is in use, plus 8 bytes for native 16-bit RGBA; images of more than about 50 million
    pixels are slow, which is why images are reduced on import (§6.1).
-7. **The Python package has no exclusion layer** (§25.5).
+7. **Python exclusions are supplied, not drawn:** boolean arrays, exclusion images and ignored mask labels
+   are supported; interactive drawing and `noDataPad` expansion are available only in the program (§25.5).
 8. **Local projects:** in the browser, projects live in the browser profile of each computer; clearing browser data
    deletes them. The automatic copy and exported packages protect against this (§23).
 9. **Age axis:** the image and series depend on the age model, assumed monotonic; its uncertainty is not propagated.
