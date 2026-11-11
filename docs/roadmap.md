@@ -39,7 +39,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 | AUD-03 | No-data and presentation colours validated against `#rgb`/`#rrggbb` with attribute escaping in [V0.128](../CHANGELOG.md#v0128--2026-11-11) | M0.5 |
 | AUD-04 | Palette parser assumes six hexadecimal digits | M3.3.1 |
 | AUD-05 | Fractional bin size still has an integer annotation | M3.3.2 |
-| AUD-06 | Double escaping is not established: leading apostrophes are unchanged by spreadsheet_text; validate marked-row editing/round trips | M3.3.3 |
+| AUD-06 | Existing escaping verified through CSV/literal-text XLSX round trips; missing-value-like identifiers preserved and editing rules documented in [V0.137](../CHANGELOG.md#v0137--2026-11-12) | M3.3.3 |
 | AUD-07 | LAS uses ASCII replacement; choose an explicit metadata policy before changing output | M3.3.4 |
 | AUD-08 | Training seeds process-global random generators | M3.2.5 |
 | AUD-09 | Managed trainer constraints are already pending; do not adopt untested example version caps | M3.2.4 |
@@ -529,13 +529,27 @@ existing projects retain failed-save protection. Performance evidence is collect
       annotation with the existing float-valued API and documented fractional boundary rules.
   - Acceptance: inspect public annotations/documentation and retain fractional-bin and legacy numerical
     regressions. This is a type correction, not a new conversion or rounding algorithm.
-- [ ] **M3.3.3 - Verify manifest escaping and manual editing (AUD-06).** Reproduce the generated CSV,
+- [x] **M3.3.3 - Verify manifest escaping and manual editing (AUD-06).** [V0.137](../CHANGELOG.md#v0137--2026-11-12). Reproduce the generated CSV,
       spreadsheet/text-editor edit and `read_manifest` round trip before changing the format.
   - Acceptance: preserve exact paths/names beginning with apostrophes, `-`, `+`, `=`, `@`, whitespace and
     ordinary text, including mixed values in the same marked row and unmarked user manifests. Retain formula
     protection and numeric depths. Document `__sedcoretool_csv_escape__` / `apostrophe-v1` and supported
     editing rules; give existing generated manifests a compatibility path if encoding changes are needed.
     Source review alone does not confirm the audit's double-escape claim; close it with reproduction evidence.
+  - Authorised by the maintainer's instruction to continue the next roadmap point on 12 November 2026.
+    Editor: Codex; author verification, no independent reviewer assigned.
+  - Delivered: generated CSV, marked text edits, unmarked user input and controlled literal-text XLSX
+    save/reopen/CSV round trips retain the existing encoding. Reproduced and corrected the reader's loss
+    of missing-value-like identifiers (`NA`, `NULL`, etc.); numeric depths, empty-field defaults, exclusions
+    and scientific results remain unchanged. No format migration is needed.
+  - [Reproduction evidence and limits](diagnostics/manifest-round-trip-2026-11-12.md): 40 new cases include
+    110 generated section round trips, mixed rows and exact batch results. Native spreadsheet interfaces
+    and locale-dependent CSV conversions remain unverified; the tested XLSX path uses openpyxl.
+    Checks pass: 267 Python tests (six optional/permission skips), 218 Node tests, JavaScript types,
+    Ruff, version consistency, whitespace and standalone build. The application interface and saving
+    implementation are unchanged, so no repeated browser E2E run is required for this delivery.
+  - Local commit on master; GitHub retrieval requires an authorised push. Next priority candidate:
+    M3.3.1 palette hex input forms; no further phase is started here.
 - [ ] **M3.3.4 - Choose LAS ASCII metadata policy (AUD-07).** Decide how non-ASCII names, headers and
       units are represented before replacing the current ASCII substitution in `export.py`.
   - Acceptance: document predictable transliteration/rejection/warning behaviour, test accented and

@@ -177,6 +177,11 @@ sedcoretool batch scans/sections.csv --palette palette.json --bin-cm 1 -o result
 
 An exclusion image of the same size (white = excluded: cracks, gaps, samples) can be given with `--exclude`, or as
 the `exclude` column of the manifest. The CLI accepts finite `--min-valid` fractions from 0 to 1, inclusive.
+When filling in a generated manifest, keep its text cells and any `__sedcoretool_csv_escape__` column intact;
+edit `top` and `bottom` as numbers. If using a spreadsheet, import identifier/path columns as literal text
+and check that saving preserves the leading apostrophes and the comma-separated UTF-8 CSV. Literal names such
+as `NA` and `NULL` stay text; empty optional cells use the documented defaults. To change names or paths in a
+marked row, follow the [manifest editing rules](docs/TECHNICAL_DOCUMENTATION.md#2561-manifest-text-encoding-and-editing).
 Multi-core LAS exports require distinct filenames and unused destinations. If core names collide after
 normalisation, rename the cores or export them separately. Use a different output prefix if a destination exists.
 

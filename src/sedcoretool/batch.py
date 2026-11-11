@@ -45,13 +45,15 @@ def _read_matching_exclusion(path: str | Path, image_path: str | Path, image_sha
 
 
 def read_manifest(path: str | Path) -> pd.DataFrame:
+    """Read section data, preserving literal identifiers and decoding only explicitly marked rows."""
     path = Path(path)
     headers = pd.read_csv(path, nrows=0, compression=None).columns
     columns = {c: c.strip().lower() for c in headers if c.strip().lower() in _MANIFEST_TYPES}
     if len(set(columns.values())) != len(columns):
         raise ValueError(f"manifest {path.name}: duplicate column names")
+    # Names such as "NA" are valid identifiers; only empty CSV cells mean missing data.
     m = pd.read_csv(path, usecols=list(columns), dtype={c: _MANIFEST_TYPES[key] for c, key in columns.items()},
-                    compression=None).rename(columns=columns)
+                    compression=None, keep_default_na=False, na_values=[""]).rename(columns=columns)
     missing = [c for c in REQUIRED if c not in m]
     if missing:
         raise ValueError(f"manifest {path.name}: missing column(s) {', '.join(missing)}")

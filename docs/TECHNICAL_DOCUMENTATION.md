@@ -2602,8 +2602,11 @@ Implementation: `batch.py`, `export.py::join_sections, to_las`.
 sections.csv]` lists the images of a folder with empty depths (and `<stem>_excl.png` as exclusion when it exists);
 the depths are filled in by hand. `read_manifest` recognises documented headers without case sensitivity,
 loads depth columns as float64 and the identifiers and paths as strings. It skips extra columns and reads plain CSV.
+Only empty CSV fields are missing: identifiers such as `NA`, `N/A`, `NULL`, `NaN` and `None` remain literal
+text in string columns. Empty required fields are rejected; empty optional fields retain the defaults above.
+Whitespace-only `name` and `exclude` cells also use their existing fallback/absent behaviour.
 Templates containing formula-like names include an escape marker so the manifest reader can recover the original
-paths and labels.
+paths and labels. See the [encoding and editing rules](#2561-manifest-text-encoding-and-editing).
 
 ```bash
 sedcoretool batch sections.csv [--bin-cm 1 | --bin-px N] [--threshold 5 | --palette p.json | --label-mask
@@ -2615,6 +2618,7 @@ sheet per section); with `.las`, one file per core (`<name>_<core>.las` when the
 An exclusion image supplied with `--exclude` or in a manifest must match the analysed section's
 width and height. If the sizes differ, the diagnostic identifies both files and their dimensions
 before the file's exclusion mask is combined with other exclusions.
+
 For a multi-core LAS batch, the filename component for each core retains alphanumeric characters, hyphens
 and underscores, and replaces other characters with underscores. Before writing, the CLI compares all
 proposed filenames and existing directory entries using Unicode NFC and case folding. A collision within
@@ -2635,6 +2639,45 @@ curve per index (`BI`, `II`). Mnemonics are upper case, with characters other th
 by `_`, at most 24 characters and made unique; the original class name is in the curve description. Overlapping
 sections are joined with `overlap="upper"` by default, because depth must increase strictly. The `~Parameter`
 section lists the number of sections and their names.
+
+### 25.6.1 Manifest text encoding and editing
+
+Generated manifests use the existing `__sedcoretool_csv_escape__` column with the per-row value
+`apostrophe-v1`. It is an encoding marker, not a data column. A row is marked if any original cell needs
+spreadsheet formula protection. For its string fields (`image`, `core`, `name`, `exclude`, `units`), the
+writer prefixes formula-like text with one ASCII apostrophe; a literal leading apostrophe is doubled in
+that marked row. Other text stays unchanged. The general CSV writer leaves these already-prefixed values
+unchanged. When reading a marked row, exactly one leading apostrophe is removed from each string field.
+Numeric depth fields are never decoded this way. CSV quoting around cells is separate from this encoding.
+
+| Original string | CSV cell content in a marked row | Decoded string |
+|---|---|---|
+| `'section.png` | `''section.png` | `'section.png` |
+| `''section.png` | `'''section.png` | `''section.png` |
+| `-section.png` | `'-section.png` | `-section.png` |
+| `=Core` | `'=Core` | `=Core` |
+| ` ordinary` | ` ordinary` | ` ordinary` |
+| `NA` | `NA` | `NA` |
+
+The marker applies to each row, including rows that mix ordinary strings, protected strings and original
+apostrophes. In a row without `apostrophe-v1`, all text is read literally: an original leading apostrophe
+is preserved. Previously generated manifests use the same encoding and require no migration.
+
+The simplest supported edit is to fill in `top` and `bottom`, preserving every text cell and marker. Import
+text columns literally in a spreadsheet; automatic formula, date or numeric conversion must not rewrite
+them. Save as comma-separated UTF-8 CSV with a dot decimal separator. Do not remove the marker or strip
+leading apostrophes from an existing generated row. If changing a string in a marked row with a text editor,
+encode the new value according to the same rule: double an original first apostrophe, prefix formula-like
+text with one apostrophe, and leave ordinary text alone. Newly authored, unmarked manifests contain raw
+strings and are not automatically protected for spreadsheet opening. Do not copy a marker onto raw text.
+
+`tests/test_manifest_contract.py` verifies generated mixed rows through CSV depth edits and a controlled
+literal-text XLSX save/reopen/CSV round trip using openpyxl. It also covers marked-row name edits,
+unmarked user input, exact paths/names with whitespace and apostrophes, missing-value-like literals,
+numeric depths, defaults, exclusion paths and unchanged mask/BI/ii results. Existing spreadsheet-export
+regressions retain formula protection. These checks validate the file-level contract; native spreadsheet
+import/export interfaces and their locale-dependent automatic conversions are not covered. The
+[reproduction evidence](diagnostics/manifest-round-trip-2026-11-12.md) records that scope and the reader correction.
 
 ---
 

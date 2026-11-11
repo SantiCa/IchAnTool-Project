@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.137 — 2026-11-12
+
+- Preserve literal names and paths such as `NA`, `NULL` and `N/A` when reading batch manifests; only empty fields trigger missing-value handling and defaults.
+- Document how to edit generated CSV manifests while keeping formula protection, original apostrophes and mixed text values intact. Keep the existing `apostrophe-v1` format compatible.
+
 ## V0.136 — 2026-11-12
 
 - Restore event shading controls in multiproxy log, core-column and whole-core figures. Select multiple interval families or automatic classifications, with independent opacity and class colours in each figure.
