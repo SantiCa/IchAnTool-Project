@@ -73,18 +73,21 @@ def _validate_min_valid(min_valid: float) -> float:
         raise ValueError("min_valid must be a finite fraction between 0 and 1 inclusive")
     return min_valid
 
-
-
 def _label_row_counts(mask: np.ndarray, valid: np.ndarray, n_classes: int) -> np.ndarray:
-    """Bounded histogram scratch: at most 65,536 pixels per block plus row/class counts."""
+    """Count row/class keys in blocks of <=65,536 pixels and <=64 rows."""
     rows, width = mask.shape
-    counts = np.zeros((rows, n_classes + 1), dtype=np.int64)
-    # Column chunks also bound scratch for very wide images.
-    for row in range(rows):
+    classes = n_classes + 1
+    counts = np.zeros((rows, classes), dtype=np.int64)
+    block_rows = min(64, max(1, 65536 // max(1, width)))
+    for row in range(0, rows, block_rows):
+        end = min(rows, row + block_rows)
+        offsets = np.arange(end - row, dtype=np.intp)[:, None] * classes
         for col in range(0, width, 65536):
-            labels = mask[row, col:col + 65536][valid[row, col:col + 65536]]
-            counts[row] += np.bincount(labels.astype(np.intp), minlength=n_classes + 1)
+            keys = mask[row:end, col:col + 65536].astype(np.intp) + offsets
+            selected = keys[valid[row:end, col:col + 65536]]
+            counts[row:end] += np.bincount(selected, minlength=(end - row) * classes).reshape(end - row, classes)
     return counts
+
 
 def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "cm",
                  bin_px: float = 1, bin_cm: float | None = None, class_names: Sequence[str] | None = None,

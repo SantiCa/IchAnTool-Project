@@ -1,0 +1,2934 @@
+{
+  "started_utc": "2026-11-11T09:23:21.841135+00:00",
+  "application": {
+    "commit": "b59fa6381b9196437bf22fd1a08b5a92bc9ba49d",
+    "delivery": "V0.122",
+    "files_sha256": "f22aecbced6a3294e1f9cd1674cd0c0d4a40cbed5f6b066e684dfa8589067b28",
+    "matches_head": false,
+    "modified_files": [
+      "src/sedcoretool/pipeline.py"
+    ],
+    "tool_sha256": {
+      "tools/benchmark_images.py": "181a793b0bf87b86d3800449d32b6922d01f78b22ea0652352c4a9a4a6884292",
+      "tools/benchmark_images.mjs": "76705bd1ae26e37e1430992b661d53128ad8d80f42af7cc3cd25e3e9a0878b41",
+      "tests/e2e/navigation-preview.mjs": "d42591a8b78952bcd3d56433e0671b56607d70fc8de9b3ac17d88fe9173a5f13",
+      "tools/benchmark.py": "bfd386d4846ee9fde9a5a086a025f7c4a0f69b598bcc14318fcc49ef18a4f6e4",
+      "tools/benchmark_browser.mjs": "35a1bac204dd0bb20fc4fb3166342e9235f99d9b30529051364ea1b4badfbe7d",
+      "tools/benchmark_analysis.py": "dd1477f4ad7faf01f6cefb9b5f89cbcf8e7d59bf747e467df17672d8330f1c4e",
+      "tools/benchmark_analysis.mjs": "a2dbde50a71b1285c199da0c07b18f09db9206b1e281a7eec9fe995d5a1fe1ff"
+    }
+  },
+  "driver_sha256": "369290ca18d2c7a42f8cc7fb4f16a6eb1b2d9f8eb77f21d3cd9222400b1ce2b5",
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "architecture": "AMD64",
+    "cpu": "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz",
+    "logical_cpus": 12,
+    "physical_cores": 6,
+    "ram_mib": 8041,
+    "python": "3.12.14",
+    "sedcoretool": "0.122.0",
+    "numpy": "1.26.4",
+    "pandas": "2.2.2",
+    "pillow": "11.3.0",
+    "psutil": "7.2.2"
+  },
+  "warmup_pairs": 1,
+  "measured_pairs": 6,
+  "absolute_tolerance": 1e-09,
+  "rss_poll_target_ms": 25,
+  "modes": {
+    "default": {
+      "SEDCORETOOL_EXPERIMENTAL_COUNTS": null
+    },
+    "experimental": {
+      "SEDCORETOOL_EXPERIMENTAL_COUNTS": "1"
+    }
+  },
+  "cases": [
+    {
+      "case": "u1385",
+      "analysis_input_sha256": "ab61a88b0e133b078aa42d0d8ee9dd1d5c29887ddc9e7fd4a20ff80bfb2edee4",
+      "package_sha256": null,
+      "browser_interval_sha256": [
+        "32cd677f867a70e31bf2b22d1c2102672d23d0ed2a5b22e47785b9b21605ab6c",
+        "cdc03766b746b966ea8d6e18237de6fb01c1054f56cd99d5e42e5c85a4de9ae8"
+      ],
+      "setup_reload_verified": true,
+      "runtimes": {
+        "chrome": "Chrome/156.0.8078.80",
+        "node": "v22.23.0",
+        "puppeteer": "23.11.1"
+      },
+      "pairs": [
+        {
+          "kind": "warmup",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 339.82300000207033,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 59.54439999186434
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 55.075900003430434
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 59.42000000504777
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 56.40650000714231
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 57.1090000012191
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 51.13210000854451
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 345.20440000051167,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 58.78079999820329
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 54.880299998330884
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 58.177300001261756
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 64.9550999951316
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 59.73409999569412
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 50.74839999724645
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 139.11328125,
+            "rss_samples": 75,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 130.4781000071671,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 21.272500001941808
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 22.24049999495037
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 22.983699993346818
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 23.21729999675881
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 26.61840000655502
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.13349999813363
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 137.10849999915808,
+                "cpu_ms": 140.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 22.458499995991588
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 25.66889999434352
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 21.88400000159163
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.998699991148897
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 21.751899999799207
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 20.041499999933876
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 140.265625,
+            "rss_samples": 50,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "experimental",
+            "default"
+          ],
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 129.86349999846425,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 21.20229999127332
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 21.47000000695698
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 21.374300005845726
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.337700007483363
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 22.040399999241345
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.565299997339025
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 135.46219999261666,
+                "cpu_ms": 140.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 22.365900003933348
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 23.153500005719252
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 25.19080000638496
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 23.605499998666346
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 22.72199999424629
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 20.584899990353733
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 145.03515625,
+            "rss_samples": 49,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 334.7936999925878,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 67.19560000055935
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 54.953299986664206
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 54.27150000468828
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 56.369400001131
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 58.14000000827946
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 49.89470000145957
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 387.1112000051653,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 64.53619999228977
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 57.989199995063245
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 59.6048999868799
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 56.60860000352841
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 55.97279999346938
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 52.005100005771965
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 138.765625,
+            "rss_samples": 76,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 352.1848999953363,
+                "cpu_ms": 359.375,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 54.59379999956582
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 54.820700010168366
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 54.01669999992009
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 54.46719999599736
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 55.211200000485405
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 53.39810000441503
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 332.62570000078995,
+                "cpu_ms": 328.125,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 55.76339999970514
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 54.33289999200497
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 58.830800000578165
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 58.58750001061708
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 54.87910000374541
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 49.609300011070445
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 139.19921875,
+            "rss_samples": 74,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 130.5415999959223,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 23.472600005334243
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 22.076000008382834
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 21.381700003985316
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.270699992077425
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 21.723099998780526
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 18.895100001827814
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 139.56619999953546,
+                "cpu_ms": 140.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 22.487400012323633
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 23.587499992572702
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 22.468900002422743
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 23.131000009016134
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 21.689400004106574
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.734100002096966
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 140.1171875,
+            "rss_samples": 49,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "experimental",
+            "default"
+          ],
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 130.83130000450183,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 21.30100000067614
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 24.484699999447912
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 21.08819999557454
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.033400004147552
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 24.048000006587245
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.45950000663288
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 134.0080000081798,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 25.441100005991757
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 23.447500003385358
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 23.02849999978207
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.517599994898774
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 22.490200004540384
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.771900013438426
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 140.1171875,
+            "rss_samples": 50,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 340.7077999872854,
+                "cpu_ms": 328.125,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 54.283800011035055
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 54.49650000082329
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 58.03810000361409
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 59.632199991028756
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 80.29199999873526
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 61.15490000229329
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 346.71959999832325,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 59.222900003078394
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 59.53810000210069
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 57.93480000284035
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 56.07900000177324
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 68.46130000485573
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 54.521400001249276
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 139.37109375,
+            "rss_samples": 78,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 358.12089999672025,
+                "cpu_ms": 359.375,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 60.43850000423845
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 58.27349999162834
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 58.59450000571087
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 58.57259999902453
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 54.10929999197833
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 50.31839999719523
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 338.8758999935817,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 58.14300000201911
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 56.11510000017006
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 59.07350000052247
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 55.95520000497345
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 62.49139999272302
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 51.3719000009587
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 139.3203125,
+            "rss_samples": 82,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 128.86270000308286,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 21.425500002806075
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 23.085900000296533
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 24.053999994066544
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.495500001241453
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 24.70960000937339
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.67789999616798
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 136.72749999386724,
+                "cpu_ms": 140.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 22.927900005015545
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 22.45220000622794
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 23.69689999613911
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.62039999186527
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 24.43630000925623
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 20.85580000129994
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 140.0390625,
+            "rss_samples": 49,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "experimental",
+            "default"
+          ],
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 137.80789999873377,
+                "cpu_ms": 140.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 21.221300004981458
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 21.792600004118867
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 22.048899991204962
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 21.544000002904795
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 22.05820000381209
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.67589999549091
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 138.42859999567736,
+                "cpu_ms": 125.0,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 22.26209999935236
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 21.852900012163445
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 23.91920000081882
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 23.257299995748326
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 23.544100011349656
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 19.379800010938197
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 138.77734375,
+            "rss_samples": 52,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 337.45650001219474,
+                "cpu_ms": 328.125,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 56.846799998311326
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 55.14419999963138
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 52.90920000697952
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 53.61319999792613
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 63.00159999227617
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 51.58769999979995
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 338.1004999973811,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 57.80169999343343
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 58.844800005317666
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 55.45410000195261
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 61.87960000534076
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 56.215799995698035
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 48.48230000061449
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 144.16796875,
+            "rss_samples": 75,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 338.7354000005871,
+                "cpu_ms": 328.125,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 54.6938999905251
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 58.6464999942109
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 54.69910000101663
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 57.94070000411011
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 55.311299991444685
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 54.78910000238102
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 348.79210000508465,
+                "cpu_ms": 343.75,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 61.74760000430979
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 61.016299994662404
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 58.338800008641556
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 58.610699998098426
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 60.795400000642985
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 52.879199996823445
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 139.01953125,
+            "rss_samples": 76,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 156.5275000029942,
+                "cpu_ms": 156.25,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 24.494299999787472
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 22.138600004836917
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 22.807499990449287
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 21.508399993763305
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 22.184500005096197
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 24.114200001349673
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 144.60739999776706,
+                "cpu_ms": 140.625,
+                "sections": [
+                  {
+                    "name": "U1385I-1H-1",
+                    "elapsed_ms": 24.438699998427182
+                  },
+                  {
+                    "name": "U1385I-1H-2",
+                    "elapsed_ms": 22.57139999710489
+                  },
+                  {
+                    "name": "U1385I-1H-3",
+                    "elapsed_ms": 22.28839999588672
+                  },
+                  {
+                    "name": "U1385I-1H-4",
+                    "elapsed_ms": 22.821500009740703
+                  },
+                  {
+                    "name": "U1385I-1H-5",
+                    "elapsed_ms": 23.05289999640081
+                  },
+                  {
+                    "name": "U1385I-1H-6",
+                    "elapsed_ms": 21.430799999507144
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 140.08203125,
+            "rss_samples": 50,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 8.881784197001252e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e44c2597b03c486f4d159f8d6fb65f319403fc7f8280782550fe6b074bd8c771",
+              "ed47f71f10c52df7f320c72c20678d86d3ec62bea6bada4bbc181d842b58c8af"
+            ]
+          }
+        }
+      ],
+      "summary": {
+        "scenarios": [
+          {
+            "bin_cm": 2,
+            "default": {
+              "median": 339.72159999393625,
+              "min": 334.7936999925878,
+              "max": 358.12089999672025
+            },
+            "experimental": {
+              "median": 130.68645000021206,
+              "min": 128.86270000308286,
+              "max": 156.5275000029942
+            },
+            "median_ratio": 0.3846869024593806,
+            "paired_ratios": [
+              0.3878911102608543,
+              0.37066211526289444,
+              0.3839985465826853,
+              0.3598301579278479,
+              0.40837233834213826,
+              0.4620937168147259
+            ],
+            "paired_median_ratio": 0.3859448284217698,
+            "latency_passed": true
+          },
+          {
+            "bin_cm": 1.37,
+            "default": {
+              "median": 342.7977499959525,
+              "min": 332.62570000078995,
+              "max": 387.1112000051653
+            },
+            "experimental": {
+              "median": 137.5780499947723,
+              "min": 134.0080000081798,
+              "max": 144.60739999776706
+            },
+            "median_ratio": 0.40133883608161586,
+            "paired_ratios": [
+              0.34993097588188915,
+              0.41958934622070393,
+              0.38650252252491024,
+              0.4034736609964204,
+              0.409430332095781,
+              0.4145948259598167
+            ],
+            "paired_median_ratio": 0.4064519965461007,
+            "latency_passed": true
+          }
+        ],
+        "median_peak_rss_mib": {
+          "default": 139.259765625,
+          "experimental": 140.099609375
+        },
+        "memory_ratio": 1.0060307709569292,
+        "memory_passed": true,
+        "accepted": true
+      }
+    },
+    {
+      "case": "synthetic",
+      "analysis_input_sha256": "fde76e9b55ebc275e50484c5db57177bff015a31944e90e13c9745875e021e89",
+      "package_sha256": "aadd7befe779ba54dd8cf00afdc5ae0007162150b7e354a14ab4bddcf6d9bfbb",
+      "browser_interval_sha256": [
+        "8478569174481456796bf9d6aaa947f43a89d261f02472f0166927fdb3def1f5",
+        "d07e48f5d7a1ab988b15ab7e6ec721aa926d923510759a32288a18ea05b500b6"
+      ],
+      "setup_reload_verified": true,
+      "runtimes": {
+        "chrome": "Chrome/156.0.8078.80",
+        "node": "v22.23.0",
+        "puppeteer": "23.11.1"
+      },
+      "pairs": [
+        {
+          "kind": "warmup",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 559.7370999894338,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 65.67409999843221
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 65.72030000097584
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 65.37949999619741
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 80.44169998902362
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 69.41650000226218
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 75.7646999991266
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 69.00190000305884
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 65.77829999150708
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 554.5902000012575,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 66.52439999743365
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 71.450300005381
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 70.42799999180716
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 72.61889999790583
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 68.54300000122748
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 67.16660001256969
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 66.56409999413881
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 66.99110000045039
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 325.0,
+            "rss_samples": 138,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 408.63429999444634,
+                "cpu_ms": 421.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 48.38130000280216
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 50.40769999322947
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 47.59159999957774
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 50.44890000135638
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 49.61400000320282
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 47.999699992942624
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 49.882800012710504
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 48.11310001241509
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 385.8613000047626,
+                "cpu_ms": 359.375,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 49.390899992431514
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 46.044399990933016
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 46.86500001116656
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 47.42810000607278
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 49.700599993229844
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 53.27140000008512
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 48.66729999775998
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 46.193500005756505
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 336.68359375,
+            "rss_samples": 118,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "experimental",
+            "default"
+          ],
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 389.6668000088539,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 46.37619999994058
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 46.12630000337958
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 45.81250000046566
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 48.761199999717064
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 46.209199994336814
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 47.47479999787174
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 49.29229999834206
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 46.17030000372324
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 403.4888000023784,
+                "cpu_ms": 406.25,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 59.273699996992946
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 48.24720000033267
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 52.21519999031443
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 52.22460000368301
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 49.94749999605119
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 47.95360000571236
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 48.073500001919456
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 50.96839999896474
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 322.05859375,
+            "rss_samples": 119,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 552.7429000067059,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 65.86109999625478
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 68.74309999693651
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 68.40829999418929
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 71.40770000114571
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 71.98229999630712
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 74.57459998840932
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 77.00789999216795
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 72.71039999614004
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 567.6319000049261,
+                "cpu_ms": 562.5,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 68.68620000022929
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 70.98099999711849
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 70.84229998872615
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 69.41060000099242
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 71.13150000805035
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 70.55960000434425
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 77.81069999327883
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 69.2857000103686
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 321.96875,
+            "rss_samples": 140,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 541.2253000104101,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 75.06660000944976
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 71.28170000214595
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 67.12680000055116
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 84.15880000393372
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 71.06900001235772
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 81.77879999857396
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 65.86909999896307
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 65.90729999879841
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 542.6969999971334,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 65.87279999803286
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 65.68020000122488
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 69.9006999930134
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 72.21869999193586
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 68.66179998905864
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 66.28600000112783
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 66.38780000503175
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 66.42159998591524
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 321.8515625,
+            "rss_samples": 135,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 393.55009999417234,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 46.94250000466127
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 46.43539999960922
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 50.40999999619089
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 46.14489999949001
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 46.64960000081919
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 46.42500000772998
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 45.70330001297407
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 49.534400008269586
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 385.8271000062814,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 50.11749999539461
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 52.38680000184104
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 47.82619999605231
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 50.89679999218788
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 52.16519998793956
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 51.044799998635426
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 45.69159999664407
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 48.40230000263546
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 342.5390625,
+            "rss_samples": 113,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "experimental",
+            "default"
+          ],
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 386.0622000065632,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 47.17410000739619
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 45.56119999324437
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 45.74389998742845
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 45.61689999536611
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 46.560800008592196
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 47.388899998622946
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 46.9370000064373
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 47.12279999512248
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 395.6851999973878,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 51.20040000474546
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 47.23009999725036
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 50.26960000395775
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 49.64490000566002
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 46.96189999231137
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 56.793499999912456
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 51.83470000338275
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 48.169900008360855
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 334.02734375,
+            "rss_samples": 118,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 546.69339999964,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 64.7231000039028
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 65.48069999553263
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 68.85399999737274
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 67.95740000961814
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 66.58640000387095
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 74.25859999784734
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 72.30460000573657
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 78.45800000359304
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 629.688899993198,
+                "cpu_ms": 640.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 72.78199998836499
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 77.75229999970179
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 78.91449998714961
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 95.68300000682939
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 82.6600000000326
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 80.28789999661967
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 72.43060000473633
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 74.90310000139289
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 339.67578125,
+            "rss_samples": 135,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 553.22729999898,
+                "cpu_ms": 531.25,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 65.32740000693593
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 76.65849999466445
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 92.71939999598544
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 70.46879999688827
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 69.52520000049844
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 66.9322000030661
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 67.2162999981083
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 69.82580000476446
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 555.3828999982215,
+                "cpu_ms": 562.5,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 67.67730000137817
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 71.64969999575987
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 67.28730000031646
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 66.77320000017062
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 68.79599999228958
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 70.94890000007581
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 69.39299999794457
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 69.33160001062788
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 321.7421875,
+            "rss_samples": 136,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 386.2661000021035,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 54.414900005212985
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 46.577800007071346
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 46.14189999119844
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 45.70329999842215
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 48.80649999540765
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 45.991099992534146
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 46.77500000980217
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 51.33180000120774
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 388.5891999962041,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 49.7587999998359
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 49.58180000539869
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 47.34119999920949
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 47.56150000321213
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 49.95340001187287
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 47.72940000111703
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 46.63080000318587
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 47.10580001119524
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 326.58203125,
+            "rss_samples": 113,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "experimental",
+            "default"
+          ],
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 393.021800002316,
+                "cpu_ms": 390.625,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 49.975899994024076
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 51.912400012952276
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 45.07119998743292
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 48.28309999720659
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 50.32500000379514
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 48.417400001198985
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 46.6963999933796
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 46.53819999657571
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 384.0366000076756,
+                "cpu_ms": 375.0,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 47.06100000475999
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 47.9159999958938
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 45.98539999278728
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 46.953700002632104
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 48.14339999575168
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 46.767699997872114
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 50.96310000226367
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 52.49809999077115
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 321.4140625,
+            "rss_samples": 117,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 564.2771999991965,
+                "cpu_ms": 562.5,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 70.32520000939257
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 73.11649998882785
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 66.2704999995185
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 71.7653000028804
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 68.25650000246242
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 68.85179999517277
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 67.17979999666568
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 68.92939998942893
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 550.1935000065714,
+                "cpu_ms": 546.875,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 68.47060000291094
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 67.58230000559706
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 69.71239999984391
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 66.49219999962952
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 66.21789999189787
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 65.90139999752864
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 70.11129999591503
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 70.68239999352954
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 325.13671875,
+            "rss_samples": 138,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        },
+        {
+          "kind": "measurement",
+          "order": [
+            "default",
+            "experimental"
+          ],
+          "default": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 603.60230000515,
+                "cpu_ms": 578.125,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 66.81599999137688
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 66.03990000439808
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 69.44770000700373
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 66.95490000129212
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 79.37170000514016
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 82.8752999950666
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 67.54370000271592
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 67.1749000030104
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 576.0584000090603,
+                "cpu_ms": 578.125,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 101.47999999753665
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 82.56710000569001
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 68.37940000696108
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 66.82439999713097
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 65.85690000792965
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 66.83900000643916
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 67.195299998275
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 68.73569999879692
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "default",
+            "peak_rss_mib": 321.875,
+            "rss_samples": 134,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          },
+          "experimental": {
+            "scenarios": [
+              {
+                "bin_cm": 2,
+                "elapsed_ms": 381.44029999966733,
+                "cpu_ms": 375.0,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 48.84730000048876
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 46.41239999909885
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 45.96429999219254
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 46.94749999907799
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 49.8642999882577
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 49.19650001102127
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 45.3581000037957
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 49.126500001875684
+                  }
+                ]
+              },
+              {
+                "bin_cm": 1.37,
+                "elapsed_ms": 403.67510000942275,
+                "cpu_ms": 406.25,
+                "sections": [
+                  {
+                    "name": "synthetic-01",
+                    "elapsed_ms": 54.07800000102725
+                  },
+                  {
+                    "name": "synthetic-02",
+                    "elapsed_ms": 55.34110000007786
+                  },
+                  {
+                    "name": "synthetic-03",
+                    "elapsed_ms": 47.49709999305196
+                  },
+                  {
+                    "name": "synthetic-04",
+                    "elapsed_ms": 49.74039999069646
+                  },
+                  {
+                    "name": "synthetic-05",
+                    "elapsed_ms": 48.834599991096184
+                  },
+                  {
+                    "name": "synthetic-06",
+                    "elapsed_ms": 50.865700002759695
+                  },
+                  {
+                    "name": "synthetic-07",
+                    "elapsed_ms": 50.0742000003811
+                  },
+                  {
+                    "name": "synthetic-08",
+                    "elapsed_ms": 47.664900004747324
+                  }
+                ]
+              }
+            ],
+            "inputs_unchanged": true,
+            "mode": "experimental",
+            "peak_rss_mib": 321.4140625,
+            "rss_samples": 118,
+            "parity": [
+              {
+                "passed": true,
+                "max_depth_error": 0.0,
+                "max_percentage_point_error": 7.105427357601002e-15
+              },
+              {
+                "passed": true,
+                "max_depth_error": 2.220446049250313e-16,
+                "max_percentage_point_error": 1.4210854715202004e-14
+              }
+            ],
+            "interval_sha256": [
+              "e15d93f171c476790f7bf3de22cc32a4aaacc7ab30b5a85b2d41f82a23f4e24c",
+              "162d65552f2eeaf7d0eeb2b30534ae20912e5241113db495e93bd4da2d5447df"
+            ]
+          }
+        }
+      ],
+      "summary": {
+        "scenarios": [
+          {
+            "bin_cm": 2,
+            "default": {
+              "median": 552.985100002843,
+              "min": 541.2253000104101,
+              "max": 603.60230000515
+            },
+            "experimental": {
+              "median": 387.9664500054787,
+              "min": 381.44029999966733,
+              "max": 393.55009999417234
+            },
+            "median_ratio": 0.7015857208512203,
+            "paired_ratios": [
+              0.7049693447064204,
+              0.7271465321126019,
+              0.7061768077076063,
+              0.6982050596614008,
+              0.6965048384072149,
+              0.631939772258013
+            ],
+            "paired_median_ratio": 0.7015872021839106,
+            "latency_passed": true
+          },
+          {
+            "bin_cm": 1.37,
+            "default": {
+              "median": 561.5074000015738,
+              "min": 542.6969999971334,
+              "max": 629.688899993198
+            },
+            "experimental": {
+              "median": 392.13719999679597,
+              "min": 384.0366000076756,
+              "max": 403.67510000942275
+            },
+            "median_ratio": 0.6983651506564239,
+            "paired_ratios": [
+              0.7108282674015973,
+              0.7109438600329823,
+              0.6283820470738203,
+              0.699678005926089,
+              0.6980027935682424,
+              0.7007537777473147
+            ],
+            "paired_median_ratio": 0.7002158918367019,
+            "latency_passed": true
+          }
+        ],
+        "median_peak_rss_mib": {
+          "default": 321.921875,
+          "experimental": 324.3203125
+        },
+        "memory_ratio": 1.0074503713051497,
+        "memory_passed": true,
+        "accepted": true
+      }
+    }
+  ],
+  "complete": true,
+  "accepted": true
+}

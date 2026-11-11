@@ -2753,12 +2753,15 @@ node tests/e2e/smoke.mjs               # browser end-to-end test
 
 ### Experimental Python row counts
 
-`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded per-row label histograms in `analyze_mask`.
-The default remains the established per-class reductions. Each row is processed in column chunks of
-at most 65,536 pixels, valid labels are selected and `numpy.bincount` accumulates an int64 row/class
-histogram. Total bioturbation sums positive-label counts; class counts use the corresponding column.
-Interval sums, division order, boundaries, exclusions and configurable index schemes follow the same
-analysis path. Overlapping boolean layers retain the established calculation. Scratch is bounded by
-the chunk size; the retained histogram requires `8 * rows * (classes + 1)` bytes.
-The [experiment report](benchmarks/M3.1.4.md) records exact numerical equivalence and failed performance
-acceptance. Unset the variable to roll back; promotion/removal requires a subsequent decision.
+`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded multi-row label histograms in `analyze_mask`.
+The default remains the established per-class reductions. Blocks contain at most 64 rows and 65,536
+pixels; very wide images use single-row column chunks. Each pixel's integer key is
+`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into
+row/class counts and accumulates across column chunks. Total bioturbation sums positive-label counts;
+class counts use the corresponding column. Interval sums, division order, boundaries, exclusions and
+configurable index schemes follow the same analysis path. Overlapping boolean layers retain the
+established calculation. Integer scratch scales with the bounded block, not the full image; the retained
+histogram requires `8 * rows * (classes + 1)` bytes. Reverse-strided inputs are copied only per block.
+The [counterbalanced comparison](benchmarks/M3.1.5.md) records exact numerical equivalence and measured
+performance acceptance on the reference workloads. Unset the variable to roll back; promotion and
+flag removal require a subsequent decision. No Rust or additional runtime dependency is needed.

@@ -287,6 +287,21 @@ existing projects retain failed-save protection. Performance evidence is collect
       Checks: 217 Python tests on both paths (six skips), 153 Node tests, types, Ruff, version, standalone.
       Local delivery on master; authorised push needed for GitHub handoff. A multi-row prototype and
       counterbalanced measurements are a separate candidate requiring authorisation.
+  - [x] **M3.1.5 - Multi-row Python counting.** [V0.123](../CHANGELOG.md#v0123--2026-11-11). Authorised on 11 November 2026;
+        editor: Codex; author verification, no independent reviewer. [Predeclared contract](benchmarks/M3.1.5.md).
+        Evaluate bounded multi-row NumPy histograms with counterbalanced default/experimental process pairs.
+        Require >=20% lower median and paired median API latency at both interval sizes in both reference
+        fixtures, <=10% whole-worker peak RSS growth, exact scientific fingerprints and regression coverage.
+        Keep the current default and rollback flag. If NumPy fails, the maintainer authorises a small Rust
+        counting kernel next; stop before Rust if NumPy meets the contract.
+    - Delivered: bounded multi-row NumPy histograms pass all four latency targets and both memory targets.
+      Counterbalanced API median time falls 59.9–61.5% on public and 29.8–30.2% on synthetic inputs;
+      median whole-worker peak RSS rises 0.60/0.75%. Exact scientific fingerprints match throughout.
+      The experiment remains opt-in; Rust is not needed under the authorised sequence.
+    - Checks: 223 Python tests on both paths (six optional/permission skips), 153 Node tests, types, Ruff,
+      version consistency and standalone build. Local delivery on master; GitHub handoff requires an
+      authorised push. Next candidate: accept default promotion after reviewing the measured scope and
+      broader workload needs; flag removal remains a separate decision.
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU

@@ -247,5 +247,6 @@ GPL-3.0-or-later — see [LICENSE](LICENSE). Bundled libraries and fonts keep th
 
 Python developers can opt into the bounded counting experiment with
 `SEDCORETOOL_EXPERIMENTAL_COUNTS=1`; unset it to restore the default calculation.
-The experiment does not meet the performance acceptance target on all reference workloads.
-See the [measurements and limitations](docs/benchmarks/M3.1.4.md).
+The multi-row experiment meets the measured performance targets on the public and synthetic reference cores
+while retaining exact scientific results. It remains opt-in pending default promotion.
+See the [measurements and limitations](docs/benchmarks/M3.1.5.md).

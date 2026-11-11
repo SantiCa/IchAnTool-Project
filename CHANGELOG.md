@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.123 — 2026-11-11
+
+- Improve the opt-in Python counting experiment with bounded multi-row histograms; reduce median API time by about 60% on the public reference core and 30% on the synthetic core in an alternating comparison, with less than 1% higher median worker peak memory.
+- Preserve exact scientific results and retain the established calculation as the default; no additional dependencies are required.
+
 ## V0.122 — 2026-11-11
 
 - Add an opt-in bounded Python counting experiment with exact reference results; retain the established default because the synthetic workload misses the performance target.
