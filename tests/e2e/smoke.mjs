@@ -14,6 +14,7 @@ import { verifyTableViewport } from './table-viewport.mjs';
 import { verifyTaxonFigures } from './taxon-figures.mjs';
 import { verifyMultiproxyFigure } from './multiproxy-figure.mjs';
 import { verifyProxyMapCoverage } from './proxy-map-coverage.mjs';
+import { verifyEventShading } from './event-shading.mjs';
 import { verifyFigureComposition } from './figure-composition.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 
@@ -43,6 +44,7 @@ try {
   await verifyTaxonFigures(b, URL);
   await verifyMultiproxyFigure(b, URL);
   await verifyProxyMapCoverage(b, URL);
+  await verifyEventShading(b, URL);
   await verifyFigureComposition(b, URL);
   await p.goto(URL, { waitUntil: 'networkidle0' });
   assert.equal(await p.evaluate(async () => {

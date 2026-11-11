@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.136 — 2026-11-12
+
+- Restore event shading controls in multiproxy log, core-column and whole-core figures. Select multiple interval families or automatic classifications, with independent opacity and class colours in each figure.
+- Choose shading behind the whole proxy track or only under its curve, and overlay sources or display them in separate strips. Keep settings per figure type and tab, include a source-qualified legend and preserve them in SVG/PNG exports.
+- Preserve the original event definitions, classifier results, measurements and inherited shading of existing projects.
+
 ## V0.135 — 2026-11-11
 
 - Add **Cover visible sea (IDW)** to project and across-project proxy maps: estimate values throughout the visible marine area, beyond the core perimeter, while masking land.

@@ -1,6 +1,63 @@
 // SedCoreTool web — composite core log (no DOM): table parsing, axis transforms, SVG and CSV of a window.
 import { interpAge, toCSV } from './core.js';
 
+/** Normalise optional saved event presentation at the rendering/editing boundary. */
+export function eventShadeOptions(value) {
+  const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const styles = Object.fromEntries(Object.entries(raw.styles && typeof raw.styles === 'object' && !Array.isArray(raw.styles) ? raw.styles : {}).map(([key, value]) => {
+    const style = value && typeof value === 'object' ? value : {}, opacity = style.opacity;
+    const colors = Object.fromEntries(Object.entries(style.colors && typeof style.colors === 'object' ? style.colors : {}).filter(([, color]) => validHexColor(color, null)));
+    return [key, { opacity: typeof opacity === 'number' && Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 0.22, colors }];
+  }));
+  return { on: raw.on === true, sources: [...new Set((Array.isArray(raw.sources) ? raw.sources : []).filter((key) => typeof key === 'string'))],
+    mode: raw.mode === 'split' ? 'split' : 'mix', area: raw.area === 'curve' ? 'curve' : 'panel', styles };
+}
+
+/** Compose figure-only event shading from selected interval/classifier bands, without changing their data. */
+export function eventShading(bands, settings) {
+  settings = eventShadeOptions(settings);
+  if (!settings.on) return {};
+  const sources = settings.sources.map((key) => bands.find((band) => band.key === key)).filter(Boolean);
+  const split = settings.mode === 'split', shadeLegend = [], seen = new Set();
+  const shade = sources.flatMap((band, lane) => {
+    const style = settings.styles[band.key] || { opacity: 0.22, colors: {} }, fo = style.opacity;
+    return band.segs.map((segment) => {
+      const color = validHexColor(style.colors?.[segment.label], validHexColor(segment.color, '#999999'));
+      const key = band.key + ':' + segment.label;
+      if (!seen.has(key)) {
+        seen.add(key); shadeLegend.push({ name: `${band.title} · ${segment.name || segment.label}`, color });
+      }
+      return { ...segment, color, fo, lane: split ? lane : 0, source: band.key };
+    });
+  });
+  return { shade, shadeLanes: split ? Math.max(1, sources.length) : 1, shadeArea: settings.area === 'curve' ? 'curve' : 'panel', shadeLegend };
+}
+
+/** Event rectangles behind a record, optionally clipped between its curve and the axis baseline. */
+function recordShadingSVG(shade, { column, points, sx, y, from, to, lanes, area }) {
+  if (!shade?.length) return '';
+  let clip = '', clipAttribute = '';
+  if (area === 'curve') {
+    const paths = []; let run = [];
+    const closeRun = () => {
+      if (run.length > 1) paths.push(`M${sx.base} ${y(run[0][0])} ` + run.map((p) => `L${sx(p[1])} ${y(p[0])}`).join(' ') + ` L${sx.base} ${y(run[run.length - 1][0])} Z`);
+      run = [];
+    };
+    for (const point of points) {
+      if (point[0] == null || point[1] == null || !Number.isFinite(point[0]) || !Number.isFinite(point[1]) || (sx.log && point[1] <= 0)) closeRun();
+      else run.push(point);
+    }
+    closeRun();
+    const id = `event-area-${column.x}`;
+    clip = `<defs><clipPath id="${id}"><path d="${paths.join(' ')}"/></clipPath></defs>`;
+    clipAttribute = ` clip-path="url(#${id})"`;
+  }
+  const count = Math.max(1, lanes || 1);
+  const rectangles = shade.filter((segment) => segment.a1 > from && segment.a0 < to).map((segment) =>
+    `<rect data-event-source="${escXml(segment.source || '')}" x="${f2(column.x + ((segment.lane || 0) * column.w) / count)}" y="${y(Math.max(segment.a0, from))}" width="${f2(column.w / count)}" height="${f2(Math.max(0.4, y(Math.min(segment.a1, to)) - y(Math.max(segment.a0, from))))}" fill="${validHexColor(segment.color, '#999999')}" fill-opacity="${Number.isFinite(+segment.fo) ? Math.max(0, Math.min(1, +segment.fo)) : 0.22}"/>`);
+  return `${clip}<g data-role="event-shading"${clipAttribute}>${rectangles.join('')}</g>`;
+}
+
 /** Parse CSV / TXT tables: delimiter , ; tab | or spaces; optional header; decimal comma; '#' comments. */
 export function parseTable(text) {
   const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim() && !/^\s*#/.test(l));
@@ -454,9 +511,10 @@ export function buildLogSVG(o) {
   const W = x;
   const taxonLegend = [...(t.species ? presentClasses : []), ...(o.legendClasses || [])].filter((c) =>
     (!taxa || !taxa.hidden.includes(c.name)) && (!o.respectTaxonColumnVisibility || !colHideArr.includes(taxa?.layout === 'separate' ? 'sp:' + c.name : 'species')));
-  const seenL = new Set(), legendItems = [...taxonLegend, ...(o.bandLegend || [])].filter((k) => !seenL.has(k.name) && seenL.add(k.name));
-  const perRow = Math.max(1, Math.floor((W - 16) / 170));
-  const legendH = legendItems.length ? Math.ceil(legendItems.length / perRow) * 16 + 14 : 0;
+  const seenL = new Set(), legendItems = [...taxonLegend, ...(o.bandLegend || []), ...(o.shadeLegend || [])].filter((k) => !seenL.has(k.name) && seenL.add(k.name));
+  const eventLegend = !!o.shadeLegend?.length, legendCellWidth = eventLegend ? Math.min(230, W - 16) : 170, legendRowHeight = eventLegend ? 30 : 16;
+  const perRow = Math.max(1, Math.floor((W - 16) / legendCellWidth));
+  const legendH = legendItems.length ? Math.ceil(legendItems.length / perRow) * legendRowHeight + 14 : 0;
   const Htot = top + H + 22 + legendH;
   const out = [];
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${Htot}" viewBox="0 0 ${W} ${Htot}" font-family="IBM Plex Sans, Arial, Helvetica, sans-serif" font-size="${fs}">`);
@@ -612,9 +670,7 @@ export function buildLogSVG(o) {
         const [lo, hi] = niceRange(Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1])));
         const sx = xScale(c, lo, hi, c.rec.reverse);
         const recColor = validHexColor(c.rec.color, '#0b5394');
-        // V0.34: several families: side by side (g.lane of o.shadeLanes) or blended (translucent layers over each other)
-        const nl = Math.max(1, o.shadeLanes || 1);
-        for (const g of o.shade || []) if (g.a1 > from && g.a0 < to) out.push(`<rect x="${f2(c.x + ((g.lane || 0) * c.w) / nl)}" y="${y(Math.max(g.a0, from))}" width="${f2(c.w / nl)}" height="${f2(Math.max(0.4, y(Math.min(g.a1, to)) - y(Math.max(g.a0, from))))}" fill="${validHexColor(g.color, '#999999')}" fill-opacity="${Number.isFinite(+g.fo) ? +g.fo : 0.22}"/>`);
+        out.push(recordShadingSVG(o.shade, { column: c, points: pts, sx, y, from, to, lanes: o.shadeLanes, area: o.shadeArea }));
         if (!sx.log) out.push(`<polyline fill="none" stroke="${recColor}" stroke-width="1.1" points="${pts.map((p) => `${sx(p[1])},${y(p[0])}`).join(' ')}"/>`);
         let path = '', connected = false;
         for (const p of sx.log ? pts : []) { if (sx.log && p[1] <= 0) { connected = false; continue; } path += `${connected ? 'L' : 'M'}${sx(p[1])} ${y(p[0])}`; connected = true; }
@@ -630,8 +686,9 @@ export function buildLogSVG(o) {
     if (b.label) out.push(`<text x="${W - 16}" y="${y(b.a) - 2}" text-anchor="end" fill="${st.boundaryColor}" font-size="8">${escXml(b.label)}</text>`);
   }
   legendItems.forEach((k, i) => {
-    const lx = 8 + (i % perRow) * 170, ly = top + H + 22 + Math.floor(i / perRow) * 16, kc = validHexColor(k.color, '#777777');
-    out.push(`${k.symbol ? traceSymbol(lx + 5, ly + 9, kc, k.symbol) : `<rect x="${lx}" y="${ly}" width="10" height="10" fill="${kc}"/>`}<text x="${lx + 14}" y="${ly + 9}" fill="${st.textColor}">${escXml(k.name)}</text>`);
+    const lx = 8 + (i % perRow) * legendCellWidth, ly = top + H + 22 + Math.floor(i / perRow) * legendRowHeight, kc = validHexColor(k.color, '#777777');
+    const label = eventLegend ? wrapTitle(k.name, legendCellWidth - 20).map((line, index) => `<tspan x="${lx + 14}" dy="${index ? 12 : 0}">${escXml(line)}</tspan>`).join('') : escXml(k.name);
+    out.push(`${k.symbol ? traceSymbol(lx + 5, ly + 9, kc, k.symbol) : `<rect x="${lx}" y="${ly}" width="10" height="10" fill="${kc}"/>`}<text x="${lx + 14}" y="${ly + 9}" fill="${st.textColor}">${label}</text>`);
   });
   out.push('</svg>');
   return { svg: out.join(''), width: W, height: Htot, plotTop: top, plotHeight: H, columns: allCols,

@@ -7,7 +7,7 @@ import { $, S, fetchAsset, fmt, sec, uid } from './state.js';
 import { DELIVERY, armed, busy, compositeMarks, compositeTaxonPoints, cropState, endCrop, esc, finalTestsHTML, holdoutHTML, holdoutIds, loadLib, makeCore, markDirty, openCoreDlg, refreshAllCores, refreshCoreData, renderCoreBar, runFinalGeo, safe, saveFile, scheduleFloat, toast, updateTip, view, withProv, zoomAt } from './app.js';
 import { axesFormHTML, colOrderHTML, colorsFormHTML, columnImages, compositeData, logStyleOf, mode, scheduleLog, syncColOrder } from './columns.js';
 import { interpAge, parseAgeModel, toCSV } from './core.js';
-import { buildLogSVG, compositeRows, decodeText, mergedStyle, parseTable, validHexColor } from './log.js';
+import { buildLogSVG, compositeRows, decodeText, eventShadeOptions, eventShading, mergedStyle, parseTable, validHexColor } from './log.js';
 import { renderFigure, verticalStyleHTML } from './figures.js';
 import { INTERP_DEFAULT, INTERP_METHODS, RAMPS, colorRange, contourLevels, contourSegments, interpolate, maskLand, rampColor, visibleSeaOptions } from './interp.js';
 import { frameRatio, panelPrefs, placeSplitters, savePanels } from './panels.js';
@@ -610,6 +610,53 @@ function renderGeoMarkHint() { /* V26: classes are chosen on the columns themsel
 
 export const geoFigureTracks = (view = {}) => geoTrackOptions(view);
 
+/** Keep the previous Multiproxy shading until a figure explicitly edits its own event presentation. */
+export function eventShadeSettings(view) {
+  return eventShadeOptions(view.eventShade ?? { on: !!view.shade, sources: view.shade ? (Array.isArray(view.shadeBy) && view.shadeBy.length ? view.shadeBy : ['target']).map((id) => id === 'target' ? id : 'fam:' + id) : [],
+    mode: view.shadeMode || 'mix', area: 'panel', styles: {} });
+}
+
+function eventShadeSources(core, axis) {
+  if (!core) return [];
+  const test = geoRT.test?.core === core.id ? geoRT.test.preds : null;
+  const target = segmentsFor(core.id, (i) => (test || (geoRT.preds.length ? geoRT.preds : geoRT.labels))[i]?.label, axis, S.geo.settings.step);
+  return [{ key: 'target', title: t('sh.target'), full: t('sh.target'), segs: target }, ...coreBands(core, axis, true, true).filter((band) => band.key !== 'hit')]
+    .map((band) => ({ ...band, segs: band.segs.map((segment) => ({ ...segment, name: geoCat(segment.label)?.name || segment.label })) }));
+}
+
+export function figureEventShading(core, axis, settings) {
+  if (!settings?.on) return {};
+  if (geoRT.dirty) geoComputeSamples();
+  return eventShading(eventShadeSources(core, axis), settings);
+}
+
+/** Figure-local sources and class colours; existing interval data and classifier outputs stay untouched. */
+export function eventShadeFormHTML(view, core, axis) {
+  const settings = eventShadeSettings(view), selected = new Set(settings.sources || []);
+  const sources = eventShadeSources(core, axis);
+  const rows = sources.map((source) => {
+    const style = settings.styles?.[source.key] || { opacity: 0.22, colors: {} }, on = selected.has(source.key);
+    const opacity = style.opacity ?? 0.22;
+    const layer = S.geo.layers.find((layer) => source.key === 'fam:' + layer.id || source.key.startsWith('auto:') && source.key.endsWith(':' + layer.id));
+    const cats = [...new Set([...(layer?.cats.map((cat) => cat.id) || []), ...source.segs.map((segment) => segment.label)])].map(geoCat).filter(Boolean);
+    return `<details class="mini" ${on ? 'open' : ''}><summary>${esc(source.full || source.title)}</summary>
+      <label class="chk"><input type="checkbox" data-event-source="${esc(source.key)}" ${on ? 'checked' : ''}><span>${t('event.use')}</span></label>
+      ${on ? `<label class="f"><span>${t('event.opacity')}</span><input type="number" min="0" max="100" step="1" data-event-opacity="${esc(source.key)}" value="${Math.round(opacity * 100)}"></label>
+      <div class="grid2">${cats.map((cat) => {
+        const color = validHexColor(style.colors?.[cat.id], validHexColor(cat.color, '#999999'));
+        const inputColor = color.length === 4 ? '#' + [...color.slice(1)].map((digit) => digit + digit).join('') : color;
+        return `<label class="f"><span>${esc(cat.name)}</span><input type="color" data-event-color="${esc(source.key)}" data-event-class="${esc(cat.id)}" value="${inputColor}"></label>`;
+      }).join('')}</div>
+      <button type="button" class="btn small ghost" data-event-reset="${esc(source.key)}">${t('event.resetColors')}</button>` : ''}</details>`;
+  }).join('');
+  return `<details class="mini" data-event-panel ${settings.on ? 'open' : ''}><summary>${t('event.title')}</summary>
+    <label class="chk"><input type="checkbox" data-event-option="on" ${settings.on ? 'checked' : ''}><span>${t('event.enable')}</span></label>
+    <div ${settings.on ? '' : 'hidden'}><p class="note">${t('event.help')}</p>
+    <label class="f"><span>${t('event.area')}</span><select data-event-option="area">${['panel', 'curve'].map((key) => `<option value="${key}" ${settings.area === key ? 'selected' : ''}>${t('event.' + key)}</option>`).join('')}</select></label>
+    <label class="f"><span>${t('sh.mode')}</span><select data-event-option="mode"><option value="mix" ${settings.mode !== 'split' ? 'selected' : ''}>${t('sh.mix')}</option><option value="split" ${settings.mode === 'split' ? 'selected' : ''}>${t('sh.split')}</option></select></label>
+    ${rows || `<p class="note">${t('event.empty')}</p>`}</div></details>`;
+}
+
 /** Optional figure settings compose the same records without changing the Multiproxy analysis view. */
 export function buildGeoLog(core, features = null, options = null) {
   const g = S.geo, st = g.settings;
@@ -630,7 +677,7 @@ export function buildGeoLog(core, features = null, options = null) {
   }).filter((r) => r.pts.some(([x, y]) => x != null && y != null)) : [];
   const bands = coreBands(core, axis, true, view.showEmpty !== false);
   let shade = null, shadeLanes = 1;
-  if (view.shade) {
+  if (view.shade && !view.eventShade) {
     // V0.34: colour by the chosen families (their intervals), side by side or blended; none chosen = classifier target/predictions
     const by = (view.shadeBy || []).filter((id) => id === 'target' || geoLayer(id));
     if (!by.length || (by.length === 1 && by[0] === 'target')) {
@@ -669,6 +716,7 @@ export function buildGeoLog(core, features = null, options = null) {
     marks: D && tracks.marks ? compositeMarks(D) : [],
     tracks, image, images, imageWidth: image?.w || 64, records,
     boundaries: D ? D.secs.map((s, i) => ({ label: s.name, n: i + 1, a: axis === 'age' ? interpAge(D.model, s.top * D.f(s)) : s.top * D.f(s), a1: axis === 'age' ? interpAge(D.model, s.bottom * D.f(s)) : s.bottom * D.f(s) })).filter((b) => b.a != null && b.a1 != null) : [], bands, bandLegend: bandLegendOf(visibleBands), shade, shadeLanes,
+    ...figureEventShading(core, axis, view.eventShade),
     labels: { noData: t('log.noData'), total: t('log.total'), species: t('log.species'), image: t('log.image'), secs: t('log.secs'), marks: t('color.marks') },
     colWidths: view.colW || {}, recWidth: view.trackW || 120, style,
   });
@@ -1265,10 +1313,11 @@ function renderGeoModel() {
 }
 
 /** Interval layers and automatic classes of the image core, as bands of the composite log (overlay between tools). */
-export function geoOverlay(axis) {
+export function geoOverlay(axis, view = null) {
   const core = geoCore(S.curCore); if (!core) return {};
+  if (view?.eventShade?.on && geoRT.dirty) geoComputeSamples();
   const bands = coreBands(core, axis);
-  return bands.length ? { bands, bandLegend: bandLegendOf(bands) } : {};
+  return { ...(bands.length ? { bands, bandLegend: bandLegendOf(bands) } : {}), ...figureEventShading(core, axis, view?.eventShade) };
 }
 
 /** Event wiring and start-up work of this module; called from app.js at the point where this code used to run. */

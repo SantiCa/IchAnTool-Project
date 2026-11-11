@@ -248,7 +248,7 @@ export function buildColumnLog(lv = S.logView, selected = null, figure = false) 
     taxa, taxonPoints: taxa ? compositeTaxonPoints(D) : [],
     taxonClasses: S.classes.map((c, index) => ({ ...c, index })).filter((c) => c.id !== 'artifact'),
     marks, idList: idm || marks.length ? idListOf(D.rows, marks) : null, legendClasses: legendOf(lv.overlay || lv.tracks.species ? classes.filter((c) => D.rows.some((r) => r.classPct?.[c.index] > 0)) : [], marks),
-    ...geoOverlay(D.axis),
+    ...geoOverlay(D.axis, figure ? lv : null),
     labels: { secs: t('log.secs'), noData: t('log.noData'), total: t('log.total'), species: t('log.species'), image: t('log.image'), marks: t('id.marks'), idList: t('id.list') },
     colWidths: lv.colW || {}, respectTaxonColumnVisibility: figure,
   });

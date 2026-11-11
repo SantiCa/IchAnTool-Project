@@ -1969,6 +1969,53 @@ converts both endpoints of each complete run with `intervalsOnAxis`, retaining l
 clamping to the core's depth–age data without extrapolation. The analysis-axis run is unchanged. No image-derived tracks are created without sections, or on an
 age axis without that core's age model. Presence marks still do not imply percentage abundance.
 
+### 20.6.1 Event shading in proxy tracks
+
+The whole interpreted core, core-column and multiproxy-log figures share an optional `eventShade` presentation
+object. It is stored in `fig.views.core`, `fig.views.log` or `fig.geoView`, respectively, independently in each
+figure tab. Fields are `on`, ordered `sources`, `mode` (`mix` or `split`), `area` (`panel` or `curve`) and `styles`.
+Sources use the existing band identifiers: `fam:<layer>` for described/rule intervals, `auto:<classifier>:<layer>`
+for a computed classifier, `test` for an available core test and `target` for the current test, prediction or
+target labels, in that order of precedence. Automatic sources require available predictions; the normal project
+retraining workflow restores trained models. Unavailable sources are omitted without dropping their saved styles.
+
+Each `styles[source]` holds an optional finite numeric `opacity`, clamped to [0, 1] (default 0.22), and a `colors`
+map from class ID to `#rgb`/`#rrggbb`. Invalid colours fall back to the original class colour, then `#999999`.
+`eventShadeOptions` normalises saved settings before editing or rendering: malformed objects, source lists,
+styles and colours fall back safely, and nested overrides are copied before editing. Three-digit class colours
+are expanded to six digits for the browser colour picker without modifying the original definitions.
+These are figure-only overrides: the interval categories, class definitions, model predictions, probabilities,
+record values and analysis-view settings remain unchanged. Shading opacity is independent of prediction
+confidence; the separate classification band retains its confidence presentation. Source/class names and the
+chosen colours are shown in a separate shading legend, with wrapped labels. Hiding a classification band does
+not hide its selected shading or its legend.
+
+`log.js::eventShading` resolves selected sources without mutating them. Duplicate and unavailable IDs are ignored.
+In `mix` mode, every source spans the proxy track and is drawn in selection order using normal SVG alpha
+compositing. In `split` mode, the track is divided into equal-width strips, one per available selected source.
+Both modes are drawn behind the existing proxy curve and clipped to the figure's vertical window and track.
+No fixed two-family limit applies. Event endpoints use the same depth/age conversion as their bands, including
+the selected core's units and nonlinear age model.
+
+With `area=curve`, an additional SVG clip encloses the displayed polyline and its horizontal-axis baseline:
+zero when the linear range includes zero, otherwise the nearest range endpoint to zero; logarithmic axes use
+the positive axis minimum. Axis reversal applies to both curve and baseline. The fill uses the same non-null
+samples and straight-line connections as the existing record curve; logarithmic curves break at nonpositive
+values, so the fill breaks there too. The underlying record coordinates and curve geometry are unchanged.
+`area=panel` keeps full-width event rectangles behind the curve. SVG and PNG use the same geometry, colours
+and opacity; scoped clip IDs prevent interference with hidden views of the same log.
+
+Without `eventShade`, existing Multiproxy `shade`, `shadeBy` and `shadeMode` settings retain their previous
+rendering. The first edit of the new figure controls creates an independent override; disabling it removes
+figure shading without changing the analysis view. Restoring a figure's inherited presentation removes its
+override; restoring a source's colours preserves its opacity and selection.
+
+Validation covers four overlapping sources including a trained k-NN classification, exact unchanged core/
+analysis data and proxy paths, split lanes, colour/opacity bounds, nonlinear age endpoints, another numeric-only
+core with different units, independent figure types/tabs, existing inherited shading, save/reload and reset.
+Pure regressions cover signed/reversed and logarithmic baselines. Browser checks inspect SVG geometry and
+an actual painted PNG pixel, and run against both the served program and the offline HTML.
+
 Browser regression checks cover mixed section/core units, the selected core's own age model, exact unchanged
 analysis arrays, independent figure composition and tabs, numeric-only cores, saved settings, resets and
 SVG/PNG export. The same regression runs against the standalone HTML. Unit checks cover taxon/proxy ordering,

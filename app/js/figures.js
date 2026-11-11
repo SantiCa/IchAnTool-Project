@@ -3,7 +3,7 @@ import { pxPerCm, depthAtRow, rowAtDepth } from './sectiondepth.js';
 import { $, S, clsById, fmt, hex, uid } from './state.js';
 import { tickFieldsHTML, arrowFormHTML, axesFormHTML, colOrderHTML, colView, editableColView, buildColumnLog, colorsFormHTML, compositeData, coreImages, logRecords, logStyleOf, mode, ndFormHTML, onStyleInput, reduceRGBA, scheduleLog, taxaFormHTML, styleFormHTML, syncColOrder } from './columns.js';
 import { busy, clsAbbr, compositeMarks, compositeTaxonPoints, curCore, effClassArray, effClassId, esc, idListOf, idMode, legendOf, markDirty, needPixels, requestRender, safe, saveFile, toast } from './app.js';
-import { buildGeoLog, fetchImage, geoComputeSamples, geoFigureTracks, geoFigureVars, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoMap } from './multiproxy.js';
+import { buildGeoLog, eventShadeFormHTML, eventShadeSettings, fetchImage, geoComputeSamples, geoFigureTracks, geoFigureVars, geoLand, geoOverlay, geoRT, mapNetConsent, renderGeoMap } from './multiproxy.js';
 
 import { UNIT_TO_CM, hasId, interpAge, topAt } from './core.js';
 import { vec } from './learn.js';
@@ -198,7 +198,7 @@ function coreSVG() {
   const taxa = F.taxaStyles?.core ?? lv.style?.taxa;
   const res = buildLogSVG({
     style: LS.style, colWidths: lv.colW || {}, respectTaxonColumnVisibility: !!F.views?.core, title: curCore()?.name || S.name, subtitle: t('fig.coreSub', { n: D.secs.length }), axisLabel: LS.label,
-    from, to, height: H, rows: D.rows, classes, tracks: { ...lv.tracks, image: !!image }, image, images, imageWidth: imgW, records: logRecords(D, lv, S.records, lv.records), boundaries, ...geoOverlay(D.axis),
+    from, to, height: H, rows: D.rows, classes, tracks: { ...lv.tracks, image: !!image }, image, images, imageWidth: imgW, records: logRecords(D, lv, S.records, lv.records), boundaries, ...geoOverlay(D.axis, lv),
     taxa, taxonPoints: taxa ? compositeTaxonPoints(D) : [],
     taxonClasses: S.classes.map((c, index) => ({ ...c, index })).filter((c) => c.id !== 'artifact'),
     marks, idList: idMode() || marks.length ? idListOf(D.rows, marks) : null, legendClasses: legendOf(classes.filter((c) => D.rows.some((r) => r.classPct?.[c.index] > 0)), marks),
@@ -557,6 +557,7 @@ export function renderFigPanel() {
   else box.innerHTML = `<p class="note">${t(F.type === 'map' ? 'fig.mapNote' : 'fig.logNote')}</p>`;
   if (['core', 'log', 'geolog'].includes(F.type)) box.insertAdjacentHTML('afterbegin', figureAxisHTML(view, F.type === 'geolog' ? figGeoCore(F) : curCore()));
   if (F.type === 'geolog') box.insertAdjacentHTML('beforeend', figureImageHTML(view));
+  if (['core', 'log', 'geolog'].includes(F.type)) box.insertAdjacentHTML('beforeend', eventShadeFormHTML(view, F.type === 'geolog' ? figGeoCore(F) : curCore(), view.axis));
   if (['sections', 'range', 'log'].includes(F.type)) box.insertAdjacentHTML('beforeend', `<details class="mini"><summary>${t('st.title')}</summary>${F.type === 'log' ? styleFormHTML(false, view, 'figure') : verticalStyleHTML(view.style || {}) + (F.type === 'range' ? colOrderHTML('figure') + colorsFormHTML(view.style || {}, 'range') + axesFormHTML(['total', 'species', ...S.classes.map((c) => 'sp:' + c.name)], view) : '')}</details>`);
   if (['core', 'log', 'range', 'sections'].includes(F.type)) box.insertAdjacentHTML('beforeend', `<button type="button" class="btn small ghost" id="figCompositionReset">${t('fig.compositionReset')}</button><p class="note">${t('fig.compositionNote')}</p>`);
 }
@@ -834,6 +835,13 @@ export function scopeIds(svg) {
 }
 $('figPanel').addEventListener('click', (e) => {
   if (!(e.target instanceof Element)) return;
+  const resetSource = /** @type {HTMLElement} */ (e.target.closest('[data-event-reset]'))?.dataset.eventReset;
+  if (resetSource) {
+    const view = editableColView('figure');
+    view.eventShade = eventShadeSettings(view);
+    if (view.eventShade.styles?.[resetSource]) delete view.eventShade.styles[resetSource].colors;
+    renderFigPanel(); markDirty(); scheduleFigure(); return;
+  }
   if (e.target.id === 'figCompositionReset') {
     if (S.fig.views) delete S.fig.views[S.fig.type];
     if (S.fig.taxaStyles) delete S.fig.taxaStyles[S.fig.type];
@@ -848,6 +856,27 @@ let figTimer = 0;
 export const scheduleFigure = () => { clearTimeout(figTimer); figTimer = setTimeout(renderFigure, 150); };
 $('figPanel').addEventListener('change', (e) => {
   const target = /** @type {HTMLInputElement} */ (e.target);
+  if (target.dataset.eventOption || target.dataset.eventSource || target.dataset.eventOpacity || target.dataset.eventColor) {
+    const view = editableColView('figure');
+    view.eventShade = eventShadeSettings(view);
+    const settings = view.eventShade;
+    if (target.dataset.eventOption) settings[target.dataset.eventOption] = target.type === 'checkbox' ? target.checked : target.value;
+    else if (target.dataset.eventSource) {
+      const selected = new Set(settings.sources || []), source = target.dataset.eventSource;
+      if (target.checked) selected.add(source); else selected.delete(source);
+      settings.sources = [...selected];
+    } else {
+      const source = target.dataset.eventOpacity || target.dataset.eventColor;
+      settings.styles ||= {}; settings.styles[source] ||= {};
+      const style = settings.styles[source];
+      if (target.dataset.eventOpacity) {
+        const percent = +target.value;
+        if (!Number.isFinite(percent)) return;
+        style.opacity = Math.max(0, Math.min(100, percent)) / 100;
+      } else { style.colors ||= {}; style.colors[target.dataset.eventClass] = validHexColor(target.value, '#999999'); }
+    }
+    renderFigPanel(); markDirty(); scheduleFigure(); return;
+  }
   if (e.target.dataset.lm != null) { onLocmapInput(e.target); return; }   // V0.43
   if (target.dataset.taxa || target.dataset.taxaHide != null || target.dataset.st || target.dataset.sph != null || target.dataset.ax != null || target.dataset.axw != null) { onStyleInput(e); return; }   // V0.5–V0.6: column style
   const F = S.fig, el = target;

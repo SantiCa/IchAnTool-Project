@@ -664,6 +664,21 @@ existing projects retain failed-save protection. Performance evidence is collect
 - [ ] Location map: cores from other projects and an inset location map
 
 ## Program
+- [x] **F4 - Event shading in proxy figure tracks.** [V0.136](../CHANGELOG.md#v0136--2026-11-12). Authorised by the maintainer on
+      11 November 2026; editor: Codex; author verification, no independent reviewer assigned.
+      Restore per-figure shading controls for whole-core, core-column and multiproxy-log figures. Select
+      interval families and computed classifications, including more than two simultaneous sources;
+      choose per-source opacity, per-class colours, whole-panel or under-curve fill, and blended or split layers.
+  - Acceptance: preserve original intervals, classes, predictions, measurements and proxy paths; correct depth/
+    age mapping for the selected core; independent figure types/tabs; inherited settings, save/reload, reset,
+    source-qualified legend and SVG/PNG. No independent analysis or performance work is included.
+  - Delivered: 218 Node tests, 227 Python tests (six optional/permission skips), types without new diagnostics,
+    Ruff, version consistency, standalone build, full Chrome smoke and the same event regression directly from
+    the offline HTML pass. Visual inspection verifies the controls, painted under-curve fill and wrapped legend.
+    PNG verification samples an actual shaded pixel, not only the export signature. Malformed saved presentation
+    falls back safely; existing class colours and data are preserved.
+  - Local delivery on `master`; GitHub handoff requires the maintainer's authorised push. Automatic sources
+    require available predictions; the existing retraining workflow remains responsible for model restoration.
 - [x] **F2 - Multiproxy figure composition.** [V0.114](../CHANGELOG.md#v0114--2026-11-10). Authorised by the maintainer
       on 10 November 2026. Editor: Codex; verification: automated checks and browser/standalone regression. Add ichnotaxa with the
       shared presentation controls; independently choose, order, hide and scale core, proxy and interval tracks

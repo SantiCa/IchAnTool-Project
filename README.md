@@ -145,6 +145,15 @@ composition to follow the Multiproxy view again; the analysis settings and other
 Use the figure's **Vertical axis** and image controls to select depth or age, panels, overlays and excluded
 zones independently of Multiproxy and the core column. Age images require the selected core's age model.
 
+In **Multiproxy log**, **Core column** and **Whole interpreted core** figures, open **Event shading in proxy
+tracks** and enable shading. Expand each family or computed classification and select **Use this family or
+classification**; you can combine more than two sources. Set each source's opacity and class colours, then
+choose **Whole track background** or **Only the area under the curve**. Multiple sources can blend or use
+separate strips. These choices belong to that figure type and tab; the original classes and measurements stay
+unchanged. **Restore original colours** resets a source's colour overrides. Hide the separate event columns
+with **Column order and visibility** if you want to show events only in the proxies. SVG/PNG keep the shading
+and its legend. See the [event shading methods](docs/TECHNICAL_DOCUMENTATION.md#2061-event-shading-in-proxy-tracks).
+
 **Whole interpreted core** and **Core column** figures also keep their own tracks, records, axes, colours,
 widths and image options. Distribution and section figures keep their own style and depth window. Settings
 are independent for each figure type and tab; **Restore inherited presentation** removes that type's
