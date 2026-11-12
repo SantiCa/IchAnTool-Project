@@ -4,6 +4,8 @@
 
 Use the [shared working rules](../AGENTS.md#7-working-with-several-people-or-assistants) for each iteration.
 Keep task IDs stable. The changelog records what shipped.
+All assistants use that same guide; compatibility entry files contain only its import, as simplified in
+[V0.146](../CHANGELOG.md#v0146--2026-11-12). This documentation change leaves M8.2.3 as the next implementation candidate.
 
 | Marker | Meaning |
 |---|---|

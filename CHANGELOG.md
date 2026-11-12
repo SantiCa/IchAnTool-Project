@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.146 — 2026-11-12
+
+- Keep AGENTS.md as the single shared instruction source for all assistants. Reduce both compatibility entry files to the same import line, with no model-specific instructions to maintain.
+- Preserve the common migration handoff and roadmap order. Application behaviour and calculations are unchanged.
+
 ## V0.145 — 2026-11-12
 
 - Add modularity, understandable code and easy editing as continuing project objectives, with focused contracts and reviews that reduce repeated reading and assistant context/token costs.

@@ -1,8 +1,9 @@
 # Contributor and AI-assistant guide
 
-This file is the single set of working rules for anyone changing SedCoreTool: human contributors and AI coding
-assistants alike (Codex, ChatGPT, Claude, Gemini and others). `CLAUDE.md` and `GEMINI.md` are thin entry points
-that import this file. Keep the rules here and nowhere else. If a client does not expand these imports, open
+This file is the **only source of working instructions**, shared unchanged by human contributors and every
+AI assistant. Keep all rules, objectives and handoff instructions here, with no model-specific policy copies.
+`CLAUDE.md` and `GEMINI.md` are compatibility entry points containing only the same single-line import of this
+file. They have no independent instructions or status to maintain. If a client does not expand imports, open
 `AGENTS.md` explicitly before working. A new session should read the [current migration handoff](#8-current-migration-handoff)
 and the roadmap as well as the general rules; it must not depend on the previous assistant's chat history.
 
@@ -300,7 +301,7 @@ version it validated; a metadata-only delivery must not relabel old measurements
 ### Moving to another assistant or machine
 
 Use `master` and the working-copy procedure in §7. These migration deliveries were committed locally;
-the handoff does not imply they were pushed or released. Before a remote Claude/Gemini session, verify that
+the handoff does not imply they were pushed or released. Before a remote assistant session, verify that
 GitHub contains the implementation baseline and the current handoff commit. If it does not, tell the owner
 which branch/commits need an authorised push. A session sharing this local checkout can read the commits
 directly. Never discard an existing dirty tree or start a second editor on the shared checkout.
