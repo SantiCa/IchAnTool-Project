@@ -2792,6 +2792,63 @@ the explicit opt-in until the maintainer accepts the failure diagnosis, after wh
 delivery. `window.ichantool.ready` exposes the existing startup promise to automated checks so native test
 windows can finish loading without a redundant navigation through the desktop close guard.
 
+### 26.2 Experimental engine process
+
+Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-protocol.js` (framing),
+`src/sedcoretool/engine/{protocol,buffers,server,worker}.py` (standard-library coordinator, staged data and
+isolated diagnostic worker). This development-only experiment is disabled unless
+`SEDCORETOOL_ENGINE_EXPERIMENT=1`. It also requires an absolute `SEDCORETOOL_ENGINE_PYTHON` executable path.
+Packaged applications report unavailable rather than using a user's interpreter: a verified runtime bundle is
+not implemented yet. The browser and standalone file do not launch a process. No scientific calculation has
+moved to Python through this bridge; current analysis and save ownership are unchanged.
+
+Main launches the fixed prepared server script with `-I -u`, an argument array and private pipes, with no shell
+or listening service. `window.corantoolDesktop.engine.status()` exposes only enablement, state, protocol,
+method names and development-runtime status. IPC validates the application origin; the page cannot supply
+commands, paths or raw operations. Disabled mode creates no process. Main starts the experiment independently
+of window loading, reports failure through status and waits for shutdown before quitting.
+
+Frames use the M8.1 `SCE1` 12-byte header, strict UTF-8 JSON controls <=64 KiB, binary chunks <=1 MiB and
+duplicate-key/depth/finite-number checks. At most 32 requests and two binary chunks are outstanding in main;
+descriptor/binary pairs cannot interleave. Partial/malformed frames, unknown sessions, process exit or request
+timeout invalidate the session. Each fresh start assigns a new UUID; previous handles cannot be reused.
+The only advertised method is `buffer.digest/1`: `buffer.digest {handle}` recomputes a committed buffer's
+SHA-256 in an isolated subprocess and returns `{sha256,byte_length}`. This tests transport/worker ownership;
+it is not a scientific method. Scientific operations remain unsupported. Progress/result-buffer downloads
+and revision-based scientific publication are not exposed in this slice.
+
+`buffer.begin`, `chunk`, `commit` and `release` stage data in private temporary files. Validate shape/dtype/
+declared size before allocation; enforce exact offsets, length, SHA-256, finite f64 data and strict metadata
+before commit. Buffers are immutable after commit; releasing a queued/active snapshot revokes new access but
+keeps its file pinned until admitted work finishes. Limits: 128 live handles, 256 MiB per numeric buffer,
+4 MiB per metadata buffer, 512 MiB admitted session budget with a 16 MiB transient reserve. Metadata reserves
+64 times its byte length for parsing/object overhead. The session's staged bytes fit below the planned 1 GiB
+scratch-disk cap; this does not claim total RSS or multi-gigabyte support. Main owns the temporary root and
+attempts bounded cleanup after child close, including coordinator failure, checking the absolute target before
+recursive removal. External locks can prevent cleanup; abrupt main-process termination can leave an empty
+temporary root after server cleanup.
+
+One diagnostic job runs and at most four wait; excess receives BUSY. A worker polls a private cancellation
+marker between reads; the coordinator starts forced termination after 1.5 s if needed. A 30 s worker deadline
+prevents unbounded execution. Cancellation has its own acknowledgement and the target's terminal response;
+queued cancellation releases its pin. EOF on a private worker liveness pipe aborts orphaned work. Windows
+workers use CREATE_NO_WINDOW. The coordinator stays responsive to control requests; workers do not access
+project databases or save files. Engine failure never selects another scientific algorithm.
+
+Main's handshake/control deadline is 5 s; shutdown requests have a 1.5 s deadline and main forces process-tree
+termination if exit does not follow within a further 1.5 s. Errors exposed by the client are fixed codes;
+input data, paths and tracebacks are not forwarded. Stderr capture is off in the desktop service; test-only
+clients may retain a bounded 64 KiB tail. Native math thread environment limits are set before worker startup
+to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity is
+explicitly unverified development identity, not a checksum-certified Python distribution.
+
+The [M8.1 contract](roadmap-engine-contract.md) specifies later scientific inputs/results and predeclared
+acceptance gates. Current transport/worker regression tests exercise corruption, admission, cancellation,
+failure, cleanup and restart. Packaging, complete process-tree memory/latency measurements and clean-machine
+platform acceptance remain roadmap work, not passed performance gates.
+Commit verification currently runs in the coordinator over bounded files; cancellation responsiveness during
+large-file hashing/metadata validation still needs the M8.2.3 load checks and any required scheduling changes.
+
 ## 27. Offline single file
 
 `python tools/build_standalone.py` writes `dist/SedCoreTool_V0.<n>.html`: the modules of `app/js/` concatenated in a

@@ -49,7 +49,8 @@ The scriptable Python package remains a supported interface to the same engine, 
 | 8 | Conditional acceleration and remaining backlog | M4.1, remaining audit/validation/release tasks |
 
 M8.1's inventory and contract are delivered in [V0.141](../CHANGELOG.md#v0141--2026-11-12).
-M8.2 is the next implementation candidate; no engine runtime has been implemented by these planning deliveries.
+M8.2 is in progress: V0.142 delivers the first development-only process/transport slice. Packaged runtime and
+clean-machine/platform acceptance remain pending; the scientific interface still uses its existing calculations.
 Assign editor/reviewer at each implementation handoff. Fixes required to preserve data or satisfy a phase's
 acceptance criteria stay within that phase; unrelated refactors wait. Publication and 1.0 remain owner decisions.
 
@@ -79,7 +80,7 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
     diagnostics, Ruff, version consistency, document links, whitespace and standalone build passed. Documentation
     and version metadata only; no new tests or repeated browser E2E required. Local `master` delivery;
     GitHub retrieval requires an authorised push.
-- [ ] **M8.2 - Local engine process and reproducible packaging. Ready.** Build the desktop process boundary and
+- [ ] **M8.2 - Local engine process and reproducible packaging. In progress.** Build the desktop process boundary and
       include a tested 64-bit Python runtime with the minimal scientific dependencies. Use M3.2.4 for tested
       constraints, checksums and update policy; keep optional training dependencies separate from basic analysis.
   - Acceptance: clean-machine startup without a separately installed Python/Node or runtime dependency
@@ -87,6 +88,25 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
     Bound messages, queue length, concurrent jobs and CPU/RAM budgets. Isolate process failure, restart,
     timeout and cancellation; obsolete results cannot overwrite newer edits. Preserve unsaved live data and
     the last good project after engine failure. Keep the normal interface available while jobs run.
+  - Authorised on 12 November 2026 by the maintainer's instruction to continue. Editor: Codex; author-run
+    verification, no independent reviewer assigned. Split into small deliveries:
+    - [x] **M8.2.1 - Experimental process/transport foundation**, [V0.142](../CHANGELOG.md#v0142--2026-11-12):
+      bounded private frames, immutable staged buffers, isolated diagnostic worker, bounded queues, cancellation,
+      session invalidation/restart, private scratch cleanup and a status-only Electron bridge. Standard library
+      only; no scientific method is advertised. Development activation needs an explicitly selected Python;
+      packaged activation remains unavailable. See [current implementation](TECHNICAL_DOCUMENTATION.md#262-experimental-engine-process).
+      Validation on Windows/Python 3.12.4/Node 22: 341 Python tests passed (six existing optional/permission
+      skips), 226 Node tests, types without new diagnostics, Ruff, version/whitespace and standalone build.
+      Real Electron E2E passed with the experiment enabled and disabled, including save/reopen, interrupted
+      saves, renderer crash recovery and foreign-origin IPC rejection. No cross-platform/clean-machine or
+      total-process performance gate is claimed passed. Local `master` commit; an authorised push is needed
+      for a GitHub handoff. Next editor starts M8.2.2; large commit-verification scheduling remains a load gate.
+    - [ ] **M8.2.2 - Reproducible runtime bundle. Next.** Choose and test 64-bit runtime/minimal dependency
+      constraints and checksums under M3.2.4; include them in per-platform desktop resources, support the macOS
+      architecture layout, verify runtime identity and eliminate the development-interpreter dependency.
+    - [ ] **M8.2.3 - Packaging and lifecycle acceptance.** Verify offline portable/installed startup on clean
+      Windows, macOS and Linux, lifecycle under load, CPU/RAM accounting, process-tree cleanup and project
+      preservation. Keep the flag off; do not mark M8.2 complete from development protocol tests alone.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;

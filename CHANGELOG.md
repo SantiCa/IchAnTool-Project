@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.142 — 2026-11-12
+
+- Add the first experimental desktop engine process boundary, disabled by default, with bounded binary transfers, verified immutable buffers, cancellation and process-failure recovery.
+- Keep the interface and project saving independent of the experimental process; provide a narrow status bridge without exposing commands or filesystem paths to the page.
+- Begin M8.2 with a development-only transport diagnostic. Scientific calculations are unchanged; a bundled interpreter and clean-machine/platform validation remain pending.
+
 ## V0.141 — 2026-11-12
 
 - Define the single scientific engine migration contract: current method coverage, data ownership, a bounded local process protocol and versioned section inputs/results.

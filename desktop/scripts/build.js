@@ -10,7 +10,7 @@ const config = {
   appId: 'org.sedcoretool.app', productName: 'SedCoreTool', copyright: 'Santiago Casanova-Arenillas',
   extraMetadata: { version: n },
   artifactName: `SedCoreTool-${V}-\${os}-\${arch}.\${ext}`,
-  files: ['main.js', 'preload.js', 'trainer.js', 'model-store.js', 'diagnostics.js', 'web/**', 'build/icon.png', 'package.json'],
+  files: ['main.js', 'preload.js', 'trainer.js', 'model-store.js', 'diagnostics.js', 'engine.js', 'engine-protocol.js', 'web/**', 'build/icon.png', 'package.json'],
   extraResources: [{ from: 'python', to: 'python' }],   // V0.17: Python package source for the training module
   directories: { output: 'dist', buildResources: 'build' },
   win: { target: [{ target: 'nsis', arch: ['x64'] }, { target: 'portable', arch: ['x64'] }], icon: 'build/icon.png' },

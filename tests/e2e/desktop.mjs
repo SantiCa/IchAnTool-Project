@@ -60,6 +60,15 @@ let run;
 try {
   run = await start();
   const p = run.page;
+  if (process.env.SEDCORETOOL_ENGINE_EXPERIMENT === '1') {
+    await p.waitForFunction(async () => (await window.corantoolDesktop.engine.status()).state === 'ready');
+    const engine = await p.evaluate(() => window.corantoolDesktop.engine.status());
+    assert.equal(engine.protocol, 1);
+    assert.deepEqual(engine.methods, ['buffer.digest/1'], 'experimental transport does not advertise scientific calculations');
+    assert.equal(engine.runtime, 'unverified-development');
+  } else {
+    assert.equal((await p.evaluate(() => window.corantoolDesktop.engine.status())).state, 'disabled');
+  }
   const desktop = await p.evaluate(async () => ({
     origin: location.origin,
     trainer: await window.corantoolDesktop.trainer.status(),

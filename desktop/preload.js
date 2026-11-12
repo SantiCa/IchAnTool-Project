@@ -1,6 +1,7 @@
 // Narrow bridges for local training and opt-in technical diagnostics; no arbitrary filesystem access.
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('corantoolDesktop', {
+  engine: { status: () => ipcRenderer.invoke('engine:status') },
   diagnostics: {
     status: () => ipcRenderer.invoke('diagnostics:status'),
     setEnabled: (enabled) => ipcRenderer.invoke('diagnostics:setEnabled', enabled),

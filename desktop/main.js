@@ -5,6 +5,7 @@
 // - Projects are stored in IndexedDB inside the user-data folder (on disk), not in a browser profile.
 const { Trainer } = require('./trainer');
 const { DiagnosticsLog, diagnosticError, safeDiagnosticEvent } = require('./diagnostics');
+const { createEngineService } = require('./engine');
 const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
@@ -56,6 +57,8 @@ function setupSessionPermissions(ses) {
 if (process.versions.electron) {
   const { app, BrowserWindow, protocol, net, shell, session, ipcMain, dialog } = require('electron');
   const fromApp = (event) => Boolean(event?.senderFrame && resolveAppPath(event.senderFrame.url));
+  const engine = createEngineService({ enabled: process.env.SEDCORETOOL_ENGINE_EXPERIMENT === '1', packaged: app.isPackaged,
+    executable: process.env.SEDCORETOOL_ENGINE_PYTHON, sourceDirectory: path.join(__dirname, 'python'), version: app.getVersion() });
 
   const heapMB = Math.max(2048, Math.min(32768, Math.floor((os.totalmem() / 2 ** 20) * 0.75)));
   app.commandLine.appendSwitch('js-flags', `--max-old-space-size=${heapMB}`);
@@ -84,11 +87,19 @@ if (process.versions.electron) {
     // keep the project library: ask Chromium to treat the storage as persistent
     setupSessionPermissions(session.defaultSession);
     setupTrainer();
+    ipcMain.handle('engine:status', (event) => { if (!fromApp(event)) throw new Error('forbidden'); return engine.status(); });
+    void engine.start();
     await setupDiagnostics();
     createWindow();
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+  let engineStopped = false;
+  app.on('before-quit', (event) => {
+    if (engineStopped) return;
+    event.preventDefault();
+    void engine.stop().finally(() => { engineStopped = true; app.quit(); });
+  });
 
   async function setupDiagnostics() {
     const log = new DiagnosticsLog({ directory: path.join(app.getPath('userData'), 'diagnostics'), version: app.getVersion(), runtime: process.versions });

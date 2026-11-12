@@ -41,6 +41,12 @@ export async function startDesktopDiagnosticCheck(page, profile) {
     catch (error) { return error.message.includes('forbidden'); }
   });
   assert.equal(rejected, true, 'foreign navigation cannot control diagnostics through the preload');
+  const engineRejected = await page.evaluate(async () => {
+    if (!window.corantoolDesktop?.engine) return true;
+    try { await window.corantoolDesktop.engine.status(); return false; }
+    catch (error) { return error.message.includes('forbidden'); }
+  });
+  assert.equal(engineRejected, true, 'foreign navigation cannot inspect the engine through the preload');
   await page.goto('app://corantool/app/index.html', { waitUntil: 'networkidle0' });
   await page.waitForFunction(() => window.ichantool && !document.getElementById('diagIndicator').hidden);
 

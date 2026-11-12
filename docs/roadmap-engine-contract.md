@@ -6,6 +6,8 @@ source inspection and author-run repository checks; no independent reviewer is a
 
 This is a specification for pending M8.2–M8.6 work, not a description of an implemented engine.
 The current desktop/browser calculations, Python API, file formats and defaults remain unchanged.
+M8.2.1 implements a development-only subset: see [current behaviour and limits](TECHNICAL_DOCUMENTATION.md#262-experimental-engine-process).
+The remaining capabilities below are still design requirements, not claims about that transport slice.
 Protocol version 1 and method `section.intervals/1` below are separate versioned contracts. Changing
 scientific semantics requires a new method version and explicit acceptance, even if the wire format fits.
 

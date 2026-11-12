@@ -266,6 +266,23 @@ paper/            software paper
 legacy/           original version 2.1 (2019), unchanged
 ```
 
+### Experimental local engine (developers)
+
+The first engine transport experiment is desktop-only and off by default. It runs a synthetic buffer-digest
+diagnostic; application scientific calculations still follow the current path. A bundled Python runtime and
+clean-machine support are pending. For development on Windows, use an existing Python 3.10+ executable:
+
+```powershell
+$env:SEDCORETOOL_ENGINE_EXPERIMENT = '1'
+$env:SEDCORETOOL_ENGINE_PYTHON = 'C:\path\to\python.exe'
+cd desktop
+npm.cmd start
+```
+
+The desktop developer console can inspect `await window.corantoolDesktop.engine.status()`. No dependency
+download or training install is performed. To return to the normal launch, close the program and remove both
+environment variables. See [implementation and limits](docs/TECHNICAL_DOCUMENTATION.md#262-experimental-engine-process).
+
 ## History and earlier names
 
 SedCoreTool started in 2019 as **IchAnTool**, a script that turned hand-segmented core images into bioturbation series.
