@@ -48,8 +48,9 @@ The scriptable Python package remains a supported interface to the same engine, 
 | 7 | Advanced statistics and radiographs on the accepted engine | M6.1–M6.6, M7.1–M7.4; no new parallel JavaScript science |
 | 8 | Conditional acceleration and remaining backlog | M4.1, remaining audit/validation/release tasks |
 
-M8.1 is the next implementation task. Assign editor/reviewer at each implementation handoff; no runtime
-migration is marked started by this planning commit. Fixes required to preserve data or satisfy a phase's
+M8.1's inventory and contract are delivered in [V0.141](../CHANGELOG.md#v0141--2026-11-12).
+M8.2 is the next implementation candidate; no engine runtime has been implemented by these planning deliveries.
+Assign editor/reviewer at each implementation handoff. Fixes required to preserve data or satisfy a phase's
 acceptance criteria stay within that phase; unrelated refactors wait. Publication and 1.0 remain owner decisions.
 
 Planning delivery checks: 313 Python tests passed (six optional/permission skips), 218 Node tests,
@@ -59,7 +60,7 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
 
 ### M8 - Desktop simplification and a single scientific engine
 
-- [ ] **M8.1 - Engine inventory and migration contract. Ready.** Map current JavaScript/Python calculations,
+- [x] **M8.1 - Engine inventory and migration contract.** Map current JavaScript/Python calculations,
       callers, caches and image/data ownership. Include interval counts/indices, depth/age mapping, image
       operations/features, classification, interpolation and U-Net. Identify both duplicated methods and
       methods that currently exist only in JavaScript; do not assume the Python package already covers the app.
@@ -68,7 +69,17 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
     input revisions, seeds, provenance, errors, progress and cancellation. Select a bounded private local
     transport; large pixel buffers must not become JSON arrays copied through every request.
     Establish matched numerical, latency, cancellation and total-process memory gates before implementation.
-- [ ] **M8.2 - Local engine process and reproducible packaging.** Build the desktop process boundary and
+  - Delivered in [V0.141](../CHANGELOG.md#v0141--2026-11-12): [source inventory and protocol/method contract](roadmap-engine-contract.md).
+    Authorised on 12 November 2026 by the maintainer's instruction to continue. Editor: Codex; author-run
+    verification, no independent reviewer assigned. The contract records object/class representation gaps,
+    custom-tier precedence differences, bounded transport/ownership, ordered slices and predeclared gates.
+    Current runtime and calculations are unchanged. M8.2 starts with synthetic protocol/failure fixtures and
+    minimal runtime packaging; M8.3 alone connects scientific section results. No benchmark gate is claimed passed.
+    Verification: 313 Python tests passed (six optional/permission skips), 218 Node tests, types without new
+    diagnostics, Ruff, version consistency, document links, whitespace and standalone build passed. Documentation
+    and version metadata only; no new tests or repeated browser E2E required. Local `master` delivery;
+    GitHub retrieval requires an authorised push.
+- [ ] **M8.2 - Local engine process and reproducible packaging. Ready.** Build the desktop process boundary and
       include a tested 64-bit Python runtime with the minimal scientific dependencies. Use M3.2.4 for tested
       constraints, checksums and update policy; keep optional training dependencies separate from basic analysis.
   - Acceptance: clean-machine startup without a separately installed Python/Node or runtime dependency

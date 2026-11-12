@@ -130,6 +130,10 @@ The analysis definitions shared by both — interval limits, percentages, indice
 tiling — are implemented twice (`src/sedcoretool/` and `app/js/core.js`, `app/js/unet.js`) and the tests check that
 both give identical numbers (§31).
 
+The planned desktop single-engine migration, including representation gaps and interface-specific custom-tier
+precedence, is specified separately in the [M8.1 roadmap contract](roadmap-engine-contract.md). That design
+does not change the current implementations described here.
+
 ### 1.3 Common workflow
 
 ```

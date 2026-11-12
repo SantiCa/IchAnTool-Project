@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.141 — 2026-11-12
+
+- Define the single scientific engine migration contract: current method coverage, data ownership, a bounded local process protocol and versioned section inputs/results.
+- Record compatibility gaps, including object overlaps, manual intervals and custom index precedence, with numerical, responsiveness and whole-process memory gates before implementation.
+- Complete roadmap M8.1 and prepare M8.2 for runtime packaging and process isolation. Current calculations, files and application behaviour are unchanged.
+
 ## V0.140 — 2026-11-12
 
 - Reorder the roadmap around a desktop application with one local Python/NumPy scientific engine and the existing Electron/JavaScript interface.
