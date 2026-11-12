@@ -23,6 +23,14 @@ records. It has two parts that share the same analysis definitions:
 Start with [README.md](README.md) for users and [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md)
 for how every part works (§1.4 maps the source files).
 
+### 1.1 Maintainability objective
+
+The maintainer requires a **modular, understandable and easily editable program**, with a small amount of
+context needed to change or review one workflow. Clear responsibilities, explicit interfaces and focused
+changes should reduce repeated reading, assistant token consumption and avoidable review rounds while
+preserving scientific validation and review quality. This is a continuing objective for the desktop/engine
+migration and later features; see the [roadmap objective](docs/roadmap.md#cross-cutting-objective-modularity-and-reviewability).
+
 ## 2. Repository map
 
 ```
@@ -61,6 +69,14 @@ On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Sc
   queries from mutations. Prefer the simplest design that supports the behaviour. Share rules that must evolve
   together, extract meaningful boundaries, and explain rationale rather than restating code. Validate boundaries,
   preserve useful error context, and make small, verifiable improvements within the authorised scope.
+- **Modularity and review cost.** Organise code around meaningful domain responsibilities, with explicit
+  inputs, outputs, dependencies and ownership. Keep scientific methods, persistence/process IO and interface
+  wiring behind their respective boundaries. A reviewer should be able to locate a behaviour and understand
+  its contract without reading the whole application. Use discoverable names, concise module documentation,
+  targeted source reads and small, independently verifiable diffs. Keep context sufficient to validate the
+  change; spend fewer tokens by improving structure and avoiding repeated exploration. Preserve the clarity
+  of each workflow when choosing module boundaries and abstraction levels. Scope extractions to the authorised
+  phase, retain supported APIs, and update the source map and relevant tests when a boundary changes.
 - **Shared definitions.** Interval limits, percentages, indices and depth mapping must stay identical in Python
   (`src/sedcoretool/`) and JavaScript (`app/js/core.js`); U-Net tiling likewise (`unet/tiling.py`, `app/js/unet.js`).
   Keep the regression test against `legacy/v2.1_console/example_output.csv` passing.

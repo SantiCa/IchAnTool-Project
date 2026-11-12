@@ -16,6 +16,27 @@ Keep task IDs stable. The changelog records what shipped.
 
 ## Milestones toward 1.0
 
+### Cross-cutting objective: modularity and reviewability
+
+The maintainer requested this objective on 12 November 2026, documented in
+[V0.145](../CHANGELOG.md#v0145--2026-11-12): make the program modular, easy to understand and easy to edit,
+so a local change needs less repeated reading, fewer assistant tokens and fewer avoidable review rounds.
+Apply the [shared implementation rule](../AGENTS.md#4-rules-for-code) throughout M8 and later features.
+
+For each authorised modularisation slice, identify a representative maintenance task, the responsible
+module, its explicit contract/callers and the focused set of files needed to understand the change. Verify
+that the new boundary preserves behaviour and scientific results, and update the source map. Keep related
+logic discoverable and changes independently reviewable. Report token/review savings from comparable
+measurements when available; module/file counts alone do not establish those savings. M5.4 and the R1/R2
+extractions supply existing work to build on. Wider extractions remain separately scoped phases.
+
+This objective does not reorder the active M8 sequence or start a whole-program refactor. M8.2.3 remains
+the next implementation candidate.
+
+Documentation delivery checks: 355 Python tests passed (six existing skips), 232 Node tests, types without
+new diagnostics, Ruff, version/whitespace and standalone build. Checks ran serially; the existing M8.2.3
+concurrent-run observation remains open. No implementation behaviour or UI/save flow changes in this delivery.
+
 ### Active priority: desktop and one scientific engine
 
 The maintainer approved this direction and roadmap reprioritisation on 12 November 2026, delivered in

@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.145 — 2026-11-12
+
+- Add modularity, understandable code and easy editing as continuing project objectives, with focused contracts and reviews that reduce repeated reading and assistant context/token costs.
+- Link these objectives to incremental roadmap work and preserve scientific validation. Application behaviour and calculations are unchanged.
+
 ## V0.144 — 2026-11-12
 
 - Document the current single-engine migration handoff in AGENTS.md: settled decisions, delivered work, validation limits, environment reconstruction and the next acceptance phase.
