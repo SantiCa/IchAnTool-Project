@@ -49,7 +49,11 @@ Updated 12 November 2026.
      `node tools/measure_packaged_startup.mjs <folder>\SedCoreTool.exe --runs 5 --out <file>`
      (needs `npm i --no-save puppeteer-core@23`).
   3. Repeat the ZIP launches on an idle machine to clear or reproduce the intermittent no-window failure.
-  4. Measure the Electron-plus-engine process tree (memory and CPU) of the packaged program at idle.
+  4. Done at idle (see M8.2.3). Remaining Windows work: process tree with a project open and during a job.
+  5. Decide, with the maintainer, how to meet or restate the 5 s gate for the cold first launch (11–25 s).
+     The window opens in about 0.45 s regardless; only engine readiness is late. Options to put to the
+     maintainer with measurements, not to implement unasked: start the verification at program start-up while
+     the interface is already usable; accept a documented first-launch cost; verify at install time.
 - **Open maintainer decisions:**
   - macOS and Linux acceptance needs either those machines or a CI run, which requires an authorised push
     and a manual run of the *Desktop builds* workflow with `draft_release=false`.
@@ -185,11 +189,20 @@ The engine experiment stays **off by default** (`SEDCORETOOL_ENGINE_EXPERIMENT=1
         open until reproduced or cleared by more idle-machine runs.
       - Extracting the 224 MB ZIP with PowerShell `Expand-Archive` took 57 s (about 613 MB unpacked); the
         archive has no top-level folder, so users must use "Extract all" into a new folder.
+    - **Idle process tree of the packaged ZIP** ([evidence](validation/M8.2.3-process-tree-windows-v0.148.json),
+      3 launches, shared profile, no project open, engine experiment on): 5 processes under the program folder
+      (Electron processes plus the engine coordinator; the diagnostic worker is not started until a job runs),
+      309–370 MiB summed working set (shared pages are counted once per process, so this overstates real
+      use) and 0.35–1 % of one core when idle. The first launch of this batch, after the machine had been idle,
+      needed 24.7 s to reach engine ready (cold file cache, full verification), against 11.5 s for the first
+      launch in the earlier batch: the cold first launch is 11–25 s and fails the 5 s gate; later launches 0.74–0.76 s.
+      Memory while a job runs and with a project open is not measured.
     - **Remaining** (see the next steps in the status block):
       - [x] Portable ZIP start-up measurement (above), except the intermittent failure.
       - [x] Packaged start-up with the verification record (above: 11.5 s first launch, then 0.72–0.79 s).
       - [ ] Repeat the ZIP launches several more times on an idle machine to clear or reproduce the intermittent failure.
-      - [ ] Electron-plus-engine process-tree memory and CPU.
+      - [x] Electron-plus-engine idle process-tree memory and CPU (above). Still open: with a project open and
+            while a job runs.
       - [ ] macOS (Intel, Apple Silicon, universal DMG) and Linux (AppImage, DEB) execution.
       - [ ] Clean-machine runs and other antivirus configurations.
       - [ ] First-launch cold start (17–20 s) against the 5 s gate: still failing; needs a measured proposal

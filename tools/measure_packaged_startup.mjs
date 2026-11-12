@@ -7,6 +7,9 @@
 // per launch, so no project is read or written. Cold-cache and clean-machine timings are NOT measured: the first
 // launch after a build or reboot is reported separately only if you run it that way.
 //
+// Also reported (Windows): number of processes under the program folder, their summed working set and idle CPU,
+// sampled after engine ready with the interface idle (no project open, engine experiment on).
+//
 // Usage: node tools/measure_packaged_startup.mjs <executable> [--runs 5] [--keep-profile] [--out report.json]
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -33,6 +36,18 @@ function related(name) {
   if (process.platform !== 'win32') return [];
   const script = `Get-CimInstance Win32_Process | Where-Object { $_.Name -eq '${name}' -or ($_.ExecutablePath -like '*engine-runtime*') } | ForEach-Object { "$($_.ProcessId)|$($_.Name)" }`;
   return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true }).split(/\r?\n/).filter(Boolean);
+}
+
+/**
+ * Windows: processes whose executable lies under `directory` (Electron processes and the bundled engine), as
+ * { count, bytes, cpuSeconds }. `bytes` sums working sets, so pages shared between processes are counted more than once.
+ */
+function treeSample(directory) {
+  if (process.platform !== 'win32') return null;
+  const prefix = directory.replace(/'/g, "''");
+  const script = `$b=0;$c=0;$n=0; Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith('${prefix}',[StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $n++; $b+=$_.WorkingSet64; $c+=$_.TotalProcessorTime.TotalSeconds }; "$n|$b|$c"`;
+  const [count, bytes, cpu] = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true }).trim().split('|').map(Number);
+  return { count, bytes, cpuSeconds: cpu };
 }
 
 const freePort = () => new Promise((resolve, reject) => {
@@ -77,6 +92,15 @@ async function launch(index) {
     record.engine_ready_ms = round(performance.now() - started);
     const status = await page.evaluate(() => window.corantoolDesktop.engine.status());
     record.engine_state = status.state; record.engine_runtime = status.runtime;
+    // Idle process tree: settle for 2 s after ready, then two samples 3 s apart (CPU as a share of one core).
+    await sleep(2000);
+    const first = treeSample(path.dirname(executable)), t0 = performance.now();
+    await sleep(3000);
+    const second = treeSample(path.dirname(executable));
+    if (first && second) {
+      record.tree_processes = second.count; record.tree_working_set_mib = round(second.bytes / 1048576);
+      record.tree_idle_cpu_percent_of_one_core = round(((second.cpuSeconds - first.cpuSeconds) / ((performance.now() - t0) / 1000)) * 100);
+    }
     const closing = performance.now();
     page.on('dialog', (dialog) => dialog.accept().catch(() => {}));
     await page.close({ runBeforeUnload: true }).catch(() => {});
@@ -125,7 +149,8 @@ const report = {
   environment: { platform: `${process.platform}-${process.arch}`, os: `${os.type()} ${os.release()}`, cpu: os.cpus()[0]?.model, logical_cpus: os.cpus().length, node: process.versions.node },
   profile: keepProfile ? 'one profile kept across launches (verification record reused after launch 1)' : 'fresh profile per launch (full verification every time)',
   runs: results.length, failed_runs: results.filter((r) => r.error || r.engine_state !== 'ready' || r.exit_code !== 0 || r.leftover_processes).length,
-  summary: { devtools_ms: stat('devtools_ms'), window_ms: stat('window_ms'), engine_ready_ms: stat('engine_ready_ms'), close_ms: stat('close_ms') },
+  summary: { devtools_ms: stat('devtools_ms'), window_ms: stat('window_ms'), engine_ready_ms: stat('engine_ready_ms'), close_ms: stat('close_ms'),
+    tree_working_set_mib: stat('tree_working_set_mib'), tree_idle_cpu_percent_of_one_core: stat('tree_idle_cpu_percent_of_one_core') },
   first_run: results[0], results, root_commit: execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
 };
 const text = `${JSON.stringify(report, null, 2)}\n`;

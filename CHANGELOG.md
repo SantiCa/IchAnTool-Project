@@ -12,6 +12,7 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ## Unreleased
 
+- The start-up measuring tool also reports the number of processes, memory and idle CPU of the whole program (interface plus engine) on Windows.
 - The start-up measuring tool for packaged programs can keep one profile across launches (`--keep-profile`), so the effect of the runtime verification record is measurable, and records the stage at which a launch stops responding.
 - Reorganised the project documents: the roadmap now lists only the current status, next steps and pending work, and the records of completed tasks moved unchanged to `docs/roadmap-history.md`. The contributor guide starts with a short step-by-step quick start for any assistant. Obsolete audit snapshots and a scratch note were removed from the repository root. Application behaviour is unchanged.
 - The Windows portable version is now a ZIP archive of the program folder instead of a single self-extracting executable: unzip it once and run `SedCoreTool.exe`. The previous single file unpacked 150 MB on every launch and took about 50 seconds to open.
