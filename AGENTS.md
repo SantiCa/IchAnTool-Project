@@ -10,6 +10,33 @@ and the roadmap as well as the general rules; it must not depend on the previous
 Owner and maintainer: Santiago Casanova-Arenillas. **Reply to the owner in Spanish**; everything committed to the
 repository (code, comments, documentation, commit messages) is written in English.
 
+## 0. Quick start for any assistant (read this first)
+
+Follow these steps in order. They apply to every model, including smaller ones.
+
+1. **Read the state.** Open [docs/roadmap.md § Status and handoff](docs/roadmap.md#status-and-handoff). It names the
+   active branch, the checks still due and the next steps. You do not need the rest of the roadmap unless a
+   task points to it; completed tasks are in `docs/roadmap-history.md` and rarely need reading.
+2. **Check the checkout.** `git status --short --branch`. On a clean tree, stay on the branch the handoff names.
+   A dirty tree is someone else's work: do not stash, reset, clean or switch branches (§7).
+3. **Run pending checks first** if the handoff says "checks pending" (§5, step 4).
+4. **Do only what the maintainer asked**, using the smallest scope that satisfies the request. A task's
+   acceptance criteria in the roadmap define "done". If the request is broad, pick one task, state your
+   assumption and continue; ask only when a consequential choice cannot be inferred (§7).
+5. **Change code the safe way (§4).** Find the owner of the behaviour with the source map in
+   [docs/TECHNICAL_DOCUMENTATION.md §1.4](docs/TECHNICAL_DOCUMENTATION.md); keep Python and JavaScript
+   definitions identical; add a test next to the code you change.
+6. **Document in the same commit (§5, step 2):** `CHANGELOG.md` under `## Unreleased`, plus the technical
+   manual or README when behaviour changes. Do not create a version number; the maintainer asks for it.
+7. **Commit on the branch** with explicit file names and a descriptive message. Never force-push, and push
+   only when asked.
+8. **Update the handoff** in the roadmap (branch, commit, checks run, next step, open decisions), then
+   **report to the maintainer in Spanish** (§7).
+
+Where things are: `app/js/` interface and shared calculations · `src/sedcoretool/` Python package and engine ·
+`desktop/` Electron shell · `tools/` measuring and build scripts · `tests/` all tests · `docs/validation/` measured
+evidence · `legacy/` never modify.
+
 ## 1. What the project is
 
 SedCoreTool quantifies bioturbation and ichnotaxa in sediment-core images and combines them with other down-core
@@ -43,7 +70,7 @@ src/sedcoretool Python package (analysis, command line, U-Net, engine/ process)
 tests/          Python tests, program tests (tests/app), end-to-end tests (tests/e2e), fixtures
 examples/       public example data used by tests and by the program when run from the repository
 tools/          offline build, version sync, release, vendor update, synthetic data generators
-docs/           technical documentation, roadmap, engine contract, validation evidence, benchmarks, diagnostics
+docs/           technical documentation, roadmap (+ roadmap-history), engine contract, validation evidence, benchmarks, diagnostics
 paper/          software paper (JOSS) and its bibliography
 legacy/         original version 2.1, unchanged
 ```
@@ -66,6 +93,13 @@ On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Sc
 `pytest` finds the package through `pythonpath = ["src"]`, so an existing Python with the test dependencies works
 without an editable install. On the maintainer's workstation `.venv/` holds build caches and review tools (Ruff
 under `.venv/review-tools`), not a virtual environment.
+
+**Tools on the maintainer's Windows workstation** (verified 12 November 2026; the shell may not have them on
+PATH, so call them by full path): Python 3.12 with pytest at `C:\Users\Santiago\anaconda3\python.exe`
+(`python` in Git Bash may resolve to a different Python without pytest); Node 22 in `C:\Program Files\nodejs`
+(`$env:Path += ';C:\Program Files\nodejs'`, then `npm.cmd`); Ruff at `.venv\review-tools\bin\ruff.exe`.
+Quick checks that need no setup: `node --test tests/app/<file>.test.mjs`,
+`<python> -m pytest -q <file>`, `<ruff> check src tests tools`.
 
 ## 4. Rules for code
 
@@ -103,7 +137,7 @@ under `.venv/review-tools`), not a virtual environment.
 - **Public APIs.** Preserve existing callers. Any approved breaking change needs a documented migration path
   and regression coverage for supported inputs.
 - **Measure performance.** Back performance claims with a reproducible benchmark. Record the inputs,
-  environment and measured quantities, and use the baseline in [M0.1](docs/roadmap.md#m01-acceptance-criteria)
+  environment and measured quantities, and use the baseline in [M0.1](docs/roadmap-history.md#m01-acceptance-criteria)
   when it covers the affected path.
 - **Safe I/O.** Handle corrupt, oversized and hostile inputs. Bound resource use when processing untrusted
   files. For filesystem project saves, use a temporary file and atomic replacement where supported. For
@@ -170,7 +204,8 @@ release or a DOI.
 | What the software is for, installation, how to use it | `README.md` |
 | How each part works: methods, formulas, defaults, file formats, validation | `docs/TECHNICAL_DOCUMENTATION.md` |
 | What changed in each version | `CHANGELOG.md` |
-| Planned work | `docs/roadmap.md` |
+| Planned and in-progress work, current status and next steps | `docs/roadmap.md` |
+| Records of completed roadmap tasks (read only when a task asks for them) | `docs/roadmap-history.md` |
 | Desktop release notes (text of the GitHub Release) | `desktop/RELEASE_NOTES.md` |
 | How to contribute (humans) | `CONTRIBUTING.md` (short; points here) |
 | Working rules (humans and AI assistants) | this file |
@@ -217,9 +252,10 @@ Do not repeat content between these files; link instead. Keep the tone factual a
 ## 8. Current migration handoff
 
 **Scientific implementation baseline:** [V0.143](CHANGELOG.md#v0143--2026-11-12), commit `59ef5dc`,
-12 November 2026. Later documentation/version-only deliveries do not imply a new engine capability. Read the
-top changelog entry and inspect the actual checkout before relying on this snapshot. Update these pointers
-when handing over a later implementation; detailed task status and acceptance criteria stay in the roadmap.
+12 November 2026. Later deliveries (V0.144–V0.148 and the `## Unreleased` entries) do not add a scientific
+method; they add documentation, workflow rules, lifecycle fixes and measuring tools for the engine process.
+Read the top changelog entries and inspect the actual checkout before relying on this snapshot. Update these
+pointers when handing over a later implementation; detailed task status and acceptance criteria stay in the roadmap.
 
 ### Approved direction and current boundary
 
@@ -273,14 +309,12 @@ handoff green. No engine implementation change is authorised by the documentatio
 
 ### Next implementation candidate
 
-Resume **M8.2.3 — Packaging and lifecycle acceptance** when the maintainer asks to continue; this handoff
-request itself changes documentation only. Use its [roadmap criteria](docs/roadmap.md#m8---desktop-simplification-and-a-single-scientific-engine)
-and M8.1's gates. Confirm the requested editor/reviewer and available native test environments. Verify
-offline installers/portable execution on clean systems, process-tree shutdown/recovery, CPU/RAM accounting,
-project preservation and cold verification/startup. The maintainer decided (12 November 2026) that the Windows
-portable is a ZIP of the program folder and that launch verification keeps a verified-identity record; the roadmap
-records what is still unmeasured (the ZIP build, first-launch cost). Commit validation tools/evidence as small deliveries;
-record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
+**M8.2.3 — Packaging and lifecycle acceptance** is in progress on the branch recorded in the
+[roadmap status](docs/roadmap.md#status-and-handoff), which lists the exact next steps and the measurements
+already made (Windows). Use its [criteria](docs/roadmap.md#m8---desktop-simplification-and-a-single-scientific-engine)
+and M8.1's gates. Decisions of 12 November 2026: the Windows portable is a ZIP of the program folder, and
+launch verification keeps a verified-identity record (technical manual §26.3). Commit tools and evidence as
+small deliveries; record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
 
 **M8.3 comes after this acceptance phase:** the first scientific section slice, including masks, ROI,
 exclusions, overlaps and assignments. Its contract records representation gaps, no-data/manual/age processing

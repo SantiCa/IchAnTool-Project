@@ -12,6 +12,7 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ## Unreleased
 
+- Reorganised the project documents: the roadmap now lists only the current status, next steps and pending work, and the records of completed tasks moved unchanged to `docs/roadmap-history.md`. The contributor guide starts with a short step-by-step quick start for any assistant. Obsolete audit snapshots and a scratch note were removed from the repository root. Application behaviour is unchanged.
 - The Windows portable version is now a ZIP archive of the program folder instead of a single self-extracting executable: unzip it once and run `SedCoreTool.exe`. The previous single file unpacked 150 MB on every launch and took about 50 seconds to open.
 - The experimental engine now records a successful integrity check of its bundled runtime and, on later launches, rechecks only file identity (size, times, inode) instead of reading all 7,326 files again: 0.18 s instead of 4.7 s when files are cached by the system. Any changed, added, missing or replaced file, a different build, or a missing or damaged record triggers the full check again.
 - Stop the experimental engine and its workers almost instantly on Windows when it must be ended forcibly (5 ms instead of about 1.7 s), by tying worker processes to the engine's lifetime in the operating system.
