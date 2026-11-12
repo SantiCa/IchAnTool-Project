@@ -184,8 +184,12 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
         processes change nothing. With all 16 logical CPUs saturated, verification takes 16 s median (27 s max)
         and forced kill 2.6 s, so both gates fail, and one earlier attempt failed the 5 s handshake. This
         reproduces the V0.144 observation as CPU contention; no deadline or engine code has been changed.
-        Findings for a maintainer decision: forced kill time is dominated by `taskkill /T /F` (about 1.7 s,
-        whereas killing only the coordinator takes 2 ms), and start-up hashes every runtime file on each launch.
+        Forced kill was dominated by `taskkill /T /F` (about 1.7 s, whereas killing only the coordinator takes
+        2 ms). The maintainer authorised an engine change on 12 November 2026: the coordinator now joins a
+        kill-on-close Job Object (`engine/lifetime.py`) and forced termination ends it at once. Forced kill is now
+        5 ms idle and 29 ms with saturated CPUs, with no leftovers (see the evidence file). Remaining open
+        finding for a maintainer decision: start-up hashes every runtime file on each launch, 20 s median
+        under saturated CPUs; options include a verified-identity cache or lower priority for the hashing.
         Not yet measured: installer/portable launch, cold cache, other platforms, real-job cancellation, tree RSS.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display

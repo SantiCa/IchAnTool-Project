@@ -462,7 +462,7 @@
     "additional_observation":  "An earlier 16-busy-process attempt (first version of the tool, 10 runs) aborted when the 5 s hello deadline expired and the client reported ENGINE_UNAVAILABLE; the three later 16-process runs completed with ready 1.2-1.4 s. Saturated-CPU behaviour is therefore intermittent, not a stable pass.",
     "gates_against_m8_1":  {
                                "cold_ready_5s_from_spawn_through_hello":  "idle: verify 2.1 s + ready 0.31 s (about 2.5 s) passes; 16 busy: verify median 16.0 s (max 27.1 s) fails; this is verification plus spawn, a conservative reading of the gate",
-                               "kill_terminal_within_2s":  "idle 1.7 s (max 1.8 s) and 8 busy 1.6 s (max 1.7 s) pass with little margin; 16 busy median 2.6 s fails",
+                               "kill_terminal_within_2s":  "after the change: passes idle (5 ms) and saturated (29 ms median, 33 ms max); before it: 1.7 s idle, 2.6 s saturated",
                                "process_and_scratch_cleanup":  "no leftover runtime process or scratch directory in any measured run, after orderly stop and forced kill"
                            },
     "not_measured":  [
@@ -473,5 +473,372 @@
                          "cancellation during real jobs",
                          "whole-process (Electron + engine) RSS"
                      ],
-    "acceptance_claimed":  false
+    "acceptance_claimed":  false,
+    "after_forced_kill_change":  {
+                                     "change":  "Forced termination now ends the coordinator immediately (child.kill) and the coordinator joins a kill-on-close Job Object (src/sedcoretool/engine/lifetime.py) so its workers die with it; taskkill /T remains only as a backstop. Authorised by the maintainer on 12 November 2026. Runtime rebuilt before measuring.",
+                                     "cases":  [
+                                                   {
+                                                       "busy_processes":  0,
+                                                       "measured_runs":  10,
+                                                       "failed_start_runs":  0,
+                                                       "leftover_runs":  0,
+                                                       "summary":  {
+                                                                       "verify_ms":  {
+                                                                                         "n":  10,
+                                                                                         "min":  1561.69,
+                                                                                         "median":  1603.29,
+                                                                                         "p95_nearest_rank":  1641.28,
+                                                                                         "max":  1641.28
+                                                                                     },
+                                                                       "ready_ms":  {
+                                                                                        "n":  10,
+                                                                                        "min":  300.44,
+                                                                                        "median":  308.18,
+                                                                                        "p95_nearest_rank":  318.3,
+                                                                                        "max":  318.3
+                                                                                    },
+                                                                       "stop_ms":  {
+                                                                                       "n":  10,
+                                                                                       "min":  8.07,
+                                                                                       "median":  9,
+                                                                                       "p95_nearest_rank":  10.07,
+                                                                                       "max":  10.07
+                                                                                   },
+                                                                       "kill_ms":  {
+                                                                                       "n":  10,
+                                                                                       "min":  5.22,
+                                                                                       "median":  5.32,
+                                                                                       "p95_nearest_rank":  6.42,
+                                                                                       "max":  6.42
+                                                                                   }
+                                                                   },
+                                                       "runs":  [
+                                                                    {
+                                                                        "run":  1,
+                                                                        "verify_ms":  1638.89,
+                                                                        "ready_ms":  305.52,
+                                                                        "idle_engine_bytes":  25300992,
+                                                                        "stop_ms":  9.09,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2003.55
+                                                                                           },
+                                                                        "ready_kill_case_ms":  312.25,
+                                                                        "kill_ms":  6.42,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2293.98
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  2,
+                                                                        "verify_ms":  1606.84,
+                                                                        "ready_ms":  306.42,
+                                                                        "idle_engine_bytes":  25018368,
+                                                                        "stop_ms":  9.28,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2222.09
+                                                                                           },
+                                                                        "ready_kill_case_ms":  304.15,
+                                                                        "kill_ms":  6.02,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2182.12
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  3,
+                                                                        "verify_ms":  1636.89,
+                                                                        "ready_ms":  304.79,
+                                                                        "idle_engine_bytes":  25157632,
+                                                                        "stop_ms":  8.69,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2242.45
+                                                                                           },
+                                                                        "ready_kill_case_ms":  305.24,
+                                                                        "kill_ms":  5.33,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2530.64
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  4,
+                                                                        "verify_ms":  1567.36,
+                                                                        "ready_ms":  312.22,
+                                                                        "idle_engine_bytes":  25432064,
+                                                                        "stop_ms":  10.07,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2170.86
+                                                                                           },
+                                                                        "ready_kill_case_ms":  317.67,
+                                                                        "kill_ms":  6.08,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2226.76
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  5,
+                                                                        "verify_ms":  1625.8,
+                                                                        "ready_ms":  309.87,
+                                                                        "idle_engine_bytes":  24870912,
+                                                                        "stop_ms":  9.39,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  1955.78
+                                                                                           },
+                                                                        "ready_kill_case_ms":  313.25,
+                                                                        "kill_ms":  5.26,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2212.54
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  6,
+                                                                        "verify_ms":  1599.73,
+                                                                        "ready_ms":  307.4,
+                                                                        "idle_engine_bytes":  25321472,
+                                                                        "stop_ms":  8.9,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2231.36
+                                                                                           },
+                                                                        "ready_kill_case_ms":  303.15,
+                                                                        "kill_ms":  5.29,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2270.21
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  7,
+                                                                        "verify_ms":  1565.98,
+                                                                        "ready_ms":  309.24,
+                                                                        "idle_engine_bytes":  25276416,
+                                                                        "stop_ms":  8.65,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2021
+                                                                                           },
+                                                                        "ready_kill_case_ms":  303.64,
+                                                                        "kill_ms":  5.22,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2253.09
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  8,
+                                                                        "verify_ms":  1641.28,
+                                                                        "ready_ms":  308.96,
+                                                                        "idle_engine_bytes":  24887296,
+                                                                        "stop_ms":  8.7,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  1889.08
+                                                                                           },
+                                                                        "ready_kill_case_ms":  312.87,
+                                                                        "kill_ms":  5.3,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2248.37
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  9,
+                                                                        "verify_ms":  1567.94,
+                                                                        "ready_ms":  318.3,
+                                                                        "idle_engine_bytes":  24907776,
+                                                                        "stop_ms":  9.41,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  1894.58
+                                                                                           },
+                                                                        "ready_kill_case_ms":  301.61,
+                                                                        "kill_ms":  5.29,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2027.03
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  10,
+                                                                        "verify_ms":  1561.69,
+                                                                        "ready_ms":  300.44,
+                                                                        "idle_engine_bytes":  25362432,
+                                                                        "stop_ms":  8.07,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  1889.99
+                                                                                           },
+                                                                        "ready_kill_case_ms":  311.17,
+                                                                        "kill_ms":  5.42,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  2141.94
+                                                                                           }
+                                                                    }
+                                                                ]
+                                                   },
+                                                   {
+                                                       "busy_processes":  16,
+                                                       "measured_runs":  5,
+                                                       "failed_start_runs":  0,
+                                                       "leftover_runs":  0,
+                                                       "summary":  {
+                                                                       "verify_ms":  {
+                                                                                         "n":  5,
+                                                                                         "min":  10806.29,
+                                                                                         "median":  20197.94,
+                                                                                         "p95_nearest_rank":  38504.17,
+                                                                                         "max":  38504.17
+                                                                                     },
+                                                                       "ready_ms":  {
+                                                                                        "n":  5,
+                                                                                        "min":  1156.21,
+                                                                                        "median":  1383.42,
+                                                                                        "p95_nearest_rank":  2742.26,
+                                                                                        "max":  2742.26
+                                                                                    },
+                                                                       "stop_ms":  {
+                                                                                       "n":  5,
+                                                                                       "min":  29.32,
+                                                                                       "median":  43.64,
+                                                                                       "p95_nearest_rank":  52.93,
+                                                                                       "max":  52.93
+                                                                                   },
+                                                                       "kill_ms":  {
+                                                                                       "n":  5,
+                                                                                       "min":  11.16,
+                                                                                       "median":  28.82,
+                                                                                       "p95_nearest_rank":  33.35,
+                                                                                       "max":  33.35
+                                                                                   }
+                                                                   },
+                                                       "runs":  [
+                                                                    {
+                                                                        "run":  1,
+                                                                        "verify_ms":  38504.17,
+                                                                        "ready_ms":  2742.26,
+                                                                        "idle_engine_bytes":  25489408,
+                                                                        "stop_ms":  52.93,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  7280.81
+                                                                                           },
+                                                                        "ready_kill_case_ms":  2454.48,
+                                                                        "kill_ms":  32.69,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  7511.63
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  2,
+                                                                        "verify_ms":  10806.29,
+                                                                        "ready_ms":  1554.47,
+                                                                        "idle_engine_bytes":  24657920,
+                                                                        "stop_ms":  43.64,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  4910.26
+                                                                                           },
+                                                                        "ready_kill_case_ms":  2866.7,
+                                                                        "kill_ms":  28.82,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  12351.33
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  3,
+                                                                        "verify_ms":  26758.94,
+                                                                        "ready_ms":  1202.49,
+                                                                        "idle_engine_bytes":  25423872,
+                                                                        "stop_ms":  35.29,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  12754.89
+                                                                                           },
+                                                                        "ready_kill_case_ms":  2439.1,
+                                                                        "kill_ms":  28.49,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  10724.7
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  4,
+                                                                        "verify_ms":  20197.94,
+                                                                        "ready_ms":  1156.21,
+                                                                        "idle_engine_bytes":  25296896,
+                                                                        "stop_ms":  29.32,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  12667.91
+                                                                                           },
+                                                                        "ready_kill_case_ms":  1175.33,
+                                                                        "kill_ms":  33.35,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  11280.18
+                                                                                           }
+                                                                    },
+                                                                    {
+                                                                        "run":  5,
+                                                                        "verify_ms":  12719.97,
+                                                                        "ready_ms":  1383.42,
+                                                                        "idle_engine_bytes":  24940544,
+                                                                        "stop_ms":  45.28,
+                                                                        "stop_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  13252.53
+                                                                                           },
+                                                                        "ready_kill_case_ms":  646.29,
+                                                                        "kill_ms":  11.16,
+                                                                        "kill_leftovers":  {
+                                                                                               "processes":  0,
+                                                                                               "scratch":  0,
+                                                                                               "settle_ms":  11580.99
+                                                                                           }
+                                                                    }
+                                                                ]
+                                                   }
+                                               ],
+                                     "result":  "Forced kill: idle 1707 ms -\u003e 5 ms median; 16 busy 2619 ms -\u003e 29 ms median. No leftover process or scratch directory. Verification under 16 busy processes is unchanged (median about 20 s, max 38.5 s) and still fails the 5 s gate; it is CPU-bound hashing and is left for a maintainer policy decision."
+                                 }
 }

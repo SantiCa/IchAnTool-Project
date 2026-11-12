@@ -21,8 +21,12 @@ async function cleanupScratch(scratch) {
 function terminateTree(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null || !Number.isInteger(child.pid)) return;
   if (process.platform === 'win32') {
+    // Ending the coordinator is immediate (about 2 ms) and the coordinator's Job Object (engine/lifetime.py) kills its
+    // workers with it. taskkill /T alone takes about 1.7 s to start, so it only backs up a coordinator that could not
+    // join the job; by then the coordinator is usually gone and it finds nothing to do.
+    child.kill();
     const killer = spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
-    killer.on('error', () => child.kill());
+    killer.on('error', () => {});
   } else {
     try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
   }

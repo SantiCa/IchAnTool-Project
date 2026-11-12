@@ -2842,8 +2842,11 @@ queued cancellation releases its pin. EOF on a private worker liveness pipe abor
 workers use CREATE_NO_WINDOW. The coordinator stays responsive to control requests; workers do not access
 project databases or save files. Engine failure never selects another scientific algorithm.
 
-Main's handshake/control deadline is 5 s; shutdown requests have a 1.5 s deadline and main forces process-tree
-termination if exit does not follow within a further 1.5 s. Errors exposed by the client are fixed codes;
+Main's handshake/control deadline is 5 s; shutdown requests have a 1.5 s deadline and main forces termination
+if exit does not follow within a further 1.5 s. Forced termination ends the coordinator immediately. On Windows
+the coordinator belongs to a kill-on-close Job Object (`engine/lifetime.py`), so the operating system ends its
+workers with it; workers also stop when their private liveness pipe closes, and `taskkill /T` remains as a
+backstop. On other systems main signals the coordinator's process group. Errors exposed by the client are fixed codes;
 input data, paths and tracebacks are not forwarded. Stderr capture is off in the desktop service; test-only
 clients may retain a bounded 64 KiB tail. Native math thread environment limits are set before worker startup
 to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity
