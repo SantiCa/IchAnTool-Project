@@ -31,8 +31,11 @@ Updated 12 November 2026.
      and let the *Desktop builds* workflow build and smoke-test macOS and Linux, which the release checklist needs.
   3. Create version V0.149 from the branch.
   4. The flags in the table below that need a promote/remove decision.
-- **Last full checks:** pending on the final commit of the 12 November 2026 session; previous full pass at
-  `e829470`.
+- **Last full checks: passed** at commit `6f5a33b` (12 November 2026), run one after another: `pytest -q`
+  357 passed / 8 skipped; `npm test` 234 passed; `npm run typecheck` no new diagnostics; `sync_version.py --check`;
+  `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on and off.
+  The browser smoke test was not run (no file under `app/` changed in the session). Later commits on the branch
+  only edit this file.
 
 ## How work is accepted
 
@@ -351,6 +354,17 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
       `app/data/land-50m.json` and `examples/data/idealized_core_0-500cm.jpg` at start-up. Find out whether these
       are the intended probes for absent optional files (then answer them with a clean 404) or a wrong path for
       the coastline file. Done when the cause is written here and, if it is a defect, fixed with a test.
+- [ ] **H4 - Remove stale engine scratch folders.** When the Electron main process dies abruptly (killed, crash,
+      power loss) nobody deletes the engine's private folder `sedcoretool-engine-*` in the system temporary
+      directory; twelve were found on 12 November 2026, created at the times of killed launches and of the desktop
+      end-to-end test. An orderly or forced stop of the engine alone does clean up (measured in M8.2.3). A stale
+      folder can hold staged buffers (up to the 1 GiB scratch limit).
+  - Read first: `desktop/engine.js` (`cleanupScratch`, `EngineClient.start`); `tests/app/engine.test.mjs`.
+  - Change: at engine start, delete folders that match the exact scratch name pattern, sit directly in the system
+    temporary directory, and are older than the running program; never touch anything else. Add a Node test with
+    a stale folder, a fresh folder of another live session and a look-alike name that must survive.
+  - Done when: the test passes and the desktop end-to-end test leaves no `sedcoretool-engine-*` folder behind.
+    The end-to-end test's own `sedcoretool-desktop-test-*` profiles should be removed by the test as well.
 - [ ] **H3 - Move raw benchmark reports out of the repository.** `docs/benchmarks/*.json` weighs about 10 MB.
       Needs the maintainer's decision on where the raw files go; the `.md` summaries stay.
 
