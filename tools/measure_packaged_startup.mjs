@@ -26,6 +26,7 @@ const argv = process.argv.slice(2), executable = path.resolve(argv[0] || '');
 if (!argv[0] || !fs.existsSync(executable)) throw new Error('Usage: node tools/measure_packaged_startup.mjs <executable> [--runs N] [--out file]');
 const option = (name, fallback) => { const index = argv.indexOf(`--${name}`); return index > 0 ? argv[index + 1] : fallback; };
 const runs = Number(option('runs', '5')), out = option('out', ''), keepProfile = argv.includes('--keep-profile');
+const waitMs = Number(option('wait-ms', '120000'));   // how long each stage may take before the launch counts as failed
 if (!Number.isInteger(runs) || runs < 1 || runs > 50) throw new Error('--runs must be 1..50');
 
 const round = (value) => Math.round(value * 100) / 100;
@@ -68,7 +69,8 @@ async function launch(index) {
   const port = await freePort();
   const child = spawn(executable, [`--user-data-dir=${path.join(profile, 'data')}`, `--remote-debugging-port=${port}`, '--no-sandbox'], { env, windowsHide: true, stdio: 'ignore' });
   const exited = new Promise((resolve) => child.once('exit', resolve));
-  let stage = 'devtools', browser = null;
+  let stage = 'devtools', browser = null, page = null;
+  const pageLog = [];
   try {
     // A portable launcher extracts and delegates, so its own stdio is not the application's: poll the debugging port.
     const endpoint = await (async () => {
@@ -82,13 +84,19 @@ async function launch(index) {
     stage = 'connect';
     browser = await puppeteer.connect({ browserWSEndpoint: endpoint, defaultViewport: null });
     stage = 'page-target';
-    const target = await browser.waitForTarget((t) => t.url().startsWith('app://corantool/app/index.html'), { timeout: 120000 });
-    const page = await target.page();
+    const target = await browser.waitForTarget((t) => t.url().startsWith('app://corantool/app/index.html'), { timeout: waitMs });
+    page = await target.page();
+    // Keep what the page reports while it starts; a launch that never finishes loading is explained by these.
+    page.on('console', (message) => { if (['error', 'warning'].includes(message.type()) && pageLog.length < 8) pageLog.push(`${message.type()}: ${message.text().slice(0, 200)}`); });
+    page.on('pageerror', (error) => { if (pageLog.length < 8) pageLog.push(`pageerror: ${String(error.message || error).slice(0, 200)}`); });
+    page.on('requestfailed', (request) => { if (pageLog.length < 8) pageLog.push(`requestfailed: ${request.url().slice(0, 120)} ${request.failure()?.errorText || ''}`); });
     stage = 'app-loaded';
-    await page.waitForFunction(() => !!window.ichantool, { timeout: 120000 });
+    // Timer polling, not the default requestAnimationFrame polling: Chromium stops animation frames while the
+    // window is covered by another one, which made loaded launches look like failures (2 of 40 in M8.2.4).
+    await page.waitForFunction(() => !!window.ichantool, { timeout: waitMs, polling: 50 });
     record.window_ms = round(performance.now() - started);
     stage = 'engine-ready';
-    await page.waitForFunction(async () => ['ready', 'unavailable'].includes((await window.corantoolDesktop.engine.status()).state), { timeout: 120000, polling: 100 });
+    await page.waitForFunction(async () => ['ready', 'unavailable'].includes((await window.corantoolDesktop.engine.status()).state), { timeout: waitMs, polling: 100 });
     record.engine_ready_ms = round(performance.now() - started);
     const status = await page.evaluate(() => window.corantoolDesktop.engine.status());
     record.engine_state = status.state; record.engine_runtime = status.runtime;
@@ -112,6 +120,13 @@ async function launch(index) {
     if (browser) {
       // Which pages existed when waiting failed: tells a missing window from a page that never finished loading.
       record.targets_at_failure = browser.targets().map((t) => `${t.type()} ${t.url().slice(0, 80)}`).slice(0, 8);
+      record.page_log = pageLog;
+      if (page) {
+        record.page_state = await Promise.race([
+          page.evaluate(() => ({ readyState: document.readyState, hasApp: typeof window.ichantool, hasDesktop: typeof window.corantoolDesktop,
+            scripts: document.scripts.length, text: (document.body?.innerText || '').slice(0, 120), resources: performance.getEntriesByType('resource').length })).catch((e) => `evaluate failed: ${e.message}`),
+          sleep(5000).then(() => 'page did not answer within 5 s')]);
+      }
       browser.disconnect();
     }
     try { child.kill(); } catch { /* already gone */ }

@@ -136,6 +136,40 @@ def install_wheels(specification, artifacts, destination, *, runner=subprocess.r
         shutil.rmtree(wheels)
 
 
+# Content of the upstream interpreter and wheels that the engine never imports. The program verifies every shipped file
+# at launch, so each unneeded file costs start-up time (several seconds on a cold first launch) as well as disk space.
+# Paths are relative to the staging root; the Windows and POSIX layouts differ, and a path absent from the
+# current target is simply skipped.
+UNUSED_INTERPRETER_PATHS = (
+    'python/include', 'python/libs', 'python/tcl',
+    'python/Lib/idlelib', 'python/Lib/lib2to3', 'python/Lib/turtledemo', 'python/Lib/test',
+    'python/lib/tcl8.6', 'python/lib/tk8.6',
+    'python/lib/python3.12/idlelib', 'python/lib/python3.12/lib2to3',
+    'python/lib/python3.12/turtledemo', 'python/lib/python3.12/test',
+)
+# pandas' `tests` folders are a test suite that is never imported. numpy's are NOT pruned: `numpy.testing`, which the
+# runtime smoke check uses, imports `numpy._core.tests._natype` (found by the smoke check when pruning was tried).
+TEST_SUITE_PACKAGES = ('pandas',)
+
+
+def prune_runtime(staging, specification):
+    """Delete pip, bundled test suites and interpreter development content; return the number of folders removed."""
+    root = staging.resolve()
+    site_packages = staging / specification['site_packages']
+    doomed = [site_packages / 'pip', *site_packages.glob('pip-*.dist-info'), *(staging / item for item in UNUSED_INTERPRETER_PATHS)]
+    for package in TEST_SUITE_PACKAGES:
+        doomed.extend(path for path in sorted((site_packages / package).rglob('tests')) if path.is_dir())
+    removed = 0
+    for path in doomed:
+        if not path.exists() and not path.is_symlink():
+            continue   # a folder inside an already removed one, or absent in this layout
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            raise ValueError('Invalid runtime prune path')
+        shutil.rmtree(path)
+        removed += 1
+    return removed
+
+
 def file_inventory(directory):
     entries = []
     total = 0
@@ -196,6 +230,7 @@ def prepare(target, *, offline=False, output=OUTPUT, cache=CACHE):
             staging.mkdir()
             extract_runtime(archive, staging)
             install_wheels(specification, wheels, staging)
+            prune_runtime(staging, specification)
             native = target == native_target()
             if native:
                 environment = os.environ.copy()

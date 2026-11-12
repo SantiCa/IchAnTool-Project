@@ -28,6 +28,43 @@ def test_lock_pins_complete_minimal_dependency_sets_for_each_supported_architect
             assert artifact['url'].startswith('https:')
 
 
+def test_prune_removes_only_unused_content_in_both_layouts(tmp_path):
+    for layout, site_packages in (('windows', 'python/Lib/site-packages'), ('posix', 'python/lib/python3.12/site-packages')):
+        staging = tmp_path / layout
+        keep = [f'{site_packages}/numpy/__init__.py', f'{site_packages}/numpy/testing/__init__.py',
+                f'{site_packages}/numpy/_core/tests/_natype.py',   # imported by numpy.testing
+                f'{site_packages}/pandas/__init__.py', f'{site_packages}/pandas/_testing/__init__.py',
+                f'{site_packages}/PIL/__init__.py', f'{site_packages}/pip-notes.txt',   # not pip itself
+                'python/python.exe', 'python/Lib/os.py', 'python/lib/python3.12/os.py']
+        drop = [f'{site_packages}/pip/__init__.py', f'{site_packages}/pip-26.3.dist-info/RECORD',
+                f'{site_packages}/pandas/tests/test_x.py', f'{site_packages}/pandas/tests/nested/tests/t.py',
+                'python/include/Python.h', 'python/tcl/tcl8.6/init.tcl', 'python/Lib/idlelib/idle.py',
+                'python/lib/tcl8.6/init.tcl', 'python/lib/python3.12/lib2to3/main.py']
+        for relative in [*keep, *drop]:
+            path = staging / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('x')
+        assert builder.prune_runtime(staging, {'site_packages': site_packages}) > 0
+        assert all((staging / relative).exists() for relative in keep)
+        assert not any((staging / relative).exists() for relative in drop)
+        assert builder.prune_runtime(staging, {'site_packages': site_packages}) == 0   # idempotent
+
+
+def test_prune_refuses_to_follow_a_link_out_of_the_staging_directory(tmp_path):
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    (outside / 'precious.txt').write_text('keep')
+    staging = tmp_path / 'staging'
+    (staging / 'python/Lib/site-packages').mkdir(parents=True)
+    try:
+        os.symlink(outside, staging / 'python/include', target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip('symbolic links are not available')
+    with pytest.raises(ValueError, match='prune'):
+        builder.prune_runtime(staging, {'site_packages': 'python/Lib/site-packages'})
+    assert (outside / 'precious.txt').read_text() == 'keep'
+
+
 def test_offline_download_requires_exact_cached_bytes_and_preserves_a_corrupt_cache(tmp_path):
     data = b'public synthetic archive'
     artifact = {'filename': 'public.tar.gz', 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest(),

@@ -2870,9 +2870,13 @@ ranges or alter the optional trainer environment. Torch, ONNX Runtime and segmen
 absent from the base. NumPy/pandas/Pillow already provide the scientific package dependencies;
 no new numerical framework or installer dependency is added to the program.
 The upstream interpreter retains its own pip (26.3 in this build); the application does not invoke it to
-install or update packages. Windows validation inventories 7,326 runtime files totalling 249,424,293 bytes
-(excluding the manifest, application and filesystem allocation). This is a distribution-size measurement,
-not a RAM/performance result; its manifest hash and reproduction checks are recorded with the evidence below.
+install or update packages. Because every shipped file is verified at launch, preparation deletes content the
+engine never imports (`prune_runtime` in `tools/prepare_engine_runtime.py`): the interpreter's own pip, the
+`include`, `libs` and Tcl/Tk data folders, `idlelib`, `lib2to3`, `turtledemo` and the interpreter test suite, and
+pandas' `tests` folders (numpy's `tests` folders stay: `numpy.testing` imports one of them). The Windows runtime
+inventories 3,552 files totalling about 205 MB (excluding the manifest, application and filesystem allocation),
+down from 7,326 files and 249 MB before pruning. This is a distribution-size measurement, not a RAM/performance
+result; the manifest hash and reproduction checks of the unpruned bundle are in the V0.143 evidence below.
 
 The selected distribution supplies a relocatable interpreter/standard library across the four target triples;
 the [upstream documentation](https://docs.astral.sh/python-build-standalone/running/) describes its runtime
