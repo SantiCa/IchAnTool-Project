@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.140 — 2026-11-12
+
+- Reorder the roadmap around a desktop application with one local Python/NumPy scientific engine and the existing Electron/JavaScript interface.
+- Put engine contracts, packaged runtime, a verified section-analysis prototype and bounded image/data services before remaining method migration, advanced statistics and radiographs.
+- Plan removal of duplicate calculations and a documented final-HTML migration path after validation. Defer Rust/Wasm, GPU and interface replacement experiments; current application behaviour and compatibility are unchanged.
+
 ## V0.139 — 2026-11-12
 
 - Accept short and full hexadecimal palette colours in Python and the command line, including either case and surrounding whitespace; preserve RGB inputs and hexadecimal colours without `#`.

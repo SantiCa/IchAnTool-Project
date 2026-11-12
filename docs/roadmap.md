@@ -16,23 +16,119 @@ Keep task IDs stable. The changelog records what shipped.
 
 ## Milestones toward 1.0
 
+### Active priority: desktop and one scientific engine
+
+The maintainer approved this direction and roadmap reprioritisation on 12 November 2026, delivered in
+[V0.140](../CHANGELOG.md#v0140--2026-11-12). This order supersedes earlier "next candidate" handoffs and
+the previous audit/expansion ordering. Completed work and task IDs remain valid. This delivery changes
+planning and version metadata; the current runtime, supported files and calculations remain unchanged.
+
+**Target architecture:** retain the existing Electron/JavaScript interface and move scientific calculation
+behind one local Python/NumPy engine in a separate process. The Python API and CLI call that same engine.
+JavaScript owns interaction and presentation; it does not maintain an independent implementation of the
+scientific methods. Native libraries and optional measured Rust kernels may be internal engine components.
+One authoritative implementation per method is the goal, not one programming language for every component.
+Replacing Electron with Qt or Tauri, a whole-program Rust rewrite and a new browser engine are outside this sequence.
+
+**Distribution:** desktop portable/installed packages become the primary full-capability product, with a
+tested 64-bit scientific runtime included rather than depending on the user's Python installation. Keep the
+current browser/standalone path working as a temporary compatibility/reference path during migration. New
+engine-dependent scientific features target desktop; a later explicit cutover freezes the last standalone
+version and its project-export route. Do not remove the current HTML or change storage identifiers now.
+The scriptable Python package remains a supported interface to the same engine, not a second calculation path.
+
+| Execution order | Deliverable | Existing tasks coordinated with it |
+|---|---|---|
+| 1 | M8.1: inventory, scientific ownership and engine contract | M5.1, M5.4; retain current reference fixtures |
+| 2 | M8.2: packaged local runtime and cancellable process boundary | M3.2.4, M3.1.7 |
+| 3 | M8.3: one section analysed by the engine through the existing interface | M3.1.6, M0.1, M1.2 |
+| 4 | M8.4: bounded image/data ownership and large-file integration | M2.3.1–M2.3.5 |
+| 5 | M8.5: remaining methods migrated in independent vertical slices | M3.2.5 before training migration; M3.3 contracts |
+| 6 | M8.6: desktop promotion and retirement of duplicate scientific paths | M5.1; legacy-project/export and packaging gates |
+| 7 | Advanced statistics and radiographs on the accepted engine | M6.1–M6.6, M7.1–M7.4; no new parallel JavaScript science |
+| 8 | Conditional acceleration and remaining backlog | M4.1, remaining audit/validation/release tasks |
+
+M8.1 is the next implementation task. Assign editor/reviewer at each implementation handoff; no runtime
+migration is marked started by this planning commit. Fixes required to preserve data or satisfy a phase's
+acceptance criteria stay within that phase; unrelated refactors wait. Publication and 1.0 remain owner decisions.
+
+Planning delivery checks: 313 Python tests passed (six optional/permission skips), 218 Node tests,
+JavaScript types without new diagnostics, Ruff, version consistency, whitespace and standalone build pass.
+The interface/save implementation is unchanged, so no new tests or repeated browser E2E are needed.
+Local delivery on `master`; GitHub retrieval requires the maintainer's authorised push.
+
+### M8 - Desktop simplification and a single scientific engine
+
+- [ ] **M8.1 - Engine inventory and migration contract. Ready.** Map current JavaScript/Python calculations,
+      callers, caches and image/data ownership. Include interval counts/indices, depth/age mapping, image
+      operations/features, classification, interpolation and U-Net. Identify both duplicated methods and
+      methods that currently exist only in JavaScript; do not assume the Python package already covers the app.
+  - Acceptance: a source-backed ownership/migration matrix, versioned request/result/data contracts and an
+    ordered list of independently testable slices. Define identifiers, units, masks/overlaps/exclusions,
+    input revisions, seeds, provenance, errors, progress and cancellation. Select a bounded private local
+    transport; large pixel buffers must not become JSON arrays copied through every request.
+    Establish matched numerical, latency, cancellation and total-process memory gates before implementation.
+- [ ] **M8.2 - Local engine process and reproducible packaging.** Build the desktop process boundary and
+      include a tested 64-bit Python runtime with the minimal scientific dependencies. Use M3.2.4 for tested
+      constraints, checksums and update policy; keep optional training dependencies separate from basic analysis.
+  - Acceptance: clean-machine startup without a separately installed Python/Node or runtime dependency
+    download for basic analysis; verify portable/installed packages across the supported desktop systems.
+    Bound messages, queue length, concurrent jobs and CPU/RAM budgets. Isolate process failure, restart,
+    timeout and cancellation; obsolete results cannot overwrite newer edits. Preserve unsaved live data and
+    the last good project after engine failure. Keep the normal interface available while jobs run.
+- [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
+      current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
+      the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
+      evaluate the measured NumPy implementation under M3.1.6 without silently changing its default.
+  - Acceptance: exact row/count/index/missing-value equality and the established numerical tolerances on
+    M0.1/M3.1.3 fixtures, including fractional boundaries and custom schemes. Verify edits, undo/redo,
+    cancellation, failed jobs, CSV output and save/reopen through the actual desktop workflow. Measure engine
+    startup, transfers, full job latency and total Electron/engine/worker RSS, not only the counting kernel.
+    Keep this experiment default-off until its predeclared gates pass; retain explicit developer rollback.
+- [ ] **M8.4 - Bounded engine data and image services.** Implement M2.3.1–M2.3.5 through engine-owned
+      native data, chunked operations and a bounded tile/cache interface. The renderer receives visible tiles,
+      editing updates and result summaries, rather than a second resident copy of every original image.
+  - Acceptance: the multi-gigabyte contract covers the complete Electron/engine process tree, disk usage,
+    buffer ownership and memory release after project close. Preserve native pixels, editing coordinates,
+    masks/history and atomic save/backup recovery. Raising heap or image-load limits alone does not pass.
+    Apply bounded CPU concurrency and leave agreed RAM/CPU headroom for the interface and operating system.
+- [ ] **M8.5 - Migrate the remaining scientific methods.** Deliver one workflow at a time from M8.1's
+      matrix: depth/age and record transformations; image processing and object features; classifiers and
+      spatial interpolation; model inference/training integration. Reuse existing Python methods where
+      equivalent and implement missing methods once in the engine. Address M3.2.5 before changing training.
+  - Acceptance: every slice has independent reference fixtures, explicit provenance and unchanged public
+    contracts. Counts/masks/labels are exact where required; other numerical tolerances and decoder differences
+    are declared before comparison. Replacing a method with a library's different defaults is not an equivalent
+    migration. Match current figure/export behaviour while rendering engine results; test failure, cancellation,
+    invalidation and reload. Transitional comparisons use snapshots/reference outputs and are not two promoted engines.
+- [ ] **M8.6 - Promote desktop and retire duplicate computation.** After all required slices pass,
+      make the local engine authoritative, remove migrated JavaScript calculations from the supported desktop
+      runtime, and replace their regression role with versioned reference fixtures and Git provenance.
+  - Acceptance: one production implementation per scientific method, identical API/CLI/desktop results,
+    complete desktop and interrupted-save regressions, clean-machine/offline packaging and documented runtime
+    identity. Retain the desktop origin, storage keys, compatibility alias and old project/package readers.
+    Record the last supported HTML delivery and a tested export/import path for its stored projects before
+    freezing it; keep that artifact retrievable. Update contributor/user/technical documentation and CI to
+    the actual cutover in the same delivery. Remove temporary flags only after acceptance; engine errors must
+    remain visible rather than silently choosing another scientific implementation.
+
 ### Capacity, advanced statistics and radiographs
 
 The maintainer requested this planning extension on 12 November 2026, delivered in
 [V0.138](../CHANGELOG.md#v0138--2026-11-12). It defines pending development and implementation phases;
 it does not claim these capabilities are available or start their implementation. No editor or reviewer is
-assigned to the new tasks. The maintainer chooses implementation priority and which capabilities are required
-for 1.0; the existing audit priority remains in place until explicitly revised.
+assigned to these feature tasks. The active M8 sequence now defines their dependencies and priority;
+the maintainer chooses which capabilities are required for 1.0.
 
 | Goal | Tasks | Dependencies and proposed sequence |
 |---|---|---|
 | Fluid work with individual images of several gigabytes | M2.3.1–M2.3.5 | Establish real file/decoded-size benchmarks, then bounded tile access, viewing, analysis and saving. |
-| Faster calculations with a responsive interface | M3.1.6–M3.1.7, M4.1.1–M4.1.2 | Review the measured NumPy path and worker scheduling before conditional Rust/Wasm or GPU experiments. |
-| An implemented advanced-statistics module | M6.1–M6.6 | Define data/method contracts, implement validated methods, then integrate reproducible analyses and exports. |
-| Radiographs alongside core photographs and records | M7.1–M7.4 | Inventory formats, preserve source samples, align depth coordinates, then integrate measurements and figures. |
+| Faster calculations with a responsive interface | M3.1.6–M3.1.7, M4.1.1–M4.1.2 | Build on the single engine and bounded scheduling; native Rust/GPU work remains conditional and later. |
+| An implemented advanced-statistics module | M6.1–M6.6 | Use the accepted Python engine contract; methods are not reimplemented independently in the interface. |
+| Radiographs alongside core photographs and records | M7.1–M7.4 | Use engine image/data services for native samples and measurements, with shared depth coordinates. |
 
-Within this extension, M2.3.1 is the first performance-planning candidate. M6.1 and M7.1 define independent
-scientific/input contracts and need separate authorisation. Large radiographs depend on M2.3's bounded image
+M2.3.1 is the first large-image contract inside M8.4, after the initial engine slice. M6.1 and M7.1 define
+scientific/input contracts after the relevant engine/data services are accepted. Large radiographs depend on M2.3's bounded image
 path. Each phase must be small enough to review and roll back independently; statistical methods are added
 one at a time. Retain the current implementation as the default during major experiments and define flag
 removal only after acceptance. Benchmarks use public or generated data; unpublished images are not committed.
@@ -40,8 +136,8 @@ removal only after acceptance. Benchmarks use public or generated data; unpublis
 Planning delivery verification: 267 Python tests passed (six optional/permission skips), 218 Node tests,
 JavaScript types, Ruff, version consistency, whitespace and standalone build pass. No analysis, interface or
 save implementation changes; no new tests or repeated browser E2E are needed. Local delivery on `master`;
-GitHub retrieval requires an authorised push. After M3.3.1, the existing audit's next priority candidate is
-M3.2.5 (caller random-state isolation during training).
+GitHub retrieval requires an authorised push. Earlier audit priority is superseded by the active M8 sequence;
+M3.2.5 remains a dependency before the training migration.
 
 ### Audit triage and proposed priority
 
@@ -53,11 +149,11 @@ implementation checklist, suggested dependency versions and agent assignments ar
 Tasks without a subsequent authorisation recorded below remain pending; incorporation alone assigns no
 editor or reviewer and does not authorise implementation.
 
-Proposed order: address desktop path containment, untrusted presentation values and preservation of trained
+Historical proposed order, now subordinate to the active M8 sequence: address desktop path containment, untrusted presentation values and preservation of trained
 models first (M0.4, M0.5, M3.2.3); correct scientific documentation next (M5.2.1–M5.2.2); then validate manifest,
 palette and training reproducibility contracts, build safety and trainer dependencies. Type-only corrections,
-further modularisation and LAS metadata policy follow as separate small deliveries. This priority supplements
-the milestone grouping below; it does not start any implementation or authorise a release.
+further modularisation and LAS metadata policy follow as separate small deliveries. Pending audit tasks remain
+tracked below and enter the migration when their contracts are touched; this does not authorise a release.
 
 | Audit ID | Disposition after source review | Roadmap task |
 |---|---|---|
@@ -426,7 +522,8 @@ existing projects retain failed-save protection. Performance evidence is collect
   - [ ] **M2.3.1 - Define fixtures, hardware and responsiveness targets.** Build deterministic 2, 4 and 8 GiB
         source-file cases, plus compressed cases whose decoded rasters exceed those sizes. Record dimensions,
         channels, bit depth, compression, tile/strip layout and exact encoded/decoded byte counts separately.
-        Compare local-SSD hosts with 16/32 GiB RAM, documenting browser and desktop differences and storage quotas.
+        Compare local-SSD hosts with 16/32 GiB RAM, measuring the complete desktop/engine pipeline. Use the
+        current browser path only as a historical reference while it remains in the migration support matrix.
     - Acceptance: reproduce opening, first useful preview, cold/cached pan/zoom, editing, analysis, export and
       save/reopen with process-tree RSS, temporary-disk usage, copies and CPU/I/O attribution. Initial proposed
       targets are cached-navigation p95 frame time <=33 ms, control response <=100 ms and cancellation
@@ -456,7 +553,7 @@ existing projects retain failed-save protection. Performance evidence is collect
         explicit, with checksums and missing/moved-source recovery. Treat generated pyramids as disposable caches.
     - Acceptance: reopen multi-gigabyte projects with unchanged source bytes, masks and results; preserve
       the last good save after quota, disk-full, interrupted transfer and partial-cache failures. Verify
-      legacy projects and portable exports in supported runtimes; document browser-specific limits.
+      legacy projects and portable desktop exports; validate the transitional HTML export/import route.
 
 ### M3 - Analysis and learned segmentation
 
@@ -533,13 +630,14 @@ existing projects retain failed-save protection. Performance evidence is collect
     - Acceptance: matched end-to-end latency/RSS measurements, exact counts/indices and documented numerical
       parity; no universal speed claim from the original two fixtures. Promotion and flag removal remain
       separate maintainer decisions. This planning entry does not resume the earlier conditional Rust sequence.
-  - [ ] **M3.1.7 - Cancellable background calculation and bounded reuse.** Profile and move selected costly
-        browser operations into workers with explicit buffer ownership, bounded concurrency, progress and
-        cancellation. Evaluate dependency-aware reuse of counts, derived series and map grids after edits.
+  - [ ] **M3.1.7 - Cancellable background calculation and bounded reuse.** Implement scheduling behind the
+        M8 engine boundary with explicit buffer ownership, bounded worker concurrency, progress and cancellation.
+        Evaluate dependency-aware reuse of counts, derived series and map grids after edits. Renderer workers
+        may support presentation; new scientific worker implementations in JavaScript are not a separate backend.
     - Acceptance: the interface meets agreed response/cancellation targets while calculations run; stale jobs
       cannot overwrite newer edits/results. Include worker startup, buffer transfers and cache memory in
       end-to-end comparisons; require identical outputs and correct invalidation on every relevant input.
-      Compare worker-only JavaScript with M4.1.1 before adding a native kernel.
+      Establish the accepted engine baseline before considering M4.1.1.
 - [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
       memory failures, and record model identity and checksums for reproducible inference.
   - [x] **M3.2.1 - U-Net device selection and CPU fallback.** Probe accelerator memory, retry on CPU
@@ -580,6 +678,9 @@ existing projects retain failed-save protection. Performance evidence is collect
   - [ ] **M3.2.4 - Reproduce the managed trainer environment.** The optional desktop installer
         downloads dependencies whose versions can vary between installations.
         This includes AUD-09; select constraints from tested configurations, not the audit's example caps.
+    - Under M8, share tested constraints and update policy with the packaged base engine in M8.2;
+      the optional trainer/CPU/CUDA matrix remains separate and must not make training packages mandatory
+      for ordinary section analysis.
     - **Approach.** Document training-related network access in `SECURITY.md` and define tested
       dependency constraints for the supported Python, CPU and CUDA configurations.
     - **Acceptance.** Document the downloads and when they occur. Verify that two clean installs
@@ -649,17 +750,19 @@ existing projects retain failed-save protection. Performance evidence is collect
 
 ### M4 - Optional acceleration
 
-- [ ] **M4.1 - Targeted experiments.** Evaluate WebAssembly, GPU rendering or alternative tabular storage when
-      a measured bottleneck justifies it. Compare performance, compatibility and maintenance costs.
-  - [ ] **M4.1.1 - Conditional Rust/Wasm image kernel.** Select one measured hotspot such as preview reduction,
-        mask traversal or connected components. Compare existing JavaScript, worker-only JavaScript and a small
-        Rust/Wasm kernel; compare native Python bindings only if the same operation justifies sharing the kernel.
+- [ ] **M4.1 - Targeted experiments.** After the M8 engine baseline, evaluate native kernels, GPU rendering
+      or alternative tabular storage when a measured bottleneck justifies it. Compare performance,
+      compatibility and maintenance costs. Browser/WebAssembly experiments are deferred.
+  - [ ] **M4.1.1 - Conditional native Rust image kernel.** After the engine baseline is accepted, select one
+        measured hotspot such as preview reduction, mask traversal or connected components. Compare the best
+        accepted Python/NumPy/native-library path with a small Rust component called through the same engine API.
+        Browser/Wasm distribution is deferred outside the active desktop sequence.
     - Acceptance: define the numerical contract and inputs first, count all buffer copies/bridge overhead,
-      and preserve existing Python/JavaScript APIs and legacy scientific references. Initial promotion target:
+      and preserve the engine API, supported Python callers and legacy scientific references. Initial promotion target:
       >=25% lower end-to-end median latency on each selected representative workload and <=10% peak-RSS growth,
-      subject to M2.3's stricter absolute budget where applicable. Record build, installer, offline HTML,
+      subject to M2.3's stricter absolute budget where applicable. Record build, portable/installer,
       platform-testing and dependency costs. Keep a default-off experiment and working fallback; stop if the
-      target fails. No broad language migration or new backend is selected by this roadmap update.
+      target fails. The kernel is internal to the single engine; no broad language migration is selected.
   - [ ] **M4.1.2 - Conditional GPU display or computation.** After separating CPU, I/O and rendering costs,
         evaluate GPU tile display or one suitable numerical operation only where profiling justifies it.
     - Acceptance: compare with the best accepted CPU path, include upload/readback and GPU memory, handle
@@ -721,6 +824,8 @@ existing projects retain failed-save protection. Performance evidence is collect
     both typecheck configurations and the diagnostic baseline against the new compiler.
 - [ ] **M5.5 - Enforce the standalone module syntax contract (AUD-10).** Make unsupported module syntax
       fail at build time rather than producing an HTML file that fails from disk.
+  - Deferred as an independent refactor under M8: fix a blocker if the transitional standalone build needs
+    it, otherwise reassess at the last-HTML cutover. Keep existing build checks until that documented cutover.
   - Acceptance: fixtures cover supported multiline imports and comments, residual imports/exports,
     export lists/re-exports and relative dynamic imports. Support or explicitly reject each construct with
     actionable diagnostics and no false positives from ordinary strings/comments. Preserve top-level name
@@ -734,8 +839,8 @@ existing projects retain failed-save protection. Performance evidence is collect
 - [ ] **M6.1 - Data and method contracts.** Define an analysis dataset from selected cores, proxies,
       ichnological results and event families, with depth/age coordinates, units, missingness, provenance and
       an immutable input snapshot. Specify transformations, compositional variables and independent sampling
-      units before selecting methods. Assess browser/offline implementations and an optional local Python
-      backend, documenting availability and dependency costs without silent method substitution.
+      units before selecting methods. Implement methods inside the M8 Python engine; assess required libraries,
+      dependency costs and offline desktop packaging without creating another scientific backend.
   - Acceptance: explicit alignment/resampling rules, reproducible filters and transformations, memory limits,
     cancellation and a method registry with assumptions, outputs and predeclared reference tolerances.
 - [ ] **M6.2 - Exploratory and association methods.** Implement descriptive/robust summaries, distributions,
@@ -763,10 +868,14 @@ existing projects retain failed-save protection. Performance evidence is collect
       explicit input selection, transformations, method settings, progress/cancellation and saved analysis runs.
       Export result tables and SVG/PNG figures with input identity, method/version, parameters and random seed.
   - Acceptance: restore the same analysis after project reload, preserve source data and existing workflows,
-    invalidate or label outdated results after edits, and verify served/desktop/offline capabilities explicitly.
+    invalidate or label outdated results after edits, and verify portable/installed desktop operation offline.
+    The interface displays engine results; no standalone-browser scientific implementation is required.
     Deliver validated methods incrementally; do not wait for every proposed method to release the first module.
 
 ### M7 - Radiographs and multimodal core images
+
+Use M8's engine-owned source data, calibration and measurements. JavaScript provides the viewer and controls;
+it does not implement a second radiograph-analysis path. Large inputs use M8.4/M2.3 services.
 
 - [ ] **M7.1 - Radiograph input and metadata contract.** Inventory public/owner-approved examples and define
       a first 2-D format matrix: native grayscale TIFF/BigTIFF and relevant exported image formats, bit depth,
