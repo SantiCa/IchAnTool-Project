@@ -205,7 +205,14 @@ import of app.js or access to browser globals; it is included after unet.js in t
 Python package (`src/sedcoretool/`): `io.py` (images and masks), `segmentation.py` (masks from a threshold, a
 colour palette or a U-Net), `pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
 `depth.py` (depth and age), `export.py` (CSV and Excel), `plotting.py` (matplotlib figure), `cli.py` (command line),
-`unet/` (U-Net dataset, training, evaluation, prediction, tiling and metrics).
+`unet/` (U-Net dataset, training, evaluation, prediction, tiling and metrics), `engine/` (experimental desktop
+engine process: framing, staged buffers, coordinator and isolated worker; §26.2).
+
+Desktop program (`desktop/`): `main.js` (window, `app://` protocol and IPC), `preload.js` (narrow
+`window.corantoolDesktop` bridge), `engine.js`, `engine-protocol.js` and `engine-runtime.js` (engine process
+client, framing and bundled-runtime verification; §26.2–§26.3), `runtime-lock.json` (pinned runtime artifacts;
+§26.3), `trainer.js` and `model-store.js` (U-Net training and model generations; §9.3), `diagnostics.js` (§26.1)
+and `scripts/` (preparation, build and package checks).
 
 ### 1.5 Names and compatibility
 

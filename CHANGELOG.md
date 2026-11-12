@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.147 — 2026-11-12
+
+- Record the direction for the desktop program: Electron remains the interface during the scientific engine migration, a more fluid interface may be evaluated afterwards, and the program is delivered as portable and installed packages for each system.
+- Keep the scientific engine independent of the interface so that a later interface change does not alter calculations or stored projects, and add per-package startup, size and integrity-check measurements to the planned acceptance work.
+- Update the contributor guide and the source-code map with the engine files. Application behaviour and calculations are unchanged.
+
 ## V0.146 — 2026-11-12
 
 - Keep AGENTS.md as the single shared instruction source for all assistants. Reduce both compatibility entry files to the same import line, with no model-specific instructions to maintain.

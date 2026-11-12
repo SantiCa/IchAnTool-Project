@@ -13,12 +13,14 @@ repository (code, comments, documentation, commit messages) is written in Englis
 ## 1. What the project is
 
 SedCoreTool quantifies bioturbation and ichnotaxa in sediment-core images and combines them with other down-core
-records. It has two parts that share the same analysis definitions:
+records. It currently has two parts that share the same analysis definitions; the desktop migration in
+[§8](#8-current-migration-handoff) is replacing those duplicated calculations with one local Python engine:
 
 | Part | Path | Language |
 |------|------|----------|
 | The program (desktop and browser) | `app/` (web application), `desktop/` (Electron packaging) | JavaScript, no build step |
 | The Python package `sedcoretool` | `src/sedcoretool/` (`src/ichantool/` is a compatibility alias) | Python ≥ 3.10 |
+| Experimental desktop engine, off by default | `src/sedcoretool/engine/`, started by `desktop/engine.js` with the bundled runtime | Python 3.12 runtime |
 | Reference version 2.1 (2019) | `legacy/` | Python 3.7 — never modify |
 
 Start with [README.md](README.md) for users and [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md)
@@ -36,12 +38,12 @@ migration and later features; see the [roadmap objective](docs/roadmap.md#cross-
 
 ```
 app/            program: index.html, js/ (ES modules), vendor/ (bundled libraries and fonts)
-desktop/        Electron main process, preload, U-Net trainer, build scripts, release notes
-src/sedcoretool Python package (analysis, command line, U-Net)
+desktop/        Electron main process, preload, engine client, runtime lock, U-Net trainer, build scripts, release notes
+src/sedcoretool Python package (analysis, command line, U-Net, engine/ process)
 tests/          Python tests, program tests (tests/app), end-to-end tests (tests/e2e), fixtures
 examples/       public example data used by tests and by the program when run from the repository
 tools/          offline build, version sync, release, vendor update, synthetic data generators
-docs/           technical documentation and roadmap
+docs/           technical documentation, roadmap, engine contract, validation evidence, benchmarks, diagnostics
 paper/          software paper (JOSS) and its bibliography
 legacy/         original version 2.1, unchanged
 ```
@@ -61,6 +63,9 @@ npm i --no-save puppeteer-core@23 && node tests/e2e/smoke.mjs   # browser end-to
 
 On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Scripts\python.exe -m pip install -e
 ".[dev]"`, then `.\.venv\Scripts\python.exe -m pytest -q`. Do not reinstall dependencies if the environment works.
+`pytest` finds the package through `pythonpath = ["src"]`, so an existing Python with the test dependencies works
+without an editable install. On the maintainer's workstation `.venv/` holds build caches and review tools (Ruff
+under `.venv/review-tools`), not a virtual environment.
 
 ## 4. Rules for code
 
@@ -81,6 +86,12 @@ On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Sc
 - **Shared definitions.** Interval limits, percentages, indices and depth mapping must stay identical in Python
   (`src/sedcoretool/`) and JavaScript (`app/js/core.js`); U-Net tiling likewise (`unet/tiling.py`, `app/js/unet.js`).
   Keep the regression test against `legacy/v2.1_console/example_output.csv` passing.
+- **Scientific ownership during the migration.** Implement new scientific methods once, in the Python engine
+  (`src/sedcoretool/`), following the [migration contract](docs/roadmap-engine-contract.md); the interface
+  requests and displays their results. Change existing JavaScript calculations only to fix or preserve current
+  behaviour until their M8 slice replaces them. Keep the engine protocol, method contracts and result formats
+  independent of Electron and of the renderer, so that a later interface shell can reuse them unchanged (§8);
+  Electron-specific process, IPC and packaging code stays in `desktop/`.
 - **Pure modules.** `core.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `zip.js`, `geo.js`, `interp.js`,
   `locmap.js`, `plot.js`, `sheet.js`, `exportio.js` and `unet.js` must not use the DOM, so they can be tested with
   Node. A new module must be added to `ORDER` in `tools/build_standalone.py`, and top-level names must not clash
@@ -205,6 +216,14 @@ Python API and CLI must reuse that engine's methods. Follow the
 selection is settled for this sequence. Rust kernels require measured need and a separate task; a UI rewrite,
 Qt/Tauri migration, GPU/Wasm work or another production scientific engine is not part of the current phase.
 
+**Interface shell and distribution.** On 12 November 2026 the maintainer confirmed that Electron is the interface
+shell for now and that a more fluid shell may replace it later. That is a conditional evaluation after M8.6
+([M9.1](docs/roadmap.md#m9---interface-shell-evolution-conditional)), not current work, and no candidate is
+selected. Design M8 so that such a change touches only the interface: a shell-independent engine protocol and
+method contracts (§4), and stored projects that can be migrated through supported packages. The program is
+delivered per platform as portable and installed packages with the scientific runtime included; each shipped
+form needs its own acceptance. The browser/HTML file remains a transitional compatibility path until M8.6.
+
 **The scientific migration is not complete.** The interface still performs its current JavaScript analysis.
 The experimental process advertises only `buffer.digest/1`, a transport/worker diagnostic. It does not yet
 calculate section percentages or BI/ii for the interface. The bundled numerical/image libraries and public
@@ -244,7 +263,8 @@ Resume **M8.2.3 — Packaging and lifecycle acceptance** when the maintainer ask
 request itself changes documentation only. Use its [roadmap criteria](docs/roadmap.md#m8---desktop-simplification-and-a-single-scientific-engine)
 and M8.1's gates. Confirm the requested editor/reviewer and available native test environments. Verify
 offline installers/portable execution on clean systems, process-tree shutdown/recovery, CPU/RAM accounting,
-project preservation and cold verification/startup. Commit validation tools/evidence as small deliveries;
+project preservation and cold verification/startup, including the portable self-extraction and per-launch
+runtime verification costs recorded in the roadmap. Commit validation tools/evidence as small deliveries;
 record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
 
 **M8.3 comes after this acceptance phase:** the first scientific section slice, including masks, ROI,

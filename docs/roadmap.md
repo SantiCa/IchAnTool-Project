@@ -5,7 +5,10 @@
 Use the [shared working rules](../AGENTS.md#7-working-with-several-people-or-assistants) for each iteration.
 Keep task IDs stable. The changelog records what shipped.
 All assistants use that same guide; compatibility entry files contain only its import, as simplified in
-[V0.146](../CHANGELOG.md#v0146--2026-11-12). This documentation change leaves M8.2.3 as the next implementation candidate.
+[V0.146](../CHANGELOG.md#v0146--2026-11-12). Current state: implementation baseline V0.143; M8.1, M8.2.1 and
+M8.2.2 delivered; M8.2.3 is the next implementation candidate and awaits authorisation.
+[V0.147](../CHANGELOG.md#v0147--2026-11-12) records the maintainer's interface-shell and distribution guidance
+(M8 target architecture, M8.2.3 and M9) without changing application behaviour.
 
 | Marker | Meaning |
 |---|---|
@@ -51,7 +54,11 @@ behind one local Python/NumPy engine in a separate process. The Python API and C
 JavaScript owns interaction and presentation; it does not maintain an independent implementation of the
 scientific methods. Native libraries and optional measured Rust kernels may be internal engine components.
 One authoritative implementation per method is the goal, not one programming language for every component.
-Replacing Electron with Qt or Tauri, a whole-program Rust rewrite and a new browser engine are outside this sequence.
+A whole-program Rust rewrite and a new browser engine are outside this sequence. Electron remains the interface
+shell throughout M8; on 12 November 2026 the maintainer stated that a more fluid shell may replace it later,
+to be evaluated only after M8.6 under [M9.1](#m9---interface-shell-evolution-conditional). M8 therefore keeps
+the engine protocol, method contracts and result formats independent of Electron and the renderer, and confines
+shell-specific process, IPC and packaging code to `desktop/`.
 
 **Distribution:** desktop portable/installed packages become the primary full-capability product, with a
 tested 64-bit scientific runtime included rather than depending on the user's Python installation. Keep the
@@ -59,6 +66,9 @@ current browser/standalone path working as a temporary compatibility/reference p
 engine-dependent scientific features target desktop; a later explicit cutover freezes the last standalone
 version and its project-export route. Do not remove the current HTML or change storage identifiers now.
 The scriptable Python package remains a supported interface to the same engine, not a second calculation path.
+The maintainer confirmed portable and installed delivery on 12 November 2026. Current targets are the Windows
+installer and portable executable, the universal macOS disk image, and the Linux AppImage and DEB package.
+Each shipped form is accepted separately; a passing installed build does not certify the portable one.
 
 | Execution order | Deliverable | Existing tasks coordinated with it |
 |---|---|---|
@@ -70,6 +80,7 @@ The scriptable Python package remains a supported interface to the same engine, 
 | 6 | M8.6: desktop promotion and retirement of duplicate scientific paths | M5.1; legacy-project/export and packaging gates |
 | 7 | Advanced statistics and radiographs on the accepted engine | M6.1–M6.6, M7.1–M7.4; no new parallel JavaScript science |
 | 8 | Conditional acceleration and remaining backlog | M4.1, remaining audit/validation/release tasks |
+| 9 | M9.1: conditional interface-shell evaluation, only after M8.6 | M2.3 responsiveness evidence; project migration through packages |
 
 M8.1's inventory and contract are delivered in [V0.141](../CHANGELOG.md#v0141--2026-11-12).
 M8.2 is in progress: V0.142 delivers the process/transport foundation; V0.143 adds locked runtime resources,
@@ -80,10 +91,7 @@ The [shared assistant handoff](../AGENTS.md#8-current-migration-handoff), update
 It does not start M8.2.3 or certify additional platform/performance gates.
 The documentation check also recorded a [concurrent-run timing observation](validation/M8.2.3-load-observation-v0.144.json)
 for M8.2.3; keep it distinct from the successful V0.143 evidence and reproduce its idle/load conditions.
-V0.144 handoff checks passed in series: 355 Python tests (six existing skips), 232 Node tests, types without
-new diagnostics, Ruff, version/whitespace and standalone build. The local runtime was reconstructed offline
-for the new version metadata; no new implementation/platform gate is certified and no unchanged UI/save E2E
-was repeated. The concurrent-run observation remains open.
+The same evidence file records the passing serial follow-up; the concurrent-run observation remains open.
 Assign editor/reviewer at each implementation handoff. Fixes required to preserve data or satisfy a phase's
 acceptance criteria stay within that phase; unrelated refactors wait. Publication and 1.0 remain owner decisions.
 
@@ -155,6 +163,15 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
     - [ ] **M8.2.3 - Packaging and lifecycle acceptance. Ready.** Verify offline portable/installed startup on clean
       Windows, macOS and Linux, lifecycle under load, CPU/RAM accounting, process-tree cleanup and project
       preservation. Keep the flag off; do not mark M8.2 complete from development protocol tests alone.
+      - Measure each shipped form separately. The Windows `portable` target self-extracts the application,
+        including the bundled runtime (7,326 files, about 249 MB in the V0.143 Windows inventory), at launch;
+        with the engine enabled, startup also hashes every runtime file before spawning it. Record extraction,
+        verification and engine-ready times, cold and warm, with the platform's default malware scanning
+        active, plus download and installed sizes, against the 5 s cold-ready gate in M8.1. If a form fails,
+        record the measurement and present options (for example another portable layout or a verified-identity
+        cache) as a maintainer decision; do not weaken integrity checks silently.
+      - Reproduce the V0.144 concurrent-run observation under matched idle/load conditions before certifying
+        lifecycle deadlines; do not widen deadlines without that evidence.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
@@ -190,6 +207,24 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
     freezing it; keep that artifact retrievable. Update contributor/user/technical documentation and CI to
     the actual cutover in the same delivery. Remove temporary flags only after acceptance; engine errors must
     remain visible rather than silently choosing another scientific implementation.
+
+### M9 - Interface shell evolution (conditional)
+
+The maintainer stated on 12 November 2026 that Electron is the interface shell for now and that a more fluid
+system may replace it later. This records a future evaluation; it is not authorised work, selects no candidate
+shell and does not change the M8 order.
+
+- [ ] **M9.1 - Evaluate the interface shell after the engine migration.** Start only after M8.6, and after
+      M8.4 has moved image ownership and heavy computation out of the renderer, so that remaining slowness is
+      attributed to the shell or to application rendering on evidence rather than assumption.
+  - Acceptance: first measure the accepted Electron build on M2.3 fixtures (startup, input-to-frame latency
+    during pan/zoom/editing, idle and peak process-tree RSS, download and installed size) and identify which
+    costs belong to the shell. Compare a candidate only against that baseline, on the same hardware and
+    fixtures, and only if shell-bound costs justify it. The candidate reuses the engine protocol, method
+    contracts and results unchanged; provides a tested migration of projects stored by the Electron program
+    (IndexedDB under `app://corantool`), packages and folder backups; and ships portable and installed forms
+    on every supported system. Record build, signing, platform web-view and maintenance costs. Keep Electron
+    as the default and rollback until the maintainer accepts the transition.
 
 ### Capacity, advanced statistics and radiographs
 
