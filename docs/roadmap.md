@@ -190,7 +190,15 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
         5 ms idle and 29 ms with saturated CPUs, with no leftovers (see the evidence file). Remaining open
         finding for a maintainer decision: start-up hashes every runtime file on each launch, 20 s median
         under saturated CPUs; options include a verified-identity cache or lower priority for the hashing.
-        Not yet measured: installer/portable launch, cold cache, other platforms, real-job cancellation, tree RSS.
+        Packaged Windows launches are measured by `tools/measure_packaged_startup.mjs`
+        ([evidence](validation/M8.2.3-packaged-startup-windows-v0.148.json)). The unpacked folder (the installed
+        layout) shows the window in 0.4 s and engine ready in 2.7 s warm, but 17.2 s on the first launch after the
+        build. The portable executable shows its window after about 51 s (self-extraction on every launch) and the
+        engine is ready about 20 s later; it exits cleanly with no leftovers. Both fail the 5 s ready gate in
+        those conditions. Options for a maintainer decision: ship the portable as a folder or archive that is not
+        re-extracted on each launch; a verified-identity cache or lower-priority hashing for the first-launch
+        verification. The NSIS installer itself, other antivirus configurations and other platforms are unmeasured.
+        Not yet measured: NSIS installer execution, other platforms, real-job cancellation, tree RSS.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
