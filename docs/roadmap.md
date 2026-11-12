@@ -200,6 +200,11 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
         verification. The NSIS installer was also executed silently into a temporary folder: install 56 s (7,428
         files, 614 MB), the installed program behaves like the unpacked folder (engine ready 20.1 s on the first
         launch, 2.6-2.95 s afterwards), and uninstall (7 s) leaves no folder, registry entry, shortcut or process.
+        Maintainer decisions of 12 November 2026: the Windows portable becomes a ZIP of the program folder (the
+        self-extracting target is dropped), and the launch verification keeps a verified-identity record
+        ([evidence](validation/M8.2.3-verification-record-windows-v0.148.json)): 4.7 s full, 0.18 s recorded
+        with a warm file cache. The first launch after installation still hashes everything (17-20 s cold), so the
+        5 s cold gate remains unmet and unmeasured with a record; the ZIP build itself is not yet built or measured.
         Other antivirus configurations and other platforms are unmeasured.
         `tools/measure_engine_cancellation.mjs` ([evidence](validation/M8.2.3-cancellation-windows-v0.148.json))
         uses the only available job, hashing a 128 MiB buffer in the worker: upload about 570 MiB/s; cancel

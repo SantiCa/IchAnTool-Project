@@ -277,8 +277,9 @@ Resume **M8.2.3 — Packaging and lifecycle acceptance** when the maintainer ask
 request itself changes documentation only. Use its [roadmap criteria](docs/roadmap.md#m8---desktop-simplification-and-a-single-scientific-engine)
 and M8.1's gates. Confirm the requested editor/reviewer and available native test environments. Verify
 offline installers/portable execution on clean systems, process-tree shutdown/recovery, CPU/RAM accounting,
-project preservation and cold verification/startup, including the portable self-extraction and per-launch
-runtime verification costs recorded in the roadmap. Commit validation tools/evidence as small deliveries;
+project preservation and cold verification/startup. The maintainer decided (12 November 2026) that the Windows
+portable is a ZIP of the program folder and that launch verification keeps a verified-identity record; the roadmap
+records what is still unmeasured (the ZIP build, first-launch cost). Commit validation tools/evidence as small deliveries;
 record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
 
 **M8.3 comes after this acceptance phase:** the first scientific section slice, including masks, ROI,

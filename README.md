@@ -47,7 +47,7 @@ Download the installer for your system from the [latest release](../../releases/
 
 | System | File |
 |---|---|
-| Windows 10/11 (x64) | `SedCoreTool-V0.<n>-windows-setup.exe`, or `…-windows-portable.exe` (no installation) |
+| Windows 10/11 (x64) | `SedCoreTool-V0.<n>-windows-setup.exe`, or `…-windows-portable.zip` (no installation: unzip to a folder and run `SedCoreTool.exe`) |
 | macOS 13 or later (Intel and Apple Silicon) | `SedCoreTool-V0.<n>-mac-universal.dmg` |
 | Linux (x64) | `SedCoreTool-V0.<n>-linux-x86_64.AppImage` or `…-linux-amd64.deb` |
 | Any system, in a browser | `SedCoreTool_V0.<n>.html` — a single file that opens with a double click, offline |

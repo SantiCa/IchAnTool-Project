@@ -61,7 +61,8 @@ if (process.versions.electron) {
     executable: process.env.SEDCORETOOL_ENGINE_PYTHON,
     sourceDirectory: app.isPackaged ? path.join(process.resourcesPath, 'python') : path.join(__dirname, 'python'),
     runtimeDirectory: app.isPackaged ? path.join(process.resourcesPath, 'engine-runtime') : path.join(__dirname, 'runtime'),
-    lockPath: path.join(__dirname, 'runtime-lock.json'), version: app.isPackaged ? app.getVersion() : require('./package.json').version });
+    lockPath: path.join(__dirname, 'runtime-lock.json'),
+    cacheFile: () => path.join(app.getPath('userData'), 'engine-runtime-verified.json'), version: app.isPackaged ? app.getVersion() : require('./package.json').version });
 
   const heapMB = Math.max(2048, Math.min(32768, Math.floor((os.totalmem() / 2 ** 20) * 0.75)));
   app.commandLine.appendSwitch('js-flags', `--max-old-space-size=${heapMB}`);

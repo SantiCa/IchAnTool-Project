@@ -157,7 +157,8 @@ class EngineClient {
   }
 }
 
-function createEngineService({ enabled, packaged, executable, sourceDirectory, runtimeDirectory, lockPath, version }) {
+/** `cacheFile` (optional path or function returning one) holds the record of the last full runtime verification. */
+function createEngineService({ enabled, packaged, executable, sourceDirectory, runtimeDirectory, lockPath, version, cacheFile = null }) {
   let client, runtime = null, state = enabled ? 'stopped' : 'disabled', stopped = false;
   return {
     status: () => ({ enabled, runtime, ...(client ? client.status() : { state, protocol: null, methods: [] }) }),
@@ -171,7 +172,8 @@ function createEngineService({ enabled, packaged, executable, sourceDirectory, r
           options = { executable, script: path.join(sourceDirectory, 'src', 'sedcoretool', 'engine', 'server.py'),
             runtimeId: require('node:crypto').createHash('sha256').update('unverified-development-runtime').digest('hex'), runtime: 'unverified-development' };
         } else {
-          options = await require('./engine-runtime').loadRuntime({ runtimeDirectory, sourceDirectory: path.join(sourceDirectory, 'src'), lockPath, version });
+          options = await require('./engine-runtime').loadRuntime({ runtimeDirectory, sourceDirectory: path.join(sourceDirectory, 'src'), lockPath, version,
+            cacheFile: typeof cacheFile === 'function' ? cacheFile() : cacheFile });
         }
         if (stopped) return;
         runtime = options.runtime;

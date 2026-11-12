@@ -27,6 +27,8 @@ managed by `desktop/trainer.js`; its environment matrix is still tracked in road
 The experimental desktop engine verifies its resource inventory and application-source hashes before spawning
 the included interpreter. Runtime resources are application files, not a writable project environment. No
 automatic runtime update, package installation, system-Python search or silent fallback occurs at launch.
+After one full verification the program stores a fingerprint of file identity (size, times, inode) in the
+user-data folder and later launches skip content hashing only while it still matches; see the technical manual §26.3.
 Checksums detect corruption and mismatches relative to the application's trusted lock and manifest; they do
 not replace installer signing or protect against an attacker who can replace the application and its lock.
 

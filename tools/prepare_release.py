@@ -18,7 +18,7 @@ def prepare(folder: Path) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     ver = delivery()
     names = [f"SedCoreTool-{ver}-{suffix}" for suffix in (
-        "windows-setup.exe", "windows-portable.exe", "mac-universal.dmg",
+        "windows-setup.exe", "windows-portable.zip", "mac-universal.dmg",
         "linux-x86_64.AppImage", "linux-amd64.deb",
     )]
     missing = [name for name in names if not (folder / name).is_file()]

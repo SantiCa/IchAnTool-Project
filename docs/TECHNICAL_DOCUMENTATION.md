@@ -2738,7 +2738,7 @@ Code: `desktop/` (Electron 45.2.2, packaged with electron-builder 26.18.0).
   `window.corantoolDesktop` methods. Main-process IPC accepts calls only from validated application asset URLs.
   External links open in the system browser.
 - **Closing:** closing the window with pending changes waits for the save to finish (§22.2).
-- **Platforms:** Windows 10/11 x64 (NSIS installer and portable), macOS 13 or later (universal dmg for Intel and Apple
+- **Platforms:** Windows 10/11 x64 (NSIS installer, and a portable ZIP of the program folder to unzip and run), macOS 13 or later (universal dmg for Intel and Apple
   Silicon; Electron dropped macOS 12) and Linux x64 (AppImage and deb). Builds are not code-signed, so the operating
   system may ask for confirmation the first time. Building needs Node ≥ 22.12.
 - **Version and file names:** the executable's version is `0.<n>.0` and files are named
@@ -2881,6 +2881,18 @@ Windows embeddable archive alone does not supply matching Linux/macOS resources.
 new executable would add a packager and its native-extension hooks. This approach reuses the process boundary
 and standard wheels, retaining upstream runtime files/notices. It increases download/disk size; it does not
 imply that all libraries are loaded into RAM at startup or claim a speedup.
+
+**Launch verification.** Before spawning the interpreter, `loadRuntime()` checks that the runtime and source folders
+hold exactly the listed files, that links stay inside the root and that sizes match, and computes a *fingerprint*:
+the SHA-256 of the sorted lines `path, size, modification time (ns), change time (ns), inode, device, expected digest`
+for every file. If the fingerprint equals the one stored after the last full verification of the same manifest
+(`engine-runtime-verified.json` in the user-data folder: schema, manifest hash, two fingerprints), content hashing is
+skipped. Otherwise every file is hashed with SHA-256 (two files at a time) and, only if all match, a new record is
+written atomically. A missing, oversized (over 4 KiB), malformed or foreign record, or a failed write, means a full
+verification; it never prevents or weakens one. The change time cannot be set by ordinary file APIs, so restoring a
+modification time after editing a file still changes the fingerprint. The record guards against corruption and
+accidental change, not against someone who can write to the program folder and the user-data folder (they could replace the program itself).
+The first launch after installing or updating always performs the full verification.
 
 | Resource directory | Interpreter | Distribution |
 |---|---|---|
