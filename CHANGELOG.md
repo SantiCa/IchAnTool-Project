@@ -10,6 +10,11 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.139 — 2026-11-12
+
+- Accept short and full hexadecimal palette colours in Python and the command line, including either case and surrounding whitespace; preserve RGB inputs and hexadecimal colours without `#`.
+- Reject malformed hexadecimal colours with the affected class name instead of truncating extra digits or producing an unclear error. Preserve exact masks, class order, tolerance and scientific results for equivalent colours.
+
 ## V0.138 — 2026-11-12
 
 - Expand the roadmap with staged development for multi-gigabyte images, responsive calculations, conditional Rust/Wasm/GPU acceleration, an advanced-statistics module and radiograph integration.

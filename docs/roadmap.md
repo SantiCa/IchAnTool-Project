@@ -40,7 +40,8 @@ removal only after acceptance. Benchmarks use public or generated data; unpublis
 Planning delivery verification: 267 Python tests passed (six optional/permission skips), 218 Node tests,
 JavaScript types, Ruff, version consistency, whitespace and standalone build pass. No analysis, interface or
 save implementation changes; no new tests or repeated browser E2E are needed. Local delivery on `master`;
-GitHub retrieval requires an authorised push. M3.3.1 remains the existing audit's next priority candidate.
+GitHub retrieval requires an authorised push. After M3.3.1, the existing audit's next priority candidate is
+M3.2.5 (caller random-state isolation during training).
 
 ### Audit triage and proposed priority
 
@@ -63,7 +64,7 @@ the milestone grouping below; it does not start any implementation or authorise 
 | AUD-01 | Retraining is staged and complete model/evaluation generations are published atomically in [V0.130](../CHANGELOG.md#v0130--2026-11-11) | M3.2.3 |
 | AUD-02 | Prefix-only containment check replaced with directory-boundary and URL validation in [V0.127](../CHANGELOG.md#v0127--2026-11-11) | M0.4 |
 | AUD-03 | No-data and presentation colours validated against `#rgb`/`#rrggbb` with attribute escaping in [V0.128](../CHANGELOG.md#v0128--2026-11-11) | M0.5 |
-| AUD-04 | Palette parser assumes six hexadecimal digits | M3.3.1 |
+| AUD-04 | Short/full hexadecimal palette inputs and class-specific errors validated in [V0.139](../CHANGELOG.md#v0139--2026-11-12) | M3.3.1 |
 | AUD-05 | Fractional bin size still has an integer annotation | M3.3.2 |
 | AUD-06 | Existing escaping verified through CSV/literal-text XLSX round trips; missing-value-like identifiers preserved and editing rules documented in [V0.137](../CHANGELOG.md#v0137--2026-11-12) | M3.3.3 |
 | AUD-07 | LAS uses ASCII replacement; choose an explicit metadata policy before changing output | M3.3.4 |
@@ -598,10 +599,23 @@ existing projects retain failed-save protection. Performance evidence is collect
 
 ### M3.3 - Python input and export contracts
 
-- [ ] **M3.3.1 - Define palette hex input forms (AUD-04).** Decide and document support for short
+- [x] **M3.3.1 - Define palette hex input forms (AUD-04).** [V0.139](../CHANGELOG.md#v0139--2026-11-12). Decide and document support for short
       `#rgb` alongside full `#rrggbb` in `segmentation.py`, including whitespace and invalid-input handling.
   - Acceptance: named palette entries using equivalent supported hex/RGB forms produce exactly the same
     masks and class ordering. Malformed forms raise clear errors; existing valid palette calls remain valid.
+  - Authorised by the maintainer on 12 November 2026. Editor: Codex; author verification, no independent
+    reviewer assigned.
+  - Delivered: 3/6 hexadecimal digits, optional single `#`, either case and surrounding whitespace;
+    short digits expand exactly to their RGB values. Invalid lengths/content are rejected with the palette
+    class name, retaining the exception cause. Existing valid full/bare hex and RGB calls remain supported;
+    tolerance, first-match precedence, class order and scientific calculation are unchanged.
+  - Verified: 46 new cases include all 4,096 short triplets, independent exact masks/scientific tables,
+    malformed inputs and byte-identical `analyze`/`batch` CSV results. An invalid palette preserves a
+    previous result. Checks pass: 313 Python tests (six optional/permission skips), 218 Node tests,
+    types, Ruff, version consistency, whitespace and standalone build. Python CLI paths are tested directly;
+    the unchanged browser interface/save code does not require a repeated browser E2E run.
+  - Local delivery on master; GitHub retrieval requires an authorised push. Next priority candidate:
+    M3.2.5 caller random-state isolation. No further phase is started in this delivery.
 - [ ] **M3.3.2 - Describe fractional bin sizes accurately (AUD-05).** Align `CoreSection.bin_px`'s
       annotation with the existing float-valued API and documented fractional boundary rules.
   - Acceptance: inspect public annotations/documentation and retain fractional-bin and legacy numerical

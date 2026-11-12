@@ -10,6 +10,7 @@ same output: ``(mask, class_names)``.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 
 import numpy as np
@@ -29,7 +30,12 @@ def mask_from_threshold(img: np.ndarray, threshold: float = 5,
 
 def _hex_to_rgb(color: str | Sequence[int]) -> np.ndarray:
     if isinstance(color, str):
-        c = color.lstrip("#")
+        c = color.strip().removeprefix("#")
+        if not re.fullmatch(r"[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?", c):
+            raise ValueError("expected 3 or 6 hexadecimal digits with an optional leading '#'; "
+                             "only surrounding whitespace is allowed")
+        if len(c) == 3:
+            c = "".join(digit * 2 for digit in c)
         return np.array([int(c[i:i + 2], 16) for i in (0, 2, 4)], dtype=np.int32)
     return np.asarray(color[:3], dtype=np.int32)
 
@@ -39,6 +45,9 @@ def mask_from_palette(img: np.ndarray, palette: Mapping[str, str | Sequence[int]
     """Multi-class mask from a colour-coded image.
 
     palette: {"Zoophycos": "#ff0000", "Chondrites": (0, 0, 255), ...}
+    Hex colours accept 3 or 6 digits, optional '#', either case and surrounding
+    whitespace. Short form '#abc' means '#aabbcc'. RGB sequences retain their
+    existing first-three-channel interpretation.
     A pixel belongs to a class when every RGB channel is within
     ``tolerance`` of the class colour. Unmatched pixels are background.
     """
@@ -48,7 +57,10 @@ def mask_from_palette(img: np.ndarray, palette: Mapping[str, str | Sequence[int]
     mask = np.zeros(rgb.shape[:2], dtype=np.int32)
     names = list(palette)
     for label, name in enumerate(names, start=1):
-        ref = _hex_to_rgb(palette[name])
+        try:
+            ref = _hex_to_rgb(palette[name])
+        except (TypeError, ValueError, OverflowError) as error:
+            raise ValueError(f"Invalid colour for palette class {name!r}: {error}") from error
         hit = np.all(np.abs(rgb - ref) <= tolerance, axis=-1) & (mask == 0)
         mask[hit] = label
     return mask, names

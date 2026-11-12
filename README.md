@@ -194,6 +194,10 @@ section.add_age(model_depth=[0, 500], model_age=[0, 40_000])     # optional age 
 section.data.to_csv("core.csv", index=False)                     # depth, bioturbation_pct, <class>_pct, BI, ii, age
 ```
 
+Python palettes and `--palette` JSON files accept short colours such as `#f00`, full colours such as `#ff0000`,
+and RGB triplets such as `[255, 0, 0]`. Hexadecimal strings may omit `#` and include surrounding whitespace;
+malformed strings report the class to correct. See the [palette input contract](docs/TECHNICAL_DOCUMENTATION.md#palette-colour-inputs).
+
 CSV and Excel results escape text that spreadsheet programs could interpret as formulas. Project and U-Net ZIP
 imports apply the [project ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#231-project-packages-sedcoretool) and [U-Net ZIP limits](docs/TECHNICAL_DOCUMENTATION.md#92-training-data-and-training-python-package).
 If a project package reports a CRC mismatch, use an intact copy of the package.

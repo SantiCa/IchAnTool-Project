@@ -2473,7 +2473,7 @@ any interval with at least one valid pixel is eligible. At 1, every pixel in the
 | `load_mask(path)` | `io.py` | Reads a single-channel label mask (PNG/TIFF) as `int32`. |
 | `to_gray(img)` | `io.py` | Grey with the weights of version 2.1: 0.30 R + 0.56 G + 0.11 B. |
 | `mask_from_threshold(img, threshold=5, class_name="bioturbation")` | `segmentation.py` | Binary mask: grey ≤ threshold is bioturbation (bioturbation painted black, as in version 2.1). |
-| `mask_from_palette(img, palette, tolerance=10)` | `segmentation.py` | Multi-class mask from a colour-coded image: `palette = {"Zoophycos": "#ff0000", …}`; a pixel belongs to a class when each RGB channel is within `tolerance` of the class colour (the first matching class wins). The `*_mask.png` and `*_palette.json` exported by the program are read this way. |
+| `mask_from_palette(img, palette, tolerance=10)` | `segmentation.py` | Multi-class mask from a colour-coded image using hexadecimal or RGB palette entries ([input contract](#palette-colour-inputs)); a pixel belongs to a class when each RGB channel is within `tolerance` of the class colour (the first matching class wins). The `*_mask.png` and `*_palette.json` exported by the program are read this way. |
 | `mask_from_unet(img, model, px_per_cm=None, threshold=0.5, *, cpu_only=False)` | `segmentation.py` | Mask from a trained U-Net (`.onnx` with its `.json` next to it), with the rules of §9.1. |
 | `analyze_mask(mask, top, bottom, *, units="cm", bin_px=1, bin_cm=None, class_names=None, schemes=(BI, ii), exclude=None, min_valid=0.2, keep_partial=True, name="section_1")` | `pipeline.py` | Intervals, percentages and indices (§3–§4). `bin_cm` sets the interval thickness in cm (as in the program); otherwise `bin_px` rows per interval (may be fractional, ≥ 1). `exclude`: boolean array of the mask's size, `True` = excluded pixel (§3.2); intervals with less than `min_valid` of their pixels valid have no data. `units`: mm, cm or m. |
 | `analyze_image(path, top, bottom, *, threshold=5, **kwargs)` | `pipeline.py` | Version 2.1-compatible entry point: painted image → `mask_from_threshold` → `analyze_mask`. |
@@ -2505,6 +2505,27 @@ section = analyze_mask(mask, top=0, bottom=150, units="cm", bin_cm=1, class_name
 section.add_age(model_depth=[0, 150], model_age=[0, 12.5])
 to_csv([section], "S1_bioturbation.csv")
 ```
+
+#### Palette colour inputs
+
+`mask_from_palette` accepts named entries with 3- or 6-digit ASCII hexadecimal strings, with an optional
+single leading `#`, in either case. Surrounding whitespace is stripped; internal whitespace is rejected.
+Short form repeats each digit: `#abc` is exactly `[170, 187, 204]`, the same as `#aabbcc`. Bare hexadecimal
+strings remain supported. RGB integer sequences keep their existing first-three-channel interpretation,
+including an ignored fourth channel; JSON palettes use arrays for these entries. Named colours, CSS
+`rgb(...)`, extra `#` characters, other lengths and hexadecimal alpha forms are not accepted. Invalid
+hexadecimal input raises `ValueError` identifying the palette class and the supported forms; it is not truncated.
+
+Matching uses the original rule on each RGB channel: `abs(pixel[channel] - colour[channel]) <= tolerance`,
+with default tolerance 10. The first matching entry in palette insertion order assigns the positive label;
+unmatched pixels retain label 0. Returned names keep that same order, including classes with no matched pixels.
+Equivalent hexadecimal/RGB entries therefore produce exactly the same `int32` mask, interval percentages,
+BI and ii. The image and palette inputs are unchanged.
+
+`tests/test_palette_contract.py` checks all 4,096 short hexadecimal triplets against independent RGB values,
+equivalent full/bare/mixed-case/whitespace/RGB inputs, exact masks and scientific tables at tolerance 0 and
+10, duplicate-colour precedence, class order, malformed forms and byte-identical command-line CSV results
+through both `analyze` and `batch`. An invalid palette leaves an existing result file unchanged.
 
 #### Experimental Python row counts
 
@@ -2556,8 +2577,9 @@ sedcoretool analyze IMAGE --top 0 --bottom 500 [--units cm|mm|m] [--bin-cm 1 | -
 ```
 
 - `--threshold` (default 5): grey ≤ threshold is bioturbation (painted images, version 2.1 behaviour).
-- `--palette`: colour-coded image with a JSON `{class: "#rrggbb"}` (for example the program's `*_mask.png` and
-  `*_palette.json`); `--tolerance` per RGB channel.
+- `--palette`: colour-coded image with a JSON mapping from class name to `"#rgb"`, `"#rrggbb"` or `[r,g,b]`
+  (for example the program's `*_mask.png` and `*_palette.json`); hexadecimal forms follow the
+  [palette input contract](#palette-colour-inputs). `--tolerance` applies per RGB channel.
 - `--label-mask`: the image is already an integer label mask.
 - `--bin-cm`: interval thickness in cm, as in the program; or `--bin-px`: pixel rows per interval (default 1).
 - `--exclude`: exclusion image of the same size, white (grey > 127) = excluded. `--exclude-value`: with

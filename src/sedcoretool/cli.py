@@ -52,7 +52,7 @@ def _mask_args(a: argparse.ArgumentParser) -> None:
     g = a.add_mutually_exclusive_group()
     g.add_argument("--threshold", type=float, default=5,
                    help="gray value <= threshold is bioturbation (default 5, v2.1 behaviour)")
-    g.add_argument("--palette", type=Path, help="JSON {class: '#rrggbb'} for colour-coded images")
+    g.add_argument("--palette", type=Path, help="JSON palette with #rgb, #rrggbb or [r,g,b] colours")
     g.add_argument("--label-mask", action="store_true", help="image is already an integer label mask")
     a.add_argument("--tolerance", type=int, default=10, help="colour tolerance for --palette")
     a.add_argument("--exclude-value", type=int, default=None,
