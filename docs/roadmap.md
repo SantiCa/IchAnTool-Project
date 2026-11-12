@@ -197,8 +197,11 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
         engine is ready about 20 s later; it exits cleanly with no leftovers. Both fail the 5 s ready gate in
         those conditions. Options for a maintainer decision: ship the portable as a folder or archive that is not
         re-extracted on each launch; a verified-identity cache or lower-priority hashing for the first-launch
-        verification. The NSIS installer itself, other antivirus configurations and other platforms are unmeasured.
-        Not yet measured: NSIS installer execution, other platforms, real-job cancellation, tree RSS.
+        verification. The NSIS installer was also executed silently into a temporary folder: install 56 s (7,428
+        files, 614 MB), the installed program behaves like the unpacked folder (engine ready 20.1 s on the first
+        launch, 2.6-2.95 s afterwards), and uninstall (7 s) leaves no folder, registry entry, shortcut or process.
+        Other antivirus configurations and other platforms are unmeasured.
+        Not yet measured: other platforms, real-job cancellation, tree RSS and CPU.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;

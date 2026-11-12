@@ -182,12 +182,126 @@
                      "The portable cost is dominated by self-extraction, which an installed or folder-based portable layout does not pay on each launch."
                  ],
     "not_measured":  [
-                         "NSIS installer execution",
                          "machine without prior file cache or with a different antivirus",
                          "downloaded (mark-of-the-web) files",
                          "macOS and Linux",
                          "tree RSS and CPU accounting",
                          "cancellation during real jobs"
                      ],
-    "acceptance_claimed":  false
+    "acceptance_claimed":  false,
+    "nsis_installed":  {
+                           "procedure":  "SedCoreTool-V0.148-windows-setup.exe /S /D=\u003ctemporary folder\u003e; five launches of the installed SedCoreTool.exe; Uninstall SedCoreTool.exe /S.",
+                           "install":  {
+                                           "exit_code":  0,
+                                           "seconds":  56,
+                                           "files":  7428,
+                                           "installed_mb":  614
+                                       },
+                           "uninstall":  {
+                                             "exit_code":  0,
+                                             "seconds":  7,
+                                             "folder_removed":  true,
+                                             "uninstall_registry_entries_left":  0,
+                                             "start_menu_shortcuts_left":  0,
+                                             "processes_left":  0
+                                         },
+                           "launches":  {
+                                            "runs":  5,
+                                            "failed_runs":  0,
+                                            "summary":  {
+                                                            "devtools_ms":  {
+                                                                                "n":  5,
+                                                                                "min":  164.12,
+                                                                                "median":  170.81,
+                                                                                "max":  202.81
+                                                                            },
+                                                            "window_ms":  {
+                                                                              "n":  5,
+                                                                              "min":  412,
+                                                                              "median":  435.16,
+                                                                              "max":  692.09
+                                                                          },
+                                                            "engine_ready_ms":  {
+                                                                                    "n":  5,
+                                                                                    "min":  2641.67,
+                                                                                    "median":  2909.11,
+                                                                                    "max":  20112.86
+                                                                                },
+                                                            "close_ms":  {
+                                                                             "n":  5,
+                                                                             "min":  72.43,
+                                                                             "median":  81.78,
+                                                                             "max":  133.63
+                                                                         }
+                                                        },
+                                            "results":  [
+                                                            {
+                                                                "run":  1,
+                                                                "devtools_ms":  202.81,
+                                                                "window_ms":  692.09,
+                                                                "engine_ready_ms":  20112.86,
+                                                                "engine_state":  "ready",
+                                                                "engine_runtime":  "bundled-verified",
+                                                                "exit_code":  0,
+                                                                "close_ms":  133.63,
+                                                                "leftover_processes":  0,
+                                                                "leftover_settle_ms":  2315.55,
+                                                                "extraction_folders_left":  0
+                                                            },
+                                                            {
+                                                                "run":  2,
+                                                                "devtools_ms":  173.62,
+                                                                "window_ms":  489.33,
+                                                                "engine_ready_ms":  2909.11,
+                                                                "engine_state":  "ready",
+                                                                "engine_runtime":  "bundled-verified",
+                                                                "exit_code":  0,
+                                                                "close_ms":  72.43,
+                                                                "leftover_processes":  0,
+                                                                "leftover_settle_ms":  2136.79,
+                                                                "extraction_folders_left":  0
+                                                            },
+                                                            {
+                                                                "run":  3,
+                                                                "devtools_ms":  165.01,
+                                                                "window_ms":  422.21,
+                                                                "engine_ready_ms":  2641.67,
+                                                                "engine_state":  "ready",
+                                                                "engine_runtime":  "bundled-verified",
+                                                                "exit_code":  0,
+                                                                "close_ms":  81.78,
+                                                                "leftover_processes":  0,
+                                                                "leftover_settle_ms":  2149.04,
+                                                                "extraction_folders_left":  0
+                                                            },
+                                                            {
+                                                                "run":  4,
+                                                                "devtools_ms":  164.12,
+                                                                "window_ms":  412,
+                                                                "engine_ready_ms":  2740.01,
+                                                                "engine_state":  "ready",
+                                                                "engine_runtime":  "bundled-verified",
+                                                                "exit_code":  0,
+                                                                "close_ms":  83.5,
+                                                                "leftover_processes":  0,
+                                                                "leftover_settle_ms":  2216.78,
+                                                                "extraction_folders_left":  0
+                                                            },
+                                                            {
+                                                                "run":  5,
+                                                                "devtools_ms":  170.81,
+                                                                "window_ms":  435.16,
+                                                                "engine_ready_ms":  2952,
+                                                                "engine_state":  "ready",
+                                                                "engine_runtime":  "bundled-verified",
+                                                                "exit_code":  0,
+                                                                "close_ms":  78.26,
+                                                                "leftover_processes":  0,
+                                                                "leftover_settle_ms":  2143.45,
+                                                                "extraction_folders_left":  0
+                                                            }
+                                                        ]
+                                        },
+                           "result":  "Same behaviour as the unpacked folder: window 0.4-0.7 s; engine ready 20.1 s on the first launch and 2.6-2.95 s afterwards; closes in about 80 ms with no leftover process."
+                       }
 }
