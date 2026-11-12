@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.144 — 2026-11-12
+
+- Document the current single-engine migration handoff in AGENTS.md: settled decisions, delivered work, validation limits, environment reconstruction and the next acceptance phase.
+- Add a Gemini entry file importing the same shared guide already used by Claude. Application behaviour and scientific calculations are unchanged.
+- Preserve process timing failures observed during concurrent runtime reconstruction as an open acceptance check; subsequent serial tests passed without changing engine code or deadlines.
+
 ## V0.143 — 2026-11-12
 
 - Include a hash-locked portable CPython runtime and minimal scientific dependencies in desktop builds, selected by operating system and architecture, with separate Intel and Apple Silicon resources in the universal macOS layout.

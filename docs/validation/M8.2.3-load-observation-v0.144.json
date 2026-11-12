@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "delivery": "V0.144",
+  "date": "2026-11-12",
+  "implementation_baseline": "59ef5dc (V0.143); documentation/version metadata changes only",
+  "environment": {
+    "os": "Windows 11 10.0.26300",
+    "test_python": "3.12.4",
+    "node": "22.23.4"
+  },
+  "observation": "Both test suites ran concurrently with an offline native runtime reconstruction. Process timing failures occurred; their cause has not been isolated.",
+  "concurrent_commands": [
+    "python -m pytest -q",
+    "npm.cmd test",
+    "npm.cmd run prepare-runtime -- --offline (desktop/)"
+  ],
+  "python_result": {
+    "passed": 353,
+    "failed": 2,
+    "skipped": 6,
+    "failed_tests": [
+      {
+        "name": "test_lost_output_pipe_does_not_prevent_worker_and_snapshot_cleanup",
+        "exception": "subprocess.TimeoutExpired",
+        "operation": "worker process wait after cleanup",
+        "timeout_seconds": 1
+      },
+      {
+        "name": "test_worker_liveness_pipe_stops_orphaned_work_when_coordinator_disappears",
+        "exception": "subprocess.TimeoutExpired",
+        "operation": "worker process wait after liveness-pipe EOF",
+        "timeout_seconds": 2
+      }
+    ]
+  },
+  "node_result": {
+    "passed": 231,
+    "failed": 1,
+    "failed_test": "unexpected binary frames invalidate and clean the session",
+    "reported_code": "ENGINE_UNAVAILABLE"
+  },
+  "interpretation": "Functional checks had passed on the implementation delivery. This additional run exposes an unresolved timing/reproducibility observation, not proof that reconstruction caused the failures or that the lifecycle gates pass under load.",
+  "next_action": "Under M8.2.3, reproduce matched idle/load cases, capture process timings and cleanup outcomes, and preserve existing deadlines and scientific behaviour until an explicit change is justified. Record the serial handoff check separately.",
+  "serial_followup": {
+    "conditions": "Offline reconstruction completed; Python and Node suites then ran sequentially without changing engine code or deadlines.",
+    "python": { "passed": 355, "failed": 0, "skipped": 6 },
+    "node": { "passed": 232, "failed": 0 },
+    "javascript_types": "passed with no new diagnostics",
+    "interpretation": "The serial checks pass. The concurrent-run observation remains unresolved and does not establish lifecycle acceptance under load."
+  },
+  "engine_code_changed": false,
+  "acceptance_claimed": false
+}

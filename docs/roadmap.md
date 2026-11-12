@@ -52,6 +52,15 @@ M8.1's inventory and contract are delivered in [V0.141](../CHANGELOG.md#v0141--2
 M8.2 is in progress: V0.142 delivers the process/transport foundation; V0.143 adds locked runtime resources,
 integrity verification and native/package checks. Clean-machine/platform acceptance remains pending; the
 scientific interface still uses its existing calculations.
+The [shared assistant handoff](../AGENTS.md#8-current-migration-handoff), updated in
+[V0.144](../CHANGELOG.md#v0144--2026-11-12), lets Claude/Gemini resume this state without earlier chat history.
+It does not start M8.2.3 or certify additional platform/performance gates.
+The documentation check also recorded a [concurrent-run timing observation](validation/M8.2.3-load-observation-v0.144.json)
+for M8.2.3; keep it distinct from the successful V0.143 evidence and reproduce its idle/load conditions.
+V0.144 handoff checks passed in series: 355 Python tests (six existing skips), 232 Node tests, types without
+new diagnostics, Ruff, version/whitespace and standalone build. The local runtime was reconstructed offline
+for the new version metadata; no new implementation/platform gate is certified and no unchanged UI/save E2E
+was repeated. The concurrent-run observation remains open.
 Assign editor/reviewer at each implementation handoff. Fixes required to preserve data or satisfy a phase's
 acceptance criteria stay within that phase; unrelated refactors wait. Publication and 1.0 remain owner decisions.
 
