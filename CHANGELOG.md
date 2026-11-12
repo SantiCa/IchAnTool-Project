@@ -13,6 +13,7 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 ## Unreleased
 
 - Stop the experimental engine and its workers almost instantly on Windows when it must be ended forcibly (5 ms instead of about 1.7 s), by tying worker processes to the engine's lifetime in the operating system.
+- Add a developer tool that measures transfer speed, job cancellation latency and engine memory with the experimental engine.
 - Add a developer tool that launches a packaged desktop program with the experimental engine and measures time to window and to engine ready, closing time and leftover processes.
 - Add a developer tool that measures start-up, verification, shutdown and forced-termination times of the experimental engine and checks that no process or temporary folder is left behind. Application behaviour and calculations are unchanged.
 

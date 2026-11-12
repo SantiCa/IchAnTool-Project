@@ -201,7 +201,13 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
         files, 614 MB), the installed program behaves like the unpacked folder (engine ready 20.1 s on the first
         launch, 2.6-2.95 s afterwards), and uninstall (7 s) leaves no folder, registry entry, shortcut or process.
         Other antivirus configurations and other platforms are unmeasured.
-        Not yet measured: other platforms, real-job cancellation, tree RSS and CPU.
+        `tools/measure_engine_cancellation.mjs` ([evidence](validation/M8.2.3-cancellation-windows-v0.148.json))
+        uses the only available job, hashing a 128 MiB buffer in the worker: upload about 570 MiB/s; cancel
+        acknowledgement 0.7 ms and terminal response 170 ms median (200 ms max) for a running job, under 1 ms
+        for a queued one; control requests answer in 0.35 ms during a job; the session stays ready and results
+        are correct afterwards. The engine process tree uses 24 MB idle and 47 MB at peak. These pass the
+        cancellation gates for this diagnostic method only; they say nothing about scientific jobs.
+        Not yet measured: other platforms (macOS, Linux), Electron-plus-engine tree memory and CPU.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
