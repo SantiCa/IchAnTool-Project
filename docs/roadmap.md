@@ -34,29 +34,29 @@ Updated 12 November 2026.
   ahead of `origin/master`; pushing needs the maintainer's authorisation.
 - **Active work branch:** `work/2026-11-12`. Its changes are listed under `## Unreleased` in the changelog.
   No version number has been assigned; do that only when the maintainer asks (AGENTS.md §5, step 5).
-- **Checks: pending.** Focused checks passed for each commit (engine-runtime Node tests, release/version
-  Python tests, Ruff, type check, version sync). The full end-of-session suite has **not** been run on the
-  branch. Run, one after another: `pytest -q`, `npm test`, `npm run typecheck`,
-  `python tools/sync_version.py --check`, `ruff check src tests tools`, and the desktop E2E test
-  (`tests/e2e/desktop.mjs`), because `desktop/engine.js` and `desktop/main.js` changed.
-- **Current task:** [M8.2.3 - Packaging and lifecycle acceptance](#m8---desktop-simplification-and-a-single-scientific-engine),
-  in progress (editor: Claude; author-run checks, no independent reviewer).
+- **Checks: passed** on branch `work/2026-11-12` at commit `e829470` (the later commits only edit the roadmap,
+  changelog and history): `pytest -q` 356 passed / 7 skipped, `npm test` 234 passed, `npm run typecheck`
+  (no new diagnostics), `sync_version.py --check`, `ruff check src tests tools`, and `tests/e2e/desktop.mjs`
+  both with and without `SEDCORETOOL_ENGINE_EXPERIMENT=1`. Run serially. Do not repeat them on an unchanged
+  state. Note: `npm run dist` regenerates `desktop/web` **without** the sample data; before running the desktop
+  E2E afterwards run `node desktop/scripts/prepare.js --with-examples` (what `npm start` does), or the
+  E2E waits 90 s and fails on `openTest`.
+- **Current task:** [M8.2.4 - Remaining platform and gate acceptance](#m8---desktop-simplification-and-a-single-scientific-engine)
+  (M8.2.3 is closed for Windows). Editor: Claude; author-run checks, no independent reviewer.
 - **Next steps, in order:**
-  1. Run the pending checks above and record the result here.
-  2. Done: Windows portable ZIP and the verification record are measured (see M8.2.3). The tool accepts
-     `--keep-profile` to reuse one user-data folder across launches. Build with `npm run dist` in `desktop/`
-     (ignored output in `desktop/dist/`), extract the ZIP to a temporary folder and run
-     `node tools/measure_packaged_startup.mjs <folder>\SedCoreTool.exe --runs 5 --out <file>`
-     (needs `npm i --no-save puppeteer-core@23`).
-  3. Repeat the ZIP launches on an idle machine to clear or reproduce the intermittent no-window failure.
-  4. Done at idle (see M8.2.3). Remaining Windows work: process tree with a project open and during a job.
-  5. Decide, with the maintainer, how to meet or restate the 5 s gate for the cold first launch (11–25 s).
-     The window opens in about 0.45 s regardless; only engine readiness is late. Options to put to the
-     maintainer with measurements, not to implement unasked: start the verification at program start-up while
-     the interface is already usable; accept a documented first-launch cost; verify at install time.
+  1. The maintainer decides how to handle the cold first launch (option list in M8.2.4) and whether to authorise
+     pushing the branch for a CI run on macOS and Linux.
+  2. Repeat the portable-ZIP launches on an idle machine (intermittent no-window failure).
+  3. Measure the process tree with a project open and during a job.
+  4. When M8.2.4 is closed or waived item by item, mark M8.2 complete and ask the maintainer to authorise M8.3.
+  Tools: `tools/measure_packaged_startup.mjs <exe> --runs N [--keep-profile] --out <file>` (needs
+  `npm i --no-save puppeteer-core@23`; build with `npm run dist` in `desktop/`, extract the ZIP to a temporary
+  folder with "Extract all").
 - **Open maintainer decisions:**
+  - Cold first launch (11–25 s against the 5 s gate): see M8.2.4.
   - macOS and Linux acceptance needs either those machines or a CI run, which requires an authorised push
     and a manual run of the *Desktop builds* workflow with `draft_release=false`.
+  - Creating version V0.149 from this branch (AGENTS.md §5, step 5) whenever the maintainer wants it.
   - Whether M8.3 may start before M8.2 acceptance is complete. The current rule is: complete M8.2 first.
 
 ## Milestones toward 1.0
@@ -136,77 +136,28 @@ The engine experiment stays **off by default** (`SEDCORETOOL_ENGINE_EXPERIMENT=1
   - [x] **M8.2.2 - Reproducible runtime bundle.** [V0.143](../CHANGELOG.md#v0143--2026-11-12);
         [record](roadmap-history.md#m8---completed-engine-migration-tasks),
         [evidence](validation/M8.2.2-v0.143.json).
-  - [ ] **M8.2.3 - Packaging and lifecycle acceptance. In progress** on branch `work/2026-11-12`.
-        Verify offline portable/installed startup on clean Windows, macOS and Linux, lifecycle under load,
-        CPU/RAM accounting, process-tree cleanup and project preservation. Keep the flag off; do not mark M8.2
-        complete from development protocol tests alone.
-    - Acceptance (from M8.1's gates): engine ready ≤5 s from spawn through the hello handshake, including
-      runtime verification, measured cold and warm with the platform's default malware scanning; cancel
-      acknowledgement ≤250 ms; cancelled terminal response and release ≤2 s; no process or temporary folder left
-      after close or forced termination; download and installed sizes recorded. Measure each shipped form
-      separately. If a form fails, record the measurement and present options to the maintainer; never weaken
-      integrity checks silently or widen deadlines without evidence.
-    - **Measuring tools** (all write a JSON report with `--out`):
-      `tools/measure_engine_lifecycle.mjs` (verification, ready, stop, forced kill, leftovers; optional CPU load),
-      `tools/measure_packaged_startup.mjs` (packaged program: time to window and engine ready, close, leftovers),
-      `tools/measure_engine_cancellation.mjs` (transfer, cancellation latency, engine memory).
-    - **Measured on Windows 11 (Ryzen 7 7700X, 16 logical CPUs):**
-      - Lifecycle, development layout ([evidence](validation/M8.2.3-lifecycle-windows-v0.148.json)): idle
-        verification 2.1 s + ready 0.31 s (passes); orderly stop 8 ms; no leftovers. With all 16 CPUs saturated,
-        verification takes 16 s median (27 s max) and fails the 5 s gate. This explains the V0.144
-        [concurrent-run observation](validation/M8.2.3-load-observation-v0.144.json) as CPU contention.
-      - Forced termination: was 1.7 s idle and 2.6 s under load (`taskkill /T`). Fixed on this branch: the
-        engine joins a kill-on-close Windows Job Object (`src/sedcoretool/engine/lifetime.py`); now 5 ms idle
-        and 29 ms under load, no leftovers.
-      - Packaged start-up ([evidence](validation/M8.2.3-packaged-startup-windows-v0.148.json)): installed or
-        unpacked layout shows the window in 0.4 s; engine ready 2.6–2.95 s warm but 17–20 s on the first launch
-        after building or installing. The NSIS installer installs in 56 s (7,428 files, 614 MB) and uninstalls in
-        7 s leaving nothing behind. The former self-extracting portable `.exe` needed about 51 s to show the window.
-      - Cancellation and memory with the diagnostic job ([evidence](validation/M8.2.3-cancellation-windows-v0.148.json)):
-        acknowledgement 0.7 ms; running-job terminal response 170 ms median (200 ms max); queued job under 1 ms;
-        engine tree 24 MB idle, 47 MB peak. Passes the gates for this diagnostic method only.
-    - **Maintainer decisions of 12 November 2026, implemented on this branch:**
-      - The Windows portable is a ZIP of the program folder (electron-builder `zip` target) instead of the
-        self-extracting `portable` target. Built once (224 MB); its start-up is **not yet measured**.
-      - Launch verification keeps a verified-identity record in the user-data folder and skips content hashing
-        while file identity is unchanged ([evidence](validation/M8.2.3-verification-record-windows-v0.148.json),
-        [technical manual §26.3](TECHNICAL_DOCUMENTATION.md#263-bundled-scientific-runtime)): 4.7 s full,
-        0.18 s with the record, warm file cache. The first launch after installation still verifies everything.
-    - **Portable ZIP measured on Windows** (`tools/measure_packaged_startup.mjs`, ZIP extracted to a temporary
-      folder; evidence: [shared profile](validation/M8.2.3-portable-zip-record-windows-v0.148.json),
-      [fresh profile](validation/M8.2.3-portable-zip-fresh-profile-windows-v0.148.json),
-      [quiet rerun](validation/M8.2.3-portable-zip-rerun-windows-v0.148.json)):
-      - Window visible after about 0.45 s on every launch (the self-extracting build needed 51 s). Close 70–120 ms,
-        exit code 0, no leftover process or temporary folder.
-      - Engine ready: 11.5 s on the first launch after extraction (cold file cache, full verification);
-        0.72–0.79 s on later launches that reuse the verification record; 2.6–3.0 s when every launch verifies
-        everything with a warm cache. The 5 s gate therefore passes for warm launches with or without the record
-        and fails only for the first cold launch.
-      - **Unexplained intermittent failure:** 2 of 12 launches in the first two batches (both the second launch)
-        showed no application page within 120 s and were killed; 0 of 3 in a later rerun with the computer
-        otherwise idle. Those two batches overlapped with heavy disk activity from other work in the same session,
-        which is a possible but unproven cause. The tool now records the stage where waiting fails. Treat this as
-        open until reproduced or cleared by more idle-machine runs.
-      - Extracting the 224 MB ZIP with PowerShell `Expand-Archive` took 57 s (about 613 MB unpacked); the
-        archive has no top-level folder, so users must use "Extract all" into a new folder.
-    - **Idle process tree of the packaged ZIP** ([evidence](validation/M8.2.3-process-tree-windows-v0.148.json),
-      3 launches, shared profile, no project open, engine experiment on): 5 processes under the program folder
-      (Electron processes plus the engine coordinator; the diagnostic worker is not started until a job runs),
-      309–370 MiB summed working set (shared pages are counted once per process, so this overstates real
-      use) and 0.35–1 % of one core when idle. The first launch of this batch, after the machine had been idle,
-      needed 24.7 s to reach engine ready (cold file cache, full verification), against 11.5 s for the first
-      launch in the earlier batch: the cold first launch is 11–25 s and fails the 5 s gate; later launches 0.74–0.76 s.
-      Memory while a job runs and with a project open is not measured.
-    - **Remaining** (see the next steps in the status block):
-      - [x] Portable ZIP start-up measurement (above), except the intermittent failure.
-      - [x] Packaged start-up with the verification record (above: 11.5 s first launch, then 0.72–0.79 s).
-      - [ ] Repeat the ZIP launches several more times on an idle machine to clear or reproduce the intermittent failure.
-      - [x] Electron-plus-engine idle process-tree memory and CPU (above). Still open: with a project open and
-            while a job runs.
-      - [ ] macOS (Intel, Apple Silicon, universal DMG) and Linux (AppImage, DEB) execution.
-      - [ ] Clean-machine runs and other antivirus configurations.
-      - [ ] First-launch cold start (17–20 s) against the 5 s gate: still failing; needs a measured proposal
-            for the maintainer if it remains above the gate after the record is in place.
+  - [x] **M8.2.3 - Packaging and lifecycle acceptance (Windows).** Closed on 12 November 2026 by the maintainer's
+        instruction, on branch `work/2026-11-12` (unreleased; see the changelog's `## Unreleased` entries). Windows
+        installer, portable ZIP, lifecycle, cancellation and process-tree measurements are recorded in the
+        [history](roadmap-history.md#m823---packaging-and-lifecycle-acceptance-windows). The gates it did not
+        meet and the platforms it did not run are carried by M8.2.4, so M8.2 stays open.
+  - [ ] **M8.2.4 - Remaining platform and gate acceptance. Ready.** Carries what M8.2.3 left open. Do not start
+        M8.3 until the maintainer accepts M8.2 or explicitly waives items below.
+    - [ ] **Cold first launch against the 5 s gate.** Measured 11–25 s to engine ready on Windows (full runtime
+          verification with a cold file cache); the window opens in about 0.45 s regardless. Put the options to
+          the maintainer with measurements: start verification at program start-up while the interface is already
+          usable; accept and document a first-launch cost; verify at install time. Do not weaken the integrity
+          check without a decision.
+    - [ ] **Intermittent no-window launch of the portable ZIP** (2 of 12 launches, not reproduced in 3 idle runs):
+          repeat on an idle machine, using the failure-stage diagnostics of `tools/measure_packaged_startup.mjs`.
+    - [ ] **Process tree with a project open and during a job** (idle tree already measured: 5 processes,
+          309–370 MiB, <1 % of one core).
+    - [ ] **macOS (Intel, Apple Silicon, universal DMG) and Linux (AppImage, DEB) execution.** Not possible on
+          the Windows workstation: needs those machines, or a CI run, which requires the maintainer to authorise
+          pushing the branch and a manual *Desktop builds* run with `draft_release=false`.
+    - [ ] **Clean-machine runs and other antivirus configurations.**
+    - Acceptance: each item is measured and recorded, or explicitly waived by the maintainer in this file.
+      M8.2 is marked complete only then.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;

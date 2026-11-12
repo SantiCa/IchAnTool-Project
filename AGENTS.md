@@ -309,12 +309,14 @@ handoff green. No engine implementation change is authorised by the documentatio
 
 ### Next implementation candidate
 
-**M8.2.3 — Packaging and lifecycle acceptance** is in progress on the branch recorded in the
-[roadmap status](docs/roadmap.md#status-and-handoff), which lists the exact next steps and the measurements
-already made (Windows). Use its [criteria](docs/roadmap.md#m8---desktop-simplification-and-a-single-scientific-engine)
-and M8.1's gates. Decisions of 12 November 2026: the Windows portable is a ZIP of the program folder, and
-launch verification keeps a verified-identity record (technical manual §26.3). Commit tools and evidence as
-small deliveries; record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
+**M8.2.3 (Windows packaging and lifecycle acceptance) was closed on 12 November 2026** on the branch recorded in
+the [roadmap status](docs/roadmap.md#status-and-handoff); its measurements are in the
+[history](docs/roadmap-history.md#m823---packaging-and-lifecycle-acceptance-windows). **M8.2.4** carries what it
+left open (cold first launch against the 5 s gate, intermittent ZIP no-window launch, process tree with a project,
+macOS/Linux, clean machine) and must be closed or waived item by item before M8.2 is complete and M8.3 is
+authorised. Decisions of 12 November 2026: the Windows portable is a ZIP of the program folder, and launch
+verification keeps a verified-identity record (technical manual §26.3). Commit tools and evidence as small
+deliveries; record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
 
 **M8.3 comes after this acceptance phase:** the first scientific section slice, including masks, ROI,
 exclusions, overlaps and assignments. Its contract records representation gaps, no-data/manual/age processing
