@@ -268,20 +268,24 @@ legacy/           original version 2.1 (2019), unchanged
 
 ### Experimental local engine (developers)
 
-The first engine transport experiment is desktop-only and off by default. It runs a synthetic buffer-digest
-diagnostic; application scientific calculations still follow the current path. A bundled Python runtime and
-clean-machine support are pending. For development on Windows, use an existing Python 3.10+ executable:
+The engine experiment is desktop-only and off by default. It currently runs a buffer-digest diagnostic;
+application scientific calculations still follow the current path. Desktop builds include a verified Python
+runtime. For development, prepare the native runtime once with a build-time Python 3.12 and pip:
 
 ```powershell
-$env:SEDCORETOOL_ENGINE_EXPERIMENT = '1'
-$env:SEDCORETOOL_ENGINE_PYTHON = 'C:\path\to\python.exe'
 cd desktop
+npm.cmd run prepare-runtime
+$env:SEDCORETOOL_ENGINE_EXPERIMENT = '1'
 npm.cmd start
 ```
 
-The desktop developer console can inspect `await window.corantoolDesktop.engine.status()`. No dependency
-download or training install is performed. To return to the normal launch, close the program and remove both
-environment variables. See [implementation and limits](docs/TECHNICAL_DOCUMENTATION.md#262-experimental-engine-process).
+Preparation downloads only the pinned interpreter/wheels; `npm.cmd run prepare-runtime -- --offline` rebuilds
+from the verified cache. Installed-program startup performs no runtime download or training install and uses
+the included interpreter. Inspect `await window.corantoolDesktop.engine.status()` in the developer console.
+To return to normal launch, close the program and remove `SEDCORETOOL_ENGINE_EXPERIMENT`. An absolute
+`SEDCORETOOL_ENGINE_PYTHON` override remains available only for unverified source-development experiments;
+packaged applications ignore it. Clean-machine and other-platform acceptance remain pending. See
+[implementation and limits](docs/TECHNICAL_DOCUMENTATION.md#263-bundled-scientific-runtime).
 
 ## History and earlier names
 

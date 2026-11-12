@@ -49,17 +49,23 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+      - uses: actions/setup-python@v7
+        with: { python-version: '3.12' }
       - run: npm ci --no-audit --no-fund
       - name: Prepare Electron smoke-test data
         run: npm run prepare-web -- --with-examples
+      - name: Prepare native scientific runtime
+        run: npm run prepare-runtime
       - run: npm i --no-save --package-lock=false puppeteer-core@23
         working-directory: .
       - run: xvfb-run -a node tests/e2e/desktop.mjs
         working-directory: .
         if: runner.os == 'Linux'
+        env: { SEDCORETOOL_ENGINE_EXPERIMENT: '1' }
       - run: node tests/e2e/desktop.mjs
         working-directory: .
         if: runner.os != 'Linux'
+        env: { SEDCORETOOL_ENGINE_EXPERIMENT: '1' }
       - run: npm run dist
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'   # unsigned builds (no paid certificates)

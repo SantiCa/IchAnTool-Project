@@ -1,0 +1,292 @@
+{
+  "schema": 1,
+  "python_version": "3.12.16",
+  "python_release": "20261110",
+  "packages": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "Pillow": "11.3.0",
+    "python-dateutil": "2.9.0.post0",
+    "pytz": "2025.2",
+    "tzdata": "2025.2",
+    "six": "1.17.0"
+  },
+  "targets": {
+    "win32-x64": {
+      "archive": {
+        "filename": "cpython-3.12.16+20261110-x86_64-pc-windows-msvc-install_only.tar.gz",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-x86_64-pc-windows-msvc-install_only.tar.gz",
+        "sha256": "e23fe5b16926de1d81661b1a97352e89fb167549c55a6825796ccd0f32ec7f1b",
+        "size": 47438699
+      },
+      "executable": "python/python.exe",
+      "site_packages": "python/Lib/site-packages",
+      "wheel_platform": "win_amd64",
+      "wheels": [
+        {
+          "name": "numpy",
+          "version": "2.2.6",
+          "filename": "numpy-2.2.6-cp312-cp312-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/36/fa/8c9210162ca1b88529ab76b41ba02d433fd54fecaf6feb70ef9f124683f1/numpy-2.2.6-cp312-cp312-win_amd64.whl",
+          "sha256": "c1f9540be57940698ed329904db803cf7a402f3fc200bfe599334c9bd84a40b2",
+          "size": 12614190
+        },
+        {
+          "name": "pandas",
+          "version": "2.2.3",
+          "filename": "pandas-2.2.3-cp312-cp312-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/29/d4/1244ab8edf173a10fd601f7e13b9566c1b525c4f365d6bee918e68381889/pandas-2.2.3-cp312-cp312-win_amd64.whl",
+          "sha256": "59ef3764d0fe818125a5097d2ae867ca3fa64df032331b7e0917cf5d7bf66b13",
+          "size": 11504248
+        },
+        {
+          "name": "Pillow",
+          "version": "11.3.0",
+          "filename": "pillow-11.3.0-cp312-cp312-win_amd64.whl",
+          "url": "https://files.pythonhosted.org/packages/8c/ce/e7dfc873bdd9828f3b6e5c2bbb74e47a98ec23cc5c74fc4e54462f0d9204/pillow-11.3.0-cp312-cp312-win_amd64.whl",
+          "sha256": "a6444696fce635783440b7f7a9fc24b3ad10a9ea3f0ab66c5905be1c19ccf17d",
+          "size": 6986324
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0",
+          "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427",
+          "size": 229892
+        },
+        {
+          "name": "pytz",
+          "version": "2025.2",
+          "filename": "pytz-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl",
+          "sha256": "5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00",
+          "size": 509225
+        },
+        {
+          "name": "tzdata",
+          "version": "2025.2",
+          "filename": "tzdata-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl",
+          "sha256": "1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8",
+          "size": 347839
+        },
+        {
+          "name": "six",
+          "version": "1.17.0",
+          "filename": "six-1.17.0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl",
+          "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+          "size": 11050
+        }
+      ]
+    },
+    "linux-x64": {
+      "archive": {
+        "filename": "cpython-3.12.16+20261110-x86_64-unknown-linux-gnu-install_only.tar.gz",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-x86_64-unknown-linux-gnu-install_only.tar.gz",
+        "sha256": "c2f87d4b4e8db3abddb0f116c6ccfc503d0cbdbb9ee8faacddad1b679ec12e99",
+        "size": 68163679
+      },
+      "executable": "python/bin/python3.12",
+      "site_packages": "python/lib/python3.12/site-packages",
+      "wheel_platform": "manylinux_2_17_x86_64",
+      "wheels": [
+        {
+          "name": "numpy",
+          "version": "2.2.6",
+          "filename": "numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/8c/3d/1e1db36cfd41f895d266b103df00ca5b3cbe965184df824dec5c08c6b803/numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+          "sha256": "fd83c01228a688733f1ded5201c678f0c53ecc1006ffbc404db9f7a899ac6249",
+          "size": 16527618
+        },
+        {
+          "name": "pandas",
+          "version": "2.2.3",
+          "filename": "pandas-2.2.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/38/f8/d8fddee9ed0d0c0f4a2132c1dfcf0e3e53265055da8df952a53e7eaf178c/pandas-2.2.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+          "sha256": "fffb8ae78d8af97f849404f21411c95062db1496aeb3e56f146f0355c9989319",
+          "size": 12739445
+        },
+        {
+          "name": "Pillow",
+          "version": "11.3.0",
+          "filename": "pillow-11.3.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/8d/33/e9200d2bd7ba00dc3ddb78df1198a6e80d7669cce6c2bdbeb2530a74ec58/pillow-11.3.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+          "sha256": "67172f2944ebba3d4a7b54f2e95c786a3a50c21b88456329314caaa28cda70f6",
+          "size": 7644652
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0",
+          "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427",
+          "size": 229892
+        },
+        {
+          "name": "pytz",
+          "version": "2025.2",
+          "filename": "pytz-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl",
+          "sha256": "5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00",
+          "size": 509225
+        },
+        {
+          "name": "tzdata",
+          "version": "2025.2",
+          "filename": "tzdata-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl",
+          "sha256": "1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8",
+          "size": 347839
+        },
+        {
+          "name": "six",
+          "version": "1.17.0",
+          "filename": "six-1.17.0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl",
+          "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+          "size": 11050
+        }
+      ]
+    },
+    "darwin-x64": {
+      "archive": {
+        "filename": "cpython-3.12.16+20261110-x86_64-apple-darwin-install_only.tar.gz",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-x86_64-apple-darwin-install_only.tar.gz",
+        "sha256": "83f2922437e6d546d0fcdb8c11f150a8e52787e8d9ea8651b1974e20908eb1bc",
+        "size": 25078514
+      },
+      "executable": "python/bin/python3.12",
+      "site_packages": "python/lib/python3.12/site-packages",
+      "wheel_platform": "macosx_10_13_x86_64",
+      "wheels": [
+        {
+          "name": "numpy",
+          "version": "2.2.6",
+          "filename": "numpy-2.2.6-cp312-cp312-macosx_10_13_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/82/5d/c00588b6cf18e1da539b45d3598d3557084990dcc4331960c15ee776ee41/numpy-2.2.6-cp312-cp312-macosx_10_13_x86_64.whl",
+          "sha256": "41c5a21f4a04fa86436124d388f6ed60a9343a6f767fced1a8a71c3fbca038ff",
+          "size": 20875348
+        },
+        {
+          "name": "pandas",
+          "version": "2.2.3",
+          "filename": "pandas-2.2.3-cp312-cp312-macosx_10_9_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/17/a3/fb2734118db0af37ea7433f57f722c0a56687e14b14690edff0cdb4b7e58/pandas-2.2.3-cp312-cp312-macosx_10_9_x86_64.whl",
+          "sha256": "b1d432e8d08679a40e2a6d8b2f9770a5c21793a6f9f47fdd52c5ce1948a5a8a9",
+          "size": 12529893
+        },
+        {
+          "name": "Pillow",
+          "version": "11.3.0",
+          "filename": "pillow-11.3.0-cp312-cp312-macosx_10_13_x86_64.whl",
+          "url": "https://files.pythonhosted.org/packages/40/fe/1bc9b3ee13f68487a99ac9529968035cca2f0a51ec36892060edcc51d06a/pillow-11.3.0-cp312-cp312-macosx_10_13_x86_64.whl",
+          "sha256": "fdae223722da47b024b867c1ea0be64e0df702c5e0a60e27daad39bf960dd1e4",
+          "size": 5278800
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0",
+          "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427",
+          "size": 229892
+        },
+        {
+          "name": "pytz",
+          "version": "2025.2",
+          "filename": "pytz-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl",
+          "sha256": "5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00",
+          "size": 509225
+        },
+        {
+          "name": "tzdata",
+          "version": "2025.2",
+          "filename": "tzdata-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl",
+          "sha256": "1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8",
+          "size": 347839
+        },
+        {
+          "name": "six",
+          "version": "1.17.0",
+          "filename": "six-1.17.0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl",
+          "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+          "size": 11050
+        }
+      ]
+    },
+    "darwin-arm64": {
+      "archive": {
+        "filename": "cpython-3.12.16+20261110-aarch64-apple-darwin-install_only.tar.gz",
+        "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-aarch64-apple-darwin-install_only.tar.gz",
+        "sha256": "e956e60bc9465d577ef8062059aa05cd3a2665b4b8678a2ed24e432368330b8f",
+        "size": 25371130
+      },
+      "executable": "python/bin/python3.12",
+      "site_packages": "python/lib/python3.12/site-packages",
+      "wheel_platform": "macosx_11_0_arm64",
+      "wheels": [
+        {
+          "name": "numpy",
+          "version": "2.2.6",
+          "filename": "numpy-2.2.6-cp312-cp312-macosx_11_0_arm64.whl",
+          "url": "https://files.pythonhosted.org/packages/66/ee/560deadcdde6c2f90200450d5938f63a34b37e27ebff162810f716f6a230/numpy-2.2.6-cp312-cp312-macosx_11_0_arm64.whl",
+          "sha256": "de749064336d37e340f640b05f24e9e3dd678c57318c7289d222a8a2f543e90c",
+          "size": 14119362
+        },
+        {
+          "name": "pandas",
+          "version": "2.2.3",
+          "filename": "pandas-2.2.3-cp312-cp312-macosx_11_0_arm64.whl",
+          "url": "https://files.pythonhosted.org/packages/e1/0c/ad295fd74bfac85358fd579e271cded3ac969de81f62dd0142c426b9da91/pandas-2.2.3-cp312-cp312-macosx_11_0_arm64.whl",
+          "sha256": "a5a1595fe639f5988ba6a8e5bc9649af3baf26df3998a0abe56c02609392e0a4",
+          "size": 11363475
+        },
+        {
+          "name": "Pillow",
+          "version": "11.3.0",
+          "filename": "pillow-11.3.0-cp312-cp312-macosx_11_0_arm64.whl",
+          "url": "https://files.pythonhosted.org/packages/2c/32/7e2ac19b5713657384cec55f89065fb306b06af008cfd87e572035b27119/pillow-11.3.0-cp312-cp312-macosx_11_0_arm64.whl",
+          "sha256": "921bd305b10e82b4d1f5e802b6850677f965d8394203d182f078873851dada69",
+          "size": 4686296
+        },
+        {
+          "name": "python-dateutil",
+          "version": "2.9.0.post0",
+          "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+          "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427",
+          "size": 229892
+        },
+        {
+          "name": "pytz",
+          "version": "2025.2",
+          "filename": "pytz-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl",
+          "sha256": "5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00",
+          "size": 509225
+        },
+        {
+          "name": "tzdata",
+          "version": "2025.2",
+          "filename": "tzdata-2025.2-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/5c/23/c7abc0ca0a1526a0774eca151daeb8de62ec457e77262b66b359c3c7679e/tzdata-2025.2-py2.py3-none-any.whl",
+          "sha256": "1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8",
+          "size": 347839
+        },
+        {
+          "name": "six",
+          "version": "1.17.0",
+          "filename": "six-1.17.0-py2.py3-none-any.whl",
+          "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl",
+          "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+          "size": 11050
+        }
+      ]
+    }
+  }
+}

@@ -15,3 +15,6 @@ examples/U1385I-1H/images/
 
 # V0.15: ONNX Runtime Web copied by desktop/scripts/prepare.js (or by hand for local tests)
 app/vendor/ort/
+
+# Reconstructed from desktop/runtime-lock.json; never commit interpreter binaries or caches.
+desktop/runtime/

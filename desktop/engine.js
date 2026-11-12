@@ -10,6 +10,14 @@ const OPERATIONS = new Set(['hello', 'buffer.begin', 'buffer.chunk', 'buffer.com
 
 function unavailable() { return Object.assign(new Error('ENGINE_UNAVAILABLE'), { code: 'ENGINE_UNAVAILABLE' }); }
 
+async function cleanupScratch(scratch) {
+  const absolute = path.resolve(scratch);
+  if (path.dirname(absolute) === path.resolve(os.tmpdir()) && /^sedcoretool-engine-[a-zA-Z0-9]+$/.test(path.basename(absolute))) {
+    try { await fs.promises.rm(absolute, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
+    catch { /* A failed cleanup must not resurrect a failed session. */ }
+  }
+}
+
 function terminateTree(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null || !Number.isInteger(child.pid)) return;
   if (process.platform === 'win32') {
@@ -39,17 +47,16 @@ class EngineClient {
     catch { this.state = 'unavailable'; throw unavailable(); }
     this.scratchDirectory = scratch;
     const env = { ...process.env }; delete env.PYTHONPATH; delete env.PYTHONHOME;
-    const child = spawn(executable, ['-I', '-u', script, '--version', version, '--runtime-id', runtimeId, '--scratch-dir', scratch], {
-      env, shell: false, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    for (const variable of ['LD_LIBRARY_PATH', 'LD_PRELOAD', 'DYLD_LIBRARY_PATH', 'DYLD_INSERT_LIBRARIES']) delete env[variable];
+    let child;
+    try {
+      child = spawn(executable, ['-I', '-B', '-u', script, '--version', version, '--runtime-id', runtimeId, '--scratch-dir', scratch], {
+        env, shell: false, windowsHide: true, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    } catch { this.state = 'unavailable'; await cleanupScratch(scratch); throw unavailable(); }
     this.child = child;
     this.exited = new Promise((resolve) => child.once('close', async () => {
-      // Only the uniquely created direct child of the temporary root may be removed recursively.
-      const absolute = path.resolve(scratch);
-      if (path.dirname(absolute) === path.resolve(os.tmpdir()) && /^sedcoretool-engine-[a-zA-Z0-9]+$/.test(path.basename(absolute))) {
-        try { await fs.promises.rm(absolute, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
-        catch { /* A failed cleanup must not resurrect a failed session. */ }
-      }
+      await cleanupScratch(scratch);
       resolve();
     }));
     const reader = new ControlReader((value) => this.receive(value));
@@ -146,17 +153,29 @@ class EngineClient {
   }
 }
 
-function createEngineService({ enabled, packaged, executable, sourceDirectory, version }) {
-  let client;
-  if (enabled && !packaged && path.isAbsolute(executable || '')) {
-    client = new EngineClient({ executable, script: path.join(sourceDirectory, 'src', 'sedcoretool', 'engine', 'server.py'), version,
-      runtimeId: require('node:crypto').createHash('sha256').update('unverified-development-runtime').digest('hex') });
-  }
+function createEngineService({ enabled, packaged, executable, sourceDirectory, runtimeDirectory, lockPath, version }) {
+  let client, runtime = null, state = enabled ? 'stopped' : 'disabled', stopped = false;
   return {
-    status: () => ({ enabled, runtime: enabled ? 'unverified-development' : null,
-      ...(client ? client.status() : { state: enabled ? 'unavailable' : 'disabled', protocol: null, methods: [] }) }),
-    start: async () => { if (client) { try { await client.start(); } catch { /* Status reports the failure; current projects remain owned by the renderer. */ } } },
-    stop: async () => { if (client) await client.stop(); },
+    status: () => ({ enabled, runtime, ...(client ? client.status() : { state, protocol: null, methods: [] }) }),
+    start: async () => {
+      if (!enabled) return;
+      stopped = false;
+      state = 'starting';
+      try {
+        let options;
+        if (!packaged && path.isAbsolute(executable || '')) {
+          options = { executable, script: path.join(sourceDirectory, 'src', 'sedcoretool', 'engine', 'server.py'),
+            runtimeId: require('node:crypto').createHash('sha256').update('unverified-development-runtime').digest('hex'), runtime: 'unverified-development' };
+        } else {
+          options = await require('./engine-runtime').loadRuntime({ runtimeDirectory, sourceDirectory: path.join(sourceDirectory, 'src'), lockPath, version });
+        }
+        if (stopped) return;
+        runtime = options.runtime;
+        client = new EngineClient({ ...options, version });
+        await client.start();
+      } catch { if (client) await client.stop(); client = null; state = stopped ? 'stopped' : 'unavailable'; }
+    },
+    stop: async () => { stopped = true; state = 'stopped'; if (client) await client.stop(); },
   };
 }
 

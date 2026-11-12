@@ -49,8 +49,9 @@ The scriptable Python package remains a supported interface to the same engine, 
 | 8 | Conditional acceleration and remaining backlog | M4.1, remaining audit/validation/release tasks |
 
 M8.1's inventory and contract are delivered in [V0.141](../CHANGELOG.md#v0141--2026-11-12).
-M8.2 is in progress: V0.142 delivers the first development-only process/transport slice. Packaged runtime and
-clean-machine/platform acceptance remain pending; the scientific interface still uses its existing calculations.
+M8.2 is in progress: V0.142 delivers the process/transport foundation; V0.143 adds locked runtime resources,
+integrity verification and native/package checks. Clean-machine/platform acceptance remains pending; the
+scientific interface still uses its existing calculations.
 Assign editor/reviewer at each implementation handoff. Fixes required to preserve data or satisfy a phase's
 acceptance criteria stay within that phase; unrelated refactors wait. Publication and 1.0 remain owner decisions.
 
@@ -101,10 +102,25 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
       saves, renderer crash recovery and foreign-origin IPC rejection. No cross-platform/clean-machine or
       total-process performance gate is claimed passed. Local `master` commit; an authorised push is needed
       for a GitHub handoff. Next editor starts M8.2.2; large commit-verification scheduling remains a load gate.
-    - [ ] **M8.2.2 - Reproducible runtime bundle. Next.** Choose and test 64-bit runtime/minimal dependency
+    - [x] **M8.2.2 - Reproducible runtime bundle**, [V0.143](../CHANGELOG.md#v0143--2026-11-12). Choose and test 64-bit runtime/minimal dependency
       constraints and checksums under M3.2.4; include them in per-platform desktop resources, support the macOS
       architecture layout, verify runtime identity and eliminate the development-interpreter dependency.
-    - [ ] **M8.2.3 - Packaging and lifecycle acceptance.** Verify offline portable/installed startup on clean
+      Authorised by the maintainer's instruction to continue on 12 November 2026. Editor: Codex; author-run
+      checks, no independent reviewer assigned. Four target artifact sets are pinned in `desktop/runtime-lock.json`;
+      builds stage the runtime, minimal dependencies and full inventories, while launch verifies runtime/source
+      identity and ignores system Python in packaged mode. The macOS layout retains separate Intel/ARM resources.
+      Native Windows scientific/image checks, repeated offline reconstruction and relocated packaged-resource
+      startup/worker checks are recorded in [delivery evidence](validation/M8.2.2-v0.143.json). macOS/Linux runtime
+      execution and installer/clean-machine acceptance are not certified by the Windows checks; they stay in
+      M8.2.3. The public API and optional trainer environment remain unchanged; base-runtime update policy is
+      documented in SECURITY.md and §26.3 of the technical manual. The default-off flag remains in place.
+      Delivery checks: 355 Python tests passed (six existing optional/permission skips), 232 Node tests,
+      types without new diagnostics, Ruff, version/whitespace and standalone build. Windows unpacked build
+      and packaged startup/worker passed; Electron save/recovery E2E passed with the bundled runtime and
+      PATH excluding user Python. Runtime reconstruction retained identical manifests from the verified cache.
+      The commit is local on `master`; GitHub/CI retrieval requires an authorised push. Next: M8.2.3, including
+      native other-platform execution, installers/clean machines and cold verification/startup measurements.
+    - [ ] **M8.2.3 - Packaging and lifecycle acceptance. Ready.** Verify offline portable/installed startup on clean
       Windows, macOS and Linux, lifecycle under load, CPU/RAM accounting, process-tree cleanup and project
       preservation. Keep the flag off; do not mark M8.2 complete from development protocol tests alone.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's

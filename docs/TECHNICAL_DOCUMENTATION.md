@@ -2711,7 +2711,7 @@ import/export interfaces and their locale-dependent automatic conversions are no
 
 ## 26. Desktop program
 
-Code: `desktop/` (Electron 45.2.1, packaged with electron-builder 26.18.0).
+Code: `desktop/` (Electron 45.2.2, packaged with electron-builder 26.18.0).
 
 - **What it runs:** the `app/` code, served through the private scheme `app://` (so ES modules, IndexedDB and fetch
   work as on a web server), plus the Natural Earth coastline used by maps. Downloads contain no sample data.
@@ -2796,15 +2796,15 @@ windows can finish loading without a redundant navigation through the desktop cl
 
 Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-protocol.js` (framing),
 `src/sedcoretool/engine/{protocol,buffers,server,worker}.py` (standard-library coordinator, staged data and
-isolated diagnostic worker). This development-only experiment is disabled unless
-`SEDCORETOOL_ENGINE_EXPERIMENT=1`. It also requires an absolute `SEDCORETOOL_ENGINE_PYTHON` executable path.
-Packaged applications report unavailable rather than using a user's interpreter: a verified runtime bundle is
-not implemented yet. The browser and standalone file do not launch a process. No scientific calculation has
+isolated diagnostic worker). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
+It uses the verified bundled runtime (§26.3), or an explicitly selected absolute `SEDCORETOOL_ENGINE_PYTHON`
+path in source development only. A missing or invalid bundle reports unavailable; packaged applications never
+use that override or search for a user's interpreter. The browser and standalone file do not launch a process. No scientific calculation has
 moved to Python through this bridge; current analysis and save ownership are unchanged.
 
-Main launches the fixed prepared server script with `-I -u`, an argument array and private pipes, with no shell
+Main launches the fixed prepared server script with `-I -B -u`, an argument array and private pipes, with no shell
 or listening service. `window.corantoolDesktop.engine.status()` exposes only enablement, state, protocol,
-method names and development-runtime status. IPC validates the application origin; the page cannot supply
+method names and runtime status. IPC validates the application origin; the page cannot supply
 commands, paths or raw operations. Disabled mode creates no process. Main starts the experiment independently
 of window loading, reports failure through status and waits for shutdown before quitting.
 
@@ -2839,15 +2839,98 @@ Main's handshake/control deadline is 5 s; shutdown requests have a 1.5 s deadlin
 termination if exit does not follow within a further 1.5 s. Errors exposed by the client are fixed codes;
 input data, paths and tracebacks are not forwarded. Stderr capture is off in the desktop service; test-only
 clients may retain a bounded 64 KiB tail. Native math thread environment limits are set before worker startup
-to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity is
-explicitly unverified development identity, not a checksum-certified Python distribution.
+to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity
+distinguishes `bundled-verified` from `unverified-development`; only the former uses the resource manifest.
 
 The [M8.1 contract](roadmap-engine-contract.md) specifies later scientific inputs/results and predeclared
 acceptance gates. Current transport/worker regression tests exercise corruption, admission, cancellation,
-failure, cleanup and restart. Packaging, complete process-tree memory/latency measurements and clean-machine
+failure, cleanup and restart. Complete process-tree memory/latency measurements and clean-machine
 platform acceptance remain roadmap work, not passed performance gates.
 Commit verification currently runs in the coordinator over bounded files; cancellation responsiveness during
 large-file hashing/metadata validation still needs the M8.2.3 load checks and any required scheduling changes.
+
+### 26.3 Bundled scientific runtime
+
+Implementation: `desktop/runtime-lock.json`, `tools/prepare_engine_runtime.py`,
+`tools/check_engine_runtime.py`, `desktop/engine-runtime.js`, and desktop prepare/build/package-check scripts.
+The base is CPython **3.12.16**, Astral python-build-standalone release **20261110**, using `install_only`
+archives. Pinned wheels: NumPy 2.2.6, pandas 2.2.3, Pillow 11.3.0, python-dateutil 2.9.0.post0, pytz 2025.2,
+tzdata 2025.2 and six 1.17.0. These packaging constraints do not narrow the public package's declared version
+ranges or alter the optional trainer environment. Torch, ONNX Runtime and segmentation-models-pytorch are
+absent from the base. NumPy/pandas/Pillow already provide the scientific package dependencies;
+no new numerical framework or installer dependency is added to the program.
+The upstream interpreter retains its own pip (26.3 in this build); the application does not invoke it to
+install or update packages. Windows validation inventories 7,326 runtime files totalling 249,424,293 bytes
+(excluding the manifest, application and filesystem allocation). This is a distribution-size measurement,
+not a RAM/performance result; its manifest hash and reproduction checks are recorded with the evidence below.
+
+The selected distribution supplies a relocatable interpreter/standard library across the four target triples;
+the [upstream documentation](https://docs.astral.sh/python-build-standalone/running/) describes its runtime
+requirements and included notices. A system-Python dependency fails the portable requirement; the official
+Windows embeddable archive alone does not supply matching Linux/macOS resources. Freezing the engine into a
+new executable would add a packager and its native-extension hooks. This approach reuses the process boundary
+and standard wheels, retaining upstream runtime files/notices. It increases download/disk size; it does not
+imply that all libraries are loaded into RAM at startup or claim a speedup.
+
+| Resource directory | Interpreter | Distribution |
+|---|---|---|
+| `engine-runtime/win32-x64` | `python/python.exe` | x86_64-pc-windows-msvc |
+| `engine-runtime/linux-x64` | `python/bin/python3.12` | x86_64-unknown-linux-gnu |
+| `engine-runtime/darwin-x64` | `python/bin/python3.12` | x86_64-apple-darwin |
+| `engine-runtime/darwin-arm64` | `python/bin/python3.12` | aarch64-apple-darwin |
+
+Windows/Linux builds include their x64 directory. The universal macOS layout includes both interpreter trees
+unchanged; `process.arch` selects the matching one, including Intel execution under Rosetta. The narrow
+`x64ArchFiles` rule preserves identical Mach-O resources across the two app halves rather than merging the
+fixed interpreters with lipo. Native execution of the other architecture and minimum supported OS versions
+still require platform acceptance; a cross-assembled resource is not a native validation result.
+
+**Preparation.** `npm run prepare-runtime` copies the current application sources and runs the build-only
+Python tool. `npm run dist` prepares the required target(s) automatically; `node scripts/build.js --dir`
+builds an unpacked application for checking. Builders need Python 3.12/pip; installed users do not. Build-time
+downloads use only locked HTTPS URLs and exact sizes/SHA-256 hashes. Verified files are cached under
+`.venv/runtime-downloads`; `--offline` (or `SEDCORETOOL_RUNTIME_OFFLINE=1` for a desktop build) forbids downloads.
+Corrupt cached bytes cause failure without being silently replaced. No “latest” lookup occurs during builds.
+
+Extraction preflights paths, member types, <=50,000 members, <=256 MiB per file and <=2 GiB expanded bytes,
+then uses Python's data extraction filter to constrain links. Pip installs exact local wheels with
+`--no-index --no-deps --require-hashes --no-compile` and explicit platform/ABI tags, including cross-architecture
+macOS assembly. Generated package CLI launchers with host-specific interpreter paths and their RECORD rows
+are removed. Upstream interpreter and wheel licence notices are retained. Staging is private and guarded
+per target; a failed replacement restores the previous complete resource directory rather than merging partial
+files. Successful preparation writes an inventory manifest and moves the complete directory into place.
+Runtime binaries/cache are ignored by Git.
+
+**Identity and launch.** Each manifest binds target, application/Python/dependency versions, exact lock hash,
+whether a native check ran, and SHA-256/size inventories of runtime files and prepared Python sources.
+Relative symlinks must resolve inside the runtime. Main validates the selected manifest (<=8 MiB), versions,
+all listed bytes and the absence of extra files before launching. Verification streams file hashes with at
+most two concurrent readers; traversal is capped at 50,000 entries and 2 GiB of file data. The SHA-256 of
+manifest bytes is the protocol runtime ID. Missing files, modified sources, extra `.pth` files, wrong versions
+or unsupported targets fail closed. These checks detect mismatches against trusted application resources;
+they are not a signing or hostile-OS guarantee.
+
+Main reads the packaged lock from the application archive and uses `resources/python/src` for engine source.
+Interpreter and worker run with `-I -B`, preventing user-site/PYTHONPATH injection and bytecode writes into
+immutable resources. Main removes external native-library preload/search overrides. Resource verification
+runs asynchronously without holding window creation; quitting during verification prevents a later spawn.
+Launch/retry never install packages, download data or fall back to a system interpreter. The experiment stays
+off by default and still advertises only `buffer.digest/1`.
+
+**Validation and updates.** Native preparation checks 64-bit/version/dependency identity, absence of training
+libraries, interval percentages/indices, overlaps, exclusions, 20 fixed fractional-boundary cases, the v2.1
+reference result (1e-9 absolute depth/percentage tolerance and exact indices), and exact PNG/TIFF uint16 round
+trips. The check removes Python/native-library overrides and restricts PATH. Package inspection rechecks
+archived client/lock bytes, resource/source inventories and native engine startup with a restricted PATH.
+This verifies resource relocation without claiming a clean machine. CI prepares native resources and checks
+Electron/packages on its configured platforms; local Windows results do not certify unexecuted macOS/Linux
+jobs. See [recorded delivery evidence](validation/M8.2.2-v0.143.json).
+
+Updates require an explicit lock change, upstream hashes, rebuilt native resources and scientific/image/
+lifecycle/package checks on each target. There is no automatic update. Follow the
+[runtime update policy](../SECURITY.md#desktop-scientific-runtime); keep optional trainer constraints separate
+under M3.2.4. M8.2.3 retains clean-machine/installer and cross-platform acceptance, resource measurements and
+large commit-verification scheduling gates.
 
 ## 27. Offline single file
 

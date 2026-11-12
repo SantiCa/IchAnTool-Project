@@ -1,0 +1,74 @@
+"""Native, offline smoke check of a prepared runtime and the existing public analysis API."""
+
+import argparse
+import importlib.metadata
+import importlib.util
+import io
+import json
+import struct
+import sys
+from pathlib import Path
+
+
+def check(source, lock):
+    expected = json.loads(lock.read_bytes())
+    if '.'.join(map(str, sys.version_info[:3])) != expected['python_version'] or struct.calcsize('P') != 8:
+        raise ValueError('Runtime version/architecture mismatch')
+    for package, version in expected['packages'].items():
+        if importlib.metadata.version(package) != version:
+            raise ValueError(f'Runtime dependency mismatch: {package}')
+    if any(importlib.util.find_spec(name) is not None for name in ('torch', 'onnxruntime', 'segmentation_models_pytorch')):
+        raise ValueError('Optional training dependencies found in the base runtime')
+    sys.path.insert(0, str(source.resolve()))
+    import numpy as np
+    from PIL import Image
+
+    from sedcoretool import analyze_image, analyze_mask
+    from sedcoretool.pipeline import bin_edges
+
+    mask = np.zeros((20, 10), dtype=np.uint8)
+    mask[:10, :5] = 1
+    frame = analyze_mask(mask, 0, 20, bin_px=10).data
+    np.testing.assert_array_equal(frame['bioturbation_pct'], [50, 0])
+    np.testing.assert_array_equal(frame['BI'], [3, 0])
+    np.testing.assert_array_equal(frame['ii'], [4, 1])
+    layers = np.zeros((2, 2, 2), dtype=bool)
+    layers[0, :, 0] = True
+    layers[1, 0, :] = True
+    overlap = analyze_mask(layers, 0, 2, bin_px=2, class_names=['a', 'b']).data
+    np.testing.assert_array_equal(overlap[['bioturbation_pct', 'a_pct', 'b_pct']], [[75, 50, 50]])
+    excluded = analyze_mask(mask, 0, 20, bin_px=10, exclude=mask.astype(bool)).data
+    np.testing.assert_array_equal(excluded['bioturbation_pct'], [0, 0])
+    root = Path(__file__).resolve().parents[1]
+    for case in json.loads((root / 'tests/fixtures/fractional-boundaries.json').read_bytes()):
+        section = analyze_mask(np.zeros((case['rows'], 1), dtype=np.uint8), case['top'], case['bottom'],
+                               units=case['units'], bin_cm=case['bin_cm'])
+        if section.bin_px != case['bin_px'] or bin_edges(case['rows'], section.bin_px) != list(zip(case['edges'], case['edges'][1:])):
+            raise ValueError('Fractional boundary regression')
+    for extension in ('PNG', 'TIFF'):
+        output = io.BytesIO()
+        original = np.array([[0, 65535], [256, 32768]], dtype=np.uint16)
+        Image.fromarray(original).save(output, format=extension)
+        output.seek(0)
+        np.testing.assert_array_equal(np.asarray(Image.open(output)), original)
+    # Exercise the public v2.1 reference when run from a source checkout; it is not shipped as user data.
+    legacy = root / 'legacy/v2.1_console'
+    if (legacy / 'example_output.csv').exists():
+        import pandas as pd
+
+        reference = pd.read_csv(legacy / 'example_output.csv')
+        result = analyze_image(root / 'examples/data/idealized_core_0-500cm.jpg', 0, 500, bin_px=150).data.iloc[:len(reference)]
+        np.testing.assert_allclose(result['depth'], reference['Depth'], atol=1e-9, rtol=0)
+        np.testing.assert_allclose(result['bioturbation_pct'], reference['Bioturbation Percentage'], atol=1e-9, rtol=0)
+        np.testing.assert_array_equal(result['BI'], reference['BI'])
+        np.testing.assert_array_equal(result['ii'], reference['II'])
+    print(json.dumps({'python': expected['python_version'], 'bits': 64, 'packages': expected['packages'],
+                      'fractional_fixtures': 20, 'image_roundtrips': ['PNG-u16', 'TIFF-u16'], 'scientific_smoke': 'passed'}))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source', type=Path, required=True)
+    parser.add_argument('--lock', type=Path, required=True)
+    options = parser.parse_args()
+    check(options.source, options.lock)

@@ -58,7 +58,10 @@ if (process.versions.electron) {
   const { app, BrowserWindow, protocol, net, shell, session, ipcMain, dialog } = require('electron');
   const fromApp = (event) => Boolean(event?.senderFrame && resolveAppPath(event.senderFrame.url));
   const engine = createEngineService({ enabled: process.env.SEDCORETOOL_ENGINE_EXPERIMENT === '1', packaged: app.isPackaged,
-    executable: process.env.SEDCORETOOL_ENGINE_PYTHON, sourceDirectory: path.join(__dirname, 'python'), version: app.getVersion() });
+    executable: process.env.SEDCORETOOL_ENGINE_PYTHON,
+    sourceDirectory: app.isPackaged ? path.join(process.resourcesPath, 'python') : path.join(__dirname, 'python'),
+    runtimeDirectory: app.isPackaged ? path.join(process.resourcesPath, 'engine-runtime') : path.join(__dirname, 'runtime'),
+    lockPath: path.join(__dirname, 'runtime-lock.json'), version: app.isPackaged ? app.getVersion() : require('./package.json').version });
 
   const heapMB = Math.max(2048, Math.min(32768, Math.floor((os.totalmem() / 2 ** 20) * 0.75)));
   app.commandLine.appendSwitch('js-flags', `--max-old-space-size=${heapMB}`);

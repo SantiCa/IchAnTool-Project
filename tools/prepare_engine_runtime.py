@@ -1,0 +1,237 @@
+"""Build hash-locked, relocatable desktop Python resources; never runs in the installed app."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+from pathlib import Path, PurePosixPath
+from uuid import uuid4
+
+ROOT = Path(__file__).resolve().parents[1]
+LOCK = ROOT / 'desktop/runtime-lock.json'
+OUTPUT = ROOT / 'desktop/runtime'
+CACHE = ROOT / '.venv/runtime-downloads'
+MAX_EXPANDED = 2 * 1024**3
+MAX_MEMBERS = 50_000
+
+
+def native_target():
+    architecture = {'AMD64': 'x64', 'x86_64': 'x64', 'arm64': 'arm64', 'aarch64': 'arm64'}.get(platform.machine())
+    return f'{sys.platform}-{architecture}'
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        while block := stream.read(1024**2):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def safe_relative(value):
+    if not isinstance(value, str) or not value or '\\' in value or ':' in value or '\0' in value:
+        raise ValueError('Invalid resource path')
+    path = PurePosixPath(value)
+    if path.is_absolute() or any(part in ('', '.', '..') for part in value.split('/')):
+        raise ValueError('Invalid resource path')
+    return path
+
+
+def download_artifact(artifact, cache, *, offline=False):
+    filename = artifact['filename']
+    if len(safe_relative(filename).parts) != 1 or not re.fullmatch('[0-9a-f]{64}', artifact['sha256']):
+        raise ValueError('Invalid artifact descriptor')
+    if type(artifact['size']) is not int or not 0 < artifact['size'] <= 256 * 1024**2:
+        raise ValueError('Invalid artifact size')
+    if not artifact['url'].startswith(('https://github.com/astral-sh/python-build-standalone/releases/download/',
+                                       'https://files.pythonhosted.org/')):
+        raise ValueError('Untrusted artifact origin')
+    cache.mkdir(parents=True, exist_ok=True)
+    target = cache / filename
+    if target.exists():
+        if target.stat().st_size == artifact['size'] and sha256_file(target) == artifact['sha256']:
+            return target
+        raise ValueError(f'Cached artifact failed verification: {filename}')
+    if offline:
+        raise ValueError(f'Artifact not cached: {filename}')
+    temporary = cache / f'.download-{uuid4().hex}'
+    try:
+        request = urllib.request.Request(artifact['url'], headers={'User-Agent': 'SedCoreTool-runtime-builder'})
+        with urllib.request.urlopen(request, timeout=30) as response, temporary.open('xb') as output:
+            length = 0
+            while block := response.read(1024**2):
+                length += len(block)
+                if length > artifact['size']:
+                    raise ValueError('Download exceeds locked size')
+                output.write(block)
+        if temporary.stat().st_size != artifact['size'] or sha256_file(temporary) != artifact['sha256']:
+            raise ValueError(f'Download failed verification: {filename}')
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return target
+
+
+def extract_runtime(archive, destination):
+    """Reject oversized/path-escaping archives before extracting the verified distribution."""
+    with tarfile.open(archive, 'r:gz') as source:
+        members, expanded, seen = [], 0, set()
+        for member in source:
+            normalized = member.name.rstrip('/')
+            relative = safe_relative(normalized)
+            if relative.parts[0] != 'python' or normalized in seen:
+                raise ValueError('Unexpected archive member')
+            seen.add(normalized)
+            expanded += member.size
+            if len(members) >= MAX_MEMBERS or expanded > MAX_EXPANDED or member.size > 256 * 1024**2:
+                raise ValueError('Expanded runtime limit')
+            if not (member.isfile() or member.isdir() or member.issym() or member.islnk()):
+                raise ValueError('Unsupported archive member')
+            members.append(member)
+        # Python 3.12's data filter validates links against the actual extraction root too.
+        source.extractall(destination, members=members, filter='data')
+
+
+def install_wheels(specification, artifacts, destination, *, runner=subprocess.run):
+    requirements = destination / 'requirements.lock'
+    requirements.write_text(''.join(f"{wheel['name']}=={wheel['version']} --hash=sha256:{wheel['sha256']}\n"
+                                    for wheel in specification['wheels']), encoding='utf-8')
+    wheels = destination / '.wheels'
+    wheels.mkdir()
+    for artifact in artifacts:
+        shutil.copyfile(artifact, wheels / artifact.name)
+    try:
+        runner([sys.executable, '-m', 'pip', 'install', '--isolated', '--disable-pip-version-check', '--no-index',
+                '--no-deps', '--only-binary=:all:', '--no-compile', '--require-hashes',
+                '--platform', specification['wheel_platform'], '--python-version', '3.12', '--implementation', 'cp', '--abi', 'cp312',
+                '--target', str(destination / specification['site_packages']), '--find-links', str(wheels), '-r', str(requirements)],
+               check=True, timeout=180)
+        # Host pip generates launchers with host/staging paths. The desktop imports these packages;
+        # their developer command-line launchers are not part of the relocatable engine product.
+        site_packages = destination / specification['site_packages']
+        for name in ('bin', 'Scripts'):
+            scripts = site_packages / name
+            if scripts.exists():
+                if scripts.is_symlink() or scripts.parent.resolve() != site_packages.resolve():
+                    raise ValueError('Invalid generated script directory')
+                shutil.rmtree(scripts)
+        for record in site_packages.glob('*.dist-info/RECORD'):
+            with record.open(encoding='utf-8', newline='') as input_stream:
+                rows = list(csv.reader(input_stream))
+            rows = [row for row in rows if row and not row[0].startswith(('../../bin/', '../../Scripts/'))]
+            with record.open('w', encoding='utf-8', newline='') as output:
+                csv.writer(output, lineterminator='\n').writerows(rows)
+    finally:
+        shutil.rmtree(wheels)
+
+
+def file_inventory(directory):
+    entries = []
+    total = 0
+    for item in sorted(directory.rglob('*')):
+        relative = item.relative_to(directory).as_posix()
+        if item.is_symlink():
+            if not item.resolve().is_relative_to(directory.resolve()):
+                raise ValueError('Runtime symlink escapes resource root')
+            entries.append({'path': relative, 'link': os.readlink(item)})
+        elif item.is_file():
+            size = item.stat().st_size
+            total += size
+            if total > MAX_EXPANDED:
+                raise ValueError('Runtime size limit')
+            entries.append({'path': relative, 'size': size, 'sha256': sha256_file(item)})
+        if len(entries) > MAX_MEMBERS:
+            raise ValueError('Runtime inventory limit')
+    return entries
+
+
+def source_inventory(directory):
+    return file_inventory(directory)
+
+
+def publish_directory(staging, target):
+    """Recover the previous complete resource if promotion fails; never merge partial builds."""
+    if staging.parent.resolve() != target.parent.resolve() or staging.is_symlink() or target.is_symlink():
+        raise ValueError('Invalid runtime publication root')
+    backup = target.with_name(f'.previous-{target.name}-{uuid4().hex}')
+    had_target = target.exists()
+    if had_target:
+        os.replace(target, backup)
+    try:
+        os.replace(staging, target)
+    except OSError:
+        if had_target:
+            os.replace(backup, target)
+        raise
+    if had_target:
+        shutil.rmtree(backup)
+
+
+def prepare(target, *, offline=False, output=OUTPUT, cache=CACHE):
+    lock_bytes = LOCK.read_bytes()
+    lock = json.loads(lock_bytes)
+    specification = lock['targets'][target]
+    archive = download_artifact(specification['archive'], cache, offline=offline)
+    wheels = [download_artifact(wheel, cache, offline=offline) for wheel in specification['wheels']]
+    sources = ROOT / 'desktop/python/src'
+    if not (sources / 'sedcoretool/engine/server.py').is_file():
+        raise ValueError('Run desktop/scripts/prepare.js before preparing the runtime')
+    output.mkdir(parents=True, exist_ok=True)
+    guard = output / f'.{target}.lock'
+    descriptor = os.open(guard, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        with tempfile.TemporaryDirectory(prefix=f'.stage-{target}-', dir=output) as temporary:
+            staging = Path(temporary) / target
+            staging.mkdir()
+            extract_runtime(archive, staging)
+            install_wheels(specification, wheels, staging)
+            native = target == native_target()
+            if native:
+                environment = os.environ.copy()
+                environment['PATH'] = str(Path(environment.get('SystemRoot', 'C:/Windows')) / 'System32') if sys.platform == 'win32' else '/usr/bin:/bin'
+                for variable in ('PYTHONHOME', 'PYTHONPATH', 'LD_LIBRARY_PATH', 'LD_PRELOAD', 'DYLD_LIBRARY_PATH', 'DYLD_INSERT_LIBRARIES'):
+                    environment.pop(variable, None)
+                subprocess.run([str(staging / specification['executable']), '-I', '-B', str(ROOT / 'tools/check_engine_runtime.py'),
+                                '--source', str(sources), '--lock', str(LOCK)], check=True, timeout=60, env=environment)
+            manifest = {'schema': 1, 'target': target, 'python_version': lock['python_version'], 'packages': lock['packages'],
+                        'lock_sha256': hashlib.sha256(lock_bytes).hexdigest(), 'application_version': json.loads(
+                            (ROOT / 'desktop/package.json').read_text(encoding='utf-8'))['version'],
+                        'executable': specification['executable'], 'native_check': native,
+                        'sources': source_inventory(sources), 'files': file_inventory(staging)}
+            (staging / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+            # Publish from a direct sibling so failure recovery cannot cross a filesystem boundary.
+            promoted = output / f'.ready-{target}-{uuid4().hex}'
+            os.replace(staging, promoted)
+            try:
+                publish_directory(promoted, output / target)
+            finally:
+                if promoted.exists():
+                    shutil.rmtree(promoted)
+    finally:
+        os.close(descriptor)
+        guard.unlink()
+    print(f'Runtime ready: {target}; native check: {native}')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--target', action='append', choices=list(json.loads(LOCK.read_bytes())['targets']))
+    parser.add_argument('--offline', action='store_true', help='Use only already verified cached artifacts')
+    args = parser.parse_args()
+    for target in args.target or [native_target()]:
+        prepare(target, offline=args.offline)
+
+
+if __name__ == '__main__':
+    main()

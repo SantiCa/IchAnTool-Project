@@ -328,27 +328,42 @@ test('failed reference flushing leaves the last complete reference active', asyn
   assert.equal(trainer.unfinished(name), true);
 });
 
-test('desktop packaging includes every module needed to load its entry point', (t) => {
-  const directory = mkdtempSync(path.join(tmpdir(), 'sedcoretool-packaging-'));
-  t.after(() => {
-    assert.equal(path.dirname(path.resolve(directory)), path.resolve(tmpdir()));
-    fs.rmSync(directory, { recursive: true, force: true });
-  });
+function desktopBuildConfig(platform) {
   const desktop = fileURLToPath(new URL('../../desktop/', import.meta.url));
   let config;
   vm.runInNewContext(fs.readFileSync(path.join(desktop, 'scripts', 'build.js'), 'utf8'), {
     __dirname: path.join(desktop, 'scripts'), console: { log() {}, error() {} },
+    process: { platform, execPath: process.execPath, env: {}, argv: [] },
     require: (name) => {
-      if (name === 'node:child_process') return { execSync() {} };
+      if (name === 'node:child_process') return { execFileSync() {} };
       if (name === 'node:fs') return { readFileSync: () => 'V0.130' };
       if (name === 'node:path') return path;
       if (name === 'electron-builder') return { build(options) { config = options.config; return Promise.resolve([]); } };
       throw new Error('Unexpected build dependency: ' + name);
     },
   });
+  return { config, desktop };
+}
+
+test('desktop packaging includes every module needed to load its entry point', (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'sedcoretool-packaging-'));
+  t.after(() => {
+    assert.equal(path.dirname(path.resolve(directory)), path.resolve(tmpdir()));
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  const { config, desktop } = desktopBuildConfig('win32');
   for (const file of config.files.filter((file) => file.endsWith('.js') || file === 'package.json')) {
     fs.copyFileSync(path.join(desktop, file), path.join(directory, file));
   }
   const packaged = createRequire(import.meta.url)(path.join(directory, 'main.js'));
   assert.equal(typeof packaged.handleAppRequest, 'function');
+});
+
+test('desktop resources select one native x64 runtime or both fixed macOS architectures', () => {
+  for (const [platform, targets] of [['win32', ['win32-x64']], ['linux', ['linux-x64']], ['darwin', ['darwin-x64', 'darwin-arm64']]]) {
+    const { config } = desktopBuildConfig(platform);
+    assert.deepEqual(Array.from(config.extraResources.filter((entry) => entry.to.startsWith('engine-runtime/')), (entry) => entry.to),
+      targets.map((target) => `engine-runtime/${target}`));
+  }
+  assert.equal(desktopBuildConfig('darwin').config.mac.x64ArchFiles, 'Contents/Resources/engine-runtime/**');
 });

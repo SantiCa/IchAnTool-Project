@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.143 — 2026-11-12
+
+- Include a hash-locked portable CPython runtime and minimal scientific dependencies in desktop builds, selected by operating system and architecture, with separate Intel and Apple Silicon resources in the universal macOS layout.
+- Verify the runtime, dependency inventory and application sources before starting the experimental engine; reject damaged or mismatched resources without using another Python installation.
+- Add offline runtime reconstruction, native scientific/image checks and packaged-resource startup checks. The engine experiment remains disabled by default; scientific UI migration and clean-machine/platform acceptance are still pending.
+
 ## V0.142 — 2026-11-12
 
 - Add the first experimental desktop engine process boundary, disabled by default, with bounded binary transfers, verified immutable buffers, cancellation and process-failure recovery.

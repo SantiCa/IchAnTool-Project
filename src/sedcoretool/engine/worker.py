@@ -20,7 +20,7 @@ class DigestJob:
         self.result = None
         self.drained = threading.Event()
         self.process = subprocess.Popen(
-            [sys.executable, '-I', '-u', str(script or Path(__file__).resolve()), str(source), str(self.cancel_path)],
+            [sys.executable, '-I', '-B', '-u', str(script or Path(__file__).resolve()), str(source), str(self.cancel_path)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0,
         )

@@ -1,0 +1,74 @@
+{
+  "schema": 1,
+  "delivery": "V0.143",
+  "date": "2026-11-12",
+  "target": "win32-x64",
+  "environment": {
+    "os": "Windows 11 10.0.26300",
+    "build_python": "3.12.4",
+    "bundled_python": "3.12.16",
+    "node": "22.23.4",
+    "electron": "45.2.2"
+  },
+  "lock_sha256": "03f104bdfdbdce5280462422ed3cace770f16d410ab765dade8daa72f12da851",
+  "packages": {
+    "numpy": "2.2.6",
+    "pandas": "2.2.3",
+    "Pillow": "11.3.0",
+    "python-dateutil": "2.9.0.post0",
+    "pytz": "2025.2",
+    "tzdata": "2025.2",
+    "six": "1.17.0"
+  },
+  "runtime_inventory": {
+    "manifest_sha256": "1f7579696b91ce72f44eef1e912d22a2ae55394abedce78398979e120eee7185",
+    "files": 7326,
+    "file_bytes": 249424293,
+    "source_files": 23
+  },
+  "offline_reconstruction": {
+    "observed_equal_manifest_sha256": [
+      "1f7579696b91ce72f44eef1e912d22a2ae55394abedce78398979e120eee7185",
+      "1f7579696b91ce72f44eef1e912d22a2ae55394abedce78398979e120eee7185"
+    ],
+    "prepared_and_packaged_manifest_equal": true,
+    "dependency_downloads_during_rebuild": false
+  },
+  "checks": {
+    "python_tests": {
+      "passed": 355,
+      "skipped": 6
+    },
+    "node_tests": {
+      "passed": 232,
+      "failed": 0
+    },
+    "javascript_types": "no new diagnostics (879 existing; 205 resolved baseline entries)",
+    "native_runtime_smoke": {
+      "result": "passed",
+      "bits": 64,
+      "intervals_indices_overlaps_exclusions": "passed",
+      "fractional_boundary_fixtures": 20,
+      "v21_reference": "passed (absolute tolerance 1e-9; exact indices)",
+      "image_roundtrips": [
+        "PNG-u16 exact",
+        "TIFF-u16 exact"
+      ],
+      "training_dependencies": "absent",
+      "path": "restricted to operating-system directories"
+    },
+    "windows_unpacked_build_exit_code": 0,
+    "packaged_resources": "inventory, archived code/lock, startup and buffer worker passed with restricted PATH",
+    "electron_e2e": "passed with bundled runtime and PATH excluding user Python; save/reopen, interrupted saves, renderer crash recovery and foreign-origin IPC checks"
+  },
+  "not_validated": [
+    "clean-machine startup",
+    "Windows portable/NSIS installer execution",
+    "native macOS Intel/Apple Silicon execution",
+    "native Linux execution",
+    "macOS universal installer output",
+    "whole-process performance and memory gates",
+    "scientific section calculation through the UI engine bridge"
+  ],
+  "next_task": "M8.2.3 packaging and lifecycle acceptance; experiment remains default-off"
+}

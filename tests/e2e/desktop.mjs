@@ -61,11 +61,13 @@ try {
   run = await start();
   const p = run.page;
   if (process.env.SEDCORETOOL_ENGINE_EXPERIMENT === '1') {
-    await p.waitForFunction(async () => (await window.corantoolDesktop.engine.status()).state === 'ready');
+    await p.waitForFunction(async () => ['ready', 'unavailable'].includes((await window.corantoolDesktop.engine.status()).state))
+      .catch(async () => { throw new Error('Engine startup did not settle: ' + JSON.stringify(await p.evaluate(() => window.corantoolDesktop.engine.status()))); });
     const engine = await p.evaluate(() => window.corantoolDesktop.engine.status());
+    assert.equal(engine.state, 'ready', 'experimental engine must start from the selected runtime');
     assert.equal(engine.protocol, 1);
     assert.deepEqual(engine.methods, ['buffer.digest/1'], 'experimental transport does not advertise scientific calculations');
-    assert.equal(engine.runtime, 'unverified-development');
+    assert.equal(engine.runtime, process.env.SEDCORETOOL_ENGINE_PYTHON ? 'unverified-development' : 'bundled-verified');
   } else {
     assert.equal((await p.evaluate(() => window.corantoolDesktop.engine.status())).state, 'disabled');
   }
