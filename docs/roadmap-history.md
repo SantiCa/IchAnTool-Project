@@ -134,6 +134,37 @@ Do not edit these records except to fix broken links. A reopened task gets a new
     - [ ] First-launch cold start (17–20 s) against the 5 s gate: still failing; needs a measured proposal
           for the maintainer if it remains above the gate after the record is in place.
 
+### M8.2.4 - Follow-up of the Windows acceptance
+
+Done on 12 November 2026 on branch `work/2026-11-12` (unreleased). M8.2.4 was opened to carry what M8.2.3 left
+open. The items a Windows workstation could settle were settled; the rest became the release checklist of the
+live roadmap when the two acceptance levels were adopted the same day.
+
+- **Cold first launch.** Full verification took 11-25 s on a first launch because the runtime had 7,326 files.
+  `prune_runtime` (`tools/prepare_engine_runtime.py`) now removes pip, the interpreter's `include`, `libs`, Tcl/Tk
+  data, `idlelib`, `lib2to3`, `turtledemo` and test suite, and pandas' `tests` folders: 3,552 files, about 205 MB.
+  A first attempt also removed numpy's `tests` folders and the runtime smoke check failed, because `numpy.testing`
+  imports `numpy._core.tests._natype`; they are kept. Measured afterwards: full verification 1.2 s warm, 0.10 s
+  with the verification record; first launch after extracting the portable ZIP 3.67-3.90 s to engine ready in six
+  fresh extractions and 3.99-4.08 s in three more; later launches 0.68-0.81 s with the record and 1.5-2.4 s with a
+  full verification each time. Not measured: a first launch after a reboot (empty file cache).
+  Evidence: `docs/validation/M8.2.4-pruned-runtime-*.json`, `M8.2.4-zip-fresh-extraction-launches-windows.json`.
+- **Intermittent "no window" launches (5 of about 80).** Resolved as a defect of the measuring tool, not of the
+  program. With failure diagnostics added, two failures in a 40-launch batch showed a completely loaded page
+  (`window.ichantool` present, interface text rendered). The tool waited with Puppeteer's default
+  `requestAnimationFrame` polling, and Chromium stops animation frames while the window is covered by another
+  one; the failures coincided with the computer being used. The tool now polls with a timer.
+  Evidence: `docs/validation/M8.2.4-zip-repeat-40-windows.json` (2 failures with page state),
+  `M8.2.4-zip-repeat-launches-windows.json` (15 of 15), `M8.2.4-zip-repeat-30-timer-polling-windows.json`.
+- **Idle process tree** of the packaged program: 5 processes, 309-414 MiB summed working set (shared pages counted
+  once per process), under 1 % of one core. With a project open and during a job: measured in card M8.3.8.
+- **Observation, not investigated:** at start-up the packaged program logs `net::ERR_UNEXPECTED` for three
+  optional sample-data requests (maintenance card H2 of the live roadmap).
+- **Carried to the release checklist:** macOS and Linux execution, clean machines and other antivirus
+  configurations, the cold-cache first launch, start-up with saturated CPUs, package sizes per platform.
+- The desktop end-to-end test failed once during the session because `npm run dist` had rebuilt `desktop/web`
+  without sample data; it passes after `node desktop/scripts/prepare.js --with-examples` (maintenance card H1).
+
 ## M0 - Baseline and project safety
 
 - [x] **M0.1 - Reproducible performance baseline.** Benchmark and original measurements delivered in
@@ -845,7 +876,7 @@ M8.1's inventory and contract are delivered in [V0.141](../CHANGELOG.md#v0141--2
 M8.2 is in progress: V0.142 delivers the process/transport foundation; V0.143 adds locked runtime resources,
 integrity verification and native/package checks. Clean-machine/platform acceptance remains pending; the
 scientific interface still uses its existing calculations.
-The [shared assistant handoff](../AGENTS.md#8-current-migration-handoff), updated in
+The [shared assistant handoff](../AGENTS.md), updated in
 [V0.144](../CHANGELOG.md#v0144--2026-11-12), lets Claude/Gemini resume this state without earlier chat history.
 It does not start M8.2.3 or certify additional platform/performance gates.
 The documentation check also recorded a [concurrent-run timing observation](validation/M8.2.3-load-observation-v0.144.json)
@@ -864,3 +895,48 @@ JavaScript types, Ruff, version consistency, whitespace and standalone build pas
 save implementation changes; no new tests or repeated browser E2E are needed. Local delivery on `master`;
 GitHub retrieval requires an authorised push. Earlier audit priority is superseded by the active M8 sequence;
 M3.2.5 remains a dependency before the training migration.
+
+## Roadmap wording superseded on 12 November 2026
+
+The entries of M8.3 to M8.6 as they stood before the live roadmap was rewritten as task cards. The cards and the
+summaries in [roadmap.md](roadmap.md) replace them; the original wording is kept for whoever writes the cards of
+M8.4 to M8.6.
+
+- [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
+      current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
+      the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
+      evaluate the measured NumPy implementation under M3.1.6 without silently changing its default.
+  - Acceptance: exact row/count/index/missing-value equality and the established numerical tolerances on
+    M0.1/M3.1.3 fixtures, including fractional boundaries and custom schemes. Verify edits, undo/redo,
+    cancellation, failed jobs, CSV output and save/reopen through the actual desktop workflow. Measure engine
+    startup, transfers, full job latency and total Electron/engine/worker RSS, not only the counting kernel.
+    Keep this experiment default-off until its predeclared gates pass; retain explicit developer rollback.
+  - Read first: the contract's representation gaps, no-data/manual/age processing and custom-tier
+    precedence differences between existing public interfaces. Preserve supported semantics and test them
+    explicitly; do not substitute a library default or delete the reference implementation.
+- [ ] **M8.4 - Bounded engine data and image services.** Implement M2.3.1–M2.3.5 through engine-owned
+      native data, chunked operations and a bounded tile/cache interface. The renderer receives visible tiles,
+      editing updates and result summaries, rather than a second resident copy of every original image.
+  - Acceptance: the multi-gigabyte contract covers the complete Electron/engine process tree, disk usage,
+    buffer ownership and memory release after project close. Preserve native pixels, editing coordinates,
+    masks/history and atomic save/backup recovery. Raising heap or image-load limits alone does not pass.
+    Apply bounded CPU concurrency and leave agreed RAM/CPU headroom for the interface and operating system.
+- [ ] **M8.5 - Migrate the remaining scientific methods.** Deliver one workflow at a time from M8.1's
+      matrix: depth/age and record transformations; image processing and object features; classifiers and
+      spatial interpolation; model inference/training integration. Reuse existing Python methods where
+      equivalent and implement missing methods once in the engine. Address M3.2.5 before changing training.
+  - Acceptance: every slice has independent reference fixtures, explicit provenance and unchanged public
+    contracts. Counts/masks/labels are exact where required; other numerical tolerances and decoder differences
+    are declared before comparison. Replacing a method with a library's different defaults is not an equivalent
+    migration. Match current figure/export behaviour while rendering engine results; test failure, cancellation,
+    invalidation and reload. Transitional comparisons use snapshots/reference outputs and are not two promoted engines.
+- [ ] **M8.6 - Promote desktop and retire duplicate computation.** After all required slices pass,
+      make the local engine authoritative, remove migrated JavaScript calculations from the supported desktop
+      runtime, and replace their regression role with versioned reference fixtures and Git provenance.
+  - Acceptance: one production implementation per scientific method, identical API/CLI/desktop results,
+    complete desktop and interrupted-save regressions, clean-machine/offline packaging and documented runtime
+    identity. Retain the desktop origin, storage keys, compatibility alias and old project/package readers.
+    Record the last supported HTML delivery and a tested export/import path for its stored projects before
+    freezing it; keep that artifact retrievable. Update contributor/user/technical documentation and CI to
+    the actual cutover in the same delivery. Remove temporary flags only after acceptance; engine errors must
+    remain visible rather than silently choosing another scientific implementation.

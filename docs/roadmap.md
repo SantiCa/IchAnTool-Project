@@ -1,513 +1,371 @@
 # Roadmap
 
-This file lists the **current state, the next steps and all pending work**. Completed tasks and their
-delivery records are in [roadmap-history.md](roadmap-history.md); shipped changes are in the
-[changelog](../CHANGELOG.md). Working rules are in [AGENTS.md](../AGENTS.md).
+The current state, the next task cards and the decisions waiting for the maintainer. Working rules are in
+[AGENTS.md](../AGENTS.md); the structure that the cards build is in [ARCHITECTURE.md](ARCHITECTURE.md); commands
+are in [DEVELOPMENT.md](DEVELOPMENT.md). Later milestones and ideas: [roadmap-future.md](roadmap-future.md).
+Finished tasks: [roadmap-history.md](roadmap-history.md).
 
-## How to use this roadmap
-
-1. Read [Status and handoff](#status-and-handoff) first. It names the branch, the last checked commit, the
-   checks still due and the next steps, in order.
-2. If checks are pending, run them before anything else ([AGENTS.md §5](../AGENTS.md#5-delivering-a-change)).
-3. Work only on the task and step the maintainer authorised. Each task states its scope and **Acceptance**
-   criteria; a task is complete only when all of them are met and the required checks pass.
-4. Do not start another task, refactor or audit because it looks useful. Record it here as a proposal instead.
-5. When you stop, update the status block: branch, last commit, checks run and their result, next step,
-   open decisions. A new session must be able to continue from this file alone.
-6. When a task becomes `[x]`, add its changelog link, then move its detailed record to
-   [roadmap-history.md](roadmap-history.md) and leave a one-line entry here.
-
-| Marker | Meaning |
-|---|---|
-| `[ ]` | Pending. The task is in the backlog. |
-| `[ ]` **Ready** | The scope and acceptance criteria are defined. This is the next candidate for authorisation. |
-| `[ ]` **In progress** | An editor is assigned. Record the next step at handoff. |
-| `[ ]` **In review** | The reviewer can inspect the diff or commit. Include its reference and the checks still due. |
-| `[ ]` **Blocked** | Record the blocker and what is needed to resume. |
-| `[x]` | Complete. Link the matching changelog entry; the detailed record lives in the history file. |
+**How to use it.** Read *Status and handoff*. Do the first step listed there. A task is described by a card
+([format and roles: AGENTS.md §6](../AGENTS.md#6-working-on-a-task)); carry out one card at a time, in order, and
+only when the maintainer has authorised it. When you stop, update the status block so that a new session can
+continue from this file alone. When a card is done, link its changelog entry, move its long record to the history
+file and leave one line here.
 
 ## Status and handoff
 
 Updated 12 November 2026.
 
 - **Released version:** [V0.148](../CHANGELOG.md#v0148--2026-11-12) on local `master` (`2aca696`). `master` is
-  ahead of `origin/master`; pushing needs the maintainer's authorisation.
-- **Active work branch:** `work/2026-11-12`. Its changes are listed under `## Unreleased` in the changelog.
-  No version number has been assigned; do that only when the maintainer asks (AGENTS.md §5, step 5).
-- **Checks: passed** on branch `work/2026-11-12` at commit `e829470` (the later commits only edit the roadmap,
-  changelog and history): `pytest -q` 356 passed / 7 skipped, `npm test` 234 passed, `npm run typecheck`
-  (no new diagnostics), `sync_version.py --check`, `ruff check src tests tools`, and `tests/e2e/desktop.mjs`
-  both with and without `SEDCORETOOL_ENGINE_EXPERIMENT=1`. Run serially. Do not repeat them on an unchanged
-  state. Note: `npm run dist` regenerates `desktop/web` **without** the sample data; before running the desktop
-  E2E afterwards run `node desktop/scripts/prepare.js --with-examples` (what `npm start` does), or the
-  E2E waits 90 s and fails on `openTest`.
-- **Current task:** [M8.2.4 - Remaining platform and gate acceptance](#m8---desktop-simplification-and-a-single-scientific-engine)
-  (M8.2.3 is closed for Windows). Editor: Claude; author-run checks, no independent reviewer.
-- **Next steps, in order:**
-  1. The maintainer decides how to handle the cold first launch (option list in M8.2.4) and whether to authorise
-     pushing the branch for a CI run on macOS and Linux.
-  2. Repeat the portable-ZIP launches on an idle machine (intermittent no-window failure).
-  3. Measure the process tree with a project open and during a job.
-  4. When M8.2.4 is closed or waived item by item, mark M8.2 complete and ask the maintainer to authorise M8.3.
-  Tools: `tools/measure_packaged_startup.mjs <exe> --runs N [--keep-profile] --out <file>` (needs
-  `npm i --no-save puppeteer-core@23`; build with `npm run dist` in `desktop/`, extract the ZIP to a temporary
-  folder with "Extract all").
-- **Open maintainer decisions:**
-  - Cold first launch (11–25 s against the 5 s gate): see M8.2.4.
-  - macOS and Linux acceptance needs either those machines or a CI run, which requires an authorised push
-    and a manual run of the *Desktop builds* workflow with `draft_release=false`.
-  - Creating version V0.149 from this branch (AGENTS.md §5, step 5) whenever the maintainer wants it.
-  - Whether M8.3 may start before M8.2 acceptance is complete. The current rule is: complete M8.2 first.
+  ahead of `origin/master`; nothing is pushed without the maintainer's request.
+- **Active work branch:** `work/2026-11-12`. Its changes are under `## Unreleased` in the changelog. No version
+  number is assigned; the maintainer asks for it.
+- **Checks:** see the last line of this block; it is rewritten at the end of every session.
+- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
+  runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
+  documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
+- **Next step:** card **M8.3.1** (move the section analysis out of `app.js`). It is *Ready*; starting it needs
+  the maintainer's go-ahead.
+- **Decisions waiting for the maintainer:**
+  1. Confirm or change the two acceptance levels (below) and the proposed scope of version 1.0.
+  2. Push the branch to GitHub: it would back up the work (everything since V0.128 exists only on this computer)
+     and let the *Desktop builds* workflow build and smoke-test macOS and Linux, which the release checklist needs.
+  3. Create version V0.149 from the branch.
+  4. The flags in the table below that need a promote/remove decision.
+- **Last full checks:** pending on the final commit of the 12 November 2026 session; previous full pass at
+  `e829470`.
 
-## Milestones toward 1.0
+## How work is accepted
+
+Adopted on 12 November 2026 when the maintainer asked for this restructuring; it replaces the earlier rule that
+every platform and performance gate had to pass before the next task could start.
+
+| Level | Needed for | What must be true |
+|---|---|---|
+| **Development gate** | Starting the next card | The card's "Done when" holds; its tests and the session checks pass on the maintainer's Windows workstation; anything unfinished is behind a flag that is off by default; evidence states what was not measured. |
+| **Release gate** | Switching a flag on by default, or publishing a version to users | Everything in the [release checklist](#release-checklist): all supported platforms, clean machines, and the numerical, timing, memory and recovery gates of [contract §7](roadmap-engine-contract.md#7-predeclared-verification-and-performance-gates). |
+
+Never report the release gate as met from development evidence. A failed gate is recorded with its measurement;
+it is not hidden, and limits are not relaxed to pass it.
+
+### Flags
+
+Every experimental switch, with the decision it is waiting for ([policy: ARCHITECTURE §5.3](ARCHITECTURE.md#53-add-promote-or-remove-an-experimental-flag)).
+
+| Flag | Owner | How it is switched | Default | Waiting for |
+|---|---|---|---|---|
+| Engine experiment | M8 | environment variable `SEDCORETOOL_ENGINE_EXPERIMENT=1` | off | Removed at M8.6 after the release gate |
+| NumPy multi-row counting in the Python API | M3.1.5 / M3.1.6 | environment variable `SEDCORETOOL_EXPERIMENTAL_COUNTS=1` | off | Decided inside card M8.3.3 (which counting kernel becomes the only one) |
+| Navigation preview rollback | M2.2.4 | session control in the Sections panel | preview on | Maintainer: remove the rollback control, or keep it until more memory evidence exists |
+| Visible-row table rendering | M2.1.3 | session-only checkbox in the Data table | off | Maintainer: promote to default or remove |
+| Desktop operating diagnostics | M1.2.3 | opt-in control in the desktop program | off | Removed after the hang diagnosis of M1.2.2 is accepted |
+
+## Scope of version 1.0 (proposal, not yet confirmed by the maintainer)
+
+Proposed so that "needed for 1.0" has a meaning; the maintainer edits or replaces this list.
+
+- **In:** M8 complete (one scientific engine, desktop packages for Windows, macOS and Linux passing the release
+  gate); M5.1 compatibility and reproducibility; M5.2 scientific validation and documentation, including a
+  comparison with expert estimates on real cores; software paper and archived release (DOI).
+- **Not required:** multi-gigabyte images (M2.3 beyond what M8.4 needs), advanced statistics (M6), radiographs
+  (M7), optional acceleration (M4), a new interface shell (M9).
+
+## Active priority: desktop and one scientific engine
+
+Direction approved by the maintainer on 12 November 2026; the design, its rules and the recorded decisions are in
+[ARCHITECTURE.md](ARCHITECTURE.md). In one sentence: every scientific method is implemented once in Python and
+runs in a local engine process; the Electron/JavaScript interface requests and shows results; the Python API and
+command line call the same code directly.
+
+| Order | Milestone | State |
+|---|---|---|
+| 1 | M8.1 Inventory and engine contract | done ([V0.141](../CHANGELOG.md#v0141--2026-11-12)) |
+| 2 | M8.2 Engine process, bundled runtime, packaging | done at the development gate; release items in the checklist |
+| 3 | **M8.3 First scientific slice: section intervals** | **next: cards below** |
+| 4 | M8.4 Engine-owned images and large files (includes M2.3) | cards written when M8.3 passes its development gate |
+| 5 | M8.5 Remaining methods, one slice at a time | idem |
+| 6 | M8.6 Release gate, default-on, duplicate JavaScript science removed, HTML version frozen | idem |
+| 7 | Statistics (M6), radiographs (M7), validation and publication | [roadmap-future.md](roadmap-future.md) |
+| 8 | Conditional: acceleration (M4), interface shell (M9) | [roadmap-future.md](roadmap-future.md) |
 
 ### Cross-cutting objective: modularity and reviewability
 
-Requested by the maintainer on 12 November 2026 ([V0.145](../CHANGELOG.md#v0145--2026-11-12)): make the program
-modular, easy to understand and easy to edit, so that a local change needs less repeated reading, fewer
-assistant tokens and fewer review rounds. Apply the [shared implementation rule](../AGENTS.md#4-rules-for-code)
-throughout M8 and later features.
+Requested by the maintainer on 12 November 2026: the program must be modular, easy to understand and easy to
+edit, so that a change needs little reading and few review rounds. It is applied through the layer rules of
+[ARCHITECTURE §3](ARCHITECTURE.md#3-layers-and-dependency-rules), the recipe for moving a workflow out of
+`app.js` (§5.2) and the "Read first / Change / Do not touch" fields of every card. It does not start a
+whole-program refactor: each M8 slice moves the workflow it touches.
 
-For each authorised modularisation slice, identify a representative maintenance task, the responsible module,
-its explicit contract and callers, and the focused set of files needed to understand the change. Verify that
-the new boundary preserves behaviour and scientific results, and update the source map. Report token or review
-savings only from comparable measurements; module or file counts alone do not establish them. M5.4 and the
-R1/R2 extractions are existing work to build on. This objective does not reorder M8 or start a whole-program
-refactor.
+## M8 - Desktop simplification and a single scientific engine
 
-### Active priority: desktop and one scientific engine
+- [x] **M8.1 - Engine inventory and migration contract.** [V0.141](../CHANGELOG.md#v0141--2026-11-12) ·
+      [contract](roadmap-engine-contract.md) · [record](roadmap-history.md#m8---completed-engine-migration-tasks)
+- [x] **M8.2 - Local engine process and reproducible packaging** (development gate, Windows).
+  - [x] M8.2.1 Process and transport — [V0.142](../CHANGELOG.md#v0142--2026-11-12)
+  - [x] M8.2.2 Bundled runtime — [V0.143](../CHANGELOG.md#v0143--2026-11-12)
+  - [x] M8.2.3 Windows packaging and lifecycle — unreleased, [record](roadmap-history.md#m823---packaging-and-lifecycle-acceptance-windows)
+  - [x] M8.2.4 Follow-up of 12 November 2026 — unreleased, [record](roadmap-history.md#m824---follow-up-of-the-windows-acceptance)
+  - Numbers to remember (Windows 11, Ryzen 7 7700X): window visible 0.45 s; engine ready 0.7–0.8 s with the
+    verification record, 1.5–2.0 s with a full verification, 3.7–3.9 s on the first launch after extracting the
+    ZIP; forced stop 5 ms; idle process tree 5 processes, about 310–410 MiB summed working set.
 
-Approved by the maintainer on 12 November 2026 ([V0.140](../CHANGELOG.md#v0140--2026-11-12)). This order
-supersedes earlier orderings; completed work and task IDs remain valid.
+### Release checklist
 
-**Target architecture.** Keep the existing Electron/JavaScript interface and move scientific calculation
-behind one local Python/NumPy engine in a separate process. The Python API and CLI call that same engine.
-JavaScript owns interaction and presentation; it does not keep an independent implementation of the
-scientific methods. Native libraries and optional measured Rust kernels may be internal engine components.
-The goal is one authoritative implementation per method, not one language for every component. A
-whole-program Rust rewrite and a new browser engine are outside this sequence. Electron remains the
-interface shell throughout M8; a more fluid shell may replace it later, evaluated only after M8.6 under
-[M9.1](#m9---interface-shell-evolution-conditional). Therefore keep the engine protocol, method contracts and
-result formats independent of Electron and the renderer, and keep shell-specific process, IPC and packaging
-code in `desktop/`.
+What the development gate does **not** cover. All of it must hold before M8.6 switches the engine on by default
+or a version with the engine is published. Tick an item only with recorded evidence.
 
-**Distribution.** Desktop packages are the primary full-capability product and include a tested 64-bit
-scientific runtime, so users do not need their own Python. Shipped forms: Windows installer (NSIS) and
-portable ZIP, universal macOS disk image, Linux AppImage and DEB. Each form is accepted separately; a passing
-installed build does not certify the portable one. The browser/standalone HTML stays as a temporary
-compatibility and reference path until the explicit cutover in M8.6; do not remove it or change storage
-identifiers now. The Python package remains a supported interface to the same engine, not a second
-calculation path.
+- [ ] macOS (Intel, Apple Silicon, universal disk image) and Linux (AppImage, DEB): runtime preparation, native
+      smoke check, packaged start-up and close. Needs those machines or a run of the *Desktop builds* workflow
+      (requires pushing; maintainer's decision).
+- [ ] Clean Windows machine (no Python, no Node) and at least one other antivirus configuration.
+- [ ] First launch with a cold disk cache (after a reboot) against the 5 s engine-ready gate. Measured so far:
+      3.7–3.9 s right after extraction; 11–25 s before the runtime was pruned. Measure once after the next reboot
+      with `tools/measure_packaged_startup.mjs <exe> --runs 1`.
+- [ ] Whole-process memory, timing, responsiveness, cancellation and recovery gates of contract §7 on the first
+      scientific slice (measured in card M8.3.8).
+- [ ] Engine start-up with all CPUs saturated: runtime verification took 16 s median before pruning and the
+      verification record; repeat `tools/measure_engine_lifecycle.mjs --load 16`.
+- [ ] Installer and portable sizes recorded for every platform.
 
-| Execution order | Deliverable | Existing tasks coordinated with it |
-|---|---|---|
-| 1 | M8.1: inventory, scientific ownership and engine contract (done) | M5.1, M5.4; retain current reference fixtures |
-| 2 | M8.2: packaged local runtime and cancellable process boundary | M3.2.4, M3.1.7 |
-| 3 | M8.3: one section analysed by the engine through the existing interface | M3.1.6, M0.1, M1.2 |
-| 4 | M8.4: bounded image/data ownership and large-file integration | M2.3.1–M2.3.5 |
-| 5 | M8.5: remaining methods migrated in independent vertical slices | M3.2.5 before training migration; M3.3 contracts |
-| 6 | M8.6: desktop promotion and retirement of duplicate scientific paths | M5.1; legacy-project/export and packaging gates |
-| 7 | Advanced statistics and radiographs on the accepted engine | M6.1–M6.6, M7.1–M7.4; no new parallel JavaScript science |
-| 8 | Conditional acceleration and remaining backlog | M4.1, remaining audit/validation/release tasks |
-| 9 | M9.1: conditional interface-shell evaluation, only after M8.6 | M2.3 responsiveness evidence; project migration through packages |
+### M8.3 - First scientific slice: section intervals
 
-Assign an editor and reviewer at each implementation handoff. Fixes needed to preserve data or to meet a
-phase's acceptance criteria belong to that phase; unrelated refactors wait. Publication and 1.0 are owner
-decisions.
+**Outcome.** With the experiment on, the interval percentages, per-class percentages, BI and ii of a section are
+computed by the engine method `section.intervals/1` and shown by the existing interface; with it off, nothing
+changes. Inputs and results are defined in [contract §4–§5](roadmap-engine-contract.md#4-scientific-input-contract-sectionintervals1);
+the path of a request is [ARCHITECTURE §4](ARCHITECTURE.md#4-path-of-one-scientific-request-target-design-for-m83).
+Cards are done in order. Each one claims the development gate only.
 
-### M8 - Desktop simplification and a single scientific engine
+#### M8.3.1 - Move the section analysis out of `app.js` — state: Ready
 
-Contract and predeclared gates for every M8 task: [roadmap-engine-contract.md](roadmap-engine-contract.md).
-Current engine implementation: [technical manual §26.2–§26.3](TECHNICAL_DOCUMENTATION.md#262-experimental-engine-process).
-The engine experiment stays **off by default** (`SEDCORETOOL_ENGINE_EXPERIMENT=1` enables it).
+- **Goal:** the calculation that fills `s.bins` lives in a pure module that Node can test. No behaviour changes.
+- **Read first:** [ARCHITECTURE §3.2 and §5.2](ARCHITECTURE.md#32-renderer-appjs); `app/js/app.js` functions
+  `effClassId`, `effClassArray`, `analyze`, `binRowsOf`, `manualAt` (search by name; about 45 lines in total);
+  `app/js/core.js` functions `rowCounts`, `binRows`, `interpAge`, `interpAgeRange`; `app/js/sectiondepth.js` and
+  `tests/app/sectiondepth.test.mjs` as the model of an earlier extraction.
+- **Change:** create `app/js/sectionanalysis.js` and `tests/app/sectionanalysis.test.mjs`; edit `app/js/app.js`
+  (the five functions become one-line wrappers that pass `S` in), `tools/build_standalone.py` (`ORDER`, after
+  `sectiondepth.js`), the source map in `docs/TECHNICAL_DOCUMENTATION.md` §1.4, `CHANGELOG.md` (Internal).
+- **Do not touch:** any formula, default, rounding or order of operations; `core.js`; the callers of `analyze`;
+  the shape of `S`, of `s.bins` or of saved projects.
+- **Steps:**
+  1. In the new module write `effectiveClassId(object, settings)`, `effectiveClassIndex(section, classes, settings)`
+     and `computeSectionBins(section, project)` where `project = { classes, settings, ageModel }`. Move the bodies
+     as they are; replace every read of `S` by a parameter. `computeSectionBins` returns `{ bins, rowCache }`; it
+     reuses `section._rc` when its key matches, exactly as today.
+  2. Turn the `app.js` functions into wrappers; `analyze(s)` assigns `s.bins` and `s._rc` from the result.
+  3. Add the module to `ORDER` and to the source map.
+  4. Tests in Node on a small hand-built section: assigned, predicted (above and below the threshold) and candidate
+     objects; a class that does not count; an overlap stack with the same and with different classes; excluded
+     pixels; a ROI that does not start at 0; `minValid` exactly at the limit; no-data padding; two overlapping
+     manual ranges (the last one wins); ages inside and outside the model. Compute the expected values by hand in
+     the test, with a comment for each.
+- **Tests:** `node --test tests/app/sectionanalysis.test.mjs`; `npm test`; `npm run typecheck`;
+  `python tools/build_standalone.py`; browser smoke test `node tests/e2e/smoke.mjs` (results of the public example
+  unchanged).
+- **Done when:** `app.js` no longer contains the calculation; all commands above pass.
 
-- [x] **M8.1 - Engine inventory and migration contract.** [V0.141](../CHANGELOG.md#v0141--2026-11-12);
-      [record](roadmap-history.md#m8---completed-engine-migration-tasks).
-- [ ] **M8.2 - Local engine process and reproducible packaging. In progress.** Build the desktop process boundary and
-      include a tested 64-bit Python runtime with the minimal scientific dependencies. Use M3.2.4 for tested
-      constraints, checksums and update policy; keep optional training dependencies separate from basic analysis.
-  - Acceptance: clean-machine startup without a separately installed Python/Node or runtime dependency
-    download for basic analysis; verify portable/installed packages across the supported desktop systems.
-    Bound messages, queue length, concurrent jobs and CPU/RAM budgets. Isolate process failure, restart,
-    timeout and cancellation; obsolete results cannot overwrite newer edits. Preserve unsaved live data and
-    the last good project after engine failure. Keep the normal interface available while jobs run.
-  - [x] **M8.2.1 - Experimental process/transport foundation.** [V0.142](../CHANGELOG.md#v0142--2026-11-12);
-        [record](roadmap-history.md#m8---completed-engine-migration-tasks).
-  - [x] **M8.2.2 - Reproducible runtime bundle.** [V0.143](../CHANGELOG.md#v0143--2026-11-12);
-        [record](roadmap-history.md#m8---completed-engine-migration-tasks),
-        [evidence](validation/M8.2.2-v0.143.json).
-  - [x] **M8.2.3 - Packaging and lifecycle acceptance (Windows).** Closed on 12 November 2026 by the maintainer's
-        instruction, on branch `work/2026-11-12` (unreleased; see the changelog's `## Unreleased` entries). Windows
-        installer, portable ZIP, lifecycle, cancellation and process-tree measurements are recorded in the
-        [history](roadmap-history.md#m823---packaging-and-lifecycle-acceptance-windows). The gates it did not
-        meet and the platforms it did not run are carried by M8.2.4, so M8.2 stays open.
-  - [ ] **M8.2.4 - Remaining platform and gate acceptance. Ready.** Carries what M8.2.3 left open. Do not start
-        M8.3 until the maintainer accepts M8.2 or explicitly waives items below.
-    - [ ] **Cold first launch against the 5 s gate.** Measured 11–25 s to engine ready on Windows (full runtime
-          verification with a cold file cache); the window opens in about 0.45 s regardless. Put the options to
-          the maintainer with measurements: start verification at program start-up while the interface is already
-          usable; accept and document a first-launch cost; verify at install time. Do not weaken the integrity
-          check without a decision.
-    - [ ] **Intermittent no-window launch of the portable ZIP** (2 of 12 launches, not reproduced in 3 idle runs):
-          repeat on an idle machine, using the failure-stage diagnostics of `tools/measure_packaged_startup.mjs`.
-    - [ ] **Process tree with a project open and during a job** (idle tree already measured: 5 processes,
-          309–370 MiB, <1 % of one core).
-    - [ ] **macOS (Intel, Apple Silicon, universal DMG) and Linux (AppImage, DEB) execution.** Not possible on
-          the Windows workstation: needs those machines, or a CI run, which requires the maintainer to authorise
-          pushing the branch and a manual *Desktop builds* run with `draft_release=false`.
-    - [ ] **Clean-machine runs and other antivirus configurations.**
-    - Acceptance: each item is measured and recorded, or explicitly waived by the maintainer in this file.
-      M8.2 is marked complete only then.
-- [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
-      current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
-      the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
-      evaluate the measured NumPy implementation under M3.1.6 without silently changing its default.
-  - Acceptance: exact row/count/index/missing-value equality and the established numerical tolerances on
-    M0.1/M3.1.3 fixtures, including fractional boundaries and custom schemes. Verify edits, undo/redo,
-    cancellation, failed jobs, CSV output and save/reopen through the actual desktop workflow. Measure engine
-    startup, transfers, full job latency and total Electron/engine/worker RSS, not only the counting kernel.
-    Keep this experiment default-off until its predeclared gates pass; retain explicit developer rollback.
-  - Read first: the contract's representation gaps, no-data/manual/age processing and custom-tier
-    precedence differences between existing public interfaces. Preserve supported semantics and test them
-    explicitly; do not substitute a library default or delete the reference implementation.
-- [ ] **M8.4 - Bounded engine data and image services.** Implement M2.3.1–M2.3.5 through engine-owned
-      native data, chunked operations and a bounded tile/cache interface. The renderer receives visible tiles,
-      editing updates and result summaries, rather than a second resident copy of every original image.
-  - Acceptance: the multi-gigabyte contract covers the complete Electron/engine process tree, disk usage,
-    buffer ownership and memory release after project close. Preserve native pixels, editing coordinates,
-    masks/history and atomic save/backup recovery. Raising heap or image-load limits alone does not pass.
-    Apply bounded CPU concurrency and leave agreed RAM/CPU headroom for the interface and operating system.
-- [ ] **M8.5 - Migrate the remaining scientific methods.** Deliver one workflow at a time from M8.1's
-      matrix: depth/age and record transformations; image processing and object features; classifiers and
-      spatial interpolation; model inference/training integration. Reuse existing Python methods where
-      equivalent and implement missing methods once in the engine. Address M3.2.5 before changing training.
-  - Acceptance: every slice has independent reference fixtures, explicit provenance and unchanged public
-    contracts. Counts/masks/labels are exact where required; other numerical tolerances and decoder differences
-    are declared before comparison. Replacing a method with a library's different defaults is not an equivalent
-    migration. Match current figure/export behaviour while rendering engine results; test failure, cancellation,
-    invalidation and reload. Transitional comparisons use snapshots/reference outputs and are not two promoted engines.
-- [ ] **M8.6 - Promote desktop and retire duplicate computation.** After all required slices pass,
-      make the local engine authoritative, remove migrated JavaScript calculations from the supported desktop
-      runtime, and replace their regression role with versioned reference fixtures and Git provenance.
-  - Acceptance: one production implementation per scientific method, identical API/CLI/desktop results,
-    complete desktop and interrupted-save regressions, clean-machine/offline packaging and documented runtime
-    identity. Retain the desktop origin, storage keys, compatibility alias and old project/package readers.
-    Record the last supported HTML delivery and a tested export/import path for its stored projects before
-    freezing it; keep that artifact retrievable. Update contributor/user/technical documentation and CI to
-    the actual cutover in the same delivery. Remove temporary flags only after acceptance; engine errors must
-    remain visible rather than silently choosing another scientific implementation.
+#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Ready after M8.3.1
 
-### M9 - Interface shell evolution (conditional)
+- **Goal:** small committed fixtures, each holding the inputs of contract §4 and the results of contract §5,
+  produced by the JavaScript calculation. They are the target every later card must reproduce.
+- **Read first:** contract §4, §5 and the "Required inputs" row of §7; `app/js/sectionanalysis.js`;
+  `tests/fixtures/fractional-boundaries.json`.
+- **Change:** add `buildIntervalSnapshot(section, project)` and `referenceColumns(section, project)` to
+  `app/js/sectionanalysis.js`; create `tools/make_interval_fixtures.mjs`, `tests/fixtures/section-intervals/*.json`,
+  `tests/app/interval-fixtures.test.mjs`.
+- **Do not touch:** the calculation moved in M8.3.1; the contract's names, dtypes and units (if one cannot be
+  produced, stop and report: the contract is amended by a design session, not silently).
+- **Steps:**
+  1. `buildIntervalSnapshot` returns the eight inputs with the contract's exact names: `labels`, `exclude`,
+     `objects`, `classes`, `stack_offsets`, `stack_members`, `settings`, `age_model`, `manual_indices`. It copies
+     data; it does not compute effective classes.
+  2. `referenceColumns` returns every output column of §5, including `valid_pct`, the raw counts and each
+     `<name>_valid` column, from `rowCounts` and the bins.
+  3. The tool builds synthetic sections (seeded, no files read) for: the cases listed in M8.3.1 step 4; units mm,
+     cm and m; a section with no valid pixels; the 20 fractional-boundary cases; a section of about 600 × 2,000
+     pixels with a few hundred objects. One JSON file per case: `{ name, inputs, expected }`, arrays as lists with
+     `dtype` and `shape`. Keep the folder under 2 MB.
+  4. The Node test regenerates every fixture in memory and requires byte-identical content to the committed file.
+- **Tests:** `node --test tests/app/interval-fixtures.test.mjs`; `npm test`; `npm run typecheck`.
+- **Done when:** fixtures are committed and the regeneration test passes.
 
-The maintainer stated on 12 November 2026 that Electron is the interface shell for now and that a more fluid
-system may replace it later. This records a future evaluation; it is not authorised work, selects no candidate
-shell and does not change the M8 order.
+#### M8.3.3 - Python kernels — state: Ready after M8.3.2
 
-- [ ] **M9.1 - Evaluate the interface shell after the engine migration.** Start only after M8.6, and after
-      M8.4 has moved image ownership and heavy computation out of the renderer, so that remaining slowness is
-      attributed to the shell or to application rendering on evidence rather than assumption.
-  - Acceptance: first measure the accepted Electron build on M2.3 fixtures (startup, input-to-frame latency
-    during pan/zoom/editing, idle and peak process-tree RSS, download and installed size) and identify which
-    costs belong to the shell. Compare a candidate only against that baseline, on the same hardware and
-    fixtures, and only if shell-bound costs justify it. The candidate reuses the engine protocol, method
-    contracts and results unchanged; provides a tested migration of projects stored by the Electron program
-    (IndexedDB under `app://corantool`), packages and folder backups; and ships portable and installed forms
-    on every supported system. Record build, signing, platform web-view and maintenance costs. Keep Electron
-    as the default and rollback until the maintainer accepts the transition.
+- **Goal:** the primitives of interval analysis exist once, in `src/sedcoretool/kernels/`, and the public Python
+  functions use them.
+- **Read first:** [ARCHITECTURE §3.1](ARCHITECTURE.md#31-python-srcsedcoretool); `src/sedcoretool/pipeline.py`,
+  `indices.py`, `depth.py`; `app/js/core.js` (`rowCounts`, `binRows`, `classify`, `interpAge`, `interpAgeRange`);
+  contract §4, the paragraphs after the input table.
+- **Change:** create `kernels/__init__.py`, `kernels/binning.py` (pixels per centimetre, interval size in rows,
+  half-up edges, sums per interval), `kernels/counting.py` (valid, bioturbated and per-class counts per row from
+  a label image, an object→class table, CSR overlap stacks, an exclusion mask and a ROI; and from class layers),
+  `kernels/classification.py` (tier classification with `precedence="first" | "last"`), `kernels/ages.py`
+  (central age and range at a depth, missing outside the model); `tests/test_kernels.py`,
+  `tests/test_architecture.py`; edit `pipeline.py`, `indices.py`, `depth.py` to delegate.
+- **Do not touch:** public signatures, DataFrame columns, error messages and results of the Python API and CLI;
+  `engine/`; JavaScript.
+- **Steps:**
+  1. Write the kernels. Counting works in bounded blocks of rows and must not allocate a classes × height × width
+     array. An overlap pixel counts once in the total if any counted object covers it and once for each distinct
+     counted class.
+  2. Make the public functions call them. Both counting paths of `pipeline.py` (default and
+     `SEDCORETOOL_EXPERIMENTAL_COUNTS=1`) must give identical results through the kernel; then keep one
+     implementation, record the measured choice under M3.1.6 in [roadmap-future.md](roadmap-future.md), and tell
+     the maintainer the flag can be removed.
+  3. `tests/test_architecture.py` parses imports with `ast` and enforces the table of ARCHITECTURE §3.1.
+- **Tests:** `pytest -q tests/test_kernels.py tests/test_architecture.py`; then the whole `pytest -q` with no
+  existing test modified.
+- **Done when:** all Python tests pass unchanged, including the regression against `legacy/`.
 
-### Capacity, advanced statistics and radiographs
+#### M8.3.4 - Method `section.intervals/1`, called directly — state: Ready after M8.3.3
 
-Planned on 12 November 2026 ([V0.138](../CHANGELOG.md#v0138--2026-11-12)). These capabilities are **not
-available** and not started; no editor is assigned. Their order follows the M8 sequence above; the maintainer
-chooses which are required for 1.0.
+- **Goal:** `src/sedcoretool/methods/section_intervals.py` reproduces every fixture of M8.3.2.
+- **Read first:** contract §4 and §5 (complete); ARCHITECTURE §3.1 and §5.1; the fixtures.
+- **Change:** create `methods/__init__.py`, `methods/errors.py` (`MethodError(code, field)` with the contract's
+  codes), `methods/registry.py`, `methods/section_intervals.py`, `tests/test_section_intervals.py`.
+- **Do not touch:** kernels' behaviour (add parameters only if a fixture needs them, with a kernel test);
+  `analyze_mask` and the rest of the public API.
+- **Steps:**
+  1. `parse(inputs)` validates everything in §4 before computing: shapes and dtypes, ROI inside the image,
+     `exclude` only 0/1, unique positive object IDs, class references that exist, stack offsets monotonic with no
+     dangling or duplicate members, finite numbers, units, positive interval, thresholds in [0, 1]. Each failure
+     raises `MethodError` naming the field. Nothing is repaired or dropped silently.
+  2. `run(snapshot, report, cancelled)` follows the order of §4: effective class of each object → counts → interval
+     sums → percentages with the minimum-valid rule → no-data padding → indices → ages → manual indices. It calls
+     `cancelled()` between row blocks and returns the columns of §5 with their `_valid` columns.
+  3. The test runs every fixture: exact equality for row bounds, counts, indices, `no_data` and every `_valid`
+     column; absolute error ≤ 1e-9 for depths, percentages and ages. Add one failing-input test per validation rule.
+- **Tests:** `pytest -q tests/test_section_intervals.py tests/test_architecture.py`.
+- **Done when:** every fixture passes without changing a fixture or a tolerance.
 
-| Goal | Tasks | Dependencies and proposed sequence |
-|---|---|---|
-| Fluid work with individual images of several gigabytes | M2.3.1–M2.3.5 | Establish real file/decoded-size benchmarks, then bounded tile access, viewing, analysis and saving. |
-| Faster calculations with a responsive interface | M3.1.6–M3.1.7, M4.1.1–M4.1.2 | Build on the single engine and bounded scheduling; native Rust/GPU work remains conditional and later. |
-| An implemented advanced-statistics module | M6.1–M6.6 | Use the accepted Python engine contract; methods are not reimplemented independently in the interface. |
-| Radiographs alongside core photographs and records | M7.1–M7.4 | Use engine image/data services for native samples and measurements, with shared depth coordinates. |
+#### M8.3.5 - The engine process runs registered methods — state: Ready after M8.3.4
 
-M2.3.1 is the first large-image contract inside M8.4. M6.1 and M7.1 define scientific/input contracts after
-the relevant engine/data services are accepted. Large radiographs depend on M2.3's bounded image path. Each
-phase must be small enough to review and roll back independently; statistical methods are added one at a time.
-Benchmarks use public or generated data; unpublished images are never committed.
+- **Goal:** a client can send a snapshot to the real coordinator, run `section.intervals/1` in the worker and
+  download the result columns.
+- **Read first:** contract §3; `src/sedcoretool/engine/server.py`, `worker.py`, `buffers.py`;
+  `tests/test_engine_transport.py`; technical manual §26.2.
+- **Change:** `engine/server.py` (operation `section.analyze`; a generic job runner instead of the digest-only
+  one; `hello` lists both methods), `engine/worker.py` (loads the method from the registry, reads input buffer
+  files with NumPy, writes output buffer files and a small result description), `engine/buffers.py` (adopt worker
+  outputs as committed buffers within the session budget; read a range of a committed buffer);
+  `docs/roadmap-engine-contract.md` (add the operation `buffer.read {handle, offset, byte_length}` → response
+  followed by one binary frame of at most 1 MiB; describe the job description passed to the worker);
+  `docs/TECHNICAL_DOCUMENTATION.md` §26.2; `tests/test_engine_transport.py`.
+- **Do not touch:** the frame format, limits and error codes; the coordinator stays standard-library only (the
+  architecture test enforces it); `buffer.digest/1` keeps working.
+- **Steps:** implement; then prepare the runtime again (DEVELOPMENT §4) because Python sources changed.
+- **Tests:** a fixture through the real coordinator and worker returns identical columns; cancellation while
+  queued and while running returns `cancelled` and leaves no file or budget charge; an invalid snapshot returns an
+  error response and the session stays usable; killing the worker returns `INTERNAL`.
+  `pytest -q tests/test_engine_transport.py tests/test_architecture.py`.
+- **Done when:** those tests pass and `npm run prepare-runtime -- --offline` succeeds.
 
-### M0 - Baseline and project safety
+#### M8.3.6 - Main-process client and renderer bridge — state: Ready after M8.3.5
 
-All M0 tasks are complete: M0.1 baseline ([acceptance criteria](roadmap-history.md#m01-acceptance-criteria)),
-M0.2 import/export safety, M0.3 project validation, M0.4 desktop protocol paths, M0.5/M0.5.1 untrusted
-presentation values. Records: [history](roadmap-history.md#m0---baseline-and-project-safety).
+- **Goal:** the page can upload buffers, start and cancel a section analysis and read results through a narrow,
+  validated bridge.
+- **Read first:** [ARCHITECTURE §3.3](ARCHITECTURE.md#33-electron-main-process-desktop); `desktop/engine.js`,
+  `desktop/engine-protocol.js`, `desktop/preload.js`; how `desktop/main.js` checks the sender for `trainer:*` calls;
+  `tests/app/engine.test.mjs`.
+- **Change:** `desktop/engine.js` and `engine-protocol.js` (accept the two methods in `hello`; operations
+  `section.analyze` and `buffer.read`, including a binary frame in a response); create `desktop/engine-ipc.js`;
+  `desktop/main.js` (register it); `desktop/preload.js`; `desktop/scripts/build.js` (`files` list);
+  `tests/app/engine.test.mjs`, new `tests/app/engine-ipc.test.mjs`.
+- **Do not touch:** `engine:status`; trainer and diagnostics bridges; the rule that the page never supplies paths,
+  executables or operation names.
+- **Steps:** the bridge offers exactly: `status()`, `beginBuffer(descriptor)`, `appendBuffer(token, offset, bytes)`
+  (at most 1 MiB), `commitBuffer(token)`, `analyzeSection(request)`, `cancel(requestKey)`,
+  `readBuffer(token, offset, length)`, `release(tokens)`. `engine-ipc.js` checks the sender origin as the trainer
+  handlers do, validates every argument's type and size, maps page tokens to engine handles and releases all
+  handles of a page when it reloads or closes.
+- **Tests:** Node tests with a fake `EngineClient` for validation and token ownership; one Node test with the
+  bundled runtime that runs a fixture end to end through `engine-ipc.js` functions.
+- **Done when:** tests pass; `node desktop/scripts/check-package.js` still passes after `npm run dist`.
 
-### M1 - Editing and recovery
+#### M8.3.7 - The interface shows engine results under the flag — state: Ready after M8.3.6
 
-M1.1 (editing history), M1.2 (interrupted saves), M1.2.1 and M1.2.3 are complete
-([history](roadmap-history.md#m1---editing-and-recovery)).
+- **Goal:** with the experiment on, `s.bins` comes from the engine; with it off, from the JavaScript calculation.
+- **Read first:** [ARCHITECTURE §4](ARCHITECTURE.md#4-path-of-one-scientific-request-target-design-for-m83);
+  contract §2; `app/js/sectionanalysis.js`; the seven call sites of `analyze` (`app.js`, `columns.js`).
+- **Change:** `app/js/sectionanalysis.js` (`analysisRevision(section, project)`, `resultToBins(result)`); create
+  `app/js/engineclient.js` and its Node test with a fake bridge; `app/js/app.js` and `columns.js` (callers await
+  `analyzeSections(sections)`); `app/js/i18n.js` (pending and error texts, `engine.error.<CODE>`);
+  `tools/build_standalone.py` (`ORDER`); `tests/e2e/desktop.mjs`.
+- **Do not touch:** the JavaScript calculation (it stays as the default and as the reference); the shape of
+  `s.bins`; saving and project files.
+- **Steps:** a result is published only if session, section and revision are still current; an older, cancelled
+  or failed job changes nothing; while a section waits, its results show a pending state and never an older
+  revision as current; a failure shows a translated error and does not fall back to JavaScript.
+- **Tests:** Node tests for revision changes, stale-result rejection and `resultToBins` on the fixtures; desktop
+  end-to-end with the flag on: the six sections of the public example match the JavaScript reference (exact
+  counts and indices, 1e-9 on floats), then edit → undo → redo, CSV export and save → reopen; with the flag off
+  the existing end-to-end passes unchanged.
+- **Done when:** both end-to-end runs pass and the full session checks pass.
 
-- [ ] **M1.2.2 - Diagnose remaining desktop hangs if reported.** Capture the triggering action, project
-      dimensions, terminal/renderer error and whether the process is busy or waiting. Reproduce with public
-      or synthetic data before attributing a memory, GPU or computation cause. The focused backup audit
-      does not establish the cause of every hang reported by the maintainer. Reproduce the multiple-waiter
-      `saveToDB` path flagged by source review before changing its concurrency controller. The opt-in desktop
-      diagnostics of M1.2.3 record the evidence; remove them in a separate delivery once the diagnosis is accepted.
+#### M8.3.8 - Acceptance measurements and decision — state: Ready after M8.3.7
 
-### M2 - Large projects and responsive display
+- **Goal:** the gates of contract §7 are measured on the first slice and the maintainer decides what follows.
+- **Change:** a measuring tool under `tools/`, evidence under `docs/validation/`, the release checklist above.
+- **Steps:** numerical parity on the public six-section example and the generated eight-section M0.1 project at
+  2 and 1.37 cm; matched timing (flag off/on, alternating order); interface responsiveness and cancellation during
+  the largest case; whole-process memory; ten open/analyse/close cycles; kill the worker and the coordinator
+  mid-job and interrupt a save.
+- **Done when:** every gate has a recorded pass or a recorded failure with its measurement, and the maintainer
+  has chosen: continue to M8.4, or correct first.
 
-M2.1 (large tables) and M2.2 (large images) are complete ([history](roadmap-history.md#m2---large-projects-and-responsive-display)).
+### M8.4 to M8.6 - summaries
 
-- [ ] **M2.3 - Multi-gigabyte image workflows.** Extend the measured M2.2 scope to individual source files
-      of several gigabytes and larger decoded rasters, including native grayscale/16-bit images. Raising
-      the current input/memory limits alone is not an implementation of this task. Delivered through M8.4.
-  - [ ] **M2.3.1 - Define fixtures, hardware and responsiveness targets.** Build deterministic 2, 4 and 8 GiB
-        source-file cases, plus compressed cases whose decoded rasters exceed those sizes. Record dimensions,
-        channels, bit depth, compression, tile/strip layout and exact encoded/decoded byte counts separately.
-        Compare local-SSD hosts with 16/32 GiB RAM, measuring the complete desktop/engine pipeline. Use the
-        current browser path only as a historical reference while it remains in the migration support matrix.
-    - Acceptance: reproduce opening, first useful preview, cold/cached pan/zoom, editing, analysis, export and
-      save/reopen with process-tree RSS, temporary-disk usage, copies and CPU/I/O attribution. Initial proposed
-      targets are cached-navigation p95 frame time <=33 ms, control response <=100 ms and cancellation
-      acknowledgement <=250 ms. Ratify achievable targets and an absolute working-memory/cache budget on
-      named hardware before implementation; report cold loading and analysis throughput separately.
-  - [ ] **M2.3.2 - Bounded image source and multiresolution tiles.** Read supported TIFF/BigTIFF regions on
-        demand and generate/reuse a disk-backed pyramid without decoding the full raster into memory. Define
-        a cancellable conversion path for non-random-access sources and a source/cache identity contract.
-    - Acceptance: sampled native pixels, dimensions and coordinates match independent references exactly;
-      peak working memory follows the declared tile budget rather than full raster size. Handle corrupt
-      tiles, oversized declarations, interruption and exhausted disk space. Preserve originals and existing
-      supported inputs; compare dependency, distribution and offline costs before selecting a decoder.
-  - [ ] **M2.3.3 - Responsive tiled viewer and editing.** Load visible tiles with bounded prefetch/cache,
-        level-of-detail selection, background decoding and cancellation of obsolete viewport requests.
-        Store masks/exclusions and editing history in bounded chunks; keep full-resolution coordinates.
-    - Acceptance: meet M2.3.1's agreed responsiveness/RSS targets during repeated pan/zoom and edits; evict
-      buffers and worker/GPU resources predictably. Verify depth mapping, overlaps, exclusions, undo/redo,
-      invalidation and identical exported masks. A lower-resolution preview must not silently change analysis.
-  - [ ] **M2.3.4 - Analysis and export beyond resident memory.** Stream counting, filtering, detection,
-        U-Net tiling and exports in independently delivered operations. Define filter halos, border rules
-        and cross-tile object merging before replacing a whole-image operation.
-    - Acceptance: exact integer masks/counts and reference-equivalent scientific results at predeclared
-      tolerances, including objects crossing tile seams, fractional intervals and exclusions. Bound scratch
-      memory, expose progress/cancellation and verify that cancellation publishes no partial result as complete.
-  - [ ] **M2.3.5 - Large-project storage and recovery.** Stream original-image import, project packaging,
-        backup and recovery with bounded buffers; make portable-copy versus external-source references
-        explicit, with checksums and missing/moved-source recovery. Treat generated pyramids as disposable caches.
-    - Acceptance: reopen multi-gigabyte projects with unchanged source bytes, masks and results; preserve
-      the last good save after quota, disk-full, interrupted transfer and partial-cache failures. Verify
-      legacy projects and portable desktop exports; validate the transitional HTML export/import route.
+Cards are written by a design session when the previous milestone passes its development gate.
 
-### M3 - Analysis and learned segmentation
+- [ ] **M8.4 - Bounded engine data and image services.** Engine-owned native images, chunked operations and a
+      bounded tile/cache interface; the renderer receives visible tiles, editing updates and result summaries
+      instead of holding a second copy of every image. Implements M2.3.1–M2.3.5
+      ([roadmap-future.md](roadmap-future.md)).
+  - Acceptance: the multi-gigabyte contract covers the complete Electron/engine process tree, disk usage, buffer
+    ownership and memory release after closing a project; native pixels, editing coordinates, masks/history and
+    atomic save/backup recovery are preserved; raising heap or image limits alone does not pass.
+- [ ] **M8.5 - Migrate the remaining scientific methods,** one slice at a time with the recipe of
+      [ARCHITECTURE §5.1](ARCHITECTURE.md#51-add-or-migrate-a-scientific-method): (a) depth/age parsing and
+      record/formula transformations; (b) image filters, detection and object features; (c) ichnotaxon
+      classifiers and embeddings; (d) multiproxy rules, models, interpolation and fitted statistics; (e) U-Net
+      inference, then training integration after M3.2.5.
+  - Acceptance per slice: independent reference fixtures, explicit provenance, unchanged public contracts; exact
+    counts/masks/labels and predeclared tolerances elsewhere; figures and exports unchanged.
+- [ ] **M8.6 - Promote desktop and retire duplicate computation.** After the release checklist passes: the engine
+      becomes authoritative, migrated JavaScript calculations are removed from the desktop program, their role as
+      reference passes to versioned fixtures, and the last supported HTML version is frozen with a tested
+      export/import path for its stored projects.
+  - Acceptance: one implementation per method; identical API, CLI and desktop results; complete desktop and
+    interrupted-save regressions; storage identifiers and old project readers retained; documents and CI updated
+    in the same delivery; engine errors stay visible.
 
-Complete: M3.1.1–M3.1.5 (interval analysis performance; opt-in NumPy counting via
-`SEDCORETOOL_EXPERIMENTAL_COUNTS=1`), M3.2.1–M3.2.3 (U-Net device fallback, safe dataset paths, preserved
-models), M3.3.1 and M3.3.3 (palette inputs, manifest escaping). Records:
-[M3](roadmap-history.md#m3---analysis-and-learned-segmentation),
-[M3.3](roadmap-history.md#m33---python-input-and-export-contracts).
+## Small maintenance cards
 
-- [ ] **M3.1 - Analysis performance.** Profile Python and JavaScript before optimising shared algorithms.
-      Preserve configurable interval boundaries and regression results.
-  - [ ] **M3.1.6 - Review promotion of the measured NumPy counting path.** Review M3.1.5's accepted workload
-        results and extend coverage to representative overlaps, class counts, strided masks and radiograph-sized
-        tiles before proposing a default change. Preserve the current rollback path and scientific contract.
-    - Acceptance: matched end-to-end latency/RSS measurements, exact counts/indices and documented numerical
-      parity; no universal speed claim from the original two fixtures. Promotion and flag removal remain
-      separate maintainer decisions.
-  - [ ] **M3.1.7 - Cancellable background calculation and bounded reuse.** Implement scheduling behind the
-        M8 engine boundary with explicit buffer ownership, bounded worker concurrency, progress and cancellation.
-        Evaluate dependency-aware reuse of counts, derived series and map grids after edits. Renderer workers
-        may support presentation; new scientific worker implementations in JavaScript are not a separate backend.
-    - Acceptance: the interface meets agreed response/cancellation targets while calculations run; stale jobs
-      cannot overwrite newer edits/results. Include worker startup, buffer transfers and cache memory in
-      end-to-end comparisons; require identical outputs and correct invalidation on every relevant input.
-      Establish the accepted engine baseline before considering M4.1.1.
-- [ ] **M3.2 - U-Net reliability.** Exercise representative CPU and GPU workloads. Test device fallback and
-      memory failures, and record model identity and checksums for reproducible inference.
-  - [ ] **M3.2.4 - Reproduce the managed trainer environment (AUD-09).** The optional desktop installer
-        downloads dependencies whose versions can vary between installations. Select constraints from tested
-        configurations, not the audit's example caps. Share tested constraints and update policy with the
-        packaged base engine of M8.2; the optional trainer/CPU/CUDA matrix stays separate and must not make
-        training packages mandatory for ordinary section analysis.
-    - **Approach.** Document training-related network access in `SECURITY.md` and define tested
-      dependency constraints for the supported Python, CPU and CUDA configurations.
-    - **Acceptance.** Document the downloads and when they occur. Verify that two clean installs
-      of a supported configuration resolve to the same dependency versions and can run a trainer
-      smoke check. Keep coverage for CPU and each supported CUDA configuration.
-    - **Likely touchpoints.** `desktop/trainer.js`, the Python U-Net dependency configuration,
-      `SECURITY.md` and the trainer installation checks.
-    - **Decision before implementation.** Define the supported environment matrix and how its
-      constraints are updated and tested.
-  - [ ] **M3.2.5 - Isolate caller random state during training (AUD-08).** Review Python, NumPy and
-        Torch CPU/device seeding in `unet/train.py`, including model initialisation and data loaders.
-    - Acceptance: caller random streams are preserved on success, failure and cancellation, while seeded
-      training and checkpoint resume remain reproducible. Use local generators or scoped state restoration
-      where framework operations require global generators. Exercise supported CPU/device paths without
-      weakening the existing determinism contract or changing scientific defaults silently.
+Independent of M8; each can be done in under an hour when the maintainer asks.
 
-### M3.3 - Python input and export contracts
+- [ ] **H1 - The desktop end-to-end test prepares its own files.** `tests/e2e/desktop.mjs` depends on
+      `desktop/web` containing the sample data, which `npm run dist` removes (it failed for that reason on
+      12 November 2026). Make the test run `desktop/scripts/prepare.js --with-examples` itself, or fail at once
+      with a clear message when the sample is missing. Done when the test passes right after `npm run dist`.
+- [ ] **H2 - Check the failed requests for optional sample files in packaged builds.** The packaged program logs
+      `net::ERR_UNEXPECTED` for `app://corantool/app/data/idealized_core_0-500cm.jpg`,
+      `app/data/land-50m.json` and `examples/data/idealized_core_0-500cm.jpg` at start-up. Find out whether these
+      are the intended probes for absent optional files (then answer them with a clean 404) or a wrong path for
+      the coastline file. Done when the cause is written here and, if it is a defect, fixed with a test.
+- [ ] **H3 - Move raw benchmark reports out of the repository.** `docs/benchmarks/*.json` weighs about 10 MB.
+      Needs the maintainer's decision on where the raw files go; the `.md` summaries stay.
 
-- [ ] **M3.3.2 - Describe fractional bin sizes accurately (AUD-05).** Align `CoreSection.bin_px`'s
-      annotation with the existing float-valued API and documented fractional boundary rules.
-  - Acceptance: inspect public annotations/documentation and retain fractional-bin and legacy numerical
-    regressions. This is a type correction, not a new conversion or rounding algorithm.
-- [ ] **M3.3.4 - Choose LAS ASCII metadata policy (AUD-07).** Decide how non-ASCII names, headers and
-      units are represented before replacing the current ASCII substitution in `export.py`.
-  - Acceptance: document predictable transliteration/rejection/warning behaviour, test accented and
-    non-transliterable text and possible naming collisions, preserve numeric curves and valid LAS 2.0 syntax.
-    Avoid silently treating all Unicode symbols as equivalent to accent removal.
+## Later milestones
 
-### M4 - Optional acceleration
+Not scheduled. Details, acceptance criteria and the backlog are in [roadmap-future.md](roadmap-future.md).
 
-- [ ] **M4.1 - Targeted experiments.** After the M8 engine baseline, evaluate native kernels, GPU rendering
-      or alternative tabular storage when a measured bottleneck justifies it. Compare performance,
-      compatibility and maintenance costs. Browser/WebAssembly experiments are deferred.
-  - [ ] **M4.1.1 - Conditional native Rust image kernel.** After the engine baseline is accepted, select one
-        measured hotspot such as preview reduction, mask traversal or connected components. Compare the best
-        accepted Python/NumPy/native-library path with a small Rust component called through the same engine API.
-    - Acceptance: define the numerical contract and inputs first, count all buffer copies/bridge overhead,
-      and preserve the engine API, supported Python callers and legacy scientific references. Initial promotion target:
-      >=25% lower end-to-end median latency on each selected representative workload and <=10% peak-RSS growth,
-      subject to M2.3's stricter absolute budget where applicable. Record build, portable/installer,
-      platform-testing and dependency costs. Keep a default-off experiment and working fallback; stop if the
-      target fails. The kernel is internal to the single engine; no broad language migration is selected.
-  - [ ] **M4.1.2 - Conditional GPU display or computation.** After separating CPU, I/O and rendering costs,
-        evaluate GPU tile display or one suitable numerical operation only where profiling justifies it.
-    - Acceptance: compare with the best accepted CPU path, include upload/readback and GPU memory, handle
-      device loss with CPU fallback, and validate deterministic/exact outputs or justified tolerances before
-      implementation. Training-provider changes and GPU rendering are separate experiments.
-
-### M5 - Release readiness
-
-Complete: M5.2.1, M5.2.2 (documentation corrections) and M5.3 (type checking)
-([history](roadmap-history.md#m5---release-readiness)).
-
-- [ ] **M5.1 - Compatibility and reproducibility.** Verify that representative legacy projects open and can be
-      recovered, that shared analysis agrees between JavaScript and Python, and that exported tables and figures
-      include the information needed to reproduce them. Before a release, verify that the GitHub Actions
-      versions used by the workflows run on the supported build matrix (AUD-11; tag existence alone is not proof).
-- [ ] **M5.2 - Scientific validation and documentation.** Complete the release requirements in
-      [Validation](#validation) and the relevant user guidance. The maintainer decides when to declare 1.0
-      and publish it.
-- [ ] **M5.4 - Reduce legacy JavaScript type diagnostics (AUD-14).** Replace the baseline entries with checked
-      contracts as the corresponding modules are changed.
-  - Evaluate `figview.js`, `navpreview.js`, `exportio.js`, `tableview.js` and `edit.js` one at a time
-    (`unetmodel.js` and `sectiondepth.js` are already strict). Accept only checked contracts with no new
-    diagnostics; prune resolved baseline entries without regenerating a baseline that admits new errors.
-  - On the next TypeScript upgrade, migrate the deprecated `moduleResolution: "node"` setting and check
-    both typecheck configurations and the diagnostic baseline against the new compiler.
-- [ ] **M5.5 - Enforce the standalone module syntax contract (AUD-10).** Make unsupported module syntax
-      fail at build time rather than producing an HTML file that fails from disk.
-  - Deferred under M8: fix a blocker if the transitional standalone build needs it, otherwise reassess at
-    the last-HTML cutover. Keep existing build checks until that documented cutover.
-  - Acceptance: fixtures cover supported multiline imports and comments, residual imports/exports,
-    export lists/re-exports and relative dynamic imports. Support or explicitly reject each construct with
-    actionable diagnostics and no false positives from ordinary strings/comments. Preserve top-level name
-    collision checks and dependency order; verify the result from `file://`. Compare standard-library checks
-    with a parser only if needed, documenting dependency/offline costs before adding one.
-  - Already done (R2, V0.126): local unaliased export lists, with explicit errors for unsupported lists.
-
-### M6 - Advanced-statistics module
-
-- [ ] **M6.1 - Data and method contracts.** Define an analysis dataset from selected cores, proxies,
-      ichnological results and event families, with depth/age coordinates, units, missingness, provenance and
-      an immutable input snapshot. Specify transformations, compositional variables and independent sampling
-      units before selecting methods. Implement methods inside the M8 Python engine; assess required libraries,
-      dependency costs and offline desktop packaging without creating another scientific backend.
-  - Acceptance: explicit alignment/resampling rules, reproducible filters and transformations, memory limits,
-    cancellation and a method registry with assumptions, outputs and predeclared reference tolerances.
-- [ ] **M6.2 - Exploratory and association methods.** Implement descriptive/robust summaries, distributions,
-      outlier diagnostics and Pearson/Spearman/Kendall association with effective sample counts, missing-data
-      handling and uncertainty. Add inspectable plots linked to the selected observations and cores.
-  - Acceptance: hand-computed and independent reference fixtures, constants/ties/missingness/unequal units,
-    no mutation of measurements and explicit warnings when independence assumptions are unsuitable.
-- [ ] **M6.3 - Multivariate analysis.** Implement PCA and hierarchical clustering with explicit scaling,
-      distance/linkage choices, explained variance, scores/loadings and sensitivity to variable selection.
-      Reuse current clustering/classifier machinery where appropriate instead of duplicating its definitions.
-  - Acceptance: reproducible reference results, rank-deficient/collinear and missing-data cases, permutation
-    and sign ambiguities handled in validation, and clear separation of exploratory groups from known classes.
-- [ ] **M6.4 - Inference and statistical models.** Add regression/GLM and selected group-comparison methods,
-      effect sizes, confidence intervals, multiple-testing correction and seeded bootstrap/permutation tests.
-      Define blocked or core-level resampling for stratigraphic autocorrelation and repeated observations.
-  - Acceptance: assumptions/diagnostics and independent sample counts accompany outputs; synthetic null and
-    known-effect tests check calibration. Prevent leakage when choosing variables/scaling and evaluating models;
-    document supported designs and validate each method independently before making it available.
-- [ ] **M6.5 - Down-core and age-series statistics.** Develop cross-correlation, change-point and spectral
-      analyses in separate deliveries, with an explicit treatment of uneven spacing, gaps, detrending,
-      autocorrelation and age-model uncertainty. Do not infer causality from correlation or classification.
-  - Acceptance: recover known synthetic signals/change depths within declared resolution, test null/aliasing
-    cases and report uncertainty/sensitivity to resampling and age models. Define computational limits first.
-- [ ] **M6.6 - Program integration and reproducible delivery.** Implement the statistics workspace with
-      explicit input selection, transformations, method settings, progress/cancellation and saved analysis runs.
-      Export result tables and SVG/PNG figures with input identity, method/version, parameters and random seed.
-  - Acceptance: restore the same analysis after project reload, preserve source data and existing workflows,
-    invalidate or label outdated results after edits, and verify portable/installed desktop operation offline.
-    The interface displays engine results; no standalone-browser scientific implementation is required.
-    Deliver validated methods incrementally; do not wait for every proposed method to release the first module.
-
-### M7 - Radiographs and multimodal core images
-
-Use M8's engine-owned source data, calibration and measurements. JavaScript provides the viewer and controls;
-it does not implement a second radiograph-analysis path. Large inputs use M8.4/M2.3 services.
-
-- [ ] **M7.1 - Radiograph input and metadata contract.** Inventory public/owner-approved examples and define
-      a first 2-D format matrix: native grayscale TIFF/BigTIFF and relevant exported image formats, bit depth,
-      intensity polarity, pixel spacing, orientation and depth coverage. Evaluate DICOM only if actual sources
-      require it; record decoder, metadata, dependency and offline constraints before implementation.
-  - Acceptance: approved fixtures with known raw samples/dimensions and metadata, invalid/unsupported-input
-    behaviour, storage estimates and a versioned modality schema. Keep 3-D CT volumes outside this first scope.
-- [ ] **M7.2 - Import and radiograph viewer.** Attach radiographs as an additional modality of a core/section,
-      retaining the original bytes/native intensities. Provide grayscale window/level, inversion and display
-      controls without overwriting calibrated values; use M2.3 for sources beyond resident memory.
-  - Acceptance: exact raw sample preservation, high-bit-depth and orientation fixtures, bounded viewing,
-    project save/reload and recovery. Previous single-photo projects retain their appearance and results.
-- [ ] **M7.3 - Optical/radiograph alignment.** Add physical-scale and depth tie points, side-by-side and
-      overlay inspection, cropping/registration controls and explicit handling of unequal resolution, gaps,
-      distortion and partial section coverage. Map depth to age through the same selected-core age model.
-  - Acceptance: independent known-coordinate fixtures establish alignment error limits before implementation;
-    original coordinates remain recoverable and display transforms cannot silently alter analysis depths.
-    Persist transformations, calibration provenance and uncertainty independently for each modality.
-- [ ] **M7.4 - Radiograph measurements and figures.** Implement reproducible intensity/texture profiles,
-      modality-specific annotations and selected analysis-region measurements; integrate them as labelled
-      records/image tracks in Data, Multiproxy, statistics and publication figures.
-  - Acceptance: reference profiles and region measurements, explicit raw/display/calibrated value distinctions,
-    source identity and units in exports, synchronized optical/radiograph depth windows and SVG/PNG output.
-    Radiographic contrast must not be treated automatically as density, ichnotaxon identity or bioturbation
-    percentage without its own calibration/validation. Validate any such interpretation as a separate method.
-
-## Existing backlog
-
-Unscheduled ideas. None is authorised; each needs scope, acceptance criteria and the maintainer's approval
-before work starts. Completed backlog items (F1–F4, G1, R1, R2 and others) are in the
-[history](roadmap-history.md#multiproxy-analysis-maps-and-program-features).
-
-### Distribution and publication
-- [ ] First public release of the installers
-- [ ] Python package on PyPI (`sedcoretool`)
-- [ ] Archived release with a DOI (Zenodo)
-- [ ] Software paper (`paper/`)
-- [ ] Documentation website with example notebooks
-
-### Segmentation and identification
-- [ ] U-Net models trained and evaluated on annotated real cores
-- [ ] Open dataset of annotated core images and masks, with an annotation protocol and inter-annotator agreement
-- [ ] Classical segmentation baselines in Python for comparison
-- [ ] Click-assisted segmentation with promptable models
-- [ ] Texture descriptors for ichnotaxa
-
-### Validation
-- [ ] Automatic versus manual masks versus experts' visual BI/ii estimates
-- [ ] Blind comparison of ichnotaxa identification with ichnologists
-- [ ] Multiproxy classification on cores with an independent, published interpretation
-
-### Multiproxy analysis and maps
-- [ ] Permutation importance of variables (also for the neural network)
-- [ ] Kriging variance maps
-- [ ] Location map: cores from other projects and an inset location map
-
-### Program
-- [ ] Unified data import; age model edited in the core dialog
-- [ ] Dedicated horizontal layout for each figure type
-- [ ] Simultaneous editing of a shared project
-- [ ] Split `app.js` into smaller modules (R1 and R2 done; next candidates: composition and class selectors,
-      remaining interface import cycles)
-
-### Further ichnological parameters
-- [ ] Ichnodiversity, burrow size, tiering and cross-cutting relationships
-- [ ] 3-D CT volumes: scope separately after M7's 2-D input, storage and calibration contracts are evaluated.
+| Area | Tasks |
+|---|---|
+| Editing and recovery | M1.2.2 remaining desktop hangs |
+| Large images | M2.3.1–M2.3.5 (delivered through M8.4) |
+| Analysis and U-Net | M3.1.6, M3.1.7, M3.2.4, M3.2.5, M3.3.2, M3.3.4 |
+| Optional acceleration | M4.1.1 Rust kernel, M4.1.2 GPU |
+| Release readiness | M5.1, M5.2, M5.4, M5.5 |
+| Advanced statistics | M6.1–M6.6 |
+| Radiographs | M7.1–M7.4 |
+| Interface shell | M9.1 |
+| Validation, publication, backlog | scientific validation on real cores, paper, DOI, PyPI, further ideas |

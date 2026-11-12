@@ -12,15 +12,20 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ## Unreleased
 
-- The start-up measuring tool also reports the number of processes, memory and idle CPU of the whole program (interface plus engine) on Windows.
-- The start-up measuring tool for packaged programs can keep one profile across launches (`--keep-profile`), so the effect of the runtime verification record is measurable, and records the stage at which a launch stops responding.
-- Reorganised the project documents: the roadmap now lists only the current status, next steps and pending work, and the records of completed tasks moved unchanged to `docs/roadmap-history.md`. The contributor guide starts with a short step-by-step quick start for any assistant. Obsolete audit snapshots and a scratch note were removed from the repository root. Application behaviour is unchanged.
+### For users
+
 - The Windows portable version is now a ZIP archive of the program folder instead of a single self-extracting executable: unzip it once and run `SedCoreTool.exe`. The previous single file unpacked 150 MB on every launch and took about 50 seconds to open.
-- The experimental engine now records a successful integrity check of its bundled runtime and, on later launches, rechecks only file identity (size, times, inode) instead of reading all 7,326 files again: 0.18 s instead of 4.7 s when files are cached by the system. Any changed, added, missing or replaced file, a different build, or a missing or damaged record triggers the full check again.
-- Stop the experimental engine and its workers almost instantly on Windows when it must be ended forcibly (5 ms instead of about 1.7 s), by tying worker processes to the engine's lifetime in the operating system.
-- Add a developer tool that measures transfer speed, job cancellation latency and engine memory with the experimental engine.
-- Add a developer tool that launches a packaged desktop program with the experimental engine and measures time to window and to engine ready, closing time and leftover processes.
-- Add a developer tool that measures start-up, verification, shutdown and forced-termination times of the experimental engine and checks that no process or temporary folder is left behind. Application behaviour and calculations are unchanged.
+- The desktop download is smaller: the bundled scientific runtime no longer ships files the program never uses (pip, test suites, Tcl/Tk data, development folders): 3,552 files instead of 7,326 and about 205 MB instead of 249 MB.
+
+### Internal
+
+Development tools, tests and documents; the experimental engine is off by default, so none of this changes what the program calculates.
+
+- Engine start-up: after one successful integrity check of the bundled runtime, later launches recheck only file identity (size, times, inode) instead of reading every file again; any changed, added, missing or replaced file, a different build, or a missing or damaged record triggers the full check. With the smaller runtime a full check takes about 1.2 s and a recorded one about 0.1 s on the maintainer's Windows computer; the first launch after extracting the portable ZIP reaches engine ready in 3.7–3.9 s (11–25 s before).
+- Engine shutdown: a forced stop ends the engine and its workers almost instantly on Windows (5 ms instead of about 1.7 s), by tying worker processes to the engine's lifetime in the operating system.
+- Measuring tools: `tools/measure_engine_lifecycle.mjs` (verification, start-up, shutdown, forced stop, leftovers), `tools/measure_engine_cancellation.mjs` (transfer speed, cancellation latency, engine memory) and `tools/measure_packaged_startup.mjs` (packaged program: time to window and to engine ready, closing, leftover processes, whole-program memory and idle CPU; `--keep-profile`, `--wait-ms`, failure-stage diagnostics).
+- Documents restructured for task-card work: `AGENTS.md` now holds only stable rules; `docs/ARCHITECTURE.md` (layers, import rules, path of a scientific request, recipes, recorded decisions) and `docs/DEVELOPMENT.md` (commands, packaging, measuring tools, known problems) are new; `docs/roadmap.md` holds the status, two acceptance levels, the flag table and ordered task cards for the first scientific slice; later milestones moved to `docs/roadmap-future.md` and finished tasks to `docs/roadmap-history.md`.
+- Repository clean-up: obsolete audit snapshots, a scratch note and an unused GitHub Pages theme file were removed from the repository root.
 
 ## V0.148 — 2026-11-12
 
