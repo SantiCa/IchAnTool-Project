@@ -127,21 +127,33 @@ under `.venv/review-tools`), not a virtual environment.
 
 ## 5. Delivering a change
 
-Every delivery that changes code, algorithms, defaults or files includes, in the same commit:
+**Session work happens on a branch; a version is created only when the maintainer asks.** Set by the
+maintainer on 12 November 2026 to avoid a new version for every request and repeated full test runs.
 
-1. **Next version number** `V0.<n>` (the latest is the top entry of `CHANGELOG.md`). Set `DELIVERY` in
-   `app/js/app.js` and run `python3 tools/sync_version.py`, which writes `0.<n>.0` to `pyproject.toml`,
-   `src/sedcoretool/__init__.py`, `CITATION.cff` and `desktop/package.json` (a test checks them).
-2. **`CHANGELOG.md`:** a new entry at the top, `## V0.<n> — YYYY-MM-DD`, with short user-facing bullets (what changed
-   for the user, not how the work was organised).
-3. **`docs/TECHNICAL_DOCUMENTATION.md`** if an algorithm, formula, default value, file format or validation result
-   changes. Formulas there must match the code exactly. It describes current behaviour for any reader: no history, no
-   notes addressed to reviewers.
-4. **README** if what users see or do changes.
-5. **Tests pass:** `pytest -q`, `npm test`, `npm run typecheck`, `python3 tools/sync_version.py --check`, `ruff check src tests tools`;
-   run the end-to-end test when the interface or saving changes. Do not re-run them on an unchanged, already verified
-   state.
-6. **Commit** on `master` with the message `V0.<n>: <summary>` and a short body. Select files explicitly.
+1. **Work branch.** Start or continue the active branch recorded in the
+   [roadmap handoff](docs/roadmap.md#status-and-handoff), or create `work/<YYYY-MM-DD>` from `master`. Commit there
+   with descriptive messages and explicitly selected files. Do not change the version number on the branch.
+2. **Documentation with each change**, in the same branch commit:
+   - **`CHANGELOG.md`:** short user-facing bullets (what changed for the user, not how the work was organised)
+     under `## Unreleased` at the top.
+   - **`docs/TECHNICAL_DOCUMENTATION.md`** if an algorithm, formula, default value, file format or validation result
+     changes. Formulas there must match the code exactly. It describes current behaviour for any reader: no history,
+     no notes addressed to reviewers.
+   - **README** if what users see or do changes.
+3. **Checks during the session:** run only quick, focused checks for what changed (for example one test file).
+   Do not run the full suite after every request.
+4. **End of session:** run the full checks once — `pytest -q`, `npm test`, `npm run typecheck`,
+   `python3 tools/sync_version.py --check`, `ruff check src tests tools`, plus the end-to-end test when the interface
+   or saving changed — and record the result and the commit checked in the roadmap handoff. If the session ends
+   before they run, record **checks pending** with the branch and commit; the next assistant runs them first.
+   Do not re-run them on an unchanged, already verified state. Run independent suites serially (see the open
+   M8.2.3 load observation).
+5. **New version, only on the maintainer's request:** take the next number `V0.<n>` (the latest is the top
+   versioned entry of `CHANGELOG.md`). Set `DELIVERY` in `app/js/app.js` and run `python3 tools/sync_version.py`,
+   which writes `0.<n>.0` to `pyproject.toml`, `src/sedcoretool/__init__.py`, `CITATION.cff`, `desktop/package.json`
+   and the release notes (a test checks them). Rename `## Unreleased` to `## V0.<n> — YYYY-MM-DD`, point roadmap
+   references to that entry, make sure the full checks pass on the final state, and integrate the branch into
+   `master` as one commit `V0.<n>: <summary>` with a short body.
 
 Version 1.0 is reserved for when the owner declares the program complete.
 
@@ -172,19 +184,21 @@ Do not repeat content between these files; link instead. Keep the tone factual a
   are shared. Other sessions may read and review.
 - **Before editing:** `git fetch origin`, `git status --short --branch`, and `git pull --ff-only` on a clean tree.
   A dirty tree may contain someone else's work: do not stash, reset, clean or discard it, and do not switch branches.
+  On a clean tree, continue the active work branch recorded in the roadmap handoff (§5).
 - **Before committing:** fetch again; if someone else delivered meanwhile, rebase or merge and take the next free
-  version number. Never force-push or overwrite others' work.
-- **Start each iteration** by reading this file and the current [roadmap](docs/roadmap.md). Find the task
-  the maintainer authorised, its acceptance criteria and its editor and reviewer, when assigned. The roadmap
-  orders the work. Starting a task requires the maintainer's authorisation.
+  version number when creating a version. Never force-push or overwrite others' work.
+- **Start each iteration** by reading this file and the current [roadmap](docs/roadmap.md). If its handoff records
+  checks pending, run them before new work. Find the task the maintainer authorised, its acceptance criteria and
+  its editor and reviewer, when assigned. The roadmap orders the work. Starting a task requires the maintainer's
+  authorisation.
 - **Handoff.** Update the roadmap status when handing work over or delivering it. For an unfinished task,
   record the next step or blocker and point to the work under review if available. Mark a task complete once
   its criteria and required checks pass, and link its changelog entry in the same delivery. Sessions rely on
   the repository for handoffs.
-- **GitHub handoff.** At each reviewable checkpoint, check whether the next editor or reviewer can retrieve the
-  commit from GitHub. If a push is needed, tell the maintainer promptly and provide the branch, commit SHA,
-  checks run and next step. If the work is still local and uncommitted, say what needs to be committed first.
-  Raise this at the checkpoint so the handoff can happen even if the session ends early. Push only when authorised.
+- **Local handoff.** The maintainer runs all assistants on one computer in this same checkout and editor
+  (12 November 2026), so handoffs use local commits and the roadmap; GitHub is not needed for them. At each
+  reviewable checkpoint, make sure the work is committed and the roadmap names the branch, commit, checks run
+  and next step. Push only when the maintainer asks (for example for CI, a release or a remote reviewer).
 - **Explain each step to the maintainer.** After completing each step, report in Spanish what you did, how you
   checked it and how any implementation works within SedCoreTool as a whole. Describe the affected components and
   how data or control passes between them. Include open work and limitations in the final report.
@@ -197,8 +211,8 @@ Do not repeat content between these files; link instead. Keep the tone factual a
   into ordered, independently verifiable phases. Work on the first authorised phase and record the others in the
   roadmap. Do not start unrelated refactors, audits or backlog work. Do not launch sub-agents or automations unless
   asked.
-- **Reporting to the owner:** briefly, in Spanish — result, how it was checked, version number, and anything that is
-  genuinely pending.
+- **Reporting to the owner:** briefly, in Spanish — result, how it was checked, branch and commit (or version
+  number when one was created), and anything that is genuinely pending, including checks not yet run.
 
 ## 8. Current migration handoff
 
@@ -320,11 +334,11 @@ version it validated; a metadata-only delivery must not relabel old measurements
 
 ### Moving to another assistant or machine
 
-Use `master` and the working-copy procedure in §7. These migration deliveries were committed locally;
-the handoff does not imply they were pushed or released. Before a remote assistant session, verify that
-GitHub contains the implementation baseline and the current handoff commit. If it does not, tell the owner
-which branch/commits need an authorised push. A session sharing this local checkout can read the commits
-directly. Never discard an existing dirty tree or start a second editor on the shared checkout.
+Use the active work branch recorded in the roadmap handoff, or `master` when none is recorded, and the
+working-copy procedure in §7. Assistants normally share this local checkout and read the commits directly;
+local commits are not pushed or released. Only if the maintainer starts a session on another machine or a
+remote service, check whether GitHub contains the needed commits and tell the owner which branch/commits
+need an authorised push. Never discard an existing dirty tree or start a second editor on the shared checkout.
 
 Pushing `master` alone does not run the current tag/manual desktop workflow. When remote validation is
 authorised, use its manual `workflow_dispatch` with `draft_release=false` for artifacts without a release.

@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.148 — 2026-11-12
+
+- Development work now accumulates on a branch and becomes a numbered version only when the maintainer decides, so versions mark meaningful steps rather than every individual change. Application behaviour and calculations are unchanged.
+
 ## V0.147 — 2026-11-12
 
 - Record the direction for the desktop program: Electron remains the interface during the scientific engine migration, a more fluid interface may be evaluated afterwards, and the program is delivered as portable and installed packages for each system.

@@ -9,6 +9,11 @@ All assistants use that same guide; compatibility entry files contain only its i
 M8.2.2 delivered; M8.2.3 is the next implementation candidate and awaits authorisation.
 [V0.147](../CHANGELOG.md#v0147--2026-11-12) records the maintainer's interface-shell and distribution guidance
 (M8 target architecture, M8.2.3 and M9) without changing application behaviour.
+[V0.148](../CHANGELOG.md#v0148--2026-11-12) adopts the [branch workflow](../AGENTS.md#5-delivering-a-change)
+and the shared local checkout used by all assistants.
+
+- **Active work branch:** none. Create `work/<YYYY-MM-DD>` from `master` for the next session.
+- **Checks:** the full suite passed on the V0.148 delivery; nothing pending.
 
 | Marker | Meaning |
 |---|---|
