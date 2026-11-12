@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "tool": "tools/measure_packaged_startup.mjs",
+  "date": "2026-11-12",
+  "executable": {
+    "name": "SedCoreTool.exe",
+    "bytes": 249469440
+  },
+  "environment": {
+    "platform": "win32-x64",
+    "os": "Windows_NT 10.0.26300",
+    "cpu": "AMD Ryzen 7 7700X 8-Core Processor             ",
+    "logical_cpus": 16,
+    "node": "22.23.4"
+  },
+  "profile": "fresh profile per launch (full verification every time)",
+  "runs": 3,
+  "failed_runs": 1,
+  "summary": {
+    "devtools_ms": {
+      "n": 3,
+      "min": 169.6,
+      "median": 180.53,
+      "max": 192.32
+    },
+    "window_ms": {
+      "n": 2,
+      "min": 445.91,
+      "median": 447.89,
+      "max": 449.87
+    },
+    "engine_ready_ms": {
+      "n": 2,
+      "min": 2767.7,
+      "median": 2870.64,
+      "max": 2973.58
+    },
+    "close_ms": {
+      "n": 2,
+      "min": 78.78,
+      "median": 83.92,
+      "max": 89.06
+    }
+  },
+  "first_run": {
+    "run": 1,
+    "devtools_ms": 180.53,
+    "window_ms": 445.91,
+    "engine_ready_ms": 2767.7,
+    "engine_state": "ready",
+    "engine_runtime": "bundled-verified",
+    "exit_code": 0,
+    "close_ms": 78.78,
+    "leftover_processes": 0,
+    "leftover_settle_ms": 2273.79,
+    "extraction_folders_left": 0
+  },
+  "results": [
+    {
+      "run": 1,
+      "devtools_ms": 180.53,
+      "window_ms": 445.91,
+      "engine_ready_ms": 2767.7,
+      "engine_state": "ready",
+      "engine_runtime": "bundled-verified",
+      "exit_code": 0,
+      "close_ms": 78.78,
+      "leftover_processes": 0,
+      "leftover_settle_ms": 2273.79,
+      "extraction_folders_left": 0
+    },
+    {
+      "run": 2,
+      "devtools_ms": 169.6,
+      "error": "Waiting failed: 120000ms exceeded",
+      "leftover_processes": 0,
+      "leftover_settle_ms": 2157.71,
+      "extraction_folders_left": 0
+    },
+    {
+      "run": 3,
+      "devtools_ms": 192.32,
+      "window_ms": 449.87,
+      "engine_ready_ms": 2973.58,
+      "engine_state": "ready",
+      "engine_runtime": "bundled-verified",
+      "exit_code": 0,
+      "close_ms": 89.06,
+      "leftover_processes": 0,
+      "leftover_settle_ms": 2129.31,
+      "extraction_folders_left": 0
+    }
+  ],
+  "root_commit": "063bcf5"
+}

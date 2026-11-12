@@ -43,16 +43,13 @@ Updated 12 November 2026.
   in progress (editor: Claude; author-run checks, no independent reviewer).
 - **Next steps, in order:**
   1. Run the pending checks above and record the result here.
-  2. Measure the Windows portable ZIP. A build from this branch is in `desktop/dist/` (ignored by Git;
-     rebuild with `npm run dist` in `desktop/` if it is missing). Extract the ZIP to a temporary folder,
-     then run `node tools/measure_packaged_startup.mjs <folder>\SedCoreTool.exe --runs 5 --out <file>`
-     (needs `npm i --no-save puppeteer-core@23`). Save the report as
-     `docs/validation/M8.2.3-portable-zip-windows-<version>.json` and summarise it under M8.2.3.
-  3. Measure start-up **with** the verification record. The start-up tool currently uses a fresh profile per
-     launch, so every launch performs the full verification. Add an option that keeps one profile across
-     launches, then record the first and the following launches.
-  4. Measure the Electron-plus-engine process tree (memory and CPU) of the packaged program at idle and
-     while the diagnostic job runs.
+  2. Done: Windows portable ZIP and the verification record are measured (see M8.2.3). The tool accepts
+     `--keep-profile` to reuse one user-data folder across launches. Build with `npm run dist` in `desktop/`
+     (ignored output in `desktop/dist/`), extract the ZIP to a temporary folder and run
+     `node tools/measure_packaged_startup.mjs <folder>\SedCoreTool.exe --runs 5 --out <file>`
+     (needs `npm i --no-save puppeteer-core@23`).
+  3. Repeat the ZIP launches on an idle machine to clear or reproduce the intermittent no-window failure.
+  4. Measure the Electron-plus-engine process tree (memory and CPU) of the packaged program at idle.
 - **Open maintainer decisions:**
   - macOS and Linux acceptance needs either those machines or a CI run, which requires an authorised push
     and a manual run of the *Desktop builds* workflow with `draft_release=false`.
@@ -171,9 +168,27 @@ The engine experiment stays **off by default** (`SEDCORETOOL_ENGINE_EXPERIMENT=1
         while file identity is unchanged ([evidence](validation/M8.2.3-verification-record-windows-v0.148.json),
         [technical manual §26.3](TECHNICAL_DOCUMENTATION.md#263-bundled-scientific-runtime)): 4.7 s full,
         0.18 s with the record, warm file cache. The first launch after installation still verifies everything.
+    - **Portable ZIP measured on Windows** (`tools/measure_packaged_startup.mjs`, ZIP extracted to a temporary
+      folder; evidence: [shared profile](validation/M8.2.3-portable-zip-record-windows-v0.148.json),
+      [fresh profile](validation/M8.2.3-portable-zip-fresh-profile-windows-v0.148.json),
+      [quiet rerun](validation/M8.2.3-portable-zip-rerun-windows-v0.148.json)):
+      - Window visible after about 0.45 s on every launch (the self-extracting build needed 51 s). Close 70–120 ms,
+        exit code 0, no leftover process or temporary folder.
+      - Engine ready: 11.5 s on the first launch after extraction (cold file cache, full verification);
+        0.72–0.79 s on later launches that reuse the verification record; 2.6–3.0 s when every launch verifies
+        everything with a warm cache. The 5 s gate therefore passes for warm launches with or without the record
+        and fails only for the first cold launch.
+      - **Unexplained intermittent failure:** 2 of 12 launches in the first two batches (both the second launch)
+        showed no application page within 120 s and were killed; 0 of 3 in a later rerun with the computer
+        otherwise idle. Those two batches overlapped with heavy disk activity from other work in the same session,
+        which is a possible but unproven cause. The tool now records the stage where waiting fails. Treat this as
+        open until reproduced or cleared by more idle-machine runs.
+      - Extracting the 224 MB ZIP with PowerShell `Expand-Archive` took 57 s (about 613 MB unpacked); the
+        archive has no top-level folder, so users must use "Extract all" into a new folder.
     - **Remaining** (see the next steps in the status block):
-      - [ ] Portable ZIP start-up measurement.
-      - [ ] Packaged start-up with the verification record (first and later launches).
+      - [x] Portable ZIP start-up measurement (above), except the intermittent failure.
+      - [x] Packaged start-up with the verification record (above: 11.5 s first launch, then 0.72–0.79 s).
+      - [ ] Repeat the ZIP launches several more times on an idle machine to clear or reproduce the intermittent failure.
       - [ ] Electron-plus-engine process-tree memory and CPU.
       - [ ] macOS (Intel, Apple Silicon, universal DMG) and Linux (AppImage, DEB) execution.
       - [ ] Clean-machine runs and other antivirus configurations.

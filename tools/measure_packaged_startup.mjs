@@ -7,7 +7,7 @@
 // per launch, so no project is read or written. Cold-cache and clean-machine timings are NOT measured: the first
 // launch after a build or reboot is reported separately only if you run it that way.
 //
-// Usage: node tools/measure_packaged_startup.mjs <executable> [--runs 5] [--out report.json]
+// Usage: node tools/measure_packaged_startup.mjs <executable> [--runs 5] [--keep-profile] [--out report.json]
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -22,7 +22,7 @@ const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'pup
 const argv = process.argv.slice(2), executable = path.resolve(argv[0] || '');
 if (!argv[0] || !fs.existsSync(executable)) throw new Error('Usage: node tools/measure_packaged_startup.mjs <executable> [--runs N] [--out file]');
 const option = (name, fallback) => { const index = argv.indexOf(`--${name}`); return index > 0 ? argv[index + 1] : fallback; };
-const runs = Number(option('runs', '5')), out = option('out', '');
+const runs = Number(option('runs', '5')), out = option('out', ''), keepProfile = argv.includes('--keep-profile');
 if (!Number.isInteger(runs) || runs < 1 || runs > 50) throw new Error('--runs must be 1..50');
 
 const round = (value) => Math.round(value * 100) / 100;
@@ -46,13 +46,14 @@ const extractionFolders =() => fs.readdirSync(os.tmpdir(), { withFileTypes: true
 
 async function launch(index) {
   const extractedBefore = new Set(extractionFolders());
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'sedcoretool-packaged-test-'));
+  const profile = sharedProfile || fs.mkdtempSync(path.join(os.tmpdir(), 'sedcoretool-packaged-test-'));
   const env = { ...process.env, SEDCORETOOL_ENGINE_EXPERIMENT: '1', SEDCORETOOL_TEST_PROFILE: profile };
   delete env.ELECTRON_RUN_AS_NODE; delete env.SEDCORETOOL_ENGINE_PYTHON;
   const started = performance.now(), record = { run: index + 1 };
   const port = await freePort();
   const child = spawn(executable, [`--user-data-dir=${path.join(profile, 'data')}`, `--remote-debugging-port=${port}`, '--no-sandbox'], { env, windowsHide: true, stdio: 'ignore' });
   const exited = new Promise((resolve) => child.once('exit', resolve));
+  let stage = 'devtools', browser = null;
   try {
     // A portable launcher extracts and delegates, so its own stdio is not the application's: poll the debugging port.
     const endpoint = await (async () => {
@@ -63,11 +64,15 @@ async function launch(index) {
       throw new Error('No devtools endpoint within 120 s');
     })();
     record.devtools_ms = round(performance.now() - started);
-    const browser = await puppeteer.connect({ browserWSEndpoint: endpoint, defaultViewport: null });
+    stage = 'connect';
+    browser = await puppeteer.connect({ browserWSEndpoint: endpoint, defaultViewport: null });
+    stage = 'page-target';
     const target = await browser.waitForTarget((t) => t.url().startsWith('app://corantool/app/index.html'), { timeout: 120000 });
     const page = await target.page();
+    stage = 'app-loaded';
     await page.waitForFunction(() => !!window.ichantool, { timeout: 120000 });
     record.window_ms = round(performance.now() - started);
+    stage = 'engine-ready';
     await page.waitForFunction(async () => ['ready', 'unavailable'].includes((await window.corantoolDesktop.engine.status()).state), { timeout: 120000, polling: 100 });
     record.engine_ready_ms = round(performance.now() - started);
     const status = await page.evaluate(() => window.corantoolDesktop.engine.status());
@@ -78,7 +83,15 @@ async function launch(index) {
     const code = await Promise.race([exited, sleep(30000).then(() => 'timeout')]);
     record.exit_code = code; record.close_ms = round(performance.now() - closing);
     browser.disconnect();
-  } catch (error) { record.error = String(error.message || error).slice(0, 300); try { child.kill(); } catch { /* already gone */ } }
+  } catch (error) {
+    record.error = String(error.message || error).slice(0, 300); record.failed_stage = stage;
+    if (browser) {
+      // Which pages existed when waiting failed: tells a missing window from a page that never finished loading.
+      record.targets_at_failure = browser.targets().map((t) => `${t.type()} ${t.url().slice(0, 80)}`).slice(0, 8);
+      browser.disconnect();
+    }
+    try { child.kill(); } catch { /* already gone */ }
+  }
   const name = path.basename(executable);
   const settle = performance.now();
   let left = related(name);
@@ -90,7 +103,7 @@ async function launch(index) {
     if (process.platform === 'win32' && child.pid) { try { execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }); } catch { /* already gone */ } }
     await sleep(1500);
   }
-  try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { record.profile_not_removed = true; }
+  if (!sharedProfile) { try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { record.profile_not_removed = true; } }
   // A portable executable self-extracts into a temporary folder; report whether it was removed after exit.
   const extracted = extractionFolders().filter((name) => !extractedBefore.has(name));
   record.extraction_folders_left = extracted.length;
@@ -98,14 +111,19 @@ async function launch(index) {
   return record;
 }
 
+// With --keep-profile every launch reuses one user-data folder, so the runtime-verification record written by the
+// first launch is present from the second one on; without it each launch verifies the whole runtime.
+const sharedProfile = keepProfile ? fs.mkdtempSync(path.join(os.tmpdir(), 'sedcoretool-packaged-test-')) : null;
 const results = [];
 for (let index = 0; index < runs; index += 1) results.push(await launch(index));
+if (sharedProfile) { try { fs.rmSync(sharedProfile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* temp folder */ } }
 const values = (name) => results.map((r) => r[name]).filter((v) => typeof v === 'number').sort((a, b) => a - b);
 const stat = (name) => { const v = values(name); return v.length ? { n: v.length, min: v[0], median: v.length % 2 ? v[(v.length - 1) / 2] : round((v[v.length / 2 - 1] + v[v.length / 2]) / 2), max: v[v.length - 1] } : null; };
 const report = {
   schema: 1, tool: 'tools/measure_packaged_startup.mjs', date: new Date().toISOString().slice(0, 10),
   executable: { name: path.basename(executable), bytes: fs.statSync(executable).size },
   environment: { platform: `${process.platform}-${process.arch}`, os: `${os.type()} ${os.release()}`, cpu: os.cpus()[0]?.model, logical_cpus: os.cpus().length, node: process.versions.node },
+  profile: keepProfile ? 'one profile kept across launches (verification record reused after launch 1)' : 'fresh profile per launch (full verification every time)',
   runs: results.length, failed_runs: results.filter((r) => r.error || r.engine_state !== 'ready' || r.exit_code !== 0 || r.leftover_processes).length,
   summary: { devtools_ms: stat('devtools_ms'), window_ms: stat('window_ms'), engine_ready_ms: stat('engine_ready_ms'), close_ms: stat('close_ms') },
   first_run: results[0], results, root_commit: execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
