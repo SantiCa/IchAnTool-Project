@@ -10,6 +10,10 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## Unreleased
+
+- Add a developer tool that measures start-up, verification, shutdown and forced-termination times of the experimental engine and checks that no process or temporary folder is left behind. Application behaviour and calculations are unchanged.
+
 ## V0.148 — 2026-11-12
 
 - Development work now accumulates on a branch and becomes a numbered version only when the maintainer decides, so versions mark meaningful steps rather than every individual change. Application behaviour and calculations are unchanged.

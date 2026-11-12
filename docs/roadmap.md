@@ -177,6 +177,16 @@ Local delivery on `master`; GitHub retrieval requires the maintainer's authorise
         cache) as a maintainer decision; do not weaken integrity checks silently.
       - Reproduce the V0.144 concurrent-run observation under matched idle/load conditions before certifying
         lifecycle deadlines; do not widen deadlines without that evidence.
+      - **In progress (branch `work/2026-11-12`, Windows development layout only).** `tools/measure_engine_lifecycle.mjs`
+        and [evidence](validation/M8.2.3-lifecycle-windows-v0.148.json) measure verification, ready, stop and
+        forced-kill times and leftovers. Idle: verification 2.1 s + ready 0.31 s (passes the 5 s gate), orderly
+        stop 8 ms, forced kill 1.7 s (inside 2 s with little margin), no leftover process or scratch. Eight busy
+        processes change nothing. With all 16 logical CPUs saturated, verification takes 16 s median (27 s max)
+        and forced kill 2.6 s, so both gates fail, and one earlier attempt failed the 5 s handshake. This
+        reproduces the V0.144 observation as CPU contention; no deadline or engine code has been changed.
+        Findings for a maintainer decision: forced kill time is dominated by `taskkill /T /F` (about 1.7 s,
+        whereas killing only the coordinator takes 2 ms), and start-up hashes every runtime file on each launch.
+        Not yet measured: installer/portable launch, cold cache, other platforms, real-job cancellation, tree RSS.
 - [ ] **M8.3 - First scientific vertical slice: section counts and indices.** Connect one section's
       current mask, ROI, exclusions, overlaps and class assignments to engine interval analysis, then display
       the returned percentages and BI/ii in the existing interface. Reuse the public Python analysis path;
