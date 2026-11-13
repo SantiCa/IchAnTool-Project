@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { controlFrame, frame, ControlReader } = require('./engine-protocol');
 
+// Methods the engine may advertise in its handshake; anything else makes the engine unavailable.
+const ADVERTISED_METHODS = new Set(['buffer.digest/1', 'section.intervals/1']);
 const OPERATIONS = new Set(['hello', 'buffer.begin', 'buffer.chunk', 'buffer.commit', 'buffer.release', 'buffer.digest', 'job.cancel', 'shutdown']);
 
 function unavailable() { return Object.assign(new Error('ENGINE_UNAVAILABLE'), { code: 'ENGINE_UNAVAILABLE' }); }
@@ -78,7 +80,7 @@ class EngineClient {
       this.child = null;
     });
     this.starting = this.request('hello', { protocol: 1 }).then((result) => {
-      if (result.protocol !== 1 || result.engine_version !== version || result.runtime_id !== runtimeId || !Array.isArray(result.methods) || result.methods.some((method) => method !== 'buffer.digest/1')) throw unavailable();
+      if (result.protocol !== 1 || result.engine_version !== version || result.runtime_id !== runtimeId || !Array.isArray(result.methods) || result.methods.some((method) => !ADVERTISED_METHODS.has(method))) throw unavailable();
       this.handshake = result; this.state = 'ready'; return result;
     }).catch((error) => { this.fail(child); throw error; });
     return this.starting;

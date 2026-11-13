@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+import os
 import re
 import struct
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ class StagedBuffer:
     committed: bool = False
     pins: int = 0
     released: bool = False
+    shape: tuple = ()
 
 
 class BufferStore:
@@ -67,7 +69,7 @@ class BufferStore:
         handle = str(uuid4())
         target = Path(self.directory.name) / handle
         target.touch(exist_ok=False)
-        self.buffers[handle] = StagedBuffer(target, dtype, length, payload['sha256'], charge)
+        self.buffers[handle] = StagedBuffer(target, dtype, length, payload['sha256'], charge, shape=tuple(shape))
         self.reserved += charge
         return {'handle': handle}
 
@@ -97,21 +99,73 @@ class BufferStore:
         if value.received != value.length:
             raise RequestError('INVALID_BUFFER')
         if not value.committed:
-            digest = hashlib.sha256()
-            with value.path.open('rb') as stream:
-                while chunk := stream.read(MAX_CHUNK):
-                    digest.update(chunk)
-                    if value.dtype == 'f64le' and any(not math.isfinite(item[0]) for item in struct.iter_unpack('<d', chunk)):
-                        raise RequestError('INVALID_BUFFER')
-            if digest.hexdigest() != value.expected_hash:
-                raise RequestError('INVALID_BUFFER', 'sha256')
-            if value.dtype == 'utf8json':
-                try:
-                    strict_json(value.path.read_bytes(), metadata=True)
-                except ProtocolError as error:
-                    raise RequestError('INVALID_BUFFER') from error
+            self.verify(value)
             value.committed = True
         return {'handle': payload['handle'], 'byte_length': value.length, 'sha256': value.expected_hash}
+
+    @staticmethod
+    def verify(value):
+        """Size, SHA-256, finite float64 data and strict metadata of a complete file; raises RequestError."""
+        digest = hashlib.sha256()
+        with value.path.open('rb') as stream:
+            while chunk := stream.read(MAX_CHUNK):
+                digest.update(chunk)
+                if value.dtype == 'f64le' and any(not math.isfinite(item[0]) for item in struct.iter_unpack('<d', chunk)):
+                    raise RequestError('INVALID_BUFFER')
+        if digest.hexdigest() != value.expected_hash:
+            raise RequestError('INVALID_BUFFER', 'sha256')
+        if value.dtype == 'utf8json':
+            try:
+                strict_json(value.path.read_bytes(), metadata=True)
+            except ProtocolError as error:
+                raise RequestError('INVALID_BUFFER') from error
+
+    def adopt(self, source, dtype, shape, byte_length, sha256):
+        """Take a result file written by a worker as a committed, immutable buffer; returns its handle.
+
+        The file moves into the store (it must be on the same filesystem) after the same checks a client upload gets,
+        so a worker cannot publish data that does not match the size, shape or hash it declared."""
+        if len(self.buffers) >= 128:
+            raise RequestError('LIMIT_EXCEEDED')
+        if not isinstance(dtype, str) or dtype not in ITEM_BYTES or dtype == 'utf8json':
+            raise RequestError('INVALID_BUFFER', 'dtype')
+        if not isinstance(shape, list) or not 1 <= len(shape) <= 3 or not all(type(item) is int and item >= 1 for item in shape):
+            raise RequestError('INVALID_BUFFER', 'shape')
+        length = require_integer(byte_length, 'byte_length', 1, MAX_BUFFER)
+        elements = math.prod(shape)
+        if elements * ITEM_BYTES[dtype] != length or not isinstance(sha256, str) or not re.fullmatch('[0-9a-f]{64}', sha256):
+            raise RequestError('INVALID_BUFFER', 'shape')
+        if self.reserved + length > self.budget:
+            raise RequestError('LIMIT_EXCEEDED', 'byte_length')
+        if not source.is_file() or source.is_symlink() or source.stat().st_size != length:
+            raise RequestError('INVALID_BUFFER', 'byte_length')
+        handle = str(uuid4())
+        target = Path(self.directory.name) / handle
+        value = StagedBuffer(target, dtype, length, sha256, length, received=length, committed=True, shape=tuple(shape))
+        os.replace(source, target)
+        try:
+            self.verify(value)
+        except RequestError:
+            target.unlink(missing_ok=True)
+            raise
+        self.buffers[handle] = value
+        self.reserved += length
+        return handle
+
+    def read(self, payload):
+        """A range of a committed buffer: ``(result, bytes)``; the coordinator sends the bytes as one binary frame."""
+        require_fields(payload, ('handle', 'offset', 'byte_length'))
+        value = self.get(payload['handle'], committed=True)
+        offset = require_integer(payload['offset'], 'offset')
+        length = require_integer(payload['byte_length'], 'byte_length', 1, MAX_CHUNK)
+        if offset + length > value.length:
+            raise RequestError('INVALID_REQUEST', 'byte_length')
+        with value.path.open('rb') as stream:
+            stream.seek(offset)
+            data = stream.read(length)
+        if len(data) != length:
+            raise RequestError('INTERNAL')
+        return {'offset': offset, 'byte_length': length}, data
 
     def release(self, handle):
         value = self.buffers.get(handle)

@@ -62,8 +62,29 @@ def check(source, lock):
         np.testing.assert_allclose(result['bioturbation_pct'], reference['Bioturbation Percentage'], atol=1e-9, rtol=0)
         np.testing.assert_array_equal(result['BI'], reference['BI'])
         np.testing.assert_array_equal(result['ii'], reference['II'])
+    # The engine method runs with the bundled interpreter too (reference fixture of the JavaScript calculation).
+    fixture = root / 'tests/fixtures/section-intervals/basic-four-intervals.json'
+    method_checked = False
+    if fixture.exists():
+        from sedcoretool.methods import section_intervals
+
+        document = json.loads(fixture.read_bytes())
+        dtypes = {'u8': 'u1', 'i32le': '<i4', 'u32le': '<u4'}
+
+        def decode(buffer):
+            data = np.repeat([v for v, _ in buffer['runs']], [n for _, n in buffer['runs']]) if 'runs' in buffer else np.asarray(buffer['data'])
+            return data.astype(dtypes[buffer['dtype']]).reshape(buffer['shape'])
+
+        raw = document['inputs']
+        inputs = {name: raw[name] for name in ('objects', 'classes', 'settings', 'age_model', 'manual_indices')}
+        inputs.update({name: decode(raw[name]) for name in ('labels', 'exclude', 'stack_offsets')}, stack_members=None)
+        result = section_intervals.run(section_intervals.parse(inputs))
+        np.testing.assert_array_equal(result.columns['bio_count'], document['expected']['columns']['bio_count']['data'])
+        np.testing.assert_array_equal(result.columns['indices'], np.array(document['expected']['columns']['indices']['data']).reshape(4, 2))
+        method_checked = True
     print(json.dumps({'python': expected['python_version'], 'bits': 64, 'packages': expected['packages'],
-                      'fractional_fixtures': 20, 'image_roundtrips': ['PNG-u16', 'TIFF-u16'], 'scientific_smoke': 'passed'}))
+                      'fractional_fixtures': 20, 'image_roundtrips': ['PNG-u16', 'TIFF-u16'], 'scientific_smoke': 'passed',
+                      'section_intervals_fixture': 'passed' if method_checked else 'not run (no source checkout)'}))
 
 
 if __name__ == '__main__':

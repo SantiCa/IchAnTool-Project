@@ -2,7 +2,8 @@
 
 kernels  -> numpy and the standard library only; no IO-like modules.
 methods  -> kernels, numpy and the standard library; no pandas, Pillow, engine or IO-like modules.
-engine   -> the coordinator and transport files use the standard library only; worker.py may also use methods and numpy.
+engine   -> the coordinator, transport and process wrappers (server, protocol, buffers, specs, lifetime, worker) use the
+          standard library only; only the script method_worker.py may use numpy, kernels and methods, and nothing else imports it.
 public   -> pipeline, indices, depth, io, ... never start or import the engine process.
 """
 
@@ -16,7 +17,7 @@ PACKAGE = Path(__file__).resolve().parents[1] / "src" / "sedcoretool"
 STDLIB = set(sys.stdlib_module_names)
 IO_LIKE = {"os", "sys", "pathlib", "subprocess", "socket", "shutil", "tempfile", "urllib", "http", "ssl", "glob", "io",
            "ctypes", "multiprocessing", "threading", "importlib"}
-ENGINE_SIBLINGS = {"buffers", "lifetime", "protocol", "server", "worker"}   # imported by bare name when run with python -I
+ENGINE_SIBLINGS = {"buffers", "lifetime", "protocol", "server", "specs", "worker"}   # imported by bare name when run with python -I
 PUBLIC = {"pipeline", "indices", "depth", "io", "segmentation", "export", "batch", "cli", "plotting"}
 
 
@@ -54,11 +55,13 @@ def violations(relative_path: str, source: str) -> list[str]:
             if not allowed:
                 problems.append(f"{relative_path}: {layer} may not import {name}")
         elif layer == "engine":
-            worker = parts[-1] == "worker.py"
+            script = parts[-1] == "method_worker.py"
             allowed = (stdlib or bare_engine_sibling or (internal and second == "engine")
-                       or (worker and (top == "numpy" or (internal and second in ("methods", "kernels")))))
+                       or (script and (top == "numpy" or (internal and second in ("methods", "kernels")))))
+            if name.split(".")[-1] == "method_worker" and not script:
+                allowed = False        # the coordinator must never load the NumPy worker
             if not allowed:
-                problems.append(f"{relative_path}: {'the worker' if worker else 'the coordinator and transport'} may not import {name}")
+                problems.append(f"{relative_path}: {'the method worker' if script else 'the coordinator and transport'} may not import {name}")
         elif layer in PUBLIC and internal and second == "engine":
             problems.append(f"{relative_path}: the public API may not import the engine ({name})")
     return problems
@@ -94,9 +97,14 @@ def test_the_checker_catches_each_kind_of_violation():
     assert violations("engine/server.py", "import numpy")
     assert violations("engine/server.py", "from ..methods import registry")
     assert violations("engine/buffers.py", "import json\nfrom .protocol import strict_json\n") == []
-    assert violations("engine/worker.py", "import numpy\nfrom ..methods.registry import METHODS\nfrom .protocol import read_frame\n") == []
-    assert violations("engine/worker.py", "import pandas")
-    assert violations("engine/worker.py", "from ..unet import train")
+    assert violations("engine/method_worker.py", "import numpy\nfrom ..methods.registry import METHODS\nfrom .protocol import read_frame\nfrom worker import watch_coordinator\n") == []
+    assert violations("engine/method_worker.py", "import pandas")
+    assert violations("engine/method_worker.py", "from ..unet import train")
+    assert violations("engine/worker.py", "import numpy")                       # the process wrapper is imported by the coordinator
+    assert violations("engine/worker.py", "from ..methods.registry import METHODS")
+    assert violations("engine/server.py", "from .method_worker import run")      # nothing but the subprocess loads the NumPy worker
+    assert violations("engine/server.py", "import method_worker")
+    assert violations("engine/server.py", "from specs import METHOD_INPUTS\nfrom .specs import SECTION_INTERVALS\n") == []
     assert violations("pipeline.py", "from .kernels.binning import bin_edges\nimport pandas\n") == []
     assert violations("pipeline.py", "from .engine import server")
     assert violations("cli.py", "import sedcoretool.engine.server")

@@ -9,12 +9,6 @@ import section_fixtures as fixtures
 from sedcoretool.methods import registry, section_intervals
 from sedcoretool.methods.errors import Cancelled, MethodError
 
-EXACT = {"row_start", "row_end", "valid_count", "bio_count", "class_count", "no_data", "manual_BI", "manual_ii", "indices"}
-FLOAT = {"depth_top", "depth_bottom", "depth", "valid_pct", "bioturbation_pct", "class_pct", "age", "age_min", "age_max"}
-DTYPES = {"row_start": "<u4", "row_end": "<u4", "valid_count": "<u8", "bio_count": "<u8", "class_count": "<u8", "no_data": "u1",
-          "manual_BI": "<i4", "manual_ii": "<i4", "indices": "<i4", "depth_top": "<f8", "depth_bottom": "<f8", "depth": "<f8",
-          "valid_pct": "<f8", "bioturbation_pct": "<f8", "class_pct": "<f8", "age": "<f8", "age_min": "<f8", "age_max": "<f8"}
-
 
 def inputs_of(fixture):
     """The method's inputs from a fixture: numeric buffers as arrays, tables as decoded JSON."""
@@ -30,25 +24,8 @@ def inputs_of(fixture):
 def test_method_reproduces_every_reference_fixture(name):
     fixture = fixtures.load(name)
     result = section_intervals.run(section_intervals.parse(inputs_of(fixture)))
-    expected = fixture["expected"]["columns"]
     assert result.dimensions == fixture["expected"]["dimensions"]
-    assert set(result.columns) == set(expected) | {f"{c}_valid" for c, v in expected.items() if "valid" in v}
-    for column in expected:
-        values, valid = fixtures.column(expected, column)
-        got = result.columns[column]
-        assert got.dtype == np.dtype(DTYPES[column]) and got.shape == values.shape, column
-        if valid is not None:
-            got_valid = result.columns[f"{column}_valid"]
-            assert got_valid.dtype == np.dtype("u1") and got_valid.shape == values.shape
-            np.testing.assert_array_equal(got_valid, valid.astype("u1"), err_msg=f"{name}: {column}_valid")
-        if column in EXACT:
-            np.testing.assert_array_equal(got, values, err_msg=f"{name}: {column}")
-        else:
-            assert column in FLOAT
-            # Invalid slots hold exactly 0 in both; valid ones agree within 1e-9 (the percentages differ by rounding order).
-            np.testing.assert_allclose(got, values, rtol=0, atol=1e-9, err_msg=f"{name}: {column}")
-        if valid is not None:
-            assert np.all(got[~valid] == 0), f"{name}: invalid slots of {column} hold 0"
+    fixtures.assert_columns_match(name, fixture["expected"]["columns"], result.columns)
 
 
 def test_inputs_are_never_modified_and_results_repeat():

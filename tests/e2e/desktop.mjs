@@ -66,7 +66,7 @@ try {
     const engine = await p.evaluate(() => window.corantoolDesktop.engine.status());
     assert.equal(engine.state, 'ready', 'experimental engine must start from the selected runtime');
     assert.equal(engine.protocol, 1);
-    assert.deepEqual(engine.methods, ['buffer.digest/1'], 'experimental transport does not advertise scientific calculations');
+    assert.deepEqual(engine.methods, ['buffer.digest/1', 'section.intervals/1'], 'the engine advertises its diagnostic and the first scientific method; the interface does not call it yet');
     assert.equal(engine.runtime, process.env.SEDCORETOOL_ENGINE_PYTHON ? 'unverified-development' : 'bundled-verified');
   } else {
     assert.equal((await p.evaluate(() => window.corantoolDesktop.engine.status())).state, 'disabled');

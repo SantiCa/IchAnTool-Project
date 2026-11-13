@@ -12,9 +12,8 @@ Protocol version 1 and method `section.intervals/1` below are separate versioned
 scientific semantics requires a new method version and explicit acceptance, even if the wire format fits.
 
 How the code that implements this contract is layered, and the path of one request through it, are described in
-[ARCHITECTURE.md](ARCHITECTURE.md). Known gap, recorded on 12 November 2026: the operation table of §3 lets a
-client upload buffers but defines no operation to download the committed result buffers that `section.analyze`
-returns. Roadmap card M8.3.5 adds `buffer.read` to this document before implementing it.
+[ARCHITECTURE.md](ARCHITECTURE.md). Amended on 13 November 2026 (card M8.3.5): §3 now defines `buffer.read`, which downloads
+committed buffers, and the exact shape of the `section.analyze` response; progress events are not yet sent.
 
 ## 1. Current calculation and ownership inventory
 
@@ -97,7 +96,8 @@ fields rather than silently ignore an unsupported setting. Protocol fixtures in 
 | `buffer.chunk` | `{handle, offset, byte_length}` immediately followed by one binary frame of that length | `{next_offset}` after accepting that pair; offsets start at zero and must be contiguous. |
 | `buffer.commit` | `{handle}` | `{handle, byte_length, sha256}` only after complete size/hash verification; committed buffers are immutable. |
 | `buffer.release` | `{handles:[...]}` (at most 64) | `{released:[...]}`; idempotent for previously released handles in this session. Referenced buffers remain pinned until the job ends. |
-| `section.analyze` | `{method:"section.intervals/1", project, section, revision, settings_hash, inputs}`; inputs maps the names in §4 to committed handles | `{project, section, revision, settings_hash, method, dimensions:{bins,classes,schemes}, outputs, provenance}`; outputs maps §5 column names to committed handles. Progress events: `{stage, completed, total}`, bounded to 10/s, totals are work units, not a promised duration. |
+| `buffer.read` | `{handle, offset, byte_length}`, 1 ≤ byte_length ≤ 1,048,576, offset + byte_length ≤ the buffer's length; the buffer must be committed and not released | `{offset, byte_length}`, immediately followed by exactly one binary frame holding those bytes. Any error response is not followed by a binary frame. |
+| `section.analyze` | `{method:"section.intervals/1", project, section, revision, settings_hash, inputs}`: project and section are session-local UUIDs, revision a non-negative integer, `settings_hash` the SHA-256 of the `settings` buffer (the coordinator rejects a different value), and `inputs` maps the names of §4 to committed handles of the matching dtype and rank (`labels` `i32le` 2-D, `exclude` `u8` 2-D of the same shape, `stack_offsets` and `stack_members` `u32le` 1-D, the others `utf8json`); `stack_members` may be omitted when there is no overlap, every other name is required, unknown names are rejected | `{project, section, revision, settings_hash, method, dimensions:{bins,classes,schemes}, outputs, provenance}` echoing the request's identity. `outputs` maps each §5 column name (including each `<name>_valid`) to `{handle, dtype, shape, byte_length, sha256}` of a committed buffer that counts against the session budget until released; download it with `buffer.read`. `provenance` holds `engine_version`, `runtime_id`, `method`, `revision`, `deterministic`, `input_sha256` (hash of every input buffer by name) and `elapsed_ms`. A rejected input is an error response whose `details.field` names the input and member (for example `settings.roi`). Progress events (`{stage, completed, total}`, at most 10 per second) are part of this contract but are not sent yet; the Electron client of card M8.3.6 does not read events. |
 | `job.cancel` | `{request_id}` | `{state:"requested"}` or `{state:"already_terminal"}`; the target still gets its own one terminal response. |
 | `shutdown` | `{}` | `{}` after cancelling/releasing work; main enforces the shutdown deadline. |
 
@@ -109,6 +109,8 @@ Metadata buffers have a stricter 4 MiB byte cap, at most 65,536 records per tabl
 string. Preflight metadata structure/string sizes before constructing rich objects, reserving parser/object
 memory within the session budget; byte length alone is not a sufficient memory estimate.
 No compressed input is accepted by this initial transport. Validate finite floating inputs before computing.
+
+**Job execution (implemented in card M8.3.5).** A job runs in its own worker process (`engine/method_worker.py`), never in the coordinator. The coordinator writes a job description `{method, cancel_path, output_dir, inputs: {name: {path, dtype, shape}}}` into a private folder of the session scratch directory, starts the worker with `-I -B -u`, and lets it map the numeric inputs read-only. Cancellation is a marker file the method polls between blocks of 256 rows. The worker writes each result column to `<output_dir>/<name>.bin` and answers with one JSON frame: `{ok, dimensions, columns:{name:{dtype,shape,byte_length,sha256}}}`, `{error:{code,field}}` for a rejected input, or `{cancelled}`. The coordinator never trusts it: it checks the frame, then moves each file into the buffer store only after re-checking size, shape, SHA-256 and finite float data against the session budget; any mismatch, a non-zero exit, a crash or the 120 s deadline is `INTERNAL` and nothing is adopted. Job folders are removed when the job ends. Worker error codes are limited to the stable codes of this section and the field to a plain name.
 
 Serialize each descriptor/binary pair without interleaving frames; allow at most two unacknowledged chunks
 per direction. Both ends must continuously drain the opposite pipe, and schedule cancellation/control messages

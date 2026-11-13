@@ -2816,12 +2816,13 @@ windows can finish loading without a redundant navigation through the desktop cl
 ### 26.2 Experimental engine process
 
 Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-protocol.js` (framing),
-`src/sedcoretool/engine/{protocol,buffers,server,worker}.py` (standard-library coordinator, staged data and
-isolated diagnostic worker). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
+`src/sedcoretool/engine/{protocol,buffers,specs,server,worker}.py` (standard-library coordinator, staged data, input tables and
+worker-process wrappers) and `method_worker.py` (the script that runs a scientific method in its own process). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
 It uses the verified bundled runtime (§26.3), or an explicitly selected absolute `SEDCORETOOL_ENGINE_PYTHON`
 path in source development only. A missing or invalid bundle reports unavailable; packaged applications never
 use that override or search for a user's interpreter. The browser and standalone file do not launch a process. No scientific calculation has
-moved to Python through this bridge; current analysis and save ownership are unchanged.
+moved to Python through this bridge for the interface: the engine can run `section.intervals/1` (below) but nothing in the
+interface calls it yet; current analysis and save ownership are unchanged.
 
 Main launches the fixed prepared server script with `-I -B -u`, an argument array and private pipes, with no shell
 or listening service. `window.corantoolDesktop.engine.status()` exposes only enablement, state, protocol,
@@ -2833,10 +2834,17 @@ Frames use the M8.1 `SCE1` 12-byte header, strict UTF-8 JSON controls <=64 KiB, 
 duplicate-key/depth/finite-number checks. At most 32 requests and two binary chunks are outstanding in main;
 descriptor/binary pairs cannot interleave. Partial/malformed frames, unknown sessions, process exit or request
 timeout invalidate the session. Each fresh start assigns a new UUID; previous handles cannot be reused.
-The only advertised method is `buffer.digest/1`: `buffer.digest {handle}` recomputes a committed buffer's
-SHA-256 in an isolated subprocess and returns `{sha256,byte_length}`. This tests transport/worker ownership;
-it is not a scientific method. Scientific operations remain unsupported. Progress/result-buffer downloads
-and revision-based scientific publication are not exposed in this slice.
+Two methods are advertised. `buffer.digest/1` (`buffer.digest {handle}`) recomputes a committed buffer's SHA-256 in an
+isolated subprocess and returns `{sha256,byte_length}`; it tests transport and worker ownership. `section.intervals/1`
+(`section.analyze`, inputs and results in the [engine contract](roadmap-engine-contract.md) §3–§5) calculates the interval
+table of a section from nine input buffers: the coordinator checks the request's identity fields, that the `settings` buffer's
+SHA-256 equals `settings_hash`, and every handle's dtype and rank, pins the inputs, and queues the job. The job runs in
+`method_worker.py` (NumPy only; the public package and pandas are not loaded), which validates every input and writes the
+result columns to files; the coordinator re-checks each file (size, shape, SHA-256, finite floats) and adopts it as a committed
+buffer charged to the session budget, then answers with the handles. `buffer.read {handle, offset, byte_length}` downloads any
+committed buffer in ranges of at most 1 MiB: the JSON response is followed by exactly one binary frame. A rejected input is an
+error response naming the field; a worker that crashes, exits with an error, lies about its files or exceeds 120 s is
+`INTERNAL` and nothing is adopted. Progress events are not sent yet.
 
 `buffer.begin`, `chunk`, `commit` and `release` stage data in private temporary files. Validate shape/dtype/
 declared size before allocation; enforce exact offsets, length, SHA-256, finite f64 data and strict metadata
@@ -2849,8 +2857,8 @@ attempts bounded cleanup after child close, including coordinator failure, check
 recursive removal. External locks can prevent cleanup; abrupt main-process termination can leave an empty
 temporary root after server cleanup.
 
-One diagnostic job runs and at most four wait; excess receives BUSY. A worker polls a private cancellation
-marker between reads; the coordinator starts forced termination after 1.5 s if needed. A 30 s worker deadline
+One job (a digest or an analysis) runs and at most four wait; excess receives BUSY. A worker polls a private cancellation
+marker between reads or blocks of rows; the coordinator starts forced termination after 1.5 s if needed. A worker deadline (30 s for the digest, 120 s for a method)
 prevents unbounded execution. Cancellation has its own acknowledgement and the target's terminal response;
 queued cancellation releases its pin. EOF on a private worker liveness pipe aborts orphaned work. Windows
 workers use CREATE_NO_WINDOW. The coordinator stays responsive to control requests; workers do not access
@@ -2863,7 +2871,8 @@ workers with it; workers also stop when their private liveness pipe closes, and 
 backstop. On other systems main signals the coordinator's process group. Errors exposed by the client are fixed codes;
 input data, paths and tracebacks are not forwarded. Stderr capture is off in the desktop service; test-only
 clients may retain a bounded 64 KiB tail. Native math thread environment limits are set before worker startup
-to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity
+to max(1,min(4,logical CPUs−1)); the digest imports no numerical library and a method worker imports NumPy only, never
+training libraries. Runtime identity
 distinguishes `bundled-verified` from `unverified-development`; only the former uses the resource manifest.
 
 The [M8.1 contract](roadmap-engine-contract.md) specifies later scientific inputs/results and predeclared

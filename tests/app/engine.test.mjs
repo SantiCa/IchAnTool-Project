@@ -61,9 +61,9 @@ async function upload(client, data) {
   return handle;
 }
 
-test('actual isolated Python transfers multiple bounded chunks and computes only an advertised diagnostic', { skip: !python }, async (t) => {
+test('actual isolated Python transfers multiple bounded chunks and runs the diagnostic', { skip: !python }, async (t) => {
   const client = await clientFixture(t);
-  assert.deepEqual(client.status().methods, ['buffer.digest/1']);
+  assert.deepEqual(client.status().methods, ['buffer.digest/1', 'section.intervals/1']);
   const data = Buffer.alloc(MAX_CHUNK * 2 + 137, 93), handle = await upload(client, data);
   assert.deepEqual(await client.request('buffer.digest', { handle }), { sha256: digest(data), byte_length: data.length });
   assert.deepEqual(await client.request('buffer.release', { handles: [handle] }), { released: [handle] });
@@ -109,6 +109,24 @@ test('coordinator death invalidates handles, rejects in-flight work and permits 
   await client.start();
   assert.notEqual(client.session, session);
   await assert.rejects(client.request('buffer.digest', { handle }), { code: 'INVALID_BUFFER' });
+});
+
+test('a handshake that advertises a method the client does not know makes the engine unavailable', { skip: !python }, async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'sedcoretool-engine-fixture-'));
+  const fixture = path.join(directory, 'unknown-method.py');
+  const engine = path.dirname(script).replace(/\\/g, '/');
+  await fs.writeFile(fixture, [
+    'import sys', `sys.path.insert(0, ${JSON.stringify(engine)})`, 'from protocol import read_frame, strict_json, write_json',
+    'request = strict_json(read_frame(sys.stdin.buffer)[1])',
+    'write_json(sys.stdout.buffer, {"v": 1, "kind": "response", "session": request["session"], "id": request["id"], "op": "hello", "status": "ok",',
+    `  "result": {"protocol": 1, "engine_version": "test", "runtime_id": ${JSON.stringify(runtimeId)}, "methods": ["buffer.digest/1", "teapot.brew/1"], "limits": {}}})`,
+    'sys.stdin.buffer.read()', ''].join('\n'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const client = new EngineClient({ executable: python, script: fixture, version: 'test', runtimeId, timeoutMs: 3000 });
+  t.after(() => client.stop());
+  await assert.rejects(client.start(), { code: 'ENGINE_UNAVAILABLE' });
+  assert.equal(client.status().state, 'unavailable');
+  assert.deepEqual(client.status().methods, []);
 });
 
 test('a stalled child fails within the startup deadline and is reaped', { skip: !python }, async (t) => {

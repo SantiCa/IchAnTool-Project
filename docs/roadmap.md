@@ -25,8 +25,8 @@ Updated 13 November 2026.
 - **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
   runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
   documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
-- **Next step:** card **M8.3.5** (the engine process runs registered methods). It is *Ready*. The maintainer asked on
-  13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.5 to M8.3.8 follow in order; stop and
+- **Next step:** card **M8.3.6** (main-process client and renderer bridge). It is *Ready*. The maintainer asked on
+  13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.6 to M8.3.8 follow in order; stop and
   report at any card that cannot meet its "Done when".
 - **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
   13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
@@ -284,7 +284,7 @@ Cards are done in order. Each one claims the development gate only.
   contract (non-negative tier values, strictly increasing age depths, ranges on all age records or none) are written into the contract.
   The worker (M8.3.5) loads this module through `registry.get`, calls `parse` then `run`, and writes `Result.columns` to buffers.
 
-#### M8.3.5 - The engine process runs registered methods — state: Ready
+#### M8.3.5 - The engine process runs registered methods — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** a client can send a snapshot to the real coordinator, run `section.intervals/1` in the worker and
   download the result columns.
@@ -305,8 +305,22 @@ Cards are done in order. Each one claims the development gate only.
   error response and the session stays usable; killing the worker returns `INTERNAL`.
   `pytest -q tests/test_engine_transport.py tests/test_architecture.py`.
 - **Done when:** those tests pass and `npm run prepare-runtime -- --offline` succeeds.
+- **Result (13 November 2026):** operation `section.analyze` and `buffer.read` in `engine/server.py`; `engine/specs.py` (input names,
+  dtypes and ranks, standard library only); `engine/worker.py` now holds the coordinator-side process wrappers (`WorkerJob`,
+  `DigestJob`, new `MethodJob`); the new script `engine/method_worker.py` is the only engine file that imports NumPy and the methods
+  (it registers the `sedcoretool` package without running its `__init__`, so pandas and Pillow are not loaded); `BufferStore.adopt`
+  and `read`, and a stored `shape` per buffer. The 28 earlier transport tests pass untouched. 30 new tests in
+  `tests/test_engine_methods.py`: seven reference fixtures through the real coordinator and a real worker with results downloaded in
+  100 kB ranges, request validation before admission (13 cases), cancellation of a queued and a running analysis, the queue limit,
+  12 misbehaving-worker cases that must adopt nothing, the session budget, `buffer.read` bounds and frame order, the digest still
+  working, and agreement between `specs.py` and the method module. Sixteen deliberate faults in coordinator and store were each caught
+  (three needed extra cases first). Contract amended: `buffer.read`, exact `section.analyze` response, job execution model;
+  progress events are specified but **not sent yet** because the Electron client does not read events (card M8.3.6 decides). Also
+  changed: the Electron client accepts the two advertised methods (`desktop/engine.js`, with a new Node test that an unknown method
+  makes the engine unavailable), `tests/e2e/desktop.mjs` expects both, and `tools/check_engine_runtime.py` now runs the method with the
+  bundled interpreter. The test file is new instead of extending `test_engine_transport.py`.
 
-#### M8.3.6 - Main-process client and renderer bridge — state: Ready after M8.3.5
+#### M8.3.6 - Main-process client and renderer bridge — state: Ready
 
 - **Goal:** the page can upload buffers, start and cancel a section analysis and read results through a narrow,
   validated bridge.

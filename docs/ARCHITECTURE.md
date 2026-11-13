@@ -31,7 +31,7 @@ describe a planned part as available. When you build a planned part, change its 
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
                     private stdin/stdout pipes, `SCE1` frames, no network port
 ┌─────────────── Engine process: src/sedcoretool run by the bundled CPython 3.12 ───────────┐
-│  engine/    transport only: frames, buffers, coordinator, job runner                       │
+│  engine/    transport only: frames, buffers, coordinator, job runner, method worker script │
 │  methods/   one module per versioned scientific method (planned)                           │
 │  kernels/   pure NumPy primitives shared by every caller (planned)                         │
 └────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -53,12 +53,11 @@ process exists but only answers a diagnostic request.
 | Python package: intervals, indices, age, export, batch, CLI, U-Net | built | `src/sedcoretool/` |
 | Engine process: frames, bounded buffers, queue, cancellation, isolated worker | built, off by default | `src/sedcoretool/engine/`, `desktop/engine*.js` |
 | Bundled Python runtime, verified at launch | built (Windows measured; macOS/Linux not yet run) | `desktop/runtime-lock.json`, `tools/prepare_engine_runtime.py` |
-| The only engine method: `buffer.digest/1` (hashes a buffer; a transport diagnostic) | built | `engine/worker.py` |
+| Engine methods: `buffer.digest/1` (a transport diagnostic) and `section.intervals/1` (the first scientific method, not yet used by the interface) | built | `engine/worker.py`, `engine/method_worker.py` |
 | `kernels/` package: binning, counting, classification, age interpolation; `tests/test_architecture.py` | built (M8.3.3) | §3.1 |
 | `methods/` package with the registry and `section.intervals/1`, called directly | built (M8.3.4) | §3.1 |
-| Generic job runner in the engine process that runs registered methods | **planned** (M8.3.5) | §3.1 |
-| Downloading result buffers (`buffer.read`) | **planned** (M8.3.4; needs a contract amendment) | §4 |
-| Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`) | **planned** (M8.3.5–M8.3.6) | §3.2, §3.3 |
+| Job runner in the engine process: `section.analyze` runs a registered method in its own worker process, results are adopted as committed buffers and downloaded with `buffer.read` | built (M8.3.5) | §3.1, §4 |
+| Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`) | **planned** (M8.3.6–M8.3.7) | §3.2, §3.3 |
 | Section intervals calculated by the engine (`section.intervals/1`) | **planned** (M8.3) | contract §4–§5 |
 | Engine-owned images and tiles, remaining methods | **planned** (M8.4, M8.5) | roadmap |
 
@@ -76,7 +75,7 @@ import, the code is in the wrong layer: move the code, do not break the rule.
 |---|---|---|---|---|
 | Kernels (built, M8.3.3) | `kernels/` | Pure array functions: bin edges and sums, row/class counts from labels, layers and overlap stacks, tier classification, age interpolation | `numpy`, standard library | pandas, Pillow, file or network IO, environment variables, global state, anything from `engine/` or `methods/` |
 | Methods (built, M8.3.4) | `methods/` | One module per versioned method. Each has `NAME` (for example `"section.intervals/1"`), `parse(inputs) -> snapshot` that validates everything, and `run(snapshot, report, cancelled) -> dict` of named NumPy columns. `registry.py` maps names to modules | `kernels`, `numpy`, standard library | pandas, IO, transport details (frames, handles, sessions) |
-| Engine transport | `engine/` | `protocol.py` frames and strict JSON, `buffers.py` staged buffers, `server.py` coordinator, `worker.py` job process, `lifetime.py` | Coordinator: standard library only. Worker: `methods.registry` and `numpy` | The coordinator must never import NumPy or a method (start-up stays fast and control requests stay responsive). No scientific formulas in this layer |
+| Engine transport | `engine/` | `protocol.py` frames and strict JSON, `buffers.py` staged buffers, `server.py` coordinator, `worker.py` process wrappers (`DigestJob`, `MethodJob`) and the digest script, `specs.py` input tables, `method_worker.py` the script that runs a method, `lifetime.py` | Coordinator: standard library only. Only the script `method_worker.py` imports `numpy`, `kernels` and `methods` (it runs in its own process and registers the package without running its `__init__`, so pandas and Pillow are not loaded); nothing else may import it | The coordinator must never import NumPy or a method (start-up stays fast and control requests stay responsive). No scientific formulas in this layer |
 | Public API and CLI | `pipeline.py`, `indices.py`, `depth.py`, `io.py`, `segmentation.py`, `export.py`, `batch.py`, `cli.py`, `plotting.py` | The supported functions and commands. Adapters: validate user input, call kernels/methods, shape the output (DataFrame, CSV, LAS) | `kernels`, `methods`, pandas, Pillow | Starting the engine process; a second copy of a formula that exists in `kernels/` |
 | U-Net (optional) | `unet/` | Tiling, dataset, training, prediction, evaluation. Unchanged until M8.5 | its own optional dependencies | being imported by the base engine |
 
@@ -154,11 +153,11 @@ Example: the user edits a trace and the interval table must update.
 5. **Coordinator** (`engine/server.py`) validates the envelope, pins the input buffers and queues the job. The
    **job runner** starts the worker process with a job description (method name, input buffer files with dtype and
    shape, output folder, cancel flag file).
-6. **Worker** (`engine/worker.py`) loads the method from `methods/registry.py`, calls `parse` (rejects anything
+6. **Worker** (`engine/method_worker.py`) loads the method from `methods/registry.py`, calls `parse` (rejects anything
    invalid before computing) and `run`, and writes each result column as a buffer file. It polls the cancel flag
    between bounded work units and never publishes a partial result.
 7. The coordinator adopts the output files as committed buffers and answers with their handles, dimensions and
-   provenance. The main process downloads them (`buffer.read`, a planned addition to the protocol; today a client
+   provenance. The main process downloads them (`buffer.read`, built in M8.3.5; before it a client
    can upload but not download) and releases every handle of the job.
 8. **`sectionanalysis.js`** validates the result (dimensions, revision, settings hash) and converts it to the
    `s.bins` shape. The controller publishes it **only if the section's revision is still the one requested**, then
