@@ -4,6 +4,9 @@ Work that is **not scheduled yet**. The live roadmap, with the current task card
 completed tasks are in [roadmap-history.md](roadmap-history.md). Nothing here is authorised: a task moves to the
 live roadmap, as a task card, when the maintainer schedules it. Task IDs are stable; keep them when moving a task.
 
+**Required for version 1.0 (decided 13 November 2026): M6 advanced statistics and M7 radiographs.** They are
+written as task cards by a design session once M8.4 has passed its development gate.
+
 The order of the milestones follows the engine migration: M8 (live roadmap) comes first; advanced statistics (M6),
 radiographs (M7) and large images (M2.3) build on the engine; acceleration (M4) and a possible new interface
 shell (M9) are conditional on measurements.

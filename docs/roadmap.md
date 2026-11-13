@@ -13,7 +13,7 @@ file and leave one line here.
 
 ## Status and handoff
 
-Updated 12 November 2026.
+Updated 13 November 2026.
 
 - **Released version:** [V0.148](../CHANGELOG.md#v0148--2026-11-12) on local `master` (`2aca696`). `master` is
   ahead of `origin/master`; nothing is pushed without the maintainer's request.
@@ -25,12 +25,13 @@ Updated 12 November 2026.
   documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
 - **Next step:** card **M8.3.2** (reference fixtures for `section.intervals/1`). It is *Ready*. M8.3.1 was done
   on 12 November 2026 with the maintainer's go-ahead; each further card also needs his go-ahead.
-- **Decisions waiting for the maintainer:**
-  1. Confirm or change the two acceptance levels (below) and the proposed scope of version 1.0.
-  2. Push the branch to GitHub: it would back up the work (everything since V0.128 exists only on this computer)
-     and let the *Desktop builds* workflow build and smoke-test macOS and Linux, which the release checklist needs.
-  3. Create version V0.149 from the branch.
-  4. The flags in the table below that need a promote/remove decision.
+- **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
+  13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
+  macOS and Linux, clean Windows machine, cold-cache first launch, saturated CPUs, package sizes, and the
+  numerical/timing/memory/recovery gates). Remind him when a milestone of M8 finishes and before any flag is
+  switched on by default or a version with the engine is announced.
+- **Decisions waiting for the maintainer:** only the flags in the table below that need a promote/remove decision.
+  Decided on 13 November 2026: acceptance levels (accepted), scope of 1.0 (below), publication of V0.149.
 - **Last full checks: passed** after card M8.3.1 (13 November 2026), run one after another: `npm test` 246 passed; `npm run typecheck` no new diagnostics; `pytest -q` 357 passed / 8 skipped; `sync_version.py --check`; `ruff check src tests tools`; standalone build; `tests/e2e/smoke.mjs` (browser, 356 traces and identical reload, web-versus-V2.1 intervals identical); `tests/e2e/desktop.mjs` with the engine experiment on. The commit is the one that records this line; the desktop test without the experiment was not repeated (last run on `6f5a33b`).
 
 ## How work is accepted
@@ -58,15 +59,19 @@ Every experimental switch, with the decision it is waiting for ([policy: ARCHITE
 | Visible-row table rendering | M2.1.3 | session-only checkbox in the Data table | off | Maintainer: promote to default or remove |
 | Desktop operating diagnostics | M1.2.3 | opt-in control in the desktop program | off | Removed after the hang diagnosis of M1.2.2 is accepted |
 
-## Scope of version 1.0 (proposal, not yet confirmed by the maintainer)
+## Scope of version 1.0
 
-Proposed so that "needed for 1.0" has a meaning; the maintainer edits or replaces this list.
+Decided by the maintainer on 13 November 2026.
 
-- **In:** M8 complete (one scientific engine, desktop packages for Windows, macOS and Linux passing the release
-  gate); M5.1 compatibility and reproducibility; M5.2 scientific validation and documentation, including a
-  comparison with expert estimates on real cores; software paper and archived release (DOI).
-- **Not required:** multi-gigabyte images (M2.3 beyond what M8.4 needs), advanced statistics (M6), radiographs
-  (M7), optional acceleration (M4), a new interface shell (M9).
+- **In:** M8 complete (one scientific engine; desktop packages for Windows, macOS and Linux passing the release
+  gate); **advanced statistics (M6.1–M6.6)** and **radiographs (M7.1–M7.4)**, both built on the engine and its
+  image/data services (so after M8.4); M5.1 compatibility and reproducibility; M5.2 scientific validation and
+  documentation, including a comparison with expert estimates on real cores; software paper and archived release (DOI).
+- **Not required:** optional acceleration (M4), a new interface shell (M9), multi-gigabyte images beyond what M8.4
+  and M7 need (M2.3 as a whole).
+- **Consequence for the order:** after M8.6 the next milestones are M6 and M7, in that order unless the
+  maintainer changes it; their cards are written by a design session when M8.4 has passed its development gate,
+  because they use the engine's image and data services.
 
 ## Active priority: desktop and one scientific engine
 
@@ -83,7 +88,7 @@ command line call the same code directly.
 | 4 | M8.4 Engine-owned images and large files (includes M2.3) | cards written when M8.3 passes its development gate |
 | 5 | M8.5 Remaining methods, one slice at a time | idem |
 | 6 | M8.6 Release gate, default-on, duplicate JavaScript science removed, HTML version frozen | idem |
-| 7 | Statistics (M6), radiographs (M7), validation and publication | [roadmap-future.md](roadmap-future.md) |
+| 7 | Statistics (M6) and radiographs (M7), both **required for 1.0**; then validation and publication | [roadmap-future.md](roadmap-future.md) |
 | 8 | Conditional: acceleration (M4), interface shell (M9) | [roadmap-future.md](roadmap-future.md) |
 
 ### Cross-cutting objective: modularity and reviewability
