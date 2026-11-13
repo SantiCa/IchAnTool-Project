@@ -173,9 +173,12 @@ strict overlap comparisons with 1e-9 depth-unit epsilon; then attach ages/ranges
 `schemes` encodes ordered `{name, precedence, tiers}`; each tier has finite `{lower, upper, value}`, with
 lower < upper and an int32 value; precedence is `first` or `last`. Membership is half-open [lower,upper).
 The desktop adapter requests `first`, matching `core.js::classify`; the public Python adapter preserves
-`last`, matching `IndexScheme._partition`. Non-overlapping default schemes agree. M8.3 must test both policies
-through one shared classifier primitive rather than changing either public contract. Unmatched tiers produce
-missing indices. Seeds are absent for this deterministic
+`last`, matching `IndexScheme.classify`. Non-overlapping default schemes agree. M8.3 must test both policies
+through one shared classifier primitive rather than changing either public contract (done: `kernels/classification.py`).
+Unmatched tiers produce missing indices. The implemented method (`methods/section_intervals.py`, M8.3.4) narrows three
+points of this contract and rejects violations with `UNSUPPORTED_INPUT`: tier values must be non-negative (a negative
+value could not be told from a missing index), age-model depths must be strictly increasing, and an age model has a range
+on every record or on none. Seeds are absent for this deterministic
 method. Future stochastic methods must declare seed, RNG algorithm/version, fold membership, model hash,
 backend and settings; an integer seed alone does not establish cross-language equivalence.
 

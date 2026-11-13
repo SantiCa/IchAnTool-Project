@@ -119,11 +119,27 @@ function minValidBoundary(excluded) {
     excluded === 32 ? '8 valid pixels of 40 = exactly 20 %: data.' : '7 valid pixels of 40: no data.', s, { settings: { binCm: 4, minValid: 20 } });
 }
 
-function padding(pad) {
-  const s = makeSection({ w: 2, h: 10, objects: [{ id: 1, cls: 'a' }] });   // five intervals of 2 cm
+function padding(pad, unit = 'cm') {
+  const bottom = { mm: 100, cm: 10, m: 0.1 }[unit];                          // always 10 cm of core
+  const s = makeSection({ w: 2, h: 10, top: 0, bottom, units: unit, objects: [{ id: 1, cls: 'a' }] });   // five intervals of 2 cm
   paint(s, 'labels', [0, 10], [0, 2], 1);
   paint(s, 'exclude', [4, 6], [0, 2], 1);                                    // the middle interval has no data
-  return fixture(`no-data-padding-${pad}-cm`, pad ? 'A 2 cm pad widens the gap; intervals that only touch it stay.' : 'No padding.', s, { settings: { binCm: 2, noDataPad: pad } });
+  const suffix = unit === 'cm' ? '' : `-in-${unit}`;                         // the pad is always given in cm
+  return fixture(`no-data-padding-${pad}-cm${suffix}`, pad ? `A ${pad} cm pad widens the gap (section in ${unit}); intervals that only touch it stay.` : 'No padding.', s, { settings: { binCm: 2, noDataPad: pad } });
+}
+
+function predictionConfidenceAtThreshold() {
+  // One row of four pixels per object; the threshold is 0.5 and the confidences sit on both sides of it, to the last bit.
+  const s = makeSection({ w: 4, h: 4, objects: [{ id: 1, pred: 'b', conf: 0.5 }, { id: 2, pred: 'b', conf: 0.5000000000000001 }, { id: 3, pred: 'b', conf: 0.4999999999999999 }] });
+  for (let r = 0; r < 3; r++) paint(s, 'labels', [r, r + 1], [0, 4], r + 1);
+  return fixture('prediction-confidence-at-threshold', 'A prediction counts when its confidence equals the threshold, not when it is a bit below.', s,
+    { settings: { binCm: 1, includePred: true, predThr: 0.5, countCandidates: false } });
+}
+
+function intervalThinnerThanOneRow() {
+  const s = makeSection({ w: 3, h: 20, objects: [{ id: 1, cls: 'a' }] });    // 1 row per cm
+  for (let r = 0; r < 20; r += 3) paint(s, 'labels', [r, r + 1], [0, 3], 1);
+  return fixture('interval-thinner-than-one-row', 'An interval of 0.4 cm is one pixel row thick: it is raised to one row.', s, { settings: { binCm: 0.4 } });
 }
 
 /** Four 5 cm intervals with bin centres 2.5, 7.5, 12.5 and 17.5, every pixel bioturbated. */
@@ -171,7 +187,7 @@ function allCases() {
   return [
     basicFourIntervals(), predictions(true), predictions(false), overlapSameAndDifferentClass(), overlapWithExcludedPixels(), roiOffset(),
     units('mm', 0, 400), units('cm', 0, 40), units('m', 0, 0.4), noValidPixels(), minValidBoundary(32), minValidBoundary(33),
-    padding(0), padding(2),
+    padding(0), padding(2), padding(2, 'mm'), padding(2, 'm'), predictionConfidenceAtThreshold(), intervalThinnerThanOneRow(),
     agesSection('ages-with-range', 'Ages and ranges inside the model; intervals beyond its last depth have no age.', model),
     agesSection('ages-at-model-ends', 'Interval centres exactly at the first and last model depth are inside the model.', { depth: [2.5, 17.5], age: [10, 40], min: [8, 30], max: [12, 50] }),
     agesSection('ages-without-range', 'An age model without minimum and maximum.', { depth: [0, 10], age: [0, 100] }),

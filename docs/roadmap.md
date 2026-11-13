@@ -25,9 +25,9 @@ Updated 13 November 2026.
 - **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
   runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
   documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
-- **Next step:** card **M8.3.4** (the Python method `section.intervals/1`, called directly). It is *Ready*. The maintainer
-  asked on 13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.4 to M8.3.8 follow in order;
-  stop and report at any card that cannot meet its "Done when".
+- **Next step:** card **M8.3.5** (the engine process runs registered methods). It is *Ready*. The maintainer asked on
+  13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.5 to M8.3.8 follow in order; stop and
+  report at any card that cannot meet its "Done when".
 - **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
   13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
   macOS and Linux, clean Windows machine, cold-cache first launch, saturated CPUs, package sizes, and the
@@ -201,7 +201,7 @@ Cards are done in order. Each one claims the development gate only.
   4. The Node test regenerates every fixture in memory and requires byte-identical content to the committed file.
 - **Tests:** `node --test tests/app/interval-fixtures.test.mjs`; `npm test`; `npm run typecheck`.
 - **Done when:** fixtures are committed and the regeneration test passes.
-- **Result (13 November 2026):** 40 fixtures, 1.2 MB, in `tests/fixtures/section-intervals/` (format, groups and the choices made
+- **Result (13 November 2026):** 40 fixtures (four more were added in M8.3.4: 44), 1.2 MB, in `tests/fixtures/section-intervals/` (format, groups and the choices made
   where the contract is silent are in its README); generator `tools/make_interval_fixtures.mjs` (`--check` compares without
   writing); `buildIntervalSnapshot` and `referenceColumns` in `sectionanalysis.js`; 6 tests in
   `tests/app/interval-fixtures.test.mjs`. The large images are stored as run-length lists because 1.2 million labels as
@@ -242,7 +242,7 @@ Cards are done in order. Each one claims the development gate only.
   stacks, returning `RowCounts(valid, bio, cls)`), `classification` (`TierTable`, `classify_tiers`, precedence `"first"` or
   `"last"`) and `ages` (`interpolate_age`). `pipeline.py`, `indices.py` and `depth.py` delegate; no public signature or
   private name used by tests changed, and the 357 earlier Python tests pass untouched. 86 new tests: kernels against slow
-  reference loops, against the 20 shared fractional cases and against all 40 JavaScript reference fixtures (counts, intervals
+  reference loops, against the 20 shared fractional cases and against all JavaScript reference fixtures (40 at the time, 44 now) (counts, intervals
   and bounds exactly; percentages, depths and ages within 1e-9; indices and missing patterns exactly), and the
   import-rule test. Eight deliberate faults were each caught. Things the method (M8.3.4) still has to add: no-data padding,
   manual indices, the effective-class rule (`tests/section_fixtures.py::class_of_object` is a test-only copy), validation of
@@ -254,7 +254,7 @@ Cards are done in order. Each one claims the development gate only.
   keep working; the maintainer may remove it, and tests/test_count_experiment.py and tools/benchmark_counts.py with it, in a
   later cleanup.
 
-#### M8.3.4 - Method `section.intervals/1`, called directly — state: Ready
+#### M8.3.4 - Method `section.intervals/1`, called directly — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** `src/sedcoretool/methods/section_intervals.py` reproduces every fixture of M8.3.2.
 - **Read first:** contract §4 and §5 (complete); ARCHITECTURE §3.1 and §5.1; the fixtures.
@@ -274,8 +274,17 @@ Cards are done in order. Each one claims the development gate only.
      column; absolute error ≤ 1e-9 for depths, percentages and ages. Add one failing-input test per validation rule.
 - **Tests:** `pytest -q tests/test_section_intervals.py tests/test_architecture.py`.
 - **Done when:** every fixture passes without changing a fixture or a tolerance.
+- **Result (13 November 2026):** `src/sedcoretool/methods/` with `errors.py` (`MethodError(code, field)`, `Cancelled`), `validation.py`
+  (closed-field checks), `registry.py` (`METHODS`, `get(name)`; unknown name → `UNSUPPORTED_METHOD`) and `section_intervals.py`
+  (`NAME`, `parse(inputs) -> Snapshot`, `run(snapshot, report, cancelled) -> Result(dimensions, columns)`; columns are NumPy arrays of
+  the contract's dtypes with `<name>_valid` arrays). All 44 fixtures reproduce (exact counts, bounds, indices, no-data and validity
+  patterns; floats within 1e-9); 59 rejection cases name the field at fault; cancellation is polled every 256 rows; inputs are never
+  modified. Mutation testing of twelve behaviours first left four uncovered; four fixtures were added to the generator (the fixture
+  set is now 44) and a direct test of exact-equality padding comparisons, after which all twelve are caught. Three narrowings of the
+  contract (non-negative tier values, strictly increasing age depths, ranges on all age records or none) are written into the contract.
+  The worker (M8.3.5) loads this module through `registry.get`, calls `parse` then `run`, and writes `Result.columns` to buffers.
 
-#### M8.3.5 - The engine process runs registered methods — state: Ready after M8.3.4
+#### M8.3.5 - The engine process runs registered methods — state: Ready
 
 - **Goal:** a client can send a snapshot to the real coordinator, run `section.intervals/1` in the worker and
   download the result columns.

@@ -1,6 +1,6 @@
 # Reference fixtures for `section.intervals/1`
 
-Forty synthetic cases (about 1.2 MB) with the **inputs** of engine method `section.intervals/1` and the **result** of
+Forty-four synthetic cases (about 1.2 MB) with the **inputs** of engine method `section.intervals/1` and the **result** of
 the current JavaScript calculation (`app/js/sectionanalysis.js`). The Python method (roadmap card M8.3.4) must
 reproduce them. Contract: [roadmap-engine-contract.md](../../../docs/roadmap-engine-contract.md) §4 (inputs) and §5
 (results). Do not edit these files by hand.
@@ -36,9 +36,9 @@ show it.
 
 | Group | Fixtures |
 |---|---|
-| Classes and counting | `basic-four-intervals`, `predictions-and-candidates-counted`, `predictions-and-candidates-ignored` |
+| Classes and counting | `basic-four-intervals`, `predictions-and-candidates-counted`, `predictions-and-candidates-ignored`, `prediction-confidence-at-threshold` |
 | Overlaps | `overlap-same-and-different-class`, `overlap-with-excluded-pixels` |
-| Geometry | `roi-offset`, `units-mm`, `units-cm`, `units-m`, `fractional-00` … `fractional-19` (the 20 shared cases of `tests/fixtures/fractional-boundaries.json`) |
-| No data | `no-valid-pixels`, `min-valid-exactly-at-limit`, `min-valid-one-pixel-below`, `no-data-padding-0-cm`, `no-data-padding-2-cm` |
+| Geometry | `roi-offset`, `units-mm`, `units-cm`, `units-m`, `interval-thinner-than-one-row`, `fractional-00` … `fractional-19` (the 20 shared cases of `tests/fixtures/fractional-boundaries.json`) |
+| No data | `no-valid-pixels`, `min-valid-exactly-at-limit`, `min-valid-one-pixel-below`, `no-data-padding-0-cm`, `no-data-padding-2-cm`, `no-data-padding-2-cm-in-mm`, `no-data-padding-2-cm-in-m` |
 | Ages and manual indices | `ages-with-range`, `ages-at-model-ends`, `ages-without-range`, `ages-no-model`, `manual-ranges` |
 | Size | `large-mixed` (600 × 2000 pixels, 150 objects, 12 stacks, exclusions, a ROI, ages, manual ranges) |

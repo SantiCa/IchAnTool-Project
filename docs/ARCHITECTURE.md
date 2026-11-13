@@ -55,7 +55,8 @@ process exists but only answers a diagnostic request.
 | Bundled Python runtime, verified at launch | built (Windows measured; macOS/Linux not yet run) | `desktop/runtime-lock.json`, `tools/prepare_engine_runtime.py` |
 | The only engine method: `buffer.digest/1` (hashes a buffer; a transport diagnostic) | built | `engine/worker.py` |
 | `kernels/` package: binning, counting, classification, age interpolation; `tests/test_architecture.py` | built (M8.3.3) | §3.1 |
-| `methods/` package, method registry, generic job runner in the engine | **planned** (M8.3.4–M8.3.5) | §3.1 |
+| `methods/` package with the registry and `section.intervals/1`, called directly | built (M8.3.4) | §3.1 |
+| Generic job runner in the engine process that runs registered methods | **planned** (M8.3.5) | §3.1 |
 | Downloading result buffers (`buffer.read`) | **planned** (M8.3.4; needs a contract amendment) | §4 |
 | Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`) | **planned** (M8.3.5–M8.3.6) | §3.2, §3.3 |
 | Section intervals calculated by the engine (`section.intervals/1`) | **planned** (M8.3) | contract §4–§5 |
@@ -74,7 +75,7 @@ import, the code is in the wrong layer: move the code, do not break the rule.
 | Layer | Path | Contains | May import | Must not |
 |---|---|---|---|---|
 | Kernels (built, M8.3.3) | `kernels/` | Pure array functions: bin edges and sums, row/class counts from labels, layers and overlap stacks, tier classification, age interpolation | `numpy`, standard library | pandas, Pillow, file or network IO, environment variables, global state, anything from `engine/` or `methods/` |
-| Methods (planned) | `methods/` | One module per versioned method. Each has `NAME` (for example `"section.intervals/1"`), `parse(inputs) -> snapshot` that validates everything, and `run(snapshot, report, cancelled) -> dict` of named NumPy columns. `registry.py` maps names to modules | `kernels`, `numpy`, standard library | pandas, IO, transport details (frames, handles, sessions) |
+| Methods (built, M8.3.4) | `methods/` | One module per versioned method. Each has `NAME` (for example `"section.intervals/1"`), `parse(inputs) -> snapshot` that validates everything, and `run(snapshot, report, cancelled) -> dict` of named NumPy columns. `registry.py` maps names to modules | `kernels`, `numpy`, standard library | pandas, IO, transport details (frames, handles, sessions) |
 | Engine transport | `engine/` | `protocol.py` frames and strict JSON, `buffers.py` staged buffers, `server.py` coordinator, `worker.py` job process, `lifetime.py` | Coordinator: standard library only. Worker: `methods.registry` and `numpy` | The coordinator must never import NumPy or a method (start-up stays fast and control requests stay responsive). No scientific formulas in this layer |
 | Public API and CLI | `pipeline.py`, `indices.py`, `depth.py`, `io.py`, `segmentation.py`, `export.py`, `batch.py`, `cli.py`, `plotting.py` | The supported functions and commands. Adapters: validate user input, call kernels/methods, shape the output (DataFrame, CSV, LAS) | `kernels`, `methods`, pandas, Pillow | Starting the engine process; a second copy of a formula that exists in `kernels/` |
 | U-Net (optional) | `unet/` | Tiling, dataset, training, prediction, evaluation. Unchanged until M8.5 | its own optional dependencies | being imported by the base engine |

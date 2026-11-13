@@ -205,6 +205,7 @@ import of app.js or access to browser globals; it is included after unet.js in t
 
 Python package (`src/sedcoretool/`): `io.py` (images and masks), `segmentation.py` (masks from a threshold, a
 colour palette or a U-Net), `kernels/` (pure array primitives: intervals, counting, index tiers, age interpolation; §25.2),
+`methods/` (versioned scientific methods for the engine, for now `section.intervals/1`; §25.2),
 `pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
 `depth.py` (depth and age), `export.py` (CSV and Excel), `plotting.py` (matplotlib figure), `cli.py` (command line),
 `unet/` (U-Net dataset, training, evaluation, prediction, tiling and metrics), `engine/` (experimental desktop
@@ -2563,6 +2564,8 @@ block. `object_row_counts` serves the engine's object-label representation (posi
 stack, an object-to-class table, CSR stacks) with the same counting rule. No Rust or additional runtime dependency is
 needed. See [validation and measured scope](#311-automated-tests).
 
+`methods/section_intervals.py` implements engine method `section.intervals/1` (inputs and results: [engine contract](roadmap-engine-contract.md) §4–§5) on the kernels: `parse` validates every input, naming the field, before any calculation; `run` counts in blocks of 256 rows (checking for cancellation between blocks), forms the intervals, applies the minimum-valid rule and the no-data padding (strict comparisons with a 1e-9 depth tolerance, as in the program), classifies the indices, interpolates ages and attaches manual indices. It reproduces all 44 reference fixtures of the JavaScript calculation: row bounds, counts, indices, no-data flags and every missing-value pattern exactly, floating-point columns within 1e-9. It is not yet reachable from the desktop program; the engine process does not advertise it.
+
 #### Image loading budget
 
 `load_image` and `load_mask` use a fixed budget of **768 MiB** for estimated pixel buffers per load. They
@@ -3115,7 +3118,7 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 
 ### 31.1 Automated tests
 
-**Section-interval reference fixtures.** `tests/fixtures/section-intervals/` holds 40 synthetic cases with the inputs of the
+**Section-interval reference fixtures.** `tests/fixtures/section-intervals/` holds 44 synthetic cases with the inputs of the
 planned engine method `section.intervals/1` and the result of the current JavaScript calculation (format and
 comparison rule in its README). `tests/app/interval-fixtures.test.mjs` requires each committed file to be
 byte-identical to a regeneration by `tools/make_interval_fixtures.mjs`, checks every file against the input and
