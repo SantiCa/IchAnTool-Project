@@ -25,9 +25,9 @@ Updated 13 November 2026.
 - **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
   runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
   documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
-- **Next step:** card **M8.3.3** (Python kernels). It is *Ready*. The maintainer asked on 13 November 2026 to continue
-  with M8.3 after publishing V0.149, so cards M8.3.3 to M8.3.8 follow in order; stop and report at any card that
-  cannot meet its "Done when".
+- **Next step:** card **M8.3.4** (the Python method `section.intervals/1`, called directly). It is *Ready*. The maintainer
+  asked on 13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.4 to M8.3.8 follow in order;
+  stop and report at any card that cannot meet its "Done when".
 - **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
   13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
   macOS and Linux, clean Windows machine, cold-cache first launch, saturated CPUs, package sizes, and the
@@ -57,7 +57,7 @@ Every experimental switch, with the decision it is waiting for ([policy: ARCHITE
 | Flag | Owner | How it is switched | Default | Waiting for |
 |---|---|---|---|---|
 | Engine experiment | M8 | environment variable `SEDCORETOOL_ENGINE_EXPERIMENT=1` | off | Removed at M8.6 after the release gate |
-| NumPy multi-row counting in the Python API | M3.1.5 / M3.1.6 | environment variable `SEDCORETOOL_EXPERIMENTAL_COUNTS=1` | off | Decided inside card M8.3.3 (which counting kernel becomes the only one) |
+| NumPy multi-row counting in the Python API | M3.1.5 / M3.1.6 / M8.3.3 | environment variable `SEDCORETOOL_EXPERIMENTAL_COUNTS=1` | no effect: the multi-row kernel is the only implementation since M8.3.3 | Maintainer: remove the variable and its tests/benchmark in a cleanup |
 | Navigation preview rollback | M2.2.4 | session control in the Sections panel | preview on | Maintainer: remove the rollback control, or keep it until more memory evidence exists |
 | Visible-row table rendering | M2.1.3 | session-only checkbox in the Data table | off | Maintainer: promote to default or remove |
 | Desktop operating diagnostics | M1.2.3 | opt-in control in the desktop program | off | Removed after the hang diagnosis of M1.2.2 is accepted |
@@ -209,7 +209,7 @@ Cards are done in order. Each one claims the development gate only.
   the contract was needed. Card M8.3.4 reads the files with a few lines of Python: expand `runs`, reshape by `shape`,
   compare as the README says.
 
-#### M8.3.3 - Python kernels — state: Ready
+#### M8.3.3 - Python kernels — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** the primitives of interval analysis exist once, in `src/sedcoretool/kernels/`, and the public Python
   functions use them.
@@ -236,8 +236,25 @@ Cards are done in order. Each one claims the development gate only.
 - **Tests:** `pytest -q tests/test_kernels.py tests/test_architecture.py`; then the whole `pytest -q` with no
   existing test modified.
 - **Done when:** all Python tests pass unchanged, including the regression against `legacy/`.
+- **Result (13 November 2026):** `src/sedcoretool/kernels/` with `binning` (`unit_factor`, `pixels_per_cm`, `interval_rows`,
+  `bin_edge`, `bin_edges`, `sum_by_interval`, `enough_valid`, `percentage`), `counting` (`label_row_counts` for class masks,
+  `layer_row_counts` for boolean layers, `object_row_counts` for object labels with an object-to-class table and CSR overlap
+  stacks, returning `RowCounts(valid, bio, cls)`), `classification` (`TierTable`, `classify_tiers`, precedence `"first"` or
+  `"last"`) and `ages` (`interpolate_age`). `pipeline.py`, `indices.py` and `depth.py` delegate; no public signature or
+  private name used by tests changed, and the 357 earlier Python tests pass untouched. 86 new tests: kernels against slow
+  reference loops, against the 20 shared fractional cases and against all 40 JavaScript reference fixtures (counts, intervals
+  and bounds exactly; percentages, depths and ages within 1e-9; indices and missing patterns exactly), and the
+  import-rule test. Eight deliberate faults were each caught. Things the method (M8.3.4) still has to add: no-data padding,
+  manual indices, the effective-class rule (`tests/section_fixtures.py::class_of_object` is a test-only copy), validation of
+  the snapshot, and the clamp of the interval to at least one row.
+- **Decision recorded here (flag `SEDCORETOOL_EXPERIMENTAL_COUNTS`):** the bounded multi-row histogram became the only
+  counting implementation. On the 6400 × 960 reference mask (3 classes, 5 % excluded; median of 7) an analysis took 32 ms
+  (was 40 ms by default and 33 ms with the flag) and allocated 12.2 MiB (was 17.7 MiB by default, 12.1 MiB with the flag),
+  with identical results. The variable is still accepted and ignored so that existing scripts and the four older tests
+  keep working; the maintainer may remove it, and tests/test_count_experiment.py and tools/benchmark_counts.py with it, in a
+  later cleanup.
 
-#### M8.3.4 - Method `section.intervals/1`, called directly — state: Ready after M8.3.3
+#### M8.3.4 - Method `section.intervals/1`, called directly — state: Ready
 
 - **Goal:** `src/sedcoretool/methods/section_intervals.py` reproduces every fixture of M8.3.2.
 - **Read first:** contract §4 and §5 (complete); ARCHITECTURE §3.1 and §5.1; the fixtures.

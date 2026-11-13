@@ -1,4 +1,9 @@
-"""Counterbalanced public-API comparison of default and multi-row Python counts."""
+"""Counterbalanced public-API comparison of default and multi-row Python counts.
+
+Historical (M3.1.5). Since card M8.3.3 the multi-row kernel is the only implementation and the environment variable
+below no longer changes anything, so a run of this tool now compares the code with itself. To reproduce the original
+comparison, run it from the V0.149 source tree (``git worktree add <folder> master``).
+"""
 
 from __future__ import annotations
 

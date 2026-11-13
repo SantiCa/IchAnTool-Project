@@ -55,7 +55,7 @@ The document describes the current version; the history of changes is in [`CHANG
 **Part VII — The Python package**
 
 25. [The `sedcoretool` Python package](#25-the-sedcoretool-python-package)
-    - [Experimental Python row counts (library API, §25.2)](#experimental-python-row-counts)
+    - [Python row counts and kernels (library API, §25.2)](#python-row-counts-and-kernels)
 
 **Part VIII — Desktop program, distribution and engineering**
 
@@ -204,7 +204,8 @@ float32 NCHW tensors adapt to the existing tiling engine. The module has strict 
 import of app.js or access to browser globals; it is included after unet.js in the standalone build.
 
 Python package (`src/sedcoretool/`): `io.py` (images and masks), `segmentation.py` (masks from a threshold, a
-colour palette or a U-Net), `pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
+colour palette or a U-Net), `kernels/` (pure array primitives: intervals, counting, index tiers, age interpolation; §25.2),
+`pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
 `depth.py` (depth and age), `export.py` (CSV and Excel), `plotting.py` (matplotlib figure), `cli.py` (command line),
 `unet/` (U-Net dataset, training, evaluation, prediction, tiling and metrics), `engine/` (experimental desktop
 engine process: framing, staged buffers, coordinator and isolated worker; §26.2).
@@ -398,7 +399,7 @@ for masks.
 
 These are the same tiers as in version 2.1. In Python, other schemes can be defined as data with `IndexScheme`
 (`indices.py`) without changing the code. `IndexScheme.classify` compiles each scheme once into disjoint intervals,
-with the last declared tier taking precedence when tiers overlap. It preserves the shape of an input array of any
+with the last declared tier taking precedence when tiers overlap (`kernels.classification.TierTable`, which also offers the first-match rule that the desktop program uses). It preserves the shape of an input array of any
 dimension. For nonnegative integer boundaries up to 256 it looks up the class of each percentage's integer part.
 Other schemes use right-sided `numpy.searchsorted` on the sorted boundaries. Values outside all tiers return `-1`.
 
@@ -2539,19 +2540,28 @@ equivalent full/bare/mixed-case/whitespace/RGB inputs, exact masks and scientifi
 10, duplicate-colour precedence, class order, malformed forms and byte-identical command-line CSV results
 through both `analyze` and `batch`. An invalid palette leaves an existing result file unchanged.
 
-#### Experimental Python row counts
+#### Python row counts and kernels
 
-`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded multi-row label histograms in `analyze_mask`.
-The default remains the established per-class reductions. Blocks contain at most 64 rows and 65,536
-pixels; very wide images use single-row column chunks. Each pixel's integer key is
-`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into
-row/class counts and accumulates across column chunks. Total bioturbation sums positive-label counts;
-class counts use the corresponding column. Interval sums, division order, boundaries, exclusions and
-configurable index schemes follow the same analysis path. Overlapping boolean layers retain the
-established calculation. Integer scratch scales with the bounded block, not the full image; the retained
-histogram requires `8 * rows * (classes + 1)` bytes. Reverse-strided inputs are copied only per block.
-Unset the variable to roll back; promotion and flag removal require a subsequent decision. No Rust or
-additional runtime dependency is needed. See [validation and measured scope](#311-automated-tests).
+The arithmetic of interval analysis lives in `src/sedcoretool/kernels/` (pure NumPy functions shared by the library, the
+command line and the desktop engine; rules in [ARCHITECTURE.md](ARCHITECTURE.md#31-python-srcsedcoretool), enforced
+by `tests/test_architecture.py`): `binning` (pixels per centimetre, interval edges and sums, the minimum-valid rule,
+percentages), `counting` (per-row valid, bioturbated and per-class counts), `classification` (index tiers with
+first-match or last-match precedence) and `ages` (linear interpolation of an age model). `pipeline.py`, `indices.py`
+and `depth.py` validate input, call the kernels and shape results; their public functions and the private names that
+tests use (`_edge`, `_bin_sums`, `_label_row_counts`) are unchanged.
+
+`analyze_mask` counts with bounded multi-row label histograms (since card M8.3.3, after V0.149; before that it was
+opt-in through `SEDCORETOOL_EXPERIMENTAL_COUNTS=1`, which is still accepted and has no effect). Blocks contain at most
+64 rows and 65,536 pixels; very wide images use column chunks. Each pixel's integer key is
+`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into row/class counts and
+accumulates across column chunks. Total bioturbation sums the class columns; class counts use the corresponding
+column. Overlapping boolean layers use `layer_row_counts` (a pixel is bioturbated once if any layer is set and counts
+for every class whose layer is set). Interval sums, division order, boundaries, exclusions and configurable index
+schemes follow the same path. Integer scratch scales with the bounded block, not the full image; the retained
+histogram requires `8 * rows * (classes + 1)` bytes. Inputs are only read, and reverse-strided inputs are copied only per
+block. `object_row_counts` serves the engine's object-label representation (positive = object, negative = overlap
+stack, an object-to-class table, CSR stacks) with the same counting rule. No Rust or additional runtime dependency is
+needed. See [validation and measured scope](#311-automated-tests).
 
 #### Image loading budget
 
@@ -3147,9 +3157,8 @@ partial bins, disagreement reporting and weighted CPU-sample attribution.
 
 **Experimental Python counting.** The [counterbalanced comparison](benchmarks/M3.1.5.md) records exact
 numerical equivalence and measured performance acceptance on the reference workloads for the
-[opt-in row-counting algorithm](#experimental-python-row-counts). The
-[counting regression tests](../tests/test_count_experiment.py) compare complete default/experimental
-results exactly, including exclusions, absent classes, custom index schemes, fractional/partial bins,
+[row-counting algorithm](#python-row-counts-and-kernels), now the only one. The
+[counting regression tests](../tests/test_count_experiment.py) compare complete results with and without the former variable exactly, including exclusions, absent classes, custom index schemes, fractional/partial bins,
 and overlapping-layer fallback. Separate histogram checks cover noncontiguous inputs and bounded scratch.
 Performance acceptance is limited to the measured reference workloads; the established per-class
 reductions remain the default.

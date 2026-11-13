@@ -1,8 +1,11 @@
-"""Core analysis: label mask -> continuous series per depth bin."""
+"""Core analysis: label mask -> continuous series per depth bin.
+
+The arithmetic lives in ``sedcoretool.kernels`` (shared with the scientific engine); this module validates user
+input, calls the kernels and shapes the result as a DataFrame.
+"""
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -12,7 +15,29 @@ import pandas as pd
 from .depth import depth_to_age
 from .indices import DEFAULT_SCHEMES, IndexScheme
 from .io import load_image
+from .kernels.binning import (
+    UNIT_TO_CM,
+    bin_edge,
+    bin_edges,
+    enough_valid,
+    interval_rows,
+    percentage,
+    pixels_per_cm,
+    sum_by_interval,
+    unit_factor,
+)
+from .kernels.counting import label_row_counts, layer_row_counts
 from .segmentation import mask_from_threshold
+
+# Names that earlier versions defined here; tests and callers still use them.
+_edge = bin_edge
+_bin_sums = sum_by_interval
+_unit_factor = unit_factor
+_label_row_counts = label_row_counts
+
+__all__ = ["UNIT_TO_CM", "CoreSection", "analyze_image", "analyze_mask", "bin_edges"]
+
+_MAX_MASK_CLASSES = 255  # All positive IDs in an 8-bit label mask.
 
 
 @dataclass
@@ -32,61 +57,10 @@ class CoreSection:
         return self
 
 
-def _edge(j: int, bin_px: float) -> int:
-    return int(np.floor(j * bin_px + 0.5))
-
-
-def bin_edges(n: int, bin_px: float, keep_partial: bool = True) -> list[tuple[int, int]]:
-    """Row ranges of the bins: bin j spans [floor(j*bin_px + 0.5), floor((j+1)*bin_px + 0.5)).
-
-    Same rule as ``binRows`` in the web app (V0.1). bin_px may be fractional (interval in cm × px/cm);
-    an integer bin_px gives the classic fixed-size bins. The last bin is clipped at n (dropped if
-    keep_partial is False).
-    """
-    out, j = [], 0
-    while _edge(j, bin_px) < n:
-        end = _edge(j + 1, bin_px)
-        if end > n and not keep_partial:
-            break
-        out.append((_edge(j, bin_px), min(n, end)))
-        j += 1
-    return out
-
-
-def _bin_sums(values: np.ndarray, rng: list[tuple[int, int]]) -> np.ndarray:
-    return np.array([values[a:b].sum(axis=0) for a, b in rng], dtype=float).reshape(len(rng), *values.shape[1:])
-
-
-UNIT_TO_CM = {"mm": 0.1, "cm": 1.0, "m": 100.0}
-_MAX_MASK_CLASSES = 255  # All positive IDs in an 8-bit label mask.
-
-
-def _unit_factor(units: str) -> float:
-    try:
-        return UNIT_TO_CM[units]
-    except KeyError:
-        raise ValueError(f"units must be one of {sorted(UNIT_TO_CM)}, not {units!r}") from None
-
-
 def _validate_min_valid(min_valid: float) -> float:
     if not 0 <= min_valid <= 1:
         raise ValueError("min_valid must be a finite fraction between 0 and 1 inclusive")
     return min_valid
-
-def _label_row_counts(mask: np.ndarray, valid: np.ndarray, n_classes: int) -> np.ndarray:
-    """Count row/class keys in blocks of <=65,536 pixels and <=64 rows."""
-    rows, width = mask.shape
-    classes = n_classes + 1
-    counts = np.zeros((rows, classes), dtype=np.int64)
-    block_rows = min(64, max(1, 65536 // max(1, width)))
-    for row in range(0, rows, block_rows):
-        end = min(rows, row + block_rows)
-        offsets = np.arange(end - row, dtype=np.intp)[:, None] * classes
-        for col in range(0, width, 65536):
-            keys = mask[row:end, col:col + 65536].astype(np.intp) + offsets
-            selected = keys[valid[row:end, col:col + 65536]]
-            counts[row:end] += np.bincount(selected, minlength=(end - row) * classes).reshape(end - row, classes)
-    return counts
 
 
 def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "cm",
@@ -127,10 +101,8 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
     if 0 < n_names < n_classes:
         raise ValueError("fewer class_names than classes present in the mask")
 
-    layers = None
-    if mask.ndim == 3:
-        layers = mask.astype(bool)
-        mask = layers.any(axis=0).astype(np.int32)
+    layers = mask.astype(bool) if mask.ndim == 3 else None
+    image_shape = mask.shape[-2:]
     if bottom <= top:
         raise ValueError("bottom depth must be greater than top depth")
     if bin_cm is not None:
@@ -138,16 +110,15 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
             raise ValueError("bin_cm must be positive")
         # Match app.js::pxPerCm/binRowsOf: divide first, then multiply. Reassociation
         # can move a half-row boundary and change percentages and indices.
-        px_per_cm = mask.shape[0] / ((bottom - top) * _unit_factor(units))
-        bin_px = bin_cm * px_per_cm
+        bin_px = interval_rows(bin_cm, pixels_per_cm(image_shape[0], top, bottom, units))
     if bin_px < 1:
         raise ValueError("bin_px must be >= 1 (interval thinner than one pixel row)")
-    n_rows, n_cols = mask.shape
-    valid = np.ones(mask.shape, dtype=bool)
+    n_rows, n_cols = image_shape
+    valid = np.ones(image_shape, dtype=bool)
     if exclude is not None:
         exclude = np.asarray(exclude, dtype=bool)
-        if exclude.shape != mask.shape:
-            raise ValueError(f"exclusion layer {exclude.shape} does not match the mask {mask.shape}")
+        if exclude.shape != image_shape:
+            raise ValueError(f"exclusion layer {exclude.shape} does not match the mask {image_shape}")
         valid = ~exclude
     names = list(class_names) if n_names else [f"class_{i}" for i in range(1, n_classes + 1)]
 
@@ -155,28 +126,24 @@ def analyze_mask(mask: np.ndarray, top: float, bottom: float, *, units: str = "c
     r0 = np.array([a for a, _ in rng], dtype=float)
     r1 = np.array([b for _, b in rng], dtype=float)
     step = (bottom - top) / n_rows
-    histogram = (_label_row_counts(mask, valid, len(names))
-                 if layers is None and os.environ.get('SEDCORETOOL_EXPERIMENTAL_COUNTS') == '1' else None)
-    v = _bin_sums(valid.sum(axis=1), rng)
-    ok = (v > 0) & (v >= min_valid * (r1 - r0) * n_cols)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        def pct(hit: np.ndarray) -> np.ndarray:
-            return np.where(ok, 100 * _bin_sums((hit & valid).sum(axis=1), rng) / v, np.nan)
-
-        def histogram_pct(values):
-            return np.where(ok, 100 * _bin_sums(values, rng) / v, np.nan)
-
-        cols = {
-            "depth_top": top + r0 * step,
-            "depth_bottom": top + r1 * step,
-            "depth": top + (r0 + r1) / 2 * step,
-            "valid_pct": 100 * v / ((r1 - r0) * n_cols),
-            "bioturbation_pct": (pct(mask > 0) if histogram is None else histogram_pct(histogram[:, 1:].sum(axis=1))),
-        }
-        if len(names) > 1:
-            for label, cname in enumerate(names, start=1):
-                cols[f"{cname}_pct"] = (pct(layers[label - 1] if layers is not None else mask == label)
-                                        if histogram is None else histogram_pct(histogram[:, label]))
+    if layers is None:
+        counts = label_row_counts(mask, valid, len(names))   # column 0 = matrix, column k = class k
+        valid_rows, class_rows = valid.sum(axis=1), counts[:, 1:]
+        bio_rows = class_rows.sum(axis=1)
+    else:
+        valid_rows, bio_rows, class_rows = layer_row_counts(layers, valid)
+    v = sum_by_interval(valid_rows, rng)
+    ok = enough_valid(v, r1 - r0, n_cols, min_valid)
+    cols = {
+        "depth_top": top + r0 * step,
+        "depth_bottom": top + r1 * step,
+        "depth": top + (r0 + r1) / 2 * step,
+        "valid_pct": 100 * v / ((r1 - r0) * n_cols),
+        "bioturbation_pct": percentage(sum_by_interval(bio_rows, rng), v, ok),
+    }
+    if len(names) > 1:
+        for label, cname in enumerate(names, start=1):
+            cols[f"{cname}_pct"] = percentage(sum_by_interval(class_rows[:, label - 1], rng), v, ok)
     df = pd.DataFrame(cols)
     for scheme in schemes:
         idx = pd.Series(scheme.classify(df["bioturbation_pct"].to_numpy()), dtype="Int64")
