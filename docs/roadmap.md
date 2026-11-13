@@ -423,14 +423,18 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
     a stale folder, a fresh folder of another live session and a look-alike name that must survive.
   - Done when: the test passes and the desktop end-to-end test leaves no `sedcoretool-engine-*` folder behind.
     The end-to-end test's own `sedcoretool-desktop-test-*` profiles should be removed by the test as well.
-- [ ] **H5 - The browser smoke test is sensitive to machine load.** `tests/e2e/smoke.mjs` failed twice in six runs
-      on 13 November 2026 at the "Data table" step with `ProtocolError: Runtime.callFunctionOn timed out` (Puppeteer's
-      180 s limit), and passed four times with the same code; duration varied between 79 s and 178 s with the
-      computer otherwise idle. The cause is unknown (candidates: antivirus scanning, background applications, the
-      100,000-row generation inside the page). Do not relax any assertion. Find which step is slow
-      (time each `verify*` function in the test and print it), then decide with the maintainer whether to raise
-      `protocolTimeout` for that step or make the step cheaper. Done when ten consecutive runs pass and each step's
-      time is printed.
+- [ ] **H5 - The browser smoke test is flaky.** `tests/e2e/smoke.mjs` (the `e2e` job of the GitHub workflow) fails intermittently.
+      Findings of 13 November 2026, after the first GitHub run of `master` showed the `tests` workflow red:
+      (1) **Fixed:** the five Python jobs failed only because `psutil`, imported by `tools/benchmark.py` through the benchmark tests,
+      was not in the `dev` extras (it came with Anaconda locally); a clean clone with `psutil` passes 357 tests.
+      (2) **Fixed:** "name column drag" measured the multiproxy panel before it was laid out (width 0); it fails 1 in 4 runs on an
+      untouched V0.148 clone and now waits for the layout. (3) **Open:** after that fix the suite passed 8 of 9 runs on this computer;
+      the other failed waiting 60 s for the 16-bit TIFF to be decoded again after reopening a project (`orig16` of "Native 16 bit"),
+      and before the fix two runs hit Puppeteer's 180 s protocol timeout at the "Data table" step. Each log line now carries the elapsed
+      time. The `e2e` job of the GitHub workflow has not been seen to pass yet.
+  - Next: run the suite ten times in a row after the next push and read the workflow result; if the TIFF wait fails again, capture the
+    section state at the timeout (is `_loading` set? was the section evicted by the pixel-memory budget?) before changing anything.
+    Do not relax an assertion or raise the 60 s wait without that evidence. Done when ten consecutive local runs and the GitHub job pass.
 - [ ] **H3 - Move raw benchmark reports out of the repository.** `docs/benchmarks/*.json` weighs about 10 MB.
       Needs the maintainer's decision on where the raw files go; the `.md` summaries stay.
 
