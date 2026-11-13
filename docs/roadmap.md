@@ -22,9 +22,10 @@ Updated 13 November 2026.
 - **Active work branch:** `work/2026-11-13`, created from `master` after V0.149. Changes accumulate under
   `## Unreleased` in the changelog; the maintainer asks for the next version number.
 - **Checks:** see the last line of this block; it is rewritten at the end of every session.
-- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
-  runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
-  documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
+- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). In M8.3 cards 1 to 5 are done: the section analysis is a
+  pure JavaScript module with 44 reference fixtures, the Python kernels and the method `section.intervals/1` reproduce them, and the
+  engine process runs the method in its own worker and serves the result columns. The interface does not call the engine yet
+  (cards M8.3.6 and M8.3.7). V0.149 is on `origin/master`; later work is on `work/2026-11-13`, also pushed.
 - **Next step:** card **M8.3.6** (main-process client and renderer bridge). It is *Ready*. The maintainer asked on
   13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.6 to M8.3.8 follow in order; stop and
   report at any card that cannot meet its "Done when".
@@ -35,7 +36,12 @@ Updated 13 November 2026.
   switched on by default or a version with the engine is announced.
 - **Decisions waiting for the maintainer:** only the flags in the table below that need a promote/remove decision.
   Decided on 13 November 2026: acceptance levels (accepted), scope of 1.0 (below), publication of V0.149.
-- **Last full checks: passed** on the V0.149 state (13 November 2026), run one after another: `pytest -q` 357 passed / 8 skipped; `npm test` 246 passed; `npm run typecheck` no new diagnostics; `sync_version.py --check`; `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on and off (runtime rebuilt for 0.149.0 first; its first preparation attempt failed for an undetermined reason and passed on retry); `tests/e2e/smoke.mjs` passed in 4 of 6 runs, the 2 failures being the load-sensitive timeout of card H5.
+- **Last full checks: passed** on 14 November 2026 at the commit that records this line, run one after another on the maintainer's
+  Windows computer: `pytest -q` 594 passed / 8 skipped; `npm test` and `npm run typecheck` (no new diagnostics); `sync_version.py --check`;
+  `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on and off (bundled runtime rebuilt
+  first). The Python suite with coverage also passes in a clean clone with a fresh virtual environment. **GitHub workflow `tests`:**
+  all Python jobs (Linux 3.10/3.12/3.13, macOS, Windows), `checks` and `web-app` pass; the `e2e` job fails, as it has on every run since
+  10 November 2026 (card H5).
 
 ## How work is accepted
 
@@ -423,18 +429,23 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
     a stale folder, a fresh folder of another live session and a look-alike name that must survive.
   - Done when: the test passes and the desktop end-to-end test leaves no `sedcoretool-engine-*` folder behind.
     The end-to-end test's own `sedcoretool-desktop-test-*` profiles should be removed by the test as well.
-- [ ] **H5 - The browser smoke test is flaky.** `tests/e2e/smoke.mjs` (the `e2e` job of the GitHub workflow) fails intermittently.
-      Findings of 13 November 2026, after the first GitHub run of `master` showed the `tests` workflow red:
-      (1) **Fixed:** the five Python jobs failed only because `psutil`, imported by `tools/benchmark.py` through the benchmark tests,
-      was not in the `dev` extras (it came with Anaconda locally); a clean clone with `psutil` passes 357 tests.
-      (2) **Fixed:** "name column drag" measured the multiproxy panel before it was laid out (width 0); it fails 1 in 4 runs on an
-      untouched V0.148 clone and now waits for the layout. (3) **Open:** after that fix the suite passed 8 of 9 runs on this computer;
-      the other failed waiting 60 s for the 16-bit TIFF to be decoded again after reopening a project (`orig16` of "Native 16 bit"),
-      and before the fix two runs hit Puppeteer's 180 s protocol timeout at the "Data table" step. Each log line now carries the elapsed
-      time. The `e2e` job of the GitHub workflow has not been seen to pass yet.
-  - Next: run the suite ten times in a row after the next push and read the workflow result; if the TIFF wait fails again, capture the
-    section state at the timeout (is `_loading` set? was the section evicted by the pixel-memory budget?) before changing anything.
-    Do not relax an assertion or raise the 60 s wait without that evidence. Done when ten consecutive local runs and the GitHub job pass.
+- [ ] **H5 - The `e2e` job of the GitHub workflow is red and has been since 10 November 2026.** Findings of 13-14 November 2026
+      (the CI result and its failure message are readable without logs through the public API: the smoke test now emits `::error::`
+      annotations, `GET /repos/SantiCa/SedCoreTool/check-runs/<job id>/annotations`; the unauthenticated API allows 60 requests an hour):
+      (1) **Fixed:** the five Python jobs failed because `psutil` (imported by `tools/benchmark.py` through the benchmark tests) was not in
+      the `dev` extras. (2) **Fixed:** on Windows the method worker hung in a clean environment (`import numpy` blocked while the liveness
+      watcher was reading stdin); found only because the GitHub Windows job failed. With both fixes every Python job (Linux 3.10/3.12/3.13,
+      macOS, Windows), `checks` and `web-app` pass. (3) **Fixed:** "name column drag" measured the multiproxy panel before layout (1 run in 4
+      even on an untouched V0.148). (4) **Open, not caused by the engine work:** the `e2e` job passed on 10 November 2026 (commit `29d4ecf`)
+      and has failed on every run since, i.e. since the navigation-preview tests of V0.117-V0.119 were added. Its latest messages on
+      `ubuntu-latest`: `Navigation pixel 128593: expected 143, received 142` (the exact-equality check of the preview against the legacy
+      renderer, `compareNavigationPreview`, differs by one level in Chrome on Linux) and, in the previous run, "Navigation click/drag must preserve
+      depth mapping". Windows passes. Locally the smoke suite passes most of the time but also fails now and then (a wait for the 16-bit TIFF to be
+      decoded again after reopening a project, Puppeteer's 180 s protocol timeout).
+  - Next: a design session decides first whether a one-level difference between the two renderers on Linux is a platform rasteriser detail
+    or a real discrepancy of the preview path (M2.2.3 promised exact equality); the exact-equality contract is not weakened without the
+    maintainer's decision. Then handle the remaining flaky waits one at a time, each with its measured values in the failure message
+    (the depth-mapping check already prints them). Done when the `e2e` job passes ten consecutive pushes.
 - [ ] **H3 - Move raw benchmark reports out of the repository.** `docs/benchmarks/*.json` weighs about 10 MB.
       Needs the maintainer's decision on where the raw files go; the `.md` summaries stay.
 
