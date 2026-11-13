@@ -85,12 +85,17 @@ export async function verifyNavigationPreview(browser, url, { screenshots = fals
     await frame(); const beforePointer = await science(), bounds = await page.$eval('#view', (canvas) => {
       const rect = canvas.getBoundingClientRect(); return { x: rect.left, y: rect.top, height: canvas.height };
     });
-    const checkPosition = async () => assert.ok(await page.evaluate(() => {
-      const { S } = window.ichantool, view = document.getElementById('view'), section = S.sections[0], top = view.getBoundingClientRect().top;
-      const fraction = Math.min(1, Math.max(0, (window.__navPoint - top - 14) / (view.height - 30)));
-      const expected = section.roi.y0 + fraction * (section.roi.y1 - section.roi.y0);
-      return Math.abs(S.view.y + view.height / (2 * S.view.zoom) - expected) <= 1e-9;
-    }), 'Navigation click/drag must preserve depth mapping');
+    const checkPosition = async () => {
+      const measured = await page.evaluate(() => {
+        const { S } = window.ichantool, view = document.getElementById('view'), section = S.sections[0], top = view.getBoundingClientRect().top;
+        const fraction = Math.min(1, Math.max(0, (window.__navPoint - top - 14) / (view.height - 30)));
+        const expected = section.roi.y0 + fraction * (section.roi.y1 - section.roi.y0), got = S.view.y + view.height / (2 * S.view.zoom);
+        // The values are part of the message so that a failure on another machine can be diagnosed from the log alone.
+        return { ok: Math.abs(got - expected) <= 1e-9, got, expected, point: window.__navPoint, top, canvas: [view.width, view.height], zoom: S.view.zoom,
+          view: [S.view.x, S.view.y], roi: section.roi, image: [section.w, section.h] };
+      });
+      assert.ok(measured.ok, `Navigation click/drag must preserve depth mapping: ${JSON.stringify(measured)}`);
+    };
     const x = Math.round(bounds.x + 16), start = Math.round(bounds.y + 14 + (bounds.height - 30) * 0.4), end = Math.round(bounds.y + 14 + (bounds.height - 30) * 0.7);
     await page.mouse.click(x, start); await checkPosition();
     await page.mouse.move(x, start); await page.mouse.down(); await page.mouse.move(x, end, { steps: 3 }); await page.mouse.up(); await checkPosition();
