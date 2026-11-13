@@ -47,7 +47,7 @@ Download the installer for your system from the [latest release](../../releases/
 
 | System | File |
 |---|---|
-| Windows 10/11 (x64) | `SedCoreTool-V0.<n>-windows-setup.exe`, or `…-windows-portable.exe` (no installation) |
+| Windows 10/11 (x64) | `SedCoreTool-V0.<n>-windows-setup.exe`, or `…-windows-portable.zip` (no installation: unzip to a folder and run `SedCoreTool.exe`) |
 | macOS 13 or later (Intel and Apple Silicon) | `SedCoreTool-V0.<n>-mac-universal.dmg` |
 | Linux (x64) | `SedCoreTool-V0.<n>-linux-x86_64.AppImage` or `…-linux-amd64.deb` |
 | Any system, in a browser | `SedCoreTool_V0.<n>.html` — a single file that opens with a double click, offline |
@@ -244,7 +244,9 @@ in the browser version, a few libraries. See [SECURITY.md](SECURITY.md).
 |----------|---------|
 | [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md) | How every part works: methods, formulas, default values, file formats, validation and limitations |
 | [CHANGELOG.md](CHANGELOG.md) | Changes in each version |
-| [docs/roadmap.md](docs/roadmap.md) | Planned work |
+| [docs/roadmap.md](docs/roadmap.md) | Current status and next tasks ([later milestones](docs/roadmap-future.md), [finished tasks](docs/roadmap-history.md)) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Structure of the code: layers, what may import what, how a scientific method is added |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Commands to set up, run, test, package and measure |
 | [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) | How to contribute; working rules for contributors and AI coding assistants |
 | [paper/](paper/) | Software paper (in preparation) |
 
@@ -261,7 +263,7 @@ src/sedcoretool/  Python package (src/ichantool/ is an alias for the former name
 tests/            Python, program and end-to-end tests, including the regression against version 2.1
 examples/         public example data: IODP U1385I-1H core, idealised core, multiproxy demo, training project
 tools/            offline build, version sync, release and synthetic-data scripts
-docs/             technical documentation and roadmap
+docs/             technical documentation, architecture, development guide, roadmap, measured evidence
 paper/            software paper
 legacy/           original version 2.1 (2019), unchanged
 ```

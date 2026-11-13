@@ -1,349 +1,187 @@
 # Contributor and AI-assistant guide
 
-This file is the **only source of working instructions**, shared unchanged by human contributors and every
-AI assistant. Keep all rules, objectives and handoff instructions here, with no model-specific policy copies.
-`CLAUDE.md` and `GEMINI.md` are compatibility entry points containing only the same single-line import of this
-file. They have no independent instructions or status to maintain. If a client does not expand imports, open
-`AGENTS.md` explicitly before working. A new session should read the [current migration handoff](#8-current-migration-handoff)
-and the roadmap as well as the general rules; it must not depend on the previous assistant's chat history.
+This file is the **only source of working rules**, shared unchanged by human contributors and every AI assistant.
+`CLAUDE.md` and `GEMINI.md` contain only an import of this file; if your client does not expand imports, open
+`AGENTS.md` yourself. It holds rules that rarely change. The current state lives in the roadmap, the structure in
+the architecture document and the commands in the development guide (§2).
 
-Owner and maintainer: Santiago Casanova-Arenillas. **Reply to the owner in Spanish**; everything committed to the
-repository (code, comments, documentation, commit messages) is written in English.
+Owner and maintainer: Santiago Casanova-Arenillas. **Reply to the owner in Spanish.** Everything committed to the
+repository (code, comments, documents, commit messages) is written in English.
 
-## 1. What the project is
+## 1. Every session, in this order
+
+1. **Read the state:** [docs/roadmap.md § Status and handoff](docs/roadmap.md#status-and-handoff). It names the
+   branch, the last verified commit, checks still due and the next task card.
+2. **Check the checkout:** `git status --short --branch`. On a clean tree, stay on the branch the status names. A
+   dirty tree may be someone else's work: do not stash, reset, clean, discard or switch branches; ask.
+3. **Run pending checks first** if the status says "checks pending" (§5.4).
+4. **Find the task card** for what the maintainer asked (§6). No card and the request is not trivial: write the
+   card first, or ask.
+5. **Read only what the card lists** under "Read first". You rarely need whole documents.
+6. **Make the change** following §3 and §4. Run focused checks as you go.
+7. **Document in the same commit** (§5.2) and **commit on the branch** with explicitly named files.
+8. **Update the roadmap status** (commit, checks run, next step, open questions).
+9. **Report to the maintainer in Spanish** (§7).
+
+## 2. The project and its documents
 
 SedCoreTool quantifies bioturbation and ichnotaxa in sediment-core images and combines them with other down-core
-records. It currently has two parts that share the same analysis definitions; the desktop migration in
-[§8](#8-current-migration-handoff) is replacing those duplicated calculations with one local Python engine:
+records.
 
 | Part | Path | Language |
-|------|------|----------|
-| The program (desktop and browser) | `app/` (web application), `desktop/` (Electron packaging) | JavaScript, no build step |
-| The Python package `sedcoretool` | `src/sedcoretool/` (`src/ichantool/` is a compatibility alias) | Python ≥ 3.10 |
-| Experimental desktop engine, off by default | `src/sedcoretool/engine/`, started by `desktop/engine.js` with the bundled runtime | Python 3.12 runtime |
-| Reference version 2.1 (2019) | `legacy/` | Python 3.7 — never modify |
+|---|---|---|
+| The program: interface, editing, saving, and today's calculations | `app/` (web application), `desktop/` (Electron shell and packaging) | JavaScript, no build step |
+| The Python package `sedcoretool` (API and command line) | `src/sedcoretool/` (`src/ichantool/` is a compatibility alias) | Python ≥ 3.10 |
+| The scientific engine process, experimental and off by default | `src/sedcoretool/engine/`, started by `desktop/engine.js` with a bundled runtime | Python 3.12 |
+| Reference version 2.1 (2019) | `legacy/` | never modify |
 
-Start with [README.md](README.md) for users and [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md)
-for how every part works (§1.4 maps the source files).
+**Direction (decided by the maintainer, 12 November 2026):** each scientific method is implemented once, in
+Python, and runs in a local engine process; the Electron/JavaScript interface requests and displays results. The
+migration is milestone M8 and is **not finished**: the interface still calculates in JavaScript.
 
-### 1.1 Maintainability objective
+| Question | Document |
+|---|---|
+| What is the next task, what is its state, what was decided? | [docs/roadmap.md](docs/roadmap.md) |
+| Where does code go, which layer may import which, how do I add a method or split a module? | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Which command builds, runs, tests, packages or measures? What does this error mean? | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
+| What exactly does a method compute (formulas, defaults, formats)? Which file holds what? | [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md) (§1.4 source map) |
+| Engine protocol, method inputs and results, acceptance gates | [docs/roadmap-engine-contract.md](docs/roadmap-engine-contract.md) |
+| Later milestones and ideas not scheduled yet | [docs/roadmap-future.md](docs/roadmap-future.md) |
+| How and when was a finished task delivered? | [docs/roadmap-history.md](docs/roadmap-history.md) (read only when a card asks) |
+| What changed in each version | [CHANGELOG.md](CHANGELOG.md) |
+| What the software is for and how to use it | [README.md](README.md) |
+| Text of the GitHub Release · security policy · software paper | `desktop/RELEASE_NOTES.md` · [SECURITY.md](SECURITY.md) · `paper/` |
 
-The maintainer requires a **modular, understandable and easily editable program**, with a small amount of
-context needed to change or review one workflow. Clear responsibilities, explicit interfaces and focused
-changes should reduce repeated reading, assistant token consumption and avoidable review rounds while
-preserving scientific validation and review quality. This is a continuing objective for the desktop/engine
-migration and later features; see the [roadmap objective](docs/roadmap.md#cross-cutting-objective-modularity-and-reviewability).
+Do not repeat content between documents; link. Keep the tone factual: a document states what is true now, what
+was measured and what was not.
 
-## 2. Repository map
+## 3. Hard limits
 
-```
-app/            program: index.html, js/ (ES modules), vendor/ (bundled libraries and fonts)
-desktop/        Electron main process, preload, engine client, runtime lock, U-Net trainer, build scripts, release notes
-src/sedcoretool Python package (analysis, command line, U-Net, engine/ process)
-tests/          Python tests, program tests (tests/app), end-to-end tests (tests/e2e), fixtures
-examples/       public example data used by tests and by the program when run from the repository
-tools/          offline build, version sync, release, vendor update, synthetic data generators
-docs/           technical documentation, roadmap, engine contract, validation evidence, benchmarks, diagnostics
-paper/          software paper (JOSS) and its bibliography
-legacy/         original version 2.1, unchanged
-```
+Never do any of these without an explicit request from the maintainer in the current conversation.
 
-## 3. Setting up and running
-
-```bash
-pip install -e ".[dev]"                 # Python package with test dependencies
-pytest -q                               # Python tests
-npm test                                # program tests (Node 22; same as: node --test tests/app/*.test.mjs)
-npm ci && npm run typecheck             # JavaScript type checks (Node 22)
-python3 -m http.server 8765             # then open http://localhost:8765/app/
-python3 tools/build_standalone.py       # offline file -> dist/SedCoreTool_V0.<n>.html (dist/ is not committed)
-cd desktop && npm ci && npm start       # desktop program; npm run dist builds installers for the current system
-npm i --no-save puppeteer-core@23 && node tests/e2e/smoke.mjs   # browser end-to-end test (needs the server above and Chrome)
-```
-
-On Windows with a local virtual environment: `python -m venv .venv`, `.\.venv\Scripts\python.exe -m pip install -e
-".[dev]"`, then `.\.venv\Scripts\python.exe -m pytest -q`. Do not reinstall dependencies if the environment works.
-`pytest` finds the package through `pythonpath = ["src"]`, so an existing Python with the test dependencies works
-without an editable install. On the maintainer's workstation `.venv/` holds build caches and review tools (Ruff
-under `.venv/review-tools`), not a virtual environment.
+1. **Push, tag, publish, create a version number or change `master`.** Work stays in local commits on the work
+   branch. Never force-push.
+2. **Modify `legacy/`.**
+3. **Commit unpublished or private data.** The repository holds only public example data.
+4. **Rename compatibility identifiers:** browser storage keys `ichantool.*` and `corantool.*`, the IndexedDB
+   database `ichantool`, the desktop origin `app://corantool`, `window.corantoolDesktop`, the `ichantool` Python
+   alias. Keep reading project files written as `IchAnTool` or `CorAnTool` and `.corantool` packages. Users would
+   lose their projects.
+5. **Break a public interface** (Python functions, command-line options, file formats, saved-project fields).
+   An approved breaking change needs a documented migration path and regression tests for supported inputs.
+6. **Enable the engine experiment by default, let it search for a system Python, download dependencies at run
+   time, or fall back silently to another scientific implementation.** A failure must be visible.
+7. **Make a failing check pass by weakening it:** no relaxed tolerances, widened deadlines, skipped or deleted
+   tests, or reduced integrity checks. Record the failure with its measurement and ask.
+8. **Start work that was not asked for:** unrelated refactors, audits, dependency upgrades, backlog items,
+   sub-agents or automations.
+9. **Add a dependency** without stating the capability it adds, the smallest alternative considered and its cost
+   for offline and desktop distribution.
 
 ## 4. Rules for code
 
-- **Clean Code.** Follow Robert C. Martin's principles, adapted to the language and this repository. Use
-  domain-specific names that reveal intent and keep units/state explicit. Give functions/modules coherent
-  responsibilities, consistent abstraction levels and clear interfaces; make side effects visible and distinguish
-  queries from mutations. Prefer the simplest design that supports the behaviour. Share rules that must evolve
-  together, extract meaningful boundaries, and explain rationale rather than restating code. Validate boundaries,
-  preserve useful error context, and make small, verifiable improvements within the authorised scope.
-- **Modularity and review cost.** Organise code around meaningful domain responsibilities, with explicit
-  inputs, outputs, dependencies and ownership. Keep scientific methods, persistence/process IO and interface
-  wiring behind their respective boundaries. A reviewer should be able to locate a behaviour and understand
-  its contract without reading the whole application. Use discoverable names, concise module documentation,
-  targeted source reads and small, independently verifiable diffs. Keep context sufficient to validate the
-  change; spend fewer tokens by improving structure and avoiding repeated exploration. Preserve the clarity
-  of each workflow when choosing module boundaries and abstraction levels. Scope extractions to the authorised
-  phase, retain supported APIs, and update the source map and relevant tests when a boundary changes.
-- **Shared definitions.** Interval limits, percentages, indices and depth mapping must stay identical in Python
-  (`src/sedcoretool/`) and JavaScript (`app/js/core.js`); U-Net tiling likewise (`unet/tiling.py`, `app/js/unet.js`).
-  Keep the regression test against `legacy/v2.1_console/example_output.csv` passing.
-- **Scientific ownership during the migration.** Implement new scientific methods once, in the Python engine
-  (`src/sedcoretool/`), following the [migration contract](docs/roadmap-engine-contract.md); the interface
-  requests and displays their results. Change existing JavaScript calculations only to fix or preserve current
-  behaviour until their M8 slice replaces them. Keep the engine protocol, method contracts and result formats
-  independent of Electron and of the renderer, so that a later interface shell can reuse them unchanged (§8);
-  Electron-specific process, IPC and packaging code stays in `desktop/`.
-- **Pure modules.** `core.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `zip.js`, `geo.js`, `interp.js`,
-  `locmap.js`, `plot.js`, `sheet.js`, `exportio.js` and `unet.js` must not use the DOM, so they can be tested with
-  Node. A new module must be added to `ORDER` in `tools/build_standalone.py`, and top-level names must not clash
-  across modules.
-- **Compatibility of saved data.** Do not rename the browser storage keys (`ichantool.*`, `corantool.*`), the
-  IndexedDB database `ichantool`, the desktop origin `app://corantool` or `window.corantoolDesktop`: users would lose
-  their projects. Keep reading project files written as `IchAnTool` or `CorAnTool` and `.corantool` packages. Keep the
-  `ichantool` Python alias.
-- **Public APIs.** Preserve existing callers. Any approved breaking change needs a documented migration path
-  and regression coverage for supported inputs.
-- **Measure performance.** Back performance claims with a reproducible benchmark. Record the inputs,
-  environment and measured quantities, and use the baseline in [M0.1](docs/roadmap.md#m01-acceptance-criteria)
-  when it covers the affected path.
-- **Safe I/O.** Handle corrupt, oversized and hostile inputs. Bound resource use when processing untrusted
-  files. For filesystem project saves, use a temporary file and atomic replacement where supported. For
-  IndexedDB, use transactions. Verify recovery and preservation of the last good save after a failed write.
-- **Incremental delivery.** Split broad changes into small, independently testable deliveries. Gate major refactors
-  behind a feature flag and keep the current path as the default until the new path passes its acceptance criteria.
-  Define how to roll back and when to remove the flag.
-- **Dependency discipline.** Prefer existing or standard-library facilities. Justify new dependencies with a
-  concrete capability or measured benefit. Before adding a heavy dependency, compare it with the smallest viable
-  alternative and document the maintenance, runtime and distribution costs, including offline and desktop use.
-- **No private data.** Never commit unpublished data or results of the owner or anyone else. The repository and the
-  downloads contain only public example data.
-- **Interface texts** go in `app/js/i18n.js`, in Spanish and English.
-- **Regression coverage.** Add tests for new features and behaviour changes. Use property-based tests for
-  critical invariants where appropriate. When changing scientific code, test numerical equivalence against
-  reference results on representative inputs and relevant edge cases. Use exact equality where required and
-  define and justify any tolerances before validation. Test an explicitly requested scientific change against
-  its new expected results and verify that unaffected outputs remain equivalent. Documentation-only edits
-  require no new tests.
-- **Documentation.** Update user and technical documentation as required by [section 5](#5-delivering-a-change).
+- **Structure.** Follow the layers and import rules of [docs/ARCHITECTURE.md §3](docs/ARCHITECTURE.md#3-layers-and-dependency-rules).
+  New scientific methods are written once, in Python; the interface requests and displays their results. Existing
+  JavaScript calculations change only to fix or preserve current behaviour until their M8 slice replaces them.
+  `app.js` only shrinks. Keep the engine protocol, method contracts and result formats free of Electron and
+  renderer details; Electron-specific code stays in `desktop/`.
+- **Modularity and review cost.** The maintainer requires a modular, understandable and easily editable program.
+  One module, one responsibility, explicit inputs and outputs. A reviewer must be able to find a behaviour and
+  understand its contract without reading the whole application. Prefer small, independently verifiable diffs.
+- **Clean code.** Names from the domain that reveal intent and carry units. Functions with one level of
+  abstraction and visible side effects. The simplest design that supports the behaviour. Comments explain why,
+  not what. Validate at boundaries and keep useful error context.
+- **Shared definitions.** While both implementations exist, interval limits, percentages, indices and depth
+  mapping must be identical in Python and in `app/js/core.js`; U-Net tiling likewise (`unet/tiling.py`,
+  `app/js/unet.js`). The regression test against `legacy/v2.1_console/example_output.csv` must keep passing.
+- **Pure JavaScript modules** (listed in ARCHITECTURE §3.2) must not use the DOM, so Node can test them. A new
+  module is added to `ORDER` in `tools/build_standalone.py`; top-level names must not clash across modules.
+- **Tests with every behaviour change.** For scientific code: compare with reference results on representative
+  inputs and edge cases; exact equality where the quantity is discrete; any tolerance is stated and justified
+  **before** comparing. A requested scientific change is tested against its new expected results and unaffected
+  outputs must stay equivalent. Use property-based tests for critical invariants where they fit. Document-only
+  edits need no new tests.
+- **Safe input and output.** Treat files and messages as corrupt, oversized or hostile until validated; bound
+  resource use. Project saves use transactions (IndexedDB) or a temporary file with atomic replacement. Verify that
+  a failed write preserves the last good save.
+- **Performance claims** need a reproducible benchmark that records inputs, environment and measured quantities.
+- **Incremental delivery.** Split broad changes into small, independently testable deliveries. Put a major change
+  behind a flag that is off by default, keep the current path as the default until the new one passes its
+  criteria, and record the flag in the roadmap's flag table (ARCHITECTURE §5.3).
+- **Interface text** goes in `app/js/i18n.js`, in Spanish and English.
 
 ## 5. Delivering a change
 
-**Session work happens on a branch; a version is created only when the maintainer asks.** Set by the
-maintainer on 12 November 2026 to avoid a new version for every request and repeated full test runs.
+Session work happens on a branch; a version is created only when the maintainer asks.
 
-1. **Work branch.** Start or continue the active branch recorded in the
-   [roadmap handoff](docs/roadmap.md#status-and-handoff), or create `work/<YYYY-MM-DD>` from `master`. Commit there
-   with descriptive messages and explicitly selected files. Do not change the version number on the branch.
-2. **Documentation with each change**, in the same branch commit:
-   - **`CHANGELOG.md`:** short user-facing bullets (what changed for the user, not how the work was organised)
-     under `## Unreleased` at the top.
-   - **`docs/TECHNICAL_DOCUMENTATION.md`** if an algorithm, formula, default value, file format or validation result
-     changes. Formulas there must match the code exactly. It describes current behaviour for any reader: no history,
-     no notes addressed to reviewers.
-   - **README** if what users see or do changes.
-3. **Checks during the session:** run only quick, focused checks for what changed (for example one test file).
-   Do not run the full suite after every request.
-4. **End of session:** run the full checks once — `pytest -q`, `npm test`, `npm run typecheck`,
-   `python3 tools/sync_version.py --check`, `ruff check src tests tools`, plus the end-to-end test when the interface
-   or saving changed — and record the result and the commit checked in the roadmap handoff. If the session ends
-   before they run, record **checks pending** with the branch and commit; the next assistant runs them first.
-   Do not re-run them on an unchanged, already verified state. Run independent suites serially (see the open
-   M8.2.3 load observation).
-5. **New version, only on the maintainer's request:** take the next number `V0.<n>` (the latest is the top
-   versioned entry of `CHANGELOG.md`). Set `DELIVERY` in `app/js/app.js` and run `python3 tools/sync_version.py`,
-   which writes `0.<n>.0` to `pyproject.toml`, `src/sedcoretool/__init__.py`, `CITATION.cff`, `desktop/package.json`
-   and the release notes (a test checks them). Rename `## Unreleased` to `## V0.<n> — YYYY-MM-DD`, point roadmap
-   references to that entry, make sure the full checks pass on the final state, and integrate the branch into
-   `master` as one commit `V0.<n>: <summary>` with a short body.
+1. **Work branch.** Continue the branch named in the roadmap status, or create `work/<YYYY-MM-DD>` from `master`.
+   Commit with descriptive messages and explicitly selected files. Do not change the version number on the branch.
+2. **Documents in the same commit as the change:**
+   - `CHANGELOG.md`, under `## Unreleased`: a short bullet under **"For users"** when what a user sees, does or
+     gets changes (say what changed for them, not how the work was organised), or under **"Internal"** for tools,
+     tests, refactors and documents.
+   - `docs/TECHNICAL_DOCUMENTATION.md` when an algorithm, formula, default, file format or validation result
+     changes. Formulas there must match the code exactly. It describes current behaviour: no history, no notes to
+     reviewers.
+   - `docs/ARCHITECTURE.md` when a layer, boundary or planned part changes state; the technical manual's source
+     map (§1.4) when a file is added, removed or changes role.
+   - `README.md` when what users see or do changes.
+3. **Checks during the session:** quick, focused checks for what changed. Not the full suite after every request.
+4. **End of session:** run the full checks once, one after another (commands in
+   [docs/DEVELOPMENT.md §3](docs/DEVELOPMENT.md#3-checks)), and record result and commit in the roadmap status. If
+   the session ends first, record **checks pending** with branch and commit; the next session runs them first. Do
+   not repeat them on an unchanged, verified state.
+5. **New version, only when the maintainer asks:** next number `V0.<n>` after the top versioned entry of
+   `CHANGELOG.md`. Set `DELIVERY` in `app/js/app.js`, run `python tools/sync_version.py`, rename `## Unreleased`
+   to `## V0.<n> — YYYY-MM-DD`, make sure the full checks pass on the final state, and integrate the branch into
+   `master` as one commit `V0.<n>: <summary>`. Version 1.0 is reserved for when the owner declares the program
+   complete.
+6. **Releases** (tags, GitHub Release, DOI) are decided only by the owner; see DEVELOPMENT §8.
 
-Version 1.0 is reserved for when the owner declares the program complete.
+## 6. Working on a task
 
-**Releases.** `tools/release.sh` checks branch, clean tree, versions and tests, and pushes the tag `V0.<n>`; GitHub
-Actions (`.github/workflows/desktop.yml`) then builds Windows, macOS and Linux installers and publishes the Release.
-A manual run of *Desktop builds* on `master` with `draft_release` prepares an unpublished draft instead. Before a
-release, update `desktop/RELEASE_NOTES.md` (the text of the GitHub Release). Only the owner decides when to publish a
-release or a DOI.
+**Task cards.** Work in the roadmap is described by cards with this shape:
 
-## 6. Documentation: what goes where
-
-| Content | Place |
-|---------|-------|
-| What the software is for, installation, how to use it | `README.md` |
-| How each part works: methods, formulas, defaults, file formats, validation | `docs/TECHNICAL_DOCUMENTATION.md` |
-| What changed in each version | `CHANGELOG.md` |
-| Planned work | `docs/roadmap.md` |
-| Desktop release notes (text of the GitHub Release) | `desktop/RELEASE_NOTES.md` |
-| How to contribute (humans) | `CONTRIBUTING.md` (short; points here) |
-| Working rules (humans and AI assistants) | this file |
-| Software paper | `paper/` |
-
-Do not repeat content between these files; link instead. Keep the tone factual and professional.
-
-## 7. Working with several people or assistants
-
-- **One editor at a time** on a shared working copy, even for different files: the version number and the changelog
-  are shared. Other sessions may read and review.
-- **Before editing:** `git fetch origin`, `git status --short --branch`, and `git pull --ff-only` on a clean tree.
-  A dirty tree may contain someone else's work: do not stash, reset, clean or discard it, and do not switch branches.
-  On a clean tree, continue the active work branch recorded in the roadmap handoff (§5).
-- **Before committing:** fetch again; if someone else delivered meanwhile, rebase or merge and take the next free
-  version number when creating a version. Never force-push or overwrite others' work.
-- **Start each iteration** by reading this file and the current [roadmap](docs/roadmap.md). If its handoff records
-  checks pending, run them before new work. Find the task the maintainer authorised, its acceptance criteria and
-  its editor and reviewer, when assigned. The roadmap orders the work. Starting a task requires the maintainer's
-  authorisation.
-- **Handoff.** Update the roadmap status when handing work over or delivering it. For an unfinished task,
-  record the next step or blocker and point to the work under review if available. Mark a task complete once
-  its criteria and required checks pass, and link its changelog entry in the same delivery. Sessions rely on
-  the repository for handoffs.
-- **Local handoff.** The maintainer runs all assistants on one computer in this same checkout and editor
-  (12 November 2026), so handoffs use local commits and the roadmap; GitHub is not needed for them. At each
-  reviewable checkpoint, make sure the work is committed and the roadmap names the branch, commit, checks run
-  and next step. Push only when the maintainer asks (for example for CI, a release or a remote reviewer).
-- **Explain each step to the maintainer.** After completing each step, report in Spanish what you did, how you
-  checked it and how any implementation works within SedCoreTool as a whole. Describe the affected components and
-  how data or control passes between them. Include open work and limitations in the final report.
-- **Interpret requests by intent.** If the maintainer gives a broad instruction, infer the smallest concrete scope
-  from the request, the repository and the roadmap. Identify the affected workflow and acceptance criteria before
-  editing. For performance work, choose the specific path, representative inputs and a reproducible benchmark for
-  before-and-after comparison. State material assumptions and ask only when the goal or a consequential choice
-  cannot be inferred.
-- **One phase at a time.** Split requests that combine independent workstreams, such as UI, GPU, WASM and DuckDB,
-  into ordered, independently verifiable phases. Work on the first authorised phase and record the others in the
-  roadmap. Do not start unrelated refactors, audits or backlog work. Do not launch sub-agents or automations unless
-  asked.
-- **Reporting to the owner:** briefly, in Spanish — result, how it was checked, branch and commit (or version
-  number when one was created), and anything that is genuinely pending, including checks not yet run.
-
-## 8. Current migration handoff
-
-**Scientific implementation baseline:** [V0.143](CHANGELOG.md#v0143--2026-11-12), commit `59ef5dc`,
-12 November 2026. Later documentation/version-only deliveries do not imply a new engine capability. Read the
-top changelog entry and inspect the actual checkout before relying on this snapshot. Update these pointers
-when handing over a later implementation; detailed task status and acceptance criteria stay in the roadmap.
-
-### Approved direction and current boundary
-
-The maintainer chose to simplify the program into a portable/installed desktop application: keep the existing
-Electron/JavaScript interface and use one local Python/NumPy scientific engine in a separate process. The
-Python API and CLI must reuse that engine's methods. Follow the
-[approved M8 sequence](docs/roadmap.md#active-priority-desktop-and-one-scientific-engine); language/framework
-selection is settled for this sequence. Rust kernels require measured need and a separate task; a UI rewrite,
-Qt/Tauri migration, GPU/Wasm work or another production scientific engine is not part of the current phase.
-
-**Interface shell and distribution.** On 12 November 2026 the maintainer confirmed that Electron is the interface
-shell for now and that a more fluid shell may replace it later. That is a conditional evaluation after M8.6
-([M9.1](docs/roadmap.md#m9---interface-shell-evolution-conditional)), not current work, and no candidate is
-selected. Design M8 so that such a change touches only the interface: a shell-independent engine protocol and
-method contracts (§4), and stored projects that can be migrated through supported packages. The program is
-delivered per platform as portable and installed packages with the scientific runtime included; each shipped
-form needs its own acceptance. The browser/HTML file remains a transitional compatibility path until M8.6.
-
-**The scientific migration is not complete.** The interface still performs its current JavaScript analysis.
-The experimental process advertises only `buffer.digest/1`, a transport/worker diagnostic. It does not yet
-calculate section percentages or BI/ii for the interface. The bundled numerical/image libraries and public
-Python API have been smoke-tested; that is not evidence that the desktop analysis was migrated. Keep the
-current browser/HTML reference path and saved-data compatibility until M8.6's explicit cutover criteria pass.
-
-The experiment is **off by default**, enabled only by `SEDCORETOOL_ENGINE_EXPERIMENT=1`. Keep that default.
-An invalid/missing bundled runtime must report unavailable, with no system-Python search, runtime dependency
-download or silent scientific fallback. A source-development-only absolute `SEDCORETOOL_ENGINE_PYTHON`
-override is unverified and is ignored in packaged mode. User projects, editing and saving keep their existing
-owners; runtime integrity failure must not replace live results or change the last good save.
-
-### Delivered work and authoritative evidence
-
-| Delivery | Reference | Continue from |
-|---|---|---|
-| M8.1: inventory and protocol/scientific contracts | V0.141, `6b4368a` | [Contract and predeclared gates](docs/roadmap-engine-contract.md); do not reconstruct scientific semantics from names alone. |
-| M8.2.1: bounded process/transport foundation | V0.142, `e7f3390` | [Technical manual §26.2](docs/TECHNICAL_DOCUMENTATION.md#262-experimental-engine-process); framing, immutable buffers, queues, cancellation, failure and restart. |
-| M8.2.2: locked portable runtime and integrity checks | V0.143, `59ef5dc` | [Technical manual §26.3](docs/TECHNICAL_DOCUMENTATION.md#263-bundled-scientific-runtime), [runtime lock](desktop/runtime-lock.json), [recorded evidence](docs/validation/M8.2.2-v0.143.json). |
-
-The evidence identifies what was tested on Windows, test counts, runtime hashes and what was **not** validated.
-Read it before claiming acceptance. In particular, an unpacked Windows build, restricted-PATH startup and
-source-mode Electron E2E do not certify clean-machine installation, Windows portable/NSIS execution, native
-macOS Intel/Apple Silicon, Linux, the final universal DMG, or whole-process performance/memory gates. M8.2
-remains open. No independent reviewer or completed remote CI run is implied by author-run local checks.
-
-**Open observation for M8.2.3:** during V0.144's documentation checks, running both test suites alongside an
-offline runtime reconstruction produced worker wait/liveness timeouts and one Node ENGINE_UNAVAILABLE failure.
-This is [recorded evidence](docs/validation/M8.2.3-load-observation-v0.144.json), not an established causal
-diagnosis or a new acceptance result. Preserve the observation even if a serial run passes; reproduce matched
-idle/load cases before certifying lifecycle deadlines. Do not widen deadlines or suppress tests to make this
-handoff green. No engine implementation change is authorised by the documentation-only handoff request.
-
-### Next implementation candidate
-
-Resume **M8.2.3 — Packaging and lifecycle acceptance** when the maintainer asks to continue; this handoff
-request itself changes documentation only. Use its [roadmap criteria](docs/roadmap.md#m8---desktop-simplification-and-a-single-scientific-engine)
-and M8.1's gates. Confirm the requested editor/reviewer and available native test environments. Verify
-offline installers/portable execution on clean systems, process-tree shutdown/recovery, CPU/RAM accounting,
-project preservation and cold verification/startup, including the portable self-extraction and per-launch
-runtime verification costs recorded in the roadmap. Commit validation tools/evidence as small deliveries;
-record any unexecuted platform or failed gate instead of marking the aggregate phase complete.
-
-**M8.3 comes after this acceptance phase:** the first scientific section slice, including masks, ROI,
-exclusions, overlaps and assignments. Its contract records representation gaps, no-data/manual/age processing
-and custom-tier precedence differences between existing public interfaces. Preserve supported semantics and
-test them explicitly; do not silently substitute a library default or delete the reference implementation.
-Large images, remaining methods, advanced statistics and radiographs follow the roadmap dependencies.
-
-### Implementation entry points
-
-| Concern | Files |
-|---|---|
-| Process lifecycle and status-only Electron bridge | `desktop/engine.js`, `desktop/main.js`, `desktop/preload.js` |
-| Wire framing and packaged-resource verification | `desktop/engine-protocol.js`, `desktop/engine-runtime.js` |
-| Coordinator, buffers and isolated diagnostic worker | `src/sedcoretool/engine/` |
-| Exact runtime/wheel artifacts, hashes and update policy | `desktop/runtime-lock.json`, [SECURITY.md](SECURITY.md#desktop-scientific-runtime) |
-| Preparation, native smoke and package checks | `tools/prepare_engine_runtime.py`, `tools/check_engine_runtime.py`, `desktop/scripts/prepare-runtime.js`, `desktop/scripts/build.js`, `desktop/scripts/check-package.js` |
-| Regression and real desktop workflow checks | `tests/test_engine_transport.py`, `tests/test_runtime_bundle.py`, `tests/app/engine*.test.mjs`, `tests/app/trainer.test.mjs`, `tests/e2e/desktop.mjs` |
-| Native build/CI configuration | `.github/workflows/desktop.yml`; configured jobs are not proof they ran successfully. |
-
-Keep algorithm/format/limit definitions in the technical manual and migration contract, not duplicated here.
-The compatibility identifiers and preservation requirements in §4 still apply. Do not modify `legacy/`.
-
-### Reconstructing the development environment
-
-Runtime binaries, `desktop/runtime/`, `.venv/` caches and `desktop/dist/` are ignored by Git. Another checkout
-must reconstruct resources from the lock; copied local binaries are not an authoritative dependency source.
-Reuse a working dependency environment rather than reinstalling it. On Windows use `npm.cmd` if execution
-policy blocks `npm.ps1`. Discover available Python/Node/Ruff executables explicitly if a noninteractive shell
-does not load the previous session's aliases or PATH. In a fresh PowerShell at the repository root, replace the placeholder with an
-existing Python **3.12** executable with pip (this is a build-time requirement):
-
-```powershell
-$env:Path += ';C:\Program Files\nodejs'
-$env:SEDCORETOOL_BUILD_PYTHON = 'C:\path\to\python.exe'
-Push-Location desktop
-npm.cmd run prepare-runtime
-# With all verified artifacts already cached, use: npm.cmd run prepare-runtime -- --offline
-$env:SEDCORETOOL_ENGINE_EXPERIMENT = '1'
-Remove-Item Env:SEDCORETOOL_ENGINE_PYTHON -ErrorAction SilentlyContinue
-npm.cmd start
-Pop-Location
+```
+#### <ID> - <title>            state: Ready | In progress | Blocked | Done
+Goal:         one or two sentences: what will be true afterwards.
+Read first:   the few files and document sections needed. Nothing else is required reading.
+Change:       files to create or modify.
+Do not touch: files and behaviours that must stay as they are.
+Steps:        ordered, each small enough to verify on its own.
+Tests:        the tests to add and the commands that must pass.
+Done when:    observable acceptance criteria.
 ```
 
-Inspect `await window.corantoolDesktop.engine.status()`; the bundled path reports `bundled-verified` and
-`ready` with only the diagnostic method. Unset the experiment variable and restart for the default path.
-See README and §26.3 for build/check commands, native resource layouts and rollback/update policy.
+- **Two roles.** *Designing* (deciding structure, contracts, acceptance criteria; writing or changing cards) and
+  *implementing* (carrying out one card exactly). A design session is run with the most capable model available or
+  by the maintainer. An implementing session, with any model, does not redesign: if the card is wrong, incomplete or
+  blocked, stop, write the problem under the card ("Blocked: …") and in the status, and report it.
+- **One card at a time,** in roadmap order, and only the card the maintainer authorised. Finish or hand over
+  before starting another. If a request combines independent workstreams, split it into cards and do the first.
+- **Interpret a broad request by intent:** choose the smallest concrete scope that satisfies it, state the
+  assumption, continue. Ask only when the goal or a consequential choice cannot be inferred.
+- **Stop and ask when:** an acceptance criterion cannot be met; a hard limit (§3) is in the way; the change would
+  alter scientific results, a saved-project format or a public interface; a new dependency seems necessary; you
+  would have to edit files outside the card; or a test you did not write fails and a focused diagnosis does not
+  explain it.
+- **Two acceptance levels.** The *development gate* lets work continue to the next card: the card's tests and the
+  session checks pass on the maintainer's workstation and the feature stays behind its flag. The *release gate*
+  is required before a flag is switched on by default or a version is published to users: every supported
+  platform, clean machines, and the performance and recovery gates of the engine contract §7. A card states which
+  gate it claims. Never report a release gate as met from development evidence.
+- **One editor at a time** on the shared checkout, even for different files. All assistants work in this same
+  local folder, so handoffs are local commits plus the roadmap status; nothing is pushed unless asked.
 
-**After a version bump or Python source change, prepare the runtime again before testing the experiment.**
-Its manifest binds the application version and prepared source hashes; rejection of a stale bundle is
-intentional. `tools/sync_version.py` does not rebuild it. Keep historical delivery evidence tied to the
-version it validated; a metadata-only delivery must not relabel old measurements as new acceptance results.
+## 7. Handoff and reporting
 
-### Moving to another assistant or machine
-
-Use the active work branch recorded in the roadmap handoff, or `master` when none is recorded, and the
-working-copy procedure in §7. Assistants normally share this local checkout and read the commits directly;
-local commits are not pushed or released. Only if the maintainer starts a session on another machine or a
-remote service, check whether GitHub contains the needed commits and tell the owner which branch/commits
-need an authorised push. Never discard an existing dirty tree or start a second editor on the shared checkout.
-
-Pushing `master` alone does not run the current tag/manual desktop workflow. When remote validation is
-authorised, use its manual `workflow_dispatch` with `draft_release=false` for artifacts without a release.
-Do not push a version tag merely to obtain CI: tags trigger publication. The owner alone decides releases.
-
-Start by reading this guide, the active M8 roadmap, the contract and the recorded evidence, then report in
-Spanish the next concrete phase and the validation gaps. Preserve the maintainer's decisions across models;
-do not restart the architecture discussion or present unimplemented roadmap items as available features.
+- At every reviewable checkpoint the work is committed and the roadmap status names the branch, the commit, the
+  checks run and the next step. A new session must be able to continue from the repository alone, without any
+  chat history.
+- When a card is done: mark it, link its changelog entry, move its long record to `docs/roadmap-history.md` and
+  leave one line in the roadmap.
+- **Report to the maintainer in Spanish, briefly:** the result; how it was checked; branch and commit (or version
+  number when one was created); how the change fits into SedCoreTool (which components it touches and how data or
+  control passes between them); and what is genuinely pending, including checks not run and things not measured.
+- **Be exact about evidence.** Say what was tested, on which platform, and what was not. A configured CI job is not
+  a job that ran. A planned part is never described as available.

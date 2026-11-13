@@ -1,12 +1,14 @@
-## SedCoreTool V0.148
+## SedCoreTool V0.149
 
 SedCoreTool quantifies bioturbation and ichnotaxa in sediment-core images and combines them with other down-core
 records and described intervals. Version 0.x, in active development. The downloads contain no sample data: the
 program starts empty and you open your own images and tables.
 
 ### Highlights
-- A verified portable Python runtime is included for the experimental local engine. The experiment is off by
-  default; current scientific interface calculations remain unchanged.
+- The Windows portable version is now a ZIP of the program folder: extract it with "Extract all" and run
+  `SedCoreTool.exe`. The previous single self-extracting file took about 50 seconds to open.
+- A verified, smaller portable Python runtime (3,552 files, about 205 MB) is included for the experimental local
+  engine. The experiment is off by default; the interface still calculates as before.
 - New name: **SedCoreTool** (formerly CorAnTool and IchAnTool). Projects saved with earlier versions and `.corantool`
   packages still open.
 - Editable colours in every figure, including the multiproxy and location maps; invalid stored colours fall back to
@@ -22,10 +24,10 @@ The full list of changes is in [CHANGELOG.md](https://github.com/SantiCa/SedCore
 
 | System | File |
 |---|---|
-| Windows 10/11, x64 | `SedCoreTool-V0.148-windows-setup.exe` or `SedCoreTool-V0.148-windows-portable.exe` |
-| macOS 13 or later, Intel and Apple Silicon | `SedCoreTool-V0.148-mac-universal.dmg` |
-| Linux, x64 | `SedCoreTool-V0.148-linux-x86_64.AppImage` or `SedCoreTool-V0.148-linux-amd64.deb` |
-| Any system, in a browser | `SedCoreTool_V0.148.html` (single file, works offline) |
+| Windows 10/11, x64 | `SedCoreTool-V0.149-windows-setup.exe` or `SedCoreTool-V0.149-windows-portable.zip` |
+| macOS 13 or later, Intel and Apple Silicon | `SedCoreTool-V0.149-mac-universal.dmg` |
+| Linux, x64 | `SedCoreTool-V0.149-linux-x86_64.AppImage` or `SedCoreTool-V0.149-linux-amd64.deb` |
+| Any system, in a browser | `SedCoreTool_V0.149.html` (single file, works offline) |
 | Verification | `SHA256SUMS.txt` and `RELEASE_MANIFEST.json` |
 
 Windows: run the installer or open the portable version. macOS: drag the application to Applications. Linux: make

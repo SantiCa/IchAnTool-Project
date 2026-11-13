@@ -73,6 +73,38 @@ test('inventory rejects duplicate names, unsafe paths and impossible resource bu
   await assert.rejects(verifyInventory(input.root, [{ ...entry, sha256: 'untrusted' }]), /descriptor/);
 });
 
+test('a recorded verification skips hashing only while every file keeps its identity on disk', async (t) => {
+  const input = await fixture(t), cacheFile = path.join(input.directory, 'user', 'verified.json');
+  const executable = path.join(input.root, input.manifest.executable), source = path.join(input.sourceDirectory, 'sedcoretool/engine/server.py');
+  assert.equal((await loadRuntime({ ...input, cacheFile })).verification, 'full');
+  assert.equal((await loadRuntime({ ...input, cacheFile })).verification, 'recorded');
+  // Same size and content, new file: the change time differs, so everything is hashed again and the record is renewed.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await fs.writeFile(source, 'public fixture');
+  assert.equal((await loadRuntime({ ...input, cacheFile })).verification, 'full');
+  assert.equal((await loadRuntime({ ...input, cacheFile })).verification, 'recorded');
+  // Same size, different bytes, timestamps restored: the change time still moves, so the hash catches it.
+  const before = await fs.stat(executable);
+  await fs.writeFile(executable, 'public FIXTURE');
+  await fs.utimes(executable, before.atime, before.mtime);
+  await assert.rejects(loadRuntime({ ...input, cacheFile }), /checksum/);
+});
+
+test('a corrupt, foreign or unwritable verification record never weakens verification', async (t) => {
+  const input = await fixture(t), cacheFile = path.join(input.directory, 'verified.json');
+  await loadRuntime({ ...input, cacheFile });
+  const record = JSON.parse(await fs.readFile(cacheFile, 'utf8'));
+  for (const text of ['{', 'null', JSON.stringify({ ...record, runtime_id: 'f'.repeat(64) }), JSON.stringify({ ...record, runtime: 'x' }), 'x'.repeat(5000)]) {
+    await fs.writeFile(cacheFile, text);
+    assert.equal((await loadRuntime({ ...input, cacheFile })).verification, 'full');
+  }
+  await fs.writeFile(path.join(input.root, input.manifest.executable), 'changed bytes!');
+  await assert.rejects(loadRuntime({ ...input, cacheFile }), /checksum/);
+  const blocked = path.join(input.directory, 'blocked'); await fs.writeFile(blocked, 'a file, not a folder');
+  await fs.writeFile(path.join(input.root, input.manifest.executable), 'public fixture');
+  assert.equal((await loadRuntime({ ...input, cacheFile: path.join(blocked, 'verified.json') })).verification, 'full');
+});
+
 test('a packaged service rejects a bad bundle even when a user interpreter override is supplied', async (t) => {
   const input = await fixture(t);
   const service = createEngineService({ ...input, enabled: true, packaged: true, executable: path.join(input.directory, 'untrusted.exe'),

@@ -159,6 +159,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 |------|---------|:----:|
 | `core.js` | Intervals, indices, age model, CSV, RLE encoding, overlapping-trace stacks | ✓ |
 | `sectiondepth.js` | Pure ROI depth/row conversion and pixels per centimetre; independent of interface/state | Yes |
+| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2). `app.js::analyze` passes the project state in | Yes |
 | `imageproc.js` | Enhancement, detection, connected components, magic wand, lasso, descriptors, rotation, downsampling | ✓ |
 | `edit.js` | Editing algorithms: scissors, merging, undo records, project migration | ✓ |
 | `learn.js` | Ichnotaxa classifier (k-NN with novelty rejection; Random Forest and Bayes wrappers), evaluation, final-test metrics | ✓ |
@@ -2738,7 +2739,7 @@ Code: `desktop/` (Electron 45.2.2, packaged with electron-builder 26.18.0).
   `window.corantoolDesktop` methods. Main-process IPC accepts calls only from validated application asset URLs.
   External links open in the system browser.
 - **Closing:** closing the window with pending changes waits for the save to finish (§22.2).
-- **Platforms:** Windows 10/11 x64 (NSIS installer and portable), macOS 13 or later (universal dmg for Intel and Apple
+- **Platforms:** Windows 10/11 x64 (NSIS installer, and a portable ZIP of the program folder to unzip and run), macOS 13 or later (universal dmg for Intel and Apple
   Silicon; Electron dropped macOS 12) and Linux x64 (AppImage and deb). Builds are not code-signed, so the operating
   system may ask for confirmation the first time. Building needs Node ≥ 22.12.
 - **Version and file names:** the executable's version is `0.<n>.0` and files are named
@@ -2842,8 +2843,11 @@ queued cancellation releases its pin. EOF on a private worker liveness pipe abor
 workers use CREATE_NO_WINDOW. The coordinator stays responsive to control requests; workers do not access
 project databases or save files. Engine failure never selects another scientific algorithm.
 
-Main's handshake/control deadline is 5 s; shutdown requests have a 1.5 s deadline and main forces process-tree
-termination if exit does not follow within a further 1.5 s. Errors exposed by the client are fixed codes;
+Main's handshake/control deadline is 5 s; shutdown requests have a 1.5 s deadline and main forces termination
+if exit does not follow within a further 1.5 s. Forced termination ends the coordinator immediately. On Windows
+the coordinator belongs to a kill-on-close Job Object (`engine/lifetime.py`), so the operating system ends its
+workers with it; workers also stop when their private liveness pipe closes, and `taskkill /T` remains as a
+backstop. On other systems main signals the coordinator's process group. Errors exposed by the client are fixed codes;
 input data, paths and tracebacks are not forwarded. Stderr capture is off in the desktop service; test-only
 clients may retain a bounded 64 KiB tail. Native math thread environment limits are set before worker startup
 to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity
@@ -2867,9 +2871,13 @@ ranges or alter the optional trainer environment. Torch, ONNX Runtime and segmen
 absent from the base. NumPy/pandas/Pillow already provide the scientific package dependencies;
 no new numerical framework or installer dependency is added to the program.
 The upstream interpreter retains its own pip (26.3 in this build); the application does not invoke it to
-install or update packages. Windows validation inventories 7,326 runtime files totalling 249,424,293 bytes
-(excluding the manifest, application and filesystem allocation). This is a distribution-size measurement,
-not a RAM/performance result; its manifest hash and reproduction checks are recorded with the evidence below.
+install or update packages. Because every shipped file is verified at launch, preparation deletes content the
+engine never imports (`prune_runtime` in `tools/prepare_engine_runtime.py`): the interpreter's own pip, the
+`include`, `libs` and Tcl/Tk data folders, `idlelib`, `lib2to3`, `turtledemo` and the interpreter test suite, and
+pandas' `tests` folders (numpy's `tests` folders stay: `numpy.testing` imports one of them). The Windows runtime
+inventories 3,552 files totalling about 205 MB (excluding the manifest, application and filesystem allocation),
+down from 7,326 files and 249 MB before pruning. This is a distribution-size measurement, not a RAM/performance
+result; the manifest hash and reproduction checks of the unpruned bundle are in the V0.143 evidence below.
 
 The selected distribution supplies a relocatable interpreter/standard library across the four target triples;
 the [upstream documentation](https://docs.astral.sh/python-build-standalone/running/) describes its runtime
@@ -2878,6 +2886,18 @@ Windows embeddable archive alone does not supply matching Linux/macOS resources.
 new executable would add a packager and its native-extension hooks. This approach reuses the process boundary
 and standard wheels, retaining upstream runtime files/notices. It increases download/disk size; it does not
 imply that all libraries are loaded into RAM at startup or claim a speedup.
+
+**Launch verification.** Before spawning the interpreter, `loadRuntime()` checks that the runtime and source folders
+hold exactly the listed files, that links stay inside the root and that sizes match, and computes a *fingerprint*:
+the SHA-256 of the sorted lines `path, size, modification time (ns), change time (ns), inode, device, expected digest`
+for every file. If the fingerprint equals the one stored after the last full verification of the same manifest
+(`engine-runtime-verified.json` in the user-data folder: schema, manifest hash, two fingerprints), content hashing is
+skipped. Otherwise every file is hashed with SHA-256 (two files at a time) and, only if all match, a new record is
+written atomically. A missing, oversized (over 4 KiB), malformed or foreign record, or a failed write, means a full
+verification; it never prevents or weakens one. The change time cannot be set by ordinary file APIs, so restoring a
+modification time after editing a file still changes the fingerprint. The record guards against corruption and
+accidental change, not against someone who can write to the program folder and the user-data folder (they could replace the program itself).
+The first launch after installing or updating always performs the full verification.
 
 | Resource directory | Interpreter | Distribution |
 |---|---|---|
@@ -2954,7 +2974,7 @@ The standalone generator strips local, unaliased named export lists terminated b
 multiline lists. The original declarations remain once in the concatenated scope. Aliased lists, export-from
 lists and unterminated lists are rejected with an actionable error; this limited support does not implement
 a full JavaScript module parser. Existing import stripping and top-level name/dependency-order checks
-still apply. `sectiondepth.js` follows `core.js` and precedes its consumers in `ORDER`.
+still apply. `sectiondepth.js` follows `core.js`, `sectionanalysis.js` follows `sectiondepth.js`, and both precede their consumers in `ORDER`.
 
 
 ## 28. Repository engineering and security
@@ -2987,7 +3007,7 @@ Current fixture/scientific hashes identify sections by source-order index, exclu
 while retaining masks, assignments and interval arrays. This canonicalisation changes no project data.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
-in strict mode on `core.js`, `state.js`, `imageproc.js`, `unetmodel.js` and `sectiondepth.js`. JSDoc describes the shared contracts, and consumers
+in strict mode on `core.js`, `state.js`, `imageproc.js`, `unetmodel.js`, `sectiondepth.js` and `sectionanalysis.js`. JSDoc describes the shared contracts, and consumers
 such as `columns.js` use those types through ordinary JavaScript imports. The second pass checks all application
 modules with ES2022, `allowJs`, `checkJs` and `noEmit`. The `checks` CI job runs both passes on pushes and
 pull requests.

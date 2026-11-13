@@ -77,6 +77,7 @@ jobs:
           if-no-files-found: error
           path: |
             desktop/dist/*.exe
+            desktop/dist/*.zip
             desktop/dist/*.dmg
             desktop/dist/*.AppImage
             desktop/dist/*.deb

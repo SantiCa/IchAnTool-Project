@@ -7,6 +7,7 @@
   "include": [
     "app/js/core.js",
     "app/js/sectiondepth.js",
+    "app/js/sectionanalysis.js",
     "app/js/unetmodel.js",
     "app/js/state.js",
     "app/js/imageproc.js",

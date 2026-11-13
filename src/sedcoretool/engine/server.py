@@ -12,6 +12,7 @@ from pathlib import Path
 
 if __package__:
     from .buffers import MAX_BUFFER, SESSION_BUDGET, BufferStore
+    from .lifetime import bind_to_process_lifetime
     from .protocol import (
         BINARY_FRAME,
         JSON_FRAME,
@@ -29,6 +30,7 @@ else:
     # Isolated Python excludes both PYTHONPATH and the script directory. Only our fixed source is added.
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from buffers import MAX_BUFFER, SESSION_BUDGET, BufferStore
+    from lifetime import bind_to_process_lifetime
     from protocol import (
         BINARY_FRAME,
         JSON_FRAME,
@@ -264,6 +266,7 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch('[0-9a-f]{64}', args.runtime_id):
         parser.error('runtime-id must be a SHA-256 digest')
+    bind_to_process_lifetime()  # best effort; workers also watch the liveness pipe
     threads = str(max(1, min(4, (os.cpu_count() or 1) - 1)))
     for variable in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS'):
         os.environ[variable] = threads

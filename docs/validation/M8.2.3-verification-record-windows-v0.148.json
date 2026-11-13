@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "task": "M8.2.3 verified-identity record for runtime verification",
+  "date": "2026-11-12",
+  "environment": "Windows 11 Home, AMD Ryzen 7 7700X (16 logical CPUs), Node 22.23.4, development layout (desktop/runtime, desktop/python/src), application version 0.148.0",
+  "method": "loadRuntime() called four times in one process with a fresh, empty record file; wall time of each call. Operating-system file cache was warm and the CPU idle.",
+  "runtime_files": 7326,
+  "results_ms": [
+    { "call": 1, "verification": "full", "ms": 4719 },
+    { "call": 2, "verification": "recorded", "ms": 183 },
+    { "call": 3, "verification": "recorded", "ms": 178 },
+    { "call": 4, "verification": "recorded", "ms": 172 }
+  ],
+  "not_measured": [
+    "First launch after installation with a cold file cache and malware scanning (the earlier 17-20 s result): this launch still hashes every file, so it is unchanged by design.",
+    "Saturated-CPU timing with a record present.",
+    "Packaged installed or extracted layouts with the record in the real user-data folder; only the logic and the development layout were exercised.",
+    "macOS and Linux."
+  ],
+  "tests": "tests/app/engine-runtime.test.mjs: recorded verification, renewed record after a file is replaced, rejected same-size edit with restored modification time, corrupt/foreign/oversized/unwritable record files."
+}

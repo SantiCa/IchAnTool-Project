@@ -19,9 +19,10 @@ const config = {
   files: ['main.js', 'preload.js', 'trainer.js', 'model-store.js', 'diagnostics.js', 'engine.js', 'engine-protocol.js', 'engine-runtime.js', 'runtime-lock.json', 'web/**', 'build/icon.png', 'package.json'],
   extraResources: [{ from: 'python', to: 'python' }, ...runtimeTargets.map((target) => ({ from: `runtime/${target}`, to: `engine-runtime/${target}` }))],
   directories: { output: 'dist', buildResources: 'build' },
-  win: { target: [{ target: 'nsis', arch: ['x64'] }, { target: 'portable', arch: ['x64'] }], icon: 'build/icon.png' },
+  // The portable form is an archive of the application folder: the electron-builder `portable` target self-extracts
+  // ~150 MB on every launch (about 50 s on the maintainer's computer, see docs/validation/M8.2.3-*).
+  win: { target: [{ target: 'nsis', arch: ['x64'] }, { target: 'zip', arch: ['x64'] }], icon: 'build/icon.png', artifactName: `SedCoreTool-${V}-windows-portable.\${ext}` },
   nsis: { oneClick: false, allowToChangeInstallationDirectory: true, artifactName: `SedCoreTool-${V}-windows-setup.\${ext}` },
-  portable: { artifactName: `SedCoreTool-${V}-windows-portable.\${ext}` },
   // Both fixed interpreter trees travel unchanged in each half of the universal application.
   mac: { target: [{ target: 'dmg', arch: ['universal'] }], x64ArchFiles: 'Contents/Resources/engine-runtime/**',
     category: 'public.app-category.education', icon: 'build/icon.png', identity: null },

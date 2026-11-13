@@ -21,8 +21,12 @@ async function cleanupScratch(scratch) {
 function terminateTree(child) {
   if (!child || child.exitCode !== null || child.signalCode !== null || !Number.isInteger(child.pid)) return;
   if (process.platform === 'win32') {
+    // Ending the coordinator is immediate (about 2 ms) and the coordinator's Job Object (engine/lifetime.py) kills its
+    // workers with it. taskkill /T alone takes about 1.7 s to start, so it only backs up a coordinator that could not
+    // join the job; by then the coordinator is usually gone and it finds nothing to do.
+    child.kill();
     const killer = spawn(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'), ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
-    killer.on('error', () => child.kill());
+    killer.on('error', () => {});
   } else {
     try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
   }
@@ -153,7 +157,8 @@ class EngineClient {
   }
 }
 
-function createEngineService({ enabled, packaged, executable, sourceDirectory, runtimeDirectory, lockPath, version }) {
+/** `cacheFile` (optional path or function returning one) holds the record of the last full runtime verification. */
+function createEngineService({ enabled, packaged, executable, sourceDirectory, runtimeDirectory, lockPath, version, cacheFile = null }) {
   let client, runtime = null, state = enabled ? 'stopped' : 'disabled', stopped = false;
   return {
     status: () => ({ enabled, runtime, ...(client ? client.status() : { state, protocol: null, methods: [] }) }),
@@ -167,7 +172,8 @@ function createEngineService({ enabled, packaged, executable, sourceDirectory, r
           options = { executable, script: path.join(sourceDirectory, 'src', 'sedcoretool', 'engine', 'server.py'),
             runtimeId: require('node:crypto').createHash('sha256').update('unverified-development-runtime').digest('hex'), runtime: 'unverified-development' };
         } else {
-          options = await require('./engine-runtime').loadRuntime({ runtimeDirectory, sourceDirectory: path.join(sourceDirectory, 'src'), lockPath, version });
+          options = await require('./engine-runtime').loadRuntime({ runtimeDirectory, sourceDirectory: path.join(sourceDirectory, 'src'), lockPath, version,
+            cacheFile: typeof cacheFile === 'function' ? cacheFile() : cacheFile });
         }
         if (stopped) return;
         runtime = options.runtime;

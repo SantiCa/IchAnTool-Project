@@ -11,6 +11,11 @@ The remaining capabilities below are still design requirements, not claims about
 Protocol version 1 and method `section.intervals/1` below are separate versioned contracts. Changing
 scientific semantics requires a new method version and explicit acceptance, even if the wire format fits.
 
+How the code that implements this contract is layered, and the path of one request through it, are described in
+[ARCHITECTURE.md](ARCHITECTURE.md). Known gap, recorded on 12 November 2026: the operation table of §3 lets a
+client upload buffers but defines no operation to download the committed result buffers that `section.analyze`
+returns. Roadmap card M8.3.5 adds `buffer.read` to this document before implementing it.
+
 ## 1. Current calculation and ownership inventory
 
 Source links name the implementation to inspect, rather than assuming that similar names imply parity.

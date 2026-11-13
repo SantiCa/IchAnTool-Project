@@ -7,8 +7,9 @@ Contributions from ichnologists, sedimentologists and developers are welcome. Pl
 Open an issue describing the bug or the feature. Example images help a lot, but never attach unpublished data.
 
 ## Making a change
-1. Read [AGENTS.md](AGENTS.md): it contains the working rules for everyone who changes the code — set-up and test
-   commands, code rules, how a change is delivered and what documentation to update.
+1. Read [AGENTS.md](AGENTS.md): the working rules for everyone who changes the code — code rules, how a change is
+   delivered and what documentation to update. Set-up, test and packaging commands are in
+   [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md); where code belongs is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 2. Work on a branch and open a pull request. The continuous-integration checks must pass.
 3. Describe what changed and why, and how you checked it.
 

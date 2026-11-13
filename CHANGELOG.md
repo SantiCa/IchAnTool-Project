@@ -10,6 +10,24 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## V0.149 — 2026-11-13
+
+### For users
+
+- The Windows portable version is now a ZIP archive of the program folder instead of a single self-extracting executable: unzip it once and run `SedCoreTool.exe`. The previous single file unpacked 150 MB on every launch and took about 50 seconds to open.
+- The desktop download is smaller: the bundled scientific runtime no longer ships files the program never uses (pip, test suites, Tcl/Tk data, development folders): 3,552 files instead of 7,326 and about 205 MB instead of 249 MB.
+
+### Internal
+
+Development tools, tests and documents; the experimental engine is off by default, so none of this changes what the program calculates.
+
+- Engine start-up: after one successful integrity check of the bundled runtime, later launches recheck only file identity (size, times, inode) instead of reading every file again; any changed, added, missing or replaced file, a different build, or a missing or damaged record triggers the full check. With the smaller runtime a full check takes about 1.2 s and a recorded one about 0.1 s on the maintainer's Windows computer; the first launch after extracting the portable ZIP reaches engine ready in 3.7–3.9 s (11–25 s before).
+- Engine shutdown: a forced stop ends the engine and its workers almost instantly on Windows (5 ms instead of about 1.7 s), by tying worker processes to the engine's lifetime in the operating system.
+- Measuring tools: `tools/measure_engine_lifecycle.mjs` (verification, start-up, shutdown, forced stop, leftovers), `tools/measure_engine_cancellation.mjs` (transfer speed, cancellation latency, engine memory) and `tools/measure_packaged_startup.mjs` (packaged program: time to window and to engine ready, closing, leftover processes, whole-program memory and idle CPU; `--keep-profile`, `--wait-ms`, failure-stage diagnostics).
+- Documents restructured for task-card work: `AGENTS.md` now holds only stable rules; `docs/ARCHITECTURE.md` (layers, import rules, path of a scientific request, recipes, recorded decisions) and `docs/DEVELOPMENT.md` (commands, packaging, measuring tools, known problems) are new; `docs/roadmap.md` holds the status, two acceptance levels, the flag table and ordered task cards for the first scientific slice; later milestones moved to `docs/roadmap-future.md` and finished tasks to `docs/roadmap-history.md`.
+- Section analysis moved out of `app.js` into the pure module `app/js/sectionanalysis.js` (effective class of each object, row counts and their cache, interval bins, no-data padding, ages and manual indices). The code was moved without changing any formula; `app.js` keeps one-line wrappers. A new test file checks hand-computed cases and compares the module with a literal copy of the previous calculation on 40 generated sections.
+- Repository clean-up: obsolete audit snapshots, a scratch note and an unused GitHub Pages theme file were removed from the repository root.
+
 ## V0.148 — 2026-11-12
 
 - Development work now accumulates on a branch and becomes a numbered version only when the maintainer decides, so versions mark meaningful steps rather than every individual change. Application behaviour and calculations are unchanged.
