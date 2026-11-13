@@ -397,3 +397,17 @@ def test_a_method_worker_does_not_load_pandas_or_the_public_package():
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True, check=True, timeout=60).stdout.split()
     assert out == ["False", "False", "True"], "start-up stays light: numpy yes, pandas and Pillow no"
     assert time.monotonic() - started < 10
+
+
+def test_the_liveness_watcher_starts_only_after_numpy_and_the_methods_are_imported():
+    # On Windows a thread blocked reading the stdin pipe made `import numpy` hang in a clean environment (GitHub runner,
+    # 13 November 2026), while Anaconda's NumPy was unaffected. Guard the start order in the worker's entry point.
+    import ast
+
+    tree = ast.parse((ENGINE / "method_worker.py").read_text(encoding="utf-8"))
+    main = next(node for node in tree.body if isinstance(node, ast.If) and "__main__" in ast.dump(node.test))
+    calls = [ast.unparse(statement) for statement in main.body]
+    imports = next(i for i, call in enumerate(calls) if "load_modules()" in call)
+    watcher = next(i for i, call in enumerate(calls) if "watch_coordinator" in call)
+    assert imports < watcher, calls
+

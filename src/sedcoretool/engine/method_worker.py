@@ -44,11 +44,19 @@ def load_registry():
     return registry
 
 
-def run(job_file):
+def load_modules():
+    """Import everything the worker needs. This must finish BEFORE the liveness watcher starts: on Windows a thread
+    blocked in a synchronous read of the stdin pipe makes other calls on that handle wait, and importing NumPy in a
+    clean environment then never returns (found by the GitHub Windows runner; invisible with Anaconda's NumPy)."""
     import numpy as np
 
     registry = load_registry()                                  # must come first: it makes ``sedcoretool.methods`` importable
     from sedcoretool.methods.errors import Cancelled, MethodError
+    return np, registry, Cancelled, MethodError
+
+
+def run(job_file, modules):
+    np, registry, Cancelled, MethodError = modules
 
     job = json.loads(Path(job_file).read_text(encoding='utf-8'))
     cancel_path, output = Path(job['cancel_path']), Path(job['output_dir'])
@@ -79,5 +87,6 @@ def run(job_file):
 
 
 if __name__ == '__main__':
+    loaded = load_modules()
     threading.Thread(target=watch_coordinator, daemon=True).start()
-    run(sys.argv[1])
+    run(sys.argv[1], loaded)
