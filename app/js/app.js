@@ -1,6 +1,7 @@
 // SedCoreTool web (antes CorAnTool e IchAnTool) — application (UI, state, tools, rendering, files).
-import { rleValid, interpAgeRange, baconToAgeText, BI, II, UNIT_TO_CM, idsAt, topAt, hasId, stackIndex, codeFor, withoutId, renameId, compactStacks, rowCounts, binRows, parseAgeModel, parseAgeModelDetailed, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
+import { rleValid, baconToAgeText, BI, II, UNIT_TO_CM, idsAt, topAt, hasId, stackIndex, codeFor, withoutId, renameId, compactStacks, parseAgeModel, parseAgeModelDetailed, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
 import { pxPerCm, depthAtRow, rowAtDepth } from './sectiondepth.js';
+import { effectiveClassId, effectiveClassIndex, computeSectionBins, binRowsOfSection } from './sectionanalysis.js';
 export { pxPerCm, depthAtRow, rowAtDepth };
 import { withProvenance, ageModelText, bioturbationTable, objectsTable } from './exportio.js';
 
@@ -464,11 +465,7 @@ function status(o) {
   return 'candidate';
 }
 
-export function effClassId(o) {
-  if (o.cls) return o.cls;
-  if (S.settings.includePred && o.pred && o.conf >= S.settings.predThr) return o.pred;
-  return S.settings.countCandidates ? 'undet' : null;
-}
+export function effClassId(o) { return effectiveClassId(o, S.settings); }
 
 function refreshObjects(s, ids, region) {
   if (!s.orig) return;   // V0.1: stats are kept from the last time the pixels were in memory
@@ -1083,41 +1080,17 @@ function projectModels() {
 let anaTimer = 0;
 function scheduleAnalysis() { clearTimeout(anaTimer); anaTimer = setTimeout(() => { analyze(sec()); renderResults(); requestRender(); }, 100); }
 
-export function effClassArray(s) {
-  const eff = new Int16Array(s.nextId).fill(-1), idx = new Map(S.classes.map((c, k) => [c.id, k]));
-  for (const o of s.objects.values()) {
-    const c = effClassId(o); if (c == null) continue;
-    const k = idx.get(c); if (k != null && S.classes[k].counts) eff[o.id] = k;
-  }
-  return eff;
-}
+// The calculation lives in sectionanalysis.js (pure); these wrappers pass the project state in.
+export function effClassArray(s) { return effectiveClassIndex(s, S.classes, S.settings); }
 
 export function analyze(s) {
   if (!s) return;
-  if (s.loadWarnings) { s.bins = []; return; }
-  const eff = effClassArray(s);
-  let h = 2166136261; for (let i = 0; i < eff.length; i++) h = Math.imul(h ^ (eff[i] + 2), 16777619);   // signature of the class of each object
-  const key = `${s._mv || 0}|${s.w}x${s.h}|${s.roi.x0},${s.roi.y0},${s.roi.x1},${s.roi.y1}|${S.classes.length}|${eff.length}|${h}`;
-  if (s._rc?.key !== key) s._rc = { key, counts: rowCounts({ labels: s.labels, width: s.w, roi: s.roi, exclude: s.exclude, effClass: eff, nClasses: S.classes.length, stacks: s.stacks }) };   // V0.2: cached
-  const counts = s._rc.counts;
-  s.bins = binRows(counts, { top: s.top, bottom: s.bottom, binPx: binRowsOf(s), minValid: (S.settings.minValid ?? 20) / 100 });
-  const pad = (S.settings.noDataPad || 0) / UNIT_TO_CM[s.units];   // V0.3: widen the no-data zones by this length (cm) on each side
-  if (pad > 0) {
-    const gaps = s.bins.filter((b) => b.noData).map((b) => [b.dTop - pad, b.dBottom + pad]);
-    for (const b of s.bins) if (!b.noData && gaps.some(([a, z]) => b.dBottom > a + 1e-9 && b.dTop < z - 1e-9)) Object.assign(b, { noData: true, pct: null, classPct: b.classPct.map(() => null) });
-  }
-  for (const b of s.bins) if (b.noData) { b.BI = null; b.ii = null; }
-  for (const b of s.bins) {
-    b.age = interpAge(S.age.model, b.depth);
-    const ar = interpAgeRange(S.age.model, b.depth); b.ageMin = ar?.min ?? null; b.ageMax = ar?.max ?? null;   // V0.28
-    const m = manualAt(s, b.depth); b.BIm = m?.BI ?? null; b.iim = m?.ii ?? null;
-  }
+  const { bins, rowCache } = computeSectionBins(s, { classes: S.classes, settings: S.settings, ageModel: S.age.model });
+  s.bins = bins;
+  if (rowCache !== s._rc) s._rc = rowCache;
 }
 
-/** V0.1: the analysis interval is set in cm; rows per interval in this section (may be fractional, at least 1). */
-// Divide rows by span in pxPerCm before multiplying; keep this order in pipeline.py too.
-function binRowsOf(s) { return Math.max(1, (S.settings.binCm || 1) * pxPerCm(s)); }
-function manualAt(s, d) { let hit = null; for (const m of s.manual) if (d >= m.from && d < m.to) hit = m; return hit; }
+function binRowsOf(s) { return binRowsOfSection(s, S.settings); }
 function setManual(s, b, key, val) {
   let m = s.manual.find((e) => Math.abs(e.from - b.dTop) < 1e-9 && Math.abs(e.to - b.dBottom) < 1e-9);
   if (!m) { m = { from: b.dTop, to: b.dBottom, BI: null, ii: null }; s.manual.push(m); }

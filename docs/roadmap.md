@@ -23,19 +23,15 @@ Updated 12 November 2026.
 - **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
   runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
   documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
-- **Next step:** card **M8.3.1** (move the section analysis out of `app.js`). It is *Ready*; starting it needs
-  the maintainer's go-ahead.
+- **Next step:** card **M8.3.2** (reference fixtures for `section.intervals/1`). It is *Ready*. M8.3.1 was done
+  on 12 November 2026 with the maintainer's go-ahead; each further card also needs his go-ahead.
 - **Decisions waiting for the maintainer:**
   1. Confirm or change the two acceptance levels (below) and the proposed scope of version 1.0.
   2. Push the branch to GitHub: it would back up the work (everything since V0.128 exists only on this computer)
      and let the *Desktop builds* workflow build and smoke-test macOS and Linux, which the release checklist needs.
   3. Create version V0.149 from the branch.
   4. The flags in the table below that need a promote/remove decision.
-- **Last full checks: passed** at commit `6f5a33b` (12 November 2026), run one after another: `pytest -q`
-  357 passed / 8 skipped; `npm test` 234 passed; `npm run typecheck` no new diagnostics; `sync_version.py --check`;
-  `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on and off.
-  The browser smoke test was not run (no file under `app/` changed in the session). Later commits on the branch
-  only edit this file.
+- **Last full checks: passed** after card M8.3.1 (13 November 2026), run one after another: `npm test` 246 passed; `npm run typecheck` no new diagnostics; `pytest -q` 357 passed / 8 skipped; `sync_version.py --check`; `ruff check src tests tools`; standalone build; `tests/e2e/smoke.mjs` (browser, 356 traces and identical reload, web-versus-V2.1 intervals identical); `tests/e2e/desktop.mjs` with the engine experiment on. The commit is the one that records this line; the desktop test without the experiment was not repeated (last run on `6f5a33b`).
 
 ## How work is accepted
 
@@ -137,7 +133,7 @@ changes. Inputs and results are defined in [contract §4–§5](roadmap-engine-c
 the path of a request is [ARCHITECTURE §4](ARCHITECTURE.md#4-path-of-one-scientific-request-target-design-for-m83).
 Cards are done in order. Each one claims the development gate only.
 
-#### M8.3.1 - Move the section analysis out of `app.js` — state: Ready
+#### M8.3.1 - Move the section analysis out of `app.js` — state: Done (12 Nov 2026, unreleased)
 
 - **Goal:** the calculation that fills `s.bins` lives in a pure module that Node can test. No behaviour changes.
 - **Read first:** [ARCHITECTURE §3.2 and §5.2](ARCHITECTURE.md#32-renderer-appjs); `app/js/app.js` functions
@@ -165,8 +161,15 @@ Cards are done in order. Each one claims the development gate only.
   `python tools/build_standalone.py`; browser smoke test `node tests/e2e/smoke.mjs` (results of the public example
   unchanged).
 - **Done when:** `app.js` no longer contains the calculation; all commands above pass.
+- **Result (12 November 2026):** `app/js/sectionanalysis.js` exports `effectiveClassId(object, settings)`,
+  `effectiveClassIndex(section, classes, settings)`, `binRowsOfSection(section, settings)`, `manualRangeAt(section, depth)`
+  and `computeSectionBins(section, { classes, settings, ageModel })`, which returns `{ bins, rowCache }` and does not
+  assign to the section. `app.js` keeps `effClassId`, `effClassArray`, `binRowsOf` and `analyze` as thin wrappers;
+  `manualAt` had no other caller and was removed. 12 tests in `tests/app/sectionanalysis.test.mjs`, including a
+  comparison with a literal copy of the previous calculation on 40 seeded sections; three deliberately introduced
+  faults were each caught. The module is in the strict type check. Later cards should use these names.
 
-#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Ready after M8.3.1
+#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Ready
 
 - **Goal:** small committed fixtures, each holding the inputs of contract §4 and the results of contract §5,
   produced by the JavaScript calculation. They are the target every later card must reproduce.

@@ -159,6 +159,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 |------|---------|:----:|
 | `core.js` | Intervals, indices, age model, CSV, RLE encoding, overlapping-trace stacks | ✓ |
 | `sectiondepth.js` | Pure ROI depth/row conversion and pixels per centimetre; independent of interface/state | Yes |
+| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2). `app.js::analyze` passes the project state in | Yes |
 | `imageproc.js` | Enhancement, detection, connected components, magic wand, lasso, descriptors, rotation, downsampling | ✓ |
 | `edit.js` | Editing algorithms: scissors, merging, undo records, project migration | ✓ |
 | `learn.js` | Ichnotaxa classifier (k-NN with novelty rejection; Random Forest and Bayes wrappers), evaluation, final-test metrics | ✓ |
@@ -2973,7 +2974,7 @@ The standalone generator strips local, unaliased named export lists terminated b
 multiline lists. The original declarations remain once in the concatenated scope. Aliased lists, export-from
 lists and unterminated lists are rejected with an actionable error; this limited support does not implement
 a full JavaScript module parser. Existing import stripping and top-level name/dependency-order checks
-still apply. `sectiondepth.js` follows `core.js` and precedes its consumers in `ORDER`.
+still apply. `sectiondepth.js` follows `core.js`, `sectionanalysis.js` follows `sectiondepth.js`, and both precede their consumers in `ORDER`.
 
 
 ## 28. Repository engineering and security
@@ -3006,7 +3007,7 @@ Current fixture/scientific hashes identify sections by source-order index, exclu
 while retaining masks, assignments and interval arrays. This canonicalisation changes no project data.
 
 **JavaScript type checks.** Run `npm ci` and `npm run typecheck` with Node 22. The first pass uses TypeScript
-in strict mode on `core.js`, `state.js`, `imageproc.js`, `unetmodel.js` and `sectiondepth.js`. JSDoc describes the shared contracts, and consumers
+in strict mode on `core.js`, `state.js`, `imageproc.js`, `unetmodel.js`, `sectiondepth.js` and `sectionanalysis.js`. JSDoc describes the shared contracts, and consumers
 such as `columns.js` use those types through ordinary JavaScript imports. The second pass checks all application
 modules with ES2022, `allowJs`, `checkJs` and `noEmit`. The `checks` CI job runs both passes on pushes and
 pull requests.

@@ -21,7 +21,7 @@ describe a planned part as available. When you build a planned part, change its 
 ┌─────────────── Renderer: app/js (sandboxed web page, JavaScript ES modules) ──────────────┐
 │  views (DOM only)  ◄──►  controllers (app.js and tab modules)  ◄──►  pure modules (no DOM) │
 │                                        │                                                   │
-│                    sectionanalysis.js + engineclient.js   (planned, pure)                  │
+│        sectionanalysis.js (built) + engineclient.js (planned), both pure                   │
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
               window.corantoolDesktop  (desktop/preload.js: a short allowlist of calls)
 ┌─────────────── Electron main process: desktop/ (Node.js) ─────────────────────────────────┐
@@ -91,7 +91,7 @@ matching tier and the Python API the **last**; the kernel takes `precedence="fir
 
 | Kind | Rule | Examples |
 |---|---|---|
-| Pure modules | No `document`, `window` or DOM types; state arrives as arguments. Tested with Node in `tests/app/` | `core.js`, `sectiondepth.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `geo.js`, `interp.js`, `locmap.js`, `plot.js`, `sheet.js`, `exportio.js`, `zip.js`, `unet.js`, `unetmodel.js`, `navpreview.js`, `figview.js`, `tableview.js` |
+| Pure modules | No `document`, `window` or DOM types; state arrives as arguments. Tested with Node in `tests/app/` | `core.js`, `sectiondepth.js`, `sectionanalysis.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `geo.js`, `interp.js`, `locmap.js`, `plot.js`, `sheet.js`, `exportio.js`, `zip.js`, `unet.js`, `unetmodel.js`, `navpreview.js`, `figview.js`, `tableview.js` |
 | State | The shared project state `S` and small helpers | `state.js` |
 | Controllers and views | Read and change `S`, call pure modules, build DOM/SVG, wire events | `app.js`, `columns.js`, `datatab.js`, `figures.js`, `multiproxy.js`, `panels.js`, `diagnostics.js` |
 | Storage | IndexedDB project library | `storage.js` |
@@ -109,12 +109,13 @@ Rules:
    modules, because the offline HTML is built by concatenating them. Modules live flat in `app/js/` (no subfolders).
 5. Interface text goes in `i18n.js`, in Spanish and English.
 
-Planned pure modules for M8.3:
+Pure modules for M8.3:
 
-- `sectionanalysis.js` — everything about analysing one section that does not need the DOM: the effective class
-  of each object, the revision key of the scientific inputs, the legacy calculation that today lives in
-  `app.js::analyze` (moved, not rewritten), building the engine snapshot of contract §4, and converting an engine
-  result into the existing `s.bins` array so that tables, columns, figures and exports do not change.
+- `sectionanalysis.js` — **built** (M8.3.1): everything about analysing one section that does not need the DOM; today
+  the effective class of each object, the legacy calculation that used to live in `app.js::analyze` (moved, not
+  rewritten) and its row-count cache. **Planned** additions (M8.3.2, M8.3.7): the revision key of the scientific
+  inputs, building the engine snapshot of contract §4, and converting an engine result into the existing `s.bins`
+  array so that tables, columns, figures and exports do not change.
 - `engineclient.js` — uploads typed arrays in chunks of at most 1 MiB, starts and cancels jobs and downloads
   results through an injected bridge object. In the desktop program the bridge is `window.corantoolDesktop.engine`;
   in Node tests it is a fake.
