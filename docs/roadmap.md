@@ -25,8 +25,9 @@ Updated 13 November 2026.
 - **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
   runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
   documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
-- **Next step:** card **M8.3.2** (reference fixtures for `section.intervals/1`). It is *Ready*. M8.3.1 was done
-  on 12 November 2026 with the maintainer's go-ahead; each further card also needs his go-ahead.
+- **Next step:** card **M8.3.3** (Python kernels). It is *Ready*. The maintainer asked on 13 November 2026 to continue
+  with M8.3 after publishing V0.149, so cards M8.3.3 to M8.3.8 follow in order; stop and report at any card that
+  cannot meet its "Done when".
 - **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
   13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
   macOS and Linux, clean Windows machine, cold-cache first launch, saturated CPUs, package sizes, and the
@@ -176,7 +177,7 @@ Cards are done in order. Each one claims the development gate only.
   comparison with a literal copy of the previous calculation on 40 seeded sections; three deliberately introduced
   faults were each caught. The module is in the strict type check. Later cards should use these names.
 
-#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Ready
+#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** small committed fixtures, each holding the inputs of contract §4 and the results of contract §5,
   produced by the JavaScript calculation. They are the target every later card must reproduce.
@@ -200,8 +201,15 @@ Cards are done in order. Each one claims the development gate only.
   4. The Node test regenerates every fixture in memory and requires byte-identical content to the committed file.
 - **Tests:** `node --test tests/app/interval-fixtures.test.mjs`; `npm test`; `npm run typecheck`.
 - **Done when:** fixtures are committed and the regeneration test passes.
+- **Result (13 November 2026):** 40 fixtures, 1.2 MB, in `tests/fixtures/section-intervals/` (format, groups and the choices made
+  where the contract is silent are in its README); generator `tools/make_interval_fixtures.mjs` (`--check` compares without
+  writing); `buildIntervalSnapshot` and `referenceColumns` in `sectionanalysis.js`; 6 tests in
+  `tests/app/interval-fixtures.test.mjs`. The large images are stored as run-length lists because 1.2 million labels as
+  plain lists would be about 5 MB. A deliberately changed bin-edge rounding in `core.js` was caught and reverted. No change to
+  the contract was needed. Card M8.3.4 reads the files with a few lines of Python: expand `runs`, reshape by `shape`,
+  compare as the README says.
 
-#### M8.3.3 - Python kernels — state: Ready after M8.3.2
+#### M8.3.3 - Python kernels — state: Ready
 
 - **Goal:** the primitives of interval analysis exist once, in `src/sedcoretool/kernels/`, and the public Python
   functions use them.

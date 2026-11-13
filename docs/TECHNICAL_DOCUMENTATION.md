@@ -159,7 +159,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 |------|---------|:----:|
 | `core.js` | Intervals, indices, age model, CSV, RLE encoding, overlapping-trace stacks | ✓ |
 | `sectiondepth.js` | Pure ROI depth/row conversion and pixels per centimetre; independent of interface/state | Yes |
-| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2). `app.js::analyze` passes the project state in | Yes |
+| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2), plus the builders of the engine method's input snapshot and reference result columns (`buildIntervalSnapshot`, `referenceColumns`). `app.js::analyze` passes the project state in | Yes |
 | `imageproc.js` | Enhancement, detection, connected components, magic wand, lasso, descriptors, rotation, downsampling | ✓ |
 | `edit.js` | Editing algorithms: scissors, merging, undo records, project migration | ✓ |
 | `learn.js` | Ichnotaxa classifier (k-NN with novelty rejection; Random Forest and Bayes wrappers), evaluation, final-test metrics | ✓ |
@@ -3104,6 +3104,14 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 ## 31. Validation
 
 ### 31.1 Automated tests
+
+**Section-interval reference fixtures.** `tests/fixtures/section-intervals/` holds 40 synthetic cases with the inputs of the
+planned engine method `section.intervals/1` and the result of the current JavaScript calculation (format and
+comparison rule in its README). `tests/app/interval-fixtures.test.mjs` requires each committed file to be
+byte-identical to a regeneration by `tools/make_interval_fixtures.mjs`, checks every file against the input and
+result contracts (shapes, contiguous intervals, counts consistent with percentages, no-data rules), and compares
+the 20 fractional-boundary cases with `tests/fixtures/fractional-boundaries.json`. They are the target of the Python
+implementation; they say nothing about the engine, which does not calculate sections yet.
 
 **Temporary diagnostics.** Node tests cover default-off activation, persisted expiry, redaction, two-file
 rotation, queue overflow, independent write failure, bounded reads and atomic export failure. The real
