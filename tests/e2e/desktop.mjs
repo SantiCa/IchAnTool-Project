@@ -56,12 +56,12 @@ async function close(run) {
   } finally { clearTimeout(timer); run.browser.disconnect(); }
 }
 
-const BRIDGE_OPERATIONS = ['analyzeSection', 'appendBuffer', 'beginBuffer', 'cancel', 'commitBuffer', 'readBuffer', 'release', 'status'];
+const BRIDGE_OPERATIONS = ['analyzeSection', 'appendBuffer', 'beginBuffer', 'cancel', 'commitBuffer', 'readBuffer', 'release', 'status'];   // plus the boolean `enabled`
 const fixture = JSON.parse(readFileSync(new URL('../fixtures/section-intervals/basic-four-intervals.json', import.meta.url), 'utf8'));
 
 /** Runs in the page: uploads a reference fixture through window.corantoolDesktop.engine, analyses it and reads one result column. */
 async function bridgeRoundTrip(fixture) {
-  const engine = window.corantoolDesktop.engine, outcome = { operations: Object.keys(engine).sort() };
+  const engine = window.corantoolDesktop.engine, outcome = { operations: Object.keys(engine).filter((key) => typeof engine[key] === 'function').sort(), enabled: engine.enabled };
   const sha = async (bytes) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
   const expand = (buffer) => (buffer.runs ? buffer.runs.flatMap(([value, count]) => Array(count).fill(value)) : buffer.data);
   const TYPES = { u8: Uint8Array, i32le: Int32Array, u32le: Uint32Array };
@@ -97,6 +97,27 @@ async function bridgeRoundTrip(fixture) {
   await engine.release([column.token, ...Object.values(tokens)]);
   outcome.afterRelease = await engine.readBuffer(column.token, 0, 1);
   outcome.forged = await engine.readBuffer(crypto.randomUUID(), 0, 1);
+  return outcome;
+}
+
+/** Runs in the page: brings every section up to date and compares its bins with the JavaScript reference (exact for counts, indices and nulls, 1e-9 for floats). */
+async function compareWithReference() {
+  const I = window.ichantool;
+  await I.analyzeSections(I.S.sections);
+  const outcome = { sections: I.S.sections.length, states: I.S.sections.map((s) => s.analysis?.state ?? null), bins: 0, mismatches: [] };
+  I.S.sections.forEach((s, i) => {
+    const reference = I.referenceBins(s);
+    if (reference.length !== s.bins.length) { outcome.mismatches.push(`section ${i}: ${s.bins.length} bins, expected ${reference.length}`); return; }
+    reference.forEach((expected, j) => {
+      outcome.bins++;
+      const actual = s.bins[j], keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
+      for (const key of keys) {
+        const a = actual[key], e = expected[key], close = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 1e-9 : x === y);
+        const same = Array.isArray(e) ? Array.isArray(a) && a.length === e.length && e.every((value, k) => close(a[k], value)) : close(a, e);
+        if (!same) outcome.mismatches.push(`section ${i} bin ${j} ${key}: ${JSON.stringify(a)} vs ${JSON.stringify(e)}`);
+      }
+    });
+  });
   return outcome;
 }
 
@@ -196,6 +217,11 @@ try {
   await p.waitForFunction(() => window.ichantool.S.sections.length === 6 && window.ichantool.S.sections.every((s) => s.objects.size > 0), { timeout: 90000 });
   await p.waitForFunction(() => document.getElementById('saveState').dataset.state === 'saved', { timeout: 30000 });
   const before = await p.evaluate(signature);
+  const engineOn = process.env.SEDCORETOOL_ENGINE_EXPERIMENT === '1';
+  const parity = await p.evaluate(compareWithReference);
+  assert.deepEqual(parity.mismatches, [], 'the interface shows the JavaScript reference');
+  assert.ok(parity.bins > 100, `enough intervals compared (${parity.bins})`);
+  assert.deepEqual(parity.states, Array(6).fill(engineOn ? 'ready' : null), engineOn ? 'every section was analysed by the engine' : 'without the experiment the JavaScript calculation runs');
   // An edit immediately followed by close exercises the desktop's deferred beforeunload save.
   const deleted = await p.evaluate(() => {
     const I = window.ichantool, s = I.S.sections[I.S.cur], id = s.objects.keys().next().value;
@@ -206,6 +232,8 @@ try {
   assert.ok(deleted, 'trace deleted before closing');
   const edited = await p.evaluate(signature);
   assert.notEqual(edited, before);
+  const afterEdit = await p.evaluate(compareWithReference);
+  assert.deepEqual(afterEdit.mismatches, [], 'after a deletion the new result matches the reference too');
   await close(run); run = null;
   run = await start();
   await run.page.waitForFunction(() => window.ichantool.S.sections.length === 6, { timeout: 60000 });

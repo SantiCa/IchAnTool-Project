@@ -2120,5 +2120,17 @@ Object.assign(D.en, {
   'taxa.note': 'Occurrences keep their depth or age. Percentages use the measured valid area; a presence mark does not supply an abundance. 100% opacity is opaque. Numeric labels need vertical space.',
   'taxa.subtitle': 'Ichnotaxon abundance (%) and occurrence records',
 });
+Object.assign(D.es, {
+  'engine.pending': 'Calculando con el motor científico…', 'engine.error.ENGINE_UNAVAILABLE': 'El motor científico no está disponible. No se muestran resultados antiguos ni se usa otro cálculo.',
+  'engine.error.INVALID_REQUEST': 'El motor rechazó los datos de esta sección', 'engine.error.UNSUPPORTED_INPUT': 'El motor no admite los datos de esta sección', 'engine.error.INVALID_BUFFER': 'El motor perdió los datos enviados; edita la sección para reintentar',
+  'engine.error.LIMIT_EXCEEDED': 'La sección supera los límites del motor', 'engine.error.BUSY': 'El motor está ocupado; edita la sección para reintentar', 'engine.error.UNSUPPORTED_METHOD': 'El motor no ofrece este método',
+  'engine.error.INTERNAL': 'El motor falló al calcular esta sección',
+});
 Object.assign(D.es, { 'nav.preview': 'Miniatura de navegación optimizada', 'nav.previewTip': 'Activada al iniciar. Desactívala para usar el renderizado anterior durante esta sesión; las figuras y los datos no cambian.' });
+Object.assign(D.en, {
+  'engine.pending': 'Calculating with the scientific engine…', 'engine.error.ENGINE_UNAVAILABLE': 'The scientific engine is not available. Old results are not shown and no other calculation is used.',
+  'engine.error.INVALID_REQUEST': 'The engine rejected the data of this section', 'engine.error.UNSUPPORTED_INPUT': 'The engine does not support the data of this section', 'engine.error.INVALID_BUFFER': 'The engine lost the data it was sent; edit the section to retry',
+  'engine.error.LIMIT_EXCEEDED': 'The section exceeds the engine limits', 'engine.error.BUSY': 'The engine is busy; edit the section to retry', 'engine.error.UNSUPPORTED_METHOD': 'The engine does not offer this method',
+  'engine.error.INTERNAL': 'The engine failed to calculate this section',
+});
 Object.assign(D.en, { 'nav.preview': 'Optimised navigation preview', 'nav.previewTip': 'Enabled at startup. Disable it to use the previous renderer for this session; figures and data are unchanged.' });

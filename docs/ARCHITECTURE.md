@@ -21,7 +21,7 @@ describe a planned part as available. When you build a planned part, change its 
 ┌─────────────── Renderer: app/js (sandboxed web page, JavaScript ES modules) ──────────────┐
 │  views (DOM only)  ◄──►  controllers (app.js and tab modules)  ◄──►  pure modules (no DOM) │
 │                                        │                                                   │
-│        sectionanalysis.js (built) + engineclient.js (planned), both pure                   │
+│        sectionanalysis.js · engineclient.js · engineanalysis.js (built, all pure)          │
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
               window.corantoolDesktop  (desktop/preload.js: a short allowlist of calls)
 ┌─────────────── Electron main process: desktop/ (Node.js) ─────────────────────────────────┐
@@ -57,7 +57,7 @@ process exists but only answers a diagnostic request.
 | `kernels/` package: binning, counting, classification, age interpolation; `tests/test_architecture.py` | built (M8.3.3) | §3.1 |
 | `methods/` package with the registry and `section.intervals/1`, called directly | built (M8.3.4) | §3.1 |
 | Job runner in the engine process: `section.analyze` runs a registered method in its own worker process, results are adopted as committed buffers and downloaded with `buffer.read` | built (M8.3.5) | §3.1, §4 |
-| Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`) | **planned** (M8.3.6–M8.3.7) | §3.2, §3.3 |
+| Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`, `engineanalysis.js`) | **built, experimental, off by default** (M8.3.6–M8.3.7) | §3.2, §3.3 |
 | Section intervals calculated by the engine (`section.intervals/1`) | **planned** (M8.3) | contract §4–§5 |
 | Engine-owned images and tiles, remaining methods | **planned** (M8.4, M8.5) | roadmap |
 
@@ -92,7 +92,7 @@ matching tier and the Python API the **last**; the kernel takes `precedence="fir
 
 | Kind | Rule | Examples |
 |---|---|---|
-| Pure modules | No `document`, `window` or DOM types; state arrives as arguments. Tested with Node in `tests/app/` | `core.js`, `sectiondepth.js`, `sectionanalysis.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `geo.js`, `interp.js`, `locmap.js`, `plot.js`, `sheet.js`, `exportio.js`, `zip.js`, `unet.js`, `unetmodel.js`, `navpreview.js`, `figview.js`, `tableview.js` |
+| Pure modules | No `document`, `window` or DOM types; state arrives as arguments. Tested with Node in `tests/app/` | `core.js`, `sectiondepth.js`, `sectionanalysis.js`, `engineclient.js`, `engineanalysis.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `geo.js`, `interp.js`, `locmap.js`, `plot.js`, `sheet.js`, `exportio.js`, `zip.js`, `unet.js`, `unetmodel.js`, `navpreview.js`, `figview.js`, `tableview.js` |
 | State | The shared project state `S` and small helpers | `state.js` |
 | Controllers and views | Read and change `S`, call pure modules, build DOM/SVG, wire events | `app.js`, `columns.js`, `datatab.js`, `figures.js`, `multiproxy.js`, `panels.js`, `diagnostics.js` |
 | Storage | IndexedDB project library | `storage.js` |
@@ -120,6 +120,10 @@ Pure modules for M8.3:
 - `engineclient.js` — uploads typed arrays in chunks of at most 1 MiB, starts and cancels jobs and downloads
   results through an injected bridge object. In the desktop program the bridge is `window.corantoolDesktop.engine`;
   in Node tests it is a fake.
+- `engineanalysis.js` — per-section state with the engine on: pending, ready or error. It keys each request on
+  `analysisRevision`, empties `s.bins` while a result is awaited, queues one analysis at a time, cancels a request that
+  an edit made obsolete and publishes a result only if the revision is still current. It never computes bins and never
+  falls back to the JavaScript calculation. `app.js::analyze` delegates to it when `window.corantoolDesktop.engine.enabled`.
 
 ### 3.3 Electron main process (`desktop/`)
 

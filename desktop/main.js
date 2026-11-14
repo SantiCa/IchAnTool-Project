@@ -93,6 +93,7 @@ if (process.versions.electron) {
     setupSessionPermissions(session.defaultSession);
     setupTrainer();
     ipcMain.handle('engine:status', (event) => { if (!fromApp(event)) throw new Error('forbidden'); return engine.status(); });
+    ipcMain.on('engine:enabled', (event) => { event.returnValue = fromApp(event) && engine.status().enabled === true; });
     setupEngineBridge();
     void engine.start();
     await setupDiagnostics();

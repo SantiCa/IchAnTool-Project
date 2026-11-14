@@ -159,7 +159,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 |------|---------|:----:|
 | `core.js` | Intervals, indices, age model, CSV, RLE encoding, overlapping-trace stacks | ✓ |
 | `sectiondepth.js` | Pure ROI depth/row conversion and pixels per centimetre; independent of interface/state | Yes |
-| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2), plus the builders of the engine method's input snapshot and reference result columns (`buildIntervalSnapshot`, `referenceColumns`). `app.js::analyze` passes the project state in | Yes |
+| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2), plus the builders of the engine method's input snapshot and reference result columns (`buildIntervalSnapshot`, `referenceColumns`), the revision key of a section's calculation (`analysisRevision`) and the conversion of engine result columns to `s.bins` (`resultToBins`). `app.js::analyze` passes the project state in | Yes |
 | `imageproc.js` | Enhancement, detection, connected components, magic wand, lasso, descriptors, rotation, downsampling | ✓ |
 | `edit.js` | Editing algorithms: scissors, merging, undo records, project migration | ✓ |
 | `learn.js` | Ichnotaxa classifier (k-NN with novelty rejection; Random Forest and Bayes wrappers), evaluation, final-test metrics | ✓ |
@@ -2820,9 +2820,17 @@ Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/en
 worker-process wrappers) and `method_worker.py` (the script that runs a scientific method in its own process). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
 It uses the verified bundled runtime (§26.3), or an explicitly selected absolute `SEDCORETOOL_ENGINE_PYTHON`
 path in source development only. A missing or invalid bundle reports unavailable; packaged applications never
-use that override or search for a user's interpreter. The browser and standalone file do not launch a process. No scientific calculation has
-moved to Python through this bridge for the interface: the engine can run `section.intervals/1` (below) but nothing in the
-interface calls it yet; current analysis and save ownership are unchanged.
+use that override or search for a user's interpreter. The browser and standalone file do not launch a process. With the experiment on, the interval table of every section is calculated by the engine's `section.intervals/1` (below) and the
+JavaScript calculation does not run; with it off only the JavaScript calculation runs, and a failed engine is shown as an error, never
+replaced by the other calculation. Everything else (editing, saving, exports) is unchanged and stays in the interface. The page reads
+`window.corantoolDesktop.engine.enabled` once at startup. For each section `app/js/engineanalysis.js` derives a revision
+(`analysisRevision`: mask version, geometry, depth range, manual indices, counted classes, the settings the method reads, the age model
+and the effective class of every object), empties `s.bins` and shows a pending note while the result is awaited, uploads the inputs
+(`engineclient.js`, chunks of at most 1 MiB, SHA-256 per buffer), downloads the result columns and converts them with `resultToBins`.
+Sections are analysed one at a time; a request made obsolete by an edit is cancelled; a result is published only if the section's
+revision is still the requested one. A failure sets the section's `analysis` state to an error with the engine's code, shown through
+the texts `engine.error.<CODE>`; the same revision is not retried on every redraw, an edit retries. A section whose labels exceed the
+256 MiB buffer limit fails with `LIMIT_EXCEEDED`.
 
 Main launches the fixed prepared server script with `-I -B -u`, an argument array and private pipes, with no shell
 or listening service. `window.corantoolDesktop.engine.status()` exposes only enablement, state, protocol,

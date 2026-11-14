@@ -191,3 +191,53 @@ export function referenceColumns(s, project) {
   nullable('indices', 'i32le', [B, 2], bins.flatMap((b) => [b.BI, b.ii]));
   return { dimensions: { bins: B, classes: C, schemes: 2 }, columns };
 }
+
+/**
+ * Identity of everything that decides a section's interval table (M8.3.7): mask version, geometry, depth range,
+ * manual indices, class list, the settings the method reads, the age model and the effective class of every object.
+ * A result computed for another revision must never be shown as current.
+ * @param {any} s
+ * @param {AnalysisProject} project
+ * @returns {string}
+ */
+export function analysisRevision(s, project) {
+  const { classes, settings, ageModel } = project;
+  const eff = effectiveClassIndex(s, classes, settings);
+  /** @param {ArrayLike<number> | null | undefined} values @param {number} seed */
+  const fnv = (values, seed) => { let h = seed; for (let i = 0; values && i < values.length; i++) h = Math.imul(h ^ (Math.round(values[i] * 1e9) | 0), 16777619); return h >>> 0; };
+  let h = 2166136261; for (let i = 0; i < eff.length; i++) h = Math.imul(h ^ (eff[i] + 2), 16777619);
+  const age = ageModel ? [fnv(ageModel.depth, 1), fnv(ageModel.age, 2), fnv(ageModel.min, 3), fnv(ageModel.max, 4), ageModel.depth.length] : null;
+  return JSON.stringify([s._mv || 0, s.w, s.h, s.roi, s.top, s.bottom, s.units, s.manual, !!s.loadWarnings,
+    classes.map((c) => [c.id, !!c.counts]), settings.includePred, settings.predThr, settings.countCandidates, settings.binCm, settings.minValid, settings.noDataPad,
+    age, project.ageUnits ?? null, eff.length, h >>> 0]);
+}
+
+/**
+ * Interval bins in the shape the interface keeps (`s.bins`) from the decoded result columns of `section.intervals/1`.
+ * `columns` maps a column name to `{data, valid?}` with plain numbers; a slot whose `valid` is 0 is null.
+ * @param {{dimensions: {bins: number, classes: number, schemes: number}, columns: Record<string, {data: ArrayLike<number>, valid?: ArrayLike<number> | null}>}} result
+ * @returns {SectionBin[]}
+ */
+export function resultToBins(result) {
+  const { dimensions: { bins: B, classes: C, schemes }, columns } = result;
+  if (schemes !== 2) throw new RangeError('Expected two index schemes');
+  /** @param {string} name */
+  const column = (name) => { const c = columns[name]; if (!c) throw new RangeError(`Missing result column ${name}`); return c; };
+  /** @param {string} name @param {number} i @param {number} [stride] @param {number} [k] */
+  const value = (name, i, stride = 1, k = 0) => { const c = column(name), at = i * stride + k; return c.valid && !c.valid[at] ? null : c.data[at]; };
+  /** @type {any[]} */
+  const bins = [];
+  for (let i = 0; i < B; i++) {
+    const noData = !!column('no_data').data[i];
+    bins.push({
+      index: i, r0: column('row_start').data[i], r1: column('row_end').data[i],
+      depth: column('depth').data[i], dTop: column('depth_top').data[i], dBottom: column('depth_bottom').data[i],
+      valid: column('valid_count').data[i], pct: value('bioturbation_pct', i), ...(noData ? { noData: true } : {}),
+      classPct: Array.from({ length: C }, (_, k) => value('class_pct', i, C, k)),
+      BI: value('indices', i, 2, 0), ii: value('indices', i, 2, 1),
+      age: value('age', i), ageMin: value('age_min', i), ageMax: value('age_max', i),
+      BIm: value('manual_BI', i), iim: value('manual_ii', i),
+    });
+  }
+  return bins;
+}

@@ -29,7 +29,8 @@
  *   marks: TraceMark[], manual: ManualIndex[], detect: import('./imageproc.js').DetectionSettings, preset: string,
  *   loadWarnings?: {region: boolean, mask: boolean},
  *   lutFill?: Uint8ClampedArray, lutLine?: Uint8ClampedArray, lutStyle?: Uint8Array, _pxErr?: string,
- *   _unet?: {key: string, prob: Float32Array} | null}} SectionState
+ *   _unet?: {key: string, prob: Float32Array} | null,
+ *   analysis?: {state: 'pending'} | {state: 'ready'} | {state: 'error', code: string, field: string | null}}} SectionState
  * @typedef {{id: string, name: string, units: import('./core.js').DepthUnit, sections: SectionState[],
  *   records: ExternalRecord[], ageModel: AgeState, holdout: boolean, lat: number | null, lon: number | null,
  *   waterDepth: number | null, notes: string, source: string | null, logView: LogView, imp: CoreData | null,

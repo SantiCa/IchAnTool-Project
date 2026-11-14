@@ -358,7 +358,7 @@ Cards are done in order. Each one claims the development gate only.
   trip through the preload bridge in `tests/e2e/desktop.mjs` with the engine on and off. 33 deliberate faults were each caught (two
   needed extra tests first). `check-package.js` and `build.js` list the new file; `npm run dist` was not rerun for this card.
 
-#### M8.3.7 - The interface shows engine results under the flag — state: Ready after M8.3.6
+#### M8.3.7 - The interface shows engine results under the flag — state: Done (development gate, 14 November 2026)
 
 - **Goal:** with the experiment on, `s.bins` comes from the engine; with it off, from the JavaScript calculation.
 - **Read first:** [ARCHITECTURE §4](ARCHITECTURE.md#4-path-of-one-scientific-request-target-design-for-m83);
@@ -377,6 +377,17 @@ Cards are done in order. Each one claims the development gate only.
   counts and indices, 1e-9 on floats), then edit → undo → redo, CSV export and save → reopen; with the flag off
   the existing end-to-end passes unchanged.
 - **Done when:** both end-to-end runs pass and the full session checks pass.
+
+- **Result:** with the experiment on, `app.js::analyze` hands each section to `engineanalysis.js` and the JavaScript calculation does not
+  run; with it off nothing changed. Deviation from the card, decided to avoid turning every render path asynchronous: the seven
+  call sites still call the synchronous `analyze(s)`, which now only requests the analysis and leaves the section pending; the
+  controller re-renders when a result is published (`onChange`), and exports await `analyzeSections` (the CSV export does). Revision
+  rules, stale-result rejection, cancellation, queueing and the error state are tested in `tests/app/engine-analysis.test.mjs`
+  (17 tests; 23 deliberate faults caught, two needed extra tests first). The six sections of the public example match the JavaScript
+  reference (exact counts, indices and nulls, 1e-9 floats) in `tests/e2e/desktop.mjs` with the bundled runtime, before and after an edit;
+  with the experiment off the same file passes unchanged. Not done: undo/redo and save → reopen under the flag were not exercised
+  separately (the revision key covers them by construction); the figures, data and map tabs refresh through `setMode` after a publish,
+  which was not checked visually.
 
 #### M8.3.8 - Acceptance measurements and decision — state: Ready after M8.3.7
 
