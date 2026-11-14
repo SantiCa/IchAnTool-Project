@@ -456,7 +456,7 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
     a stale folder, a fresh folder of another live session and a look-alike name that must survive.
   - Done when: the test passes and the desktop end-to-end test leaves no `sedcoretool-engine-*` folder behind.
     The end-to-end test's own `sedcoretool-desktop-test-*` profiles should be removed by the test as well.
-- [ ] **H5 - The `e2e` job of the GitHub workflow is red and has been since 10 November 2026.** Findings of 13-14 November 2026
+- [~] **H5 - The `e2e` job of the GitHub workflow was red from 10 November 2026 to 14 November 2026; fixed on the work branch, watching.** Findings of 13-14 November 2026
       (the CI result and its failure message are readable without logs through the public API: the smoke test now emits `::error::`
       annotations, `GET /repos/SantiCa/SedCoreTool/check-runs/<job id>/annotations`; the unauthenticated API allows 60 requests an hour):
       (1) **Fixed:** the five Python jobs failed because `psutil` (imported by `tools/benchmark.py` through the benchmark tests) was not in
@@ -477,10 +477,14 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
     source at the centre of a texel (no interpolation), not at a rounding tie. Open hypothesis: the legacy path draws straight into the
     `view` canvas at a vertical offset of 14 pixels while the preview draws into a new canvas at the origin and copies, and SwiftShader's
     float arithmetic differs by the offset for this one row. Not tested. Windows (GPU and CPU) is exact.
-  - Next: a design session decides first whether a one-level difference between the two renderers on Linux is a platform rasteriser detail
-    or a real discrepancy of the preview path (M2.2.3 promised exact equality); the exact-equality contract is not weakened without the
-    maintainer's decision. Then handle the remaining flaky waits one at a time, each with its measured values in the failure message
-    (the depth-mapping check already prints them). Done when the `e2e` job passes ten consecutive pushes.
+  - **Cause found and fixed (14 November 2026).** (a) The same stretch drawn at (0,0) and at (6,14) of a canvas differed in 48 values under
+    SwiftShader (probe `offset: 48`); the preview drew at the origin of its own canvas, the legacy path at (6,14) of the view. The preview
+    now stretches at the offset where the view draws it (`navigationPreviewCanvas(s, w, h, origin)`), exact equality unchanged: the
+    check passes on Linux and Windows. It was a rasteriser dependence, not a logic error of the preview. (b) That failure had hidden a second
+    one: two checks of `interrupted-saves.mjs` read Spanish messages and the Linux runner's browser is English; the test now fixes the
+    interface language. First green run: work branch, commit after `0926bbc`. `master` (V0.150) still has the failing job until the next
+    version. Remaining: the local flakes (a wait for the 16-bit TIFF after reopening, Puppeteer's 180 s protocol timeout). Done when the
+    `e2e` job passes ten consecutive pushes.
 - [ ] **H3 - Move raw benchmark reports out of the repository.** `docs/benchmarks/*.json` weighs about 10 MB.
       Needs the maintainer's decision on where the raw files go; the `.md` summaries stay.
 

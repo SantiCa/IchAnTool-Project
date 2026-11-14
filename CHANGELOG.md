@@ -10,6 +10,12 @@ Technical details of every method are in [docs/TECHNICAL_DOCUMENTATION.md](docs/
 
 ---
 
+## Unreleased
+
+### Internal
+
+- The GitHub `e2e` job is green again (it failed from 10 to 14 November 2026). The navigation preview now stretches the strip at the offset where the view draws it, because Chrome's software renderer (SwiftShader, Linux) rounds a stretch differently at different destination positions; exact pixel equality with the previous renderer is unchanged. The interrupted-saves test fixes the interface language, since two of its checks read Spanish messages and the Linux runner's browser is English.
+
 ## V0.150 — 2026-11-14
 
 ### For users
