@@ -13,22 +13,20 @@ file and leave one line here.
 
 ## Status and handoff
 
-Updated 13 November 2026.
+Updated 14 November 2026.
 
-- **Released version:** [V0.149](../CHANGELOG.md#v0149--2026-11-13), created on 13 November 2026 and pushed to
-  `origin/master` with the maintainer's authorisation. **No tag and no GitHub Release exist for it**: a tag publishes
-  a Release and is the owner's decision. The *Desktop builds* workflow is started by hand for the macOS and Linux
-  builds (see the release checklist).
-- **Active work branch:** `work/2026-11-13`, created from `master` after V0.149. Changes accumulate under
-  `## Unreleased` in the changelog; the maintainer asks for the next version number.
+- **Released version:** V0.150 (14 November 2026), integrated into `master` on the maintainer's instruction ("haz commit y push de todo a
+  master con una nueva version 0.150"). **No tag and no GitHub Release exist for V0.149 or V0.150**: a tag publishes a Release and is the
+  owner's decision. The *Desktop builds* workflow is started by hand for the macOS and Linux builds (see the release checklist).
+- **Active work branch:** `work/2026-11-13` (pushed), which `master` now contains. Changes after V0.150 accumulate under `## Unreleased`.
 - **Checks:** see the last line of this block; it is rewritten at the end of every session.
-- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). In M8.3 cards 1 to 5 are done: the section analysis is a
-  pure JavaScript module with 44 reference fixtures, the Python kernels and the method `section.intervals/1` reproduce them, and the
-  engine process runs the method in its own worker and serves the result columns. The interface does not call the engine yet
-  (cards M8.3.6 and M8.3.7). V0.149 is on `origin/master`; later work is on `work/2026-11-13`, also pushed.
-- **Next step:** card **M8.3.6** (main-process client and renderer bridge). It is *Ready*. The maintainer asked on
-  13 November 2026 to continue with M8.3 after publishing V0.149, so cards M8.3.6 to M8.3.8 follow in order; stop and
-  report at any card that cannot meet its "Done when".
+- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). M8.3 is complete: with `SEDCORETOOL_ENGINE_EXPERIMENT=1` the
+  desktop program calculates the interval table of every section in the Python engine and shows it, with a pending state, stale-result
+  rejection, cancellation and an error state, never falling back to JavaScript. The measurements of card M8.3.8 are recorded in
+  [docs/validation/M8.3.8-engine-analysis-summary.md](validation/M8.3.8-engine-analysis-summary.md).
+- **Next step:** the maintainer's decision recorded under card M8.3.8: continue to M8.4, or correct first. Recommended: correct first
+  (a persistent worker process, cheaper transfer of the label image, a memory sampler at the contract's 25 ms cadence, then re-measure
+  the ten-cycle memory gate, which failed by +110 MiB). Also open: card H5 (the `e2e` job on Linux).
 - **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
   13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
   macOS and Linux, clean Windows machine, cold-cache first launch, saturated CPUs, package sizes, and the
@@ -36,12 +34,12 @@ Updated 13 November 2026.
   switched on by default or a version with the engine is announced.
 - **Decisions waiting for the maintainer:** only the flags in the table below that need a promote/remove decision.
   Decided on 13 November 2026: acceptance levels (accepted), scope of 1.0 (below), publication of V0.149.
-- **Last full checks: passed** on 14 November 2026 at the commit that records this line, run one after another on the maintainer's
-  Windows computer: `pytest -q` 594 passed / 8 skipped; `npm test` and `npm run typecheck` (no new diagnostics); `sync_version.py --check`;
-  `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on and off (bundled runtime rebuilt
-  first). The Python suite with coverage also passes in a clean clone with a fresh virtual environment. **GitHub workflow `tests`:**
-  all Python jobs (Linux 3.10/3.12/3.13, macOS, Windows), `checks` and `web-app` pass; the `e2e` job fails, as it has on every run since
-  10 November 2026 (card H5).
+- **Last full checks: passed** on 14 November 2026 at the V0.150 state, run one after another on the maintainer's Windows computer:
+  `pytest -q` 594 passed / 8 skipped; `npm test` 295 passed; `npm run typecheck` (no new diagnostics); `sync_version.py --check`;
+  `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on (six sections equal to the JavaScript
+  reference before and after an edit) and off, bundled runtime rebuilt first (`prepare.js`, then `prepare_engine_runtime.py`). The
+  measurements of card M8.3.8 are separate evidence. **GitHub workflow `tests`** on the commit before V0.150: all Python jobs, `checks` and
+  `web-app` pass; the `e2e` job still fails on the Linux navigation-preview check (card H5).
 
 ## How work is accepted
 
@@ -389,7 +387,7 @@ Cards are done in order. Each one claims the development gate only.
   separately (the revision key covers them by construction); the figures, data and map tabs refresh through `setMode` after a publish,
   which was not checked visually.
 
-#### M8.3.8 - Acceptance measurements and decision — state: Ready after M8.3.7
+#### M8.3.8 - Acceptance measurements and decision — state: Done (measured 14 November 2026; waiting for the maintainer's decision)
 
 - **Goal:** the gates of contract §7 are measured on the first slice and the maintainer decides what follows.
 - **Change:** a measuring tool under `tools/`, evidence under `docs/validation/`, the release checklist above.
@@ -399,6 +397,14 @@ Cards are done in order. Each one claims the development gate only.
   mid-job and interrupt a save.
 - **Done when:** every gate has a recorded pass or a recorded failure with its measurement, and the maintainer
   has chosen: continue to M8.4, or correct first.
+
+- **Result:** every gate has a recorded measurement in [docs/validation/M8.3.8-engine-analysis-summary.md](validation/M8.3.8-engine-analysis-summary.md)
+  (raw: `docs/validation/M8.3.8-engine-analysis-windows-v0.150.json`, tool `tools/measure_engine_analysis.mjs`). Pass: numerical parity, responsiveness,
+  cancellation, worker and coordinator kills. Fail: the ten-cycle memory gate (+109.7 MiB, gate +64). Not met: the 25 ms memory cadence
+  (0.9 s). Timing is reported: the engine is about 60 to 160 times slower than the JavaScript calculation on these inputs (4.2 s against
+  27 ms; 6.9 s against 110 ms), mostly per-job overhead. The measurement also exposed a real bug (a section left pending when its inputs
+  changed under a waiting job), fixed in the same delivery. **Decision for the maintainer:** continue to M8.4, or correct first
+  (recommended: a persistent worker, cheaper transfer, a faster memory sampler, then re-measure). The experiment stays off by default.
 
 ### M8.4 to M8.6 - summaries
 
@@ -463,6 +469,14 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
       renderer, `compareNavigationPreview`, differs by one level in Chrome on Linux) and, in the previous run, "Navigation click/drag must preserve
       depth mapping". Windows passes. Locally the smoke suite passes most of the time but also fails now and then (a wait for the 16-bit TIFF to be
       decoded again after reopening a project, Puppeteer's 180 s protocol timeout).
+  - Evidence of 14 November 2026 (the failing check now reports its own diagnosis; reproducible, identical on four consecutive runs):
+    24 values of 257,928 differ (one pixel row, 24 columns, green channel only), by exactly 1 level, at screen row 487 of the 947-row strip
+    that stretches 45 source rows. The browser is headless Chrome 157 on Linux using SwiftShader (software Vulkan). In the same browser a
+    plain stretch of an identical gradient is bit-identical whether the source canvas is built with `fillRect` or `putImageData` and whether
+    the 2-D backend is the default or CPU (`willReadFrequently`), so the stretch itself is deterministic. The differing row samples the
+    source at the centre of a texel (no interpolation), not at a rounding tie. Open hypothesis: the legacy path draws straight into the
+    `view` canvas at a vertical offset of 14 pixels while the preview draws into a new canvas at the origin and copies, and SwiftShader's
+    float arithmetic differs by the offset for this one row. Not tested. Windows (GPU and CPU) is exact.
   - Next: a design session decides first whether a one-level difference between the two renderers on Linux is a platform rasteriser detail
     or a real discrepancy of the preview path (M2.2.3 promised exact equality); the exact-equality contract is not weakened without the
     maintainer's decision. Then handle the remaining flaky waits one at a time, each with its measured values in the failure message

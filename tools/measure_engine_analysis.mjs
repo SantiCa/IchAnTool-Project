@@ -310,23 +310,27 @@ if (want('kill')) {
   try {
     await loadFixture(session.page, largest);
     const result = {};
-    // Kill workers while they calculate: the sections they were serving must show an engine error, the engine must stay usable.
-    // One PowerShell process looks for children of the coordinator (workers) in a loop and ends every one it sees.
-    const coordinatorPid = [...pythonPids()].find((pid) => /engine[\\/]+server\.py/.test(commandLineOf(pid)));
-    assert.ok(coordinatorPid, 'the coordinator is running');
-    const killer = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
-      `$end=(Get-Date).AddSeconds(60); while((Get-Date) -lt $end){ $c=Get-CimInstance Win32_Process -Filter "ParentProcessId=${coordinatorPid} AND Name='python.exe'"; if($c){ $id=@($c)[0].ProcessId; Stop-Process -Id $id -Force -ErrorAction SilentlyContinue; Write-Output $id } }`],
-      { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
-    const killedWorkers = [];
-    killer.stdout.on('data', (bytes) => { for (const id of String(bytes).split(String.fromCharCode(10))) if (Number(id)) killedWorkers.push(Number(id)); });
-    const racing = session.page.evaluate(async () => {
-      const I = window.ichantool; I.S.settings.binCm = 1.05; for (const s of I.S.sections) s._rc = undefined;
-      await I.analyzeSections(I.S.sections);
-      return I.S.sections.map((s) => (s.analysis?.state === 'error' ? s.analysis.code : s.analysis?.state));
-    }).catch((error) => ({ page_error: String(error.message).slice(0, 200), electron_exit_code: session.child.exitCode, electron_output_tail: session.tail().slice(-1200) }));
-    const states = await racing;
-    killer.kill();
-    result.worker = { killed_pids: [...new Set(killedWorkers)], section_states: states, status: await session.page.evaluate(async () => (await window.corantoolDesktop.engine.status()).state) };
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      // Kill workers while they calculate: the sections they were serving must show an engine error, the engine must stay usable.
+      // One PowerShell process looks for children of the coordinator (workers) in a loop and ends every one it sees.
+      const coordinatorPid = [...pythonPids()].find((pid) => /engine[\\/]+server\.py/.test(commandLineOf(pid)));
+      assert.ok(coordinatorPid, 'the coordinator is running');
+      const killer = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+        `$end=(Get-Date).AddSeconds(60); while((Get-Date) -lt $end){ $c=Get-CimInstance Win32_Process -Filter "ParentProcessId=${coordinatorPid} AND Name='python.exe'"; if($c){ $id=@($c)[0].ProcessId; Stop-Process -Id $id -Force -ErrorAction SilentlyContinue; Write-Output $id } }`],
+        { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+      const killedWorkers = [];
+      killer.stdout.on('data', (bytes) => { for (const id of String(bytes).split(String.fromCharCode(10))) if (Number(id)) killedWorkers.push(Number(id)); });
+      const racing = session.page.evaluate(async (attempt) => {
+        const I = window.ichantool; I.S.settings.binCm = 1.05 + attempt * 0.01; for (const s of I.S.sections) { s._rc = undefined; s._mv = (s._mv || 0) + 1; }
+        await I.analyzeSections(I.S.sections);
+        return I.S.sections.map((s) => (s.analysis?.state === 'error' ? s.analysis.code : s.analysis?.state));
+      }, attempt).catch((error) => ({ page_error: String(error.message).slice(0, 200), electron_exit_code: session.child.exitCode, electron_output_tail: session.tail().slice(-1200) }));
+      const states = await racing;
+      killer.kill();
+      result.worker = { attempt, killed_pids: [...new Set(killedWorkers)], section_states: states, status: await session.page.evaluate(async () => (await window.corantoolDesktop.engine.status()).state) };
+      if (result.worker.killed_pids.length && result.worker.section_states.includes('INTERNAL')) break;
+      await sleep(500);   // the killer missed every worker this time: the contract asks for a kill during a job, so try again
+    }
     // The next edit must work again if the coordinator is alive.
     if (result.worker.status === 'ready') result.worker.next_analysis = await analyseAt(session.page, 1.9).then((r) => ({ mismatches: r.mismatch_count, states: r.states }));
     // Kill the coordinator.
@@ -376,5 +380,11 @@ v.timing_not_a_gate = 'Matched timing is reported, not pass/fail; the contract c
 v.not_measured = ['macOS and Linux', 'a clean Windows machine', 'cold cache after a reboot', 'saturated CPU', 'save interrupted during a job (covered separately by tests/e2e/interrupted-saves.mjs)'];
 
 report.finished = new Date().toISOString();
-const text = JSON.stringify(report, null, 1);
+let final = report;
+if (only && OUT && fs.existsSync(OUT)) {   // a partial rerun replaces only the phases it ran and says so
+  final = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+  Object.assign(final.results, report.results); Object.assign(final.verdicts, report.verdicts);
+  (final.reruns ||= []).push({ phases: only, commit: report.commit, finished: report.finished });
+}
+const text = JSON.stringify(final, null, 1);
 if (OUT) { fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true }); fs.writeFileSync(OUT, text + '\n'); log('written', OUT); } else console.log(text);
