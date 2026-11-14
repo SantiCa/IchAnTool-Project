@@ -17,7 +17,18 @@ export async function compareNavigationPreview(page) {
     await select(true);
     const actual = context.getImageData(0, 0, 66, view.height).data;
     if (reference.length !== actual.length) throw new Error('Navigation geometry changed');
-    for (let i = 0; i < actual.length; i++) if (actual[i] !== reference[i]) throw new Error(`Navigation pixel ${i}: expected ${reference[i]}, received ${actual[i]}`);
+    // Exact equality stays the contract. On a mismatch the message carries what is needed to tell a platform rasteriser detail from a
+    // real discrepancy of the preview path (how many pixels, how far apart, where, and which renderer the browser used).
+    let differing = 0, largest = 0; const first = [];
+    for (let i = 0; i < actual.length; i++) if (actual[i] !== reference[i]) {
+      differing++; largest = Math.max(largest, Math.abs(actual[i] - reference[i]));
+      if (first.length < 6) first.push({ x: Math.floor(i / 4) % 66, y: Math.floor(i / 4 / 66), channel: i % 4, expected: reference[i], received: actual[i] });
+    }
+    if (differing) {
+      const gl = document.createElement('canvas').getContext('webgl'), info = gl?.getExtension('WEBGL_debug_renderer_info');
+      throw new Error(`Navigation preview differs from the legacy renderer: ${JSON.stringify({ differing, of: actual.length, largest, first,
+        canvas: [view.width, view.height], ratio: devicePixelRatio, renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null, agent: navigator.userAgent })}`);
+    }
     await select(before);
     return { width: 66, height: view.height, exact_pixels: reference.length / 4 };
   });
