@@ -326,7 +326,7 @@ Cards are done in order. Each one claims the development gate only.
   makes the engine unavailable), `tests/e2e/desktop.mjs` expects both, and `tools/check_engine_runtime.py` now runs the method with the
   bundled interpreter. The test file is new instead of extending `test_engine_transport.py`.
 
-#### M8.3.6 - Main-process client and renderer bridge — state: Ready
+#### M8.3.6 - Main-process client and renderer bridge — state: Done (development gate, 14 November 2026)
 
 - **Goal:** the page can upload buffers, start and cancel a section analysis and read results through a narrow,
   validated bridge.
@@ -347,6 +347,16 @@ Cards are done in order. Each one claims the development gate only.
 - **Tests:** Node tests with a fake `EngineClient` for validation and token ownership; one Node test with the
   bundled runtime that runs a fixture end to end through `engine-ipc.js` functions.
 - **Done when:** tests pass; `node desktop/scripts/check-package.js` still passes after `npm run dist`.
+
+- **Result:** `desktop/engine-ipc.js` offers the eight calls of the card to one page at a time; tokens replace engine handles and
+  belong to the page that created them, buffers are released when it navigates, reloads, crashes or closes, a result that arrives after
+  that is released at once, and a failed call resolves to `{error: {code, field?}}` without any message. `engine.js` reads the binary
+  frame that follows a `buffer.read` response (`ControlReader` accepts it only when announced with its exact length) and ends the
+  session on any mismatch; analysis requests have a 10 minute backstop deadline. Tests: 19 in `tests/app/engine-ipc.test.mjs` (fake
+  engine for validation and ownership, the real engine and the bundled runtime running 8 reference fixtures through the bridge, a
+  rejected input naming its field), 3 new reader/client tests and a misbehaving-engine test (5 variants) in `engine.test.mjs`, a round
+  trip through the preload bridge in `tests/e2e/desktop.mjs` with the engine on and off. 33 deliberate faults were each caught (two
+  needed extra tests first). `check-package.js` and `build.js` list the new file; `npm run dist` was not rerun for this card.
 
 #### M8.3.7 - The interface shows engine results under the flag — state: Ready after M8.3.6
 

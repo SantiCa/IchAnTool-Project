@@ -165,3 +165,79 @@ test('disabled and packaged services never launch a user interpreter', async () 
     await service.stop();
   }
 });
+
+test('binary frames are accepted only when the previous control frame announced their exact length', () => {
+  const control = Buffer.concat(controlFrame({ ok: true })), binary = Buffer.concat(frame(2, Buffer.from('abcde')));
+  const stream = Buffer.concat([control, binary]);
+  for (let split = 1; split < stream.length; split++) {
+    const controls = [], payloads = [], reader = new ControlReader((value) => { controls.push(value); return { binaryBytes: 5 }; }, (bytes) => payloads.push(bytes.toString()));
+    reader.push(stream.subarray(0, split)); reader.push(stream.subarray(split)); reader.end();
+    assert.deepEqual([controls, payloads], [[{ ok: true }], ['abcde']]);
+  }
+  const announce = (n) => new ControlReader(() => ({ binaryBytes: n }), () => {});
+  assert.throws(() => new ControlReader(() => {}, () => {}).push(binary), /header/, 'unannounced binary frame');
+  assert.throws(() => announce(4).push(stream), /header/, 'announced 4 bytes, received 5');
+  assert.throws(() => announce(5).push(Buffer.concat([control, control])), /header/, 'announced a binary frame, received a control frame');
+  assert.throws(() => new ControlReader(() => ({ binaryBytes: 5 })).push(control), /announcement/, 'no binary handler');
+  assert.throws(() => announce(MAX_CHUNK + 1).push(control), /announcement/);
+  const truncated = announce(5); truncated.push(control);
+  assert.throws(() => truncated.end(), /Truncated/, 'the announced frame never came');
+});
+
+test('buffer.read returns exact ranges, rejects bad ranges without a binary frame and keeps the session', { skip: !python }, async (t) => {
+  const client = await clientFixture(t);
+  const data = Buffer.from(Array.from({ length: MAX_CHUNK + 4097 }, (_, i) => (i * 7 + 3) % 251)), handle = await upload(client, data);
+  for (const [offset, length] of [[0, 1], [0, MAX_CHUNK], [MAX_CHUNK, 4097], [12345, 777], [data.length - 1, 1]]) {
+    const read = await client.request('buffer.read', { handle, offset, byte_length: length });
+    assert.equal(read.offset, offset); assert.equal(read.byte_length, length);
+    assert.ok(read.bytes.equals(data.subarray(offset, offset + length)), `bytes at ${offset}+${length}`);
+  }
+  for (const [offset, length] of [[0, 0], [0, MAX_CHUNK + 1], [data.length, 1], [data.length - 1, 2]]) {
+    await assert.rejects(client.request('buffer.read', { handle, offset, byte_length: length }), { code: 'INVALID_REQUEST' });
+  }
+  await assert.rejects(client.request('buffer.read', { handle: '0'.repeat(8) + '-0000-4000-8000-' + '0'.repeat(12), offset: 0, byte_length: 1 }), { code: 'INVALID_BUFFER' });
+  assert.equal(client.status().state, 'ready');
+  assert.equal((await client.request('buffer.read', { handle, offset: 5, byte_length: 3 })).bytes.length, 3, 'still usable after the rejections');
+});
+
+test('concurrent buffer.read requests each receive their own bytes', { skip: !python }, async (t) => {
+  const client = await clientFixture(t);
+  const data = Buffer.from(Array.from({ length: 300000 }, (_, i) => i % 253)), handle = await upload(client, data);
+  const ranges = Array.from({ length: 12 }, (_, i) => [i * 20011, 10000 + i]);
+  const reads = await Promise.all(ranges.map(([offset, length]) => client.request('buffer.read', { handle, offset, byte_length: length })));
+  reads.forEach((read, i) => assert.ok(read.bytes.equals(data.subarray(ranges[i][0], ranges[i][0] + ranges[i][1])), `range ${i}`));
+});
+
+test('a buffer.read answer that does not match its request makes the engine unavailable', { skip: !python }, async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'sedcoretool-engine-fixture-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const engine = path.dirname(script).replaceAll(path.sep, '/');
+  // Each variant answers hello correctly, then answers the first buffer.read with the given result and binary payload.
+  const variants = {
+    'another range': ['{"offset": 1, "byte_length": 2}', 'b"ab"'],
+    'a different length': ['{"offset": 0, "byte_length": 3}', 'b"abc"'],
+    'a shorter binary frame': ['{"offset": 0, "byte_length": 2}', 'b"a"'],
+    'extra result fields': ['{"offset": 0, "byte_length": 2, "extra": 1}', 'b"ab"'],
+    'no binary frame': ['{"offset": 0, "byte_length": 2}', null],
+  };
+  for (const [name, [result, binary]] of Object.entries(variants)) {
+    const fixture = path.join(directory, `${name.replace(/\W+/g, '-')}.py`);
+    await fs.writeFile(fixture, [
+      'import json, sys', `sys.path.insert(0, ${JSON.stringify(engine)})`, 'from protocol import read_frame, strict_json, write_json, write_binary',
+      'def answer(request, result):',
+      '  write_json(sys.stdout.buffer, {"v": 1, "kind": "response", "session": request["session"], "id": request["id"], "op": request["op"], "status": "ok", "result": result})',
+      'hello = strict_json(read_frame(sys.stdin.buffer)[1])',
+      `answer(hello, {"protocol": 1, "engine_version": "test", "runtime_id": ${JSON.stringify(runtimeId)}, "methods": ["buffer.digest/1"], "limits": {}})`,
+      'read = strict_json(read_frame(sys.stdin.buffer)[1])',
+      `answer(read, json.loads(${JSON.stringify(result)}))`,
+      ...(binary ? [`write_binary(sys.stdout.buffer, ${binary})`] : []),
+      'sys.stdin.buffer.read()', ''].join('\n'));
+    const client = new EngineClient({ executable: python, script: fixture, version: 'test', runtimeId, timeoutMs: 1500 });
+    t.after(() => client.stop());
+    await client.start();
+    await assert.rejects(client.request('buffer.read', { handle: '0'.repeat(8) + '-0000-4000-8000-' + '0'.repeat(12), offset: 0, byte_length: 2 }),
+      { code: 'ENGINE_UNAVAILABLE' }, name);
+    assert.equal(client.status().state, 'unavailable', name);
+    await client.stop();
+  }
+});

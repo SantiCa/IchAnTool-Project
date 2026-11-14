@@ -212,8 +212,8 @@ colour palette or a U-Net), `kernels/` (pure array primitives: intervals, counti
 engine process: framing, staged buffers, coordinator and isolated worker; §26.2).
 
 Desktop program (`desktop/`): `main.js` (window, `app://` protocol and IPC), `preload.js` (narrow
-`window.corantoolDesktop` bridge), `engine.js`, `engine-protocol.js` and `engine-runtime.js` (engine process
-client, framing and bundled-runtime verification; §26.2–§26.3), `runtime-lock.json` (pinned runtime artifacts;
+`window.corantoolDesktop` bridge), `engine.js`, `engine-ipc.js`, `engine-protocol.js` and `engine-runtime.js` (engine process
+client, page bridge, framing and bundled-runtime verification; §26.2–§26.3), `runtime-lock.json` (pinned runtime artifacts;
 §26.3), `trainer.js` and `model-store.js` (U-Net training and model generations; §9.3), `diagnostics.js` (§26.1)
 and `scripts/` (preparation, build and package checks).
 
@@ -2815,7 +2815,7 @@ windows can finish loading without a redundant navigation through the desktop cl
 
 ### 26.2 Experimental engine process
 
-Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-protocol.js` (framing),
+Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-ipc.js` (the page bridge: `status`, `beginBuffer`, `appendBuffer` (at most 1 MiB, contiguous offsets), `commitBuffer`, `analyzeSection`, `cancel`, `readBuffer`, `release`; only the top frame of an `app://` page may call; at most 256 buffers and 5 running analyses per page; tokens are released when the page navigates, reloads, crashes or closes; a failed call resolves to `{error: {code, field?}}`), `desktop/engine-protocol.js` (framing),
 `src/sedcoretool/engine/{protocol,buffers,specs,server,worker}.py` (standard-library coordinator, staged data, input tables and
 worker-process wrappers) and `method_worker.py` (the script that runs a scientific method in its own process). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
 It uses the verified bundled runtime (§26.3), or an explicitly selected absolute `SEDCORETOOL_ENGINE_PYTHON`

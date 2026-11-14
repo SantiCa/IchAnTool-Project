@@ -25,7 +25,7 @@ describe a planned part as available. When you build a planned part, change its 
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
               window.corantoolDesktop  (desktop/preload.js: a short allowlist of calls)
 ┌─────────────── Electron main process: desktop/ (Node.js) ─────────────────────────────────┐
-│  main.js (window, app:// protocol, lifecycle)   engine-ipc.js (planned: renderer-facing)   │
+│  main.js (window, app:// protocol, lifecycle)   engine-ipc.js (renderer-facing)           │
 │  engine.js (process client)  engine-protocol.js (frames)  engine-runtime.js (integrity)    │
 │  trainer.js · model-store.js · diagnostics.js                                              │
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
@@ -127,10 +127,10 @@ Pure modules for M8.3:
 |---|---|
 | `main.js` | Window, `app://corantool` protocol, lifecycle; creates the services and registers their IPC handlers |
 | `preload.js` | Names the calls the page may make and passes their arguments. No logic, no validation |
-| `engine.js` | `EngineClient`: spawn, handshake, request queue, timeouts, forced termination. `createEngineService`: start/stop/status |
+| `engine.js` | `EngineClient`: spawn, handshake, request queue, timeouts, forced termination, binary reply of `buffer.read`. `createEngineService`: start/stop/status and `request` for `engine-ipc.js` |
 | `engine-protocol.js` | Frame encoding and the strict control-frame reader |
 | `engine-runtime.js` | Verifies the bundled runtime and sources before Python is executed |
-| `engine-ipc.js` (planned, M8.3.5) | The only renderer-facing entry to the engine: checks the sender's origin, argument shapes and sizes; streams buffers in bounded chunks; keeps the table of handles for the session. The page never chooses paths, executables or arbitrary operations |
+| `engine-ipc.js` (M8.3.6) | The only renderer-facing entry to the engine: checks the sender's origin, argument shapes and sizes; streams buffers in bounded chunks; keeps the table of handles for the session. The page never chooses paths, executables or arbitrary operations |
 | `trainer.js`, `model-store.js` | Optional U-Net training environment and published model generations |
 | `diagnostics.js` | Opt-in technical diagnostics |
 
