@@ -35,7 +35,7 @@ const W = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (fn, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await p.evaluate(fn)) return; await W(500); } throw new Error('timeout: ' + fn); };
 // A line starting with ::error:: becomes a GitHub annotation, readable from the workflow run without the full log. It bypasses
 // console.log on purpose: that adds a time prefix, and the runner only parses lines that start with the command.
-const annotate = (m) => process.stdout.write(`::error title=E2E smoke test::${String(m).replace(/[\r\n]+/g, ' ').slice(0, 900)}\n`);
+const annotate = (m) => process.stdout.write(`::error title=E2E smoke test::${String(m).replace(/[\r\n]+/g, ' ').slice(0, 2400)}\n`);
 const fail = (m) => { console.error('E2E FAIL:', m); annotate(m); process.exitCode = 1; };
 try {
   await verifyUnetModel(b, URL);

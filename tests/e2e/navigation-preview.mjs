@@ -22,12 +22,26 @@ export async function compareNavigationPreview(page) {
     let differing = 0, largest = 0; const first = [];
     for (let i = 0; i < actual.length; i++) if (actual[i] !== reference[i]) {
       differing++; largest = Math.max(largest, Math.abs(actual[i] - reference[i]));
-      if (first.length < 6) first.push({ x: Math.floor(i / 4) % 66, y: Math.floor(i / 4 / 66), channel: i % 4, expected: reference[i], received: actual[i] });
+      if (first.length < 3) first.push({ x: Math.floor(i / 4) % 66, y: Math.floor(i / 4 / 66), channel: i % 4, expected: reference[i], received: actual[i] });
     }
     if (differing) {
+      // Probe: does the way a source canvas is built, or the 2-D backend (GPU or CPU), change a plain bilinear stretch of the same pixels?
+      // Both canvases below hold the same vertical gradient; each is stretched 80x100 -> 24x(view height - 30) like the strip.
+      const stretch = (build, options) => {
+        const source = document.createElement('canvas'); source.width = 80; source.height = 100; build(source.getContext('2d', options));
+        const target = document.createElement('canvas'); target.width = 24; target.height = view.height - 30;
+        const targetContext = target.getContext('2d', options); targetContext.drawImage(source, 0, 0, 80, 100, 0, 0, 24, target.height);
+        return targetContext.getImageData(0, 0, 24, target.height).data;
+      };
+      const strips = (y) => { const data = new Uint8ClampedArray(80 * 4); for (let x = 0; x < 80; x++) data.set([y + 60, y + 90, 200 - y, 255], x * 4); return data; };
+      const filled = (context) => { for (let y = 0; y < 100; y++) { context.fillStyle = `rgb(${y + 60},${y + 90},${200 - y})`; context.fillRect(0, y, 80, 1); } };
+      const put = (context) => { for (let y = 0; y < 100; y++) context.putImageData(new ImageData(strips(y), 80, 1), 0, y); };
+      const same = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
+      const probe = { creation: same(stretch(filled), stretch(put)), backend: same(stretch(filled), stretch(filled, { willReadFrequently: true })),
+        cpuCreation: same(stretch(filled, { willReadFrequently: true }), stretch(put, { willReadFrequently: true })) };
       const gl = document.createElement('canvas').getContext('webgl'), info = gl?.getExtension('WEBGL_debug_renderer_info');
       throw new Error(`Navigation preview differs from the legacy renderer: ${JSON.stringify({ differing, of: actual.length, largest, first,
-        canvas: [view.width, view.height], ratio: devicePixelRatio, renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null, agent: navigator.userAgent })}`);
+        probe, canvas: [view.width, view.height], ratio: devicePixelRatio, renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null, agent: navigator.userAgent })}`);
     }
     await select(before);
     return { width: 66, height: view.height, exact_pixels: reference.length / 4 };
