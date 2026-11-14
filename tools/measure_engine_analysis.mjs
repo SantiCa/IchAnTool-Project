@@ -149,6 +149,17 @@ function commandLineOf(pid) {
 const scratchFiles = () => fs.readdirSync(os.tmpdir(), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name.startsWith('sedcoretool-engine-'))
   .reduce((sum, d) => { const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).reduce((n, e) => n + (e.isDirectory() ? 1 + walk(path.join(dir, e.name)) : 1), 0); try { return sum + 1 + walk(path.join(os.tmpdir(), d.name)); } catch { return sum; } }, 0);
 
+/** Reloads the page the way the program itself would (the dialog handler accepts a beforeunload prompt) and waits for the new document. */
+async function reloadPage(page) {
+  await page.evaluate(() => { window.__before = Math.random(); setTimeout(() => location.reload(), 0); }).catch(() => {});
+  for (let i = 0; i < 600; i++) {
+    await sleep(100);
+    const fresh = await page.evaluate(() => !!window.ichantool && window.__before === undefined).catch(() => false);
+    if (fresh) return;
+  }
+  throw new Error('The page did not reload');
+}
+
 // ---- the measurements -----------------------------------------------------------------------------------------------
 
 const report = { schema: 1, tool: 'tools/measure_engine_analysis.mjs', started: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -274,17 +285,17 @@ if (want('cycles')) {
   log('cycles');
   const session = await start('on'), sampler = startSampler();
   try {
-    const cycles = [];
+    const cycles = []; await sleep(3000);
     for (let i = 0; i < CYCLES; i++) {
-      await session.page.reload({ waitUntil: 'domcontentloaded' });
+      await reloadPage(session.page);
       await session.page.waitForFunction(() => !!window.ichantool, { timeout: 60000 });
-      await session.page.evaluate(() => window.ichantool.ready); await sleep(1500);
+      await session.page.evaluate(() => window.ichantool.ready); await sleep(i === 0 ? 4000 : 1500);
       const closed = summarise(sampler.samples.slice(-12));
       await loadFixture(session.page, 'public');
-      const run = await analyseAt(session.page, 2 + i * 0.01);
+      const run = await analyseAt(session.page, 1.5 + i * 0.1);
       cycles.push({ cycle: i + 1, closed_state_mib: closed?.median_mib, analysis_cold_ms: round(run.cold_ms), mismatches: run.mismatch_count, scratch_files: scratchFiles() });
     }
-    await session.page.reload({ waitUntil: 'domcontentloaded' }); await session.page.waitForFunction(() => !!window.ichantool); await sleep(2500);
+    await reloadPage(session.page); await session.page.waitForFunction(() => !!window.ichantool); await sleep(2500);
     const final = summarise(sampler.samples.slice(-12));
     report.results.cycles = { fixture: 'public', cycles, final_closed_state_mib: final?.median_mib,
       status_after: await session.page.evaluate(async () => (await window.corantoolDesktop.engine.status()).state) };
