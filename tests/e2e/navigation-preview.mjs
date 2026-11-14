@@ -39,6 +39,10 @@ export async function compareNavigationPreview(page) {
       const same = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
       const probe = { creation: same(stretch(filled), stretch(put)), backend: same(stretch(filled), stretch(filled, { willReadFrequently: true })),
         cpuCreation: same(stretch(filled, { willReadFrequently: true }), stretch(put, { willReadFrequently: true })) };
+      // Where the first mismatching row samples the source: a fraction of exactly .5 is a rounding tie between two source rows.
+      const section = window.ichantool.S.sections[0], k = section._lc?.k || 1, roi = section.roi, strip = view.height - 30;
+      const sourceRow = first.length ? ((first[0].y - 14 + 0.5) * (roi.y1 - roi.y0) * k) / strip - 0.5 : null;
+      probe.source = { k, rows: (roi.y1 - roi.y0) * k, strip, row: first[0]?.y, position: sourceRow, tie: sourceRow === null ? null : Math.abs(sourceRow - Math.floor(sourceRow) - 0.5) < 1e-9 };
       const gl = document.createElement('canvas').getContext('webgl'), info = gl?.getExtension('WEBGL_debug_renderer_info');
       throw new Error(`Navigation preview differs from the legacy renderer: ${JSON.stringify({ differing, of: actual.length, largest, first,
         probe, canvas: [view.width, view.height], ratio: devicePixelRatio, renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null, agent: navigator.userAgent })}`);
