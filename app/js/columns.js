@@ -117,13 +117,18 @@ export function sectionCanvas(s, lv = S.logView) {
 const navigationPreviews = new NavigationPreviewCache(8 * 1024 * 1024, (canvas) => { canvas.width = canvas.height = 0; });
 export const clearNavigationPreviews = () => navigationPreviews.clear();
 
-/** Navigation-only preview. Temporary legacy-size layers preserve exact display pixels; only the final strip is retained. */
-export function navigationPreviewCanvas(s, width, height) {
+/**
+ * Navigation-only preview. Temporary legacy-size layers preserve exact display pixels; only the final strip is retained.
+ * `origin` is where the caller will place the strip in the view. The strip is stretched at that same offset inside the returned canvas
+ * (which is then `origin` larger on the left and top) because software rasterisers such as SwiftShader round a stretch differently at
+ * different destination positions, and the preview must equal the legacy draw pixel for pixel; the caller copies the strip 1:1.
+ */
+export function navigationPreviewCanvas(s, width, height, origin = { x: 0, y: 0 }) {
   if (!s.orig || !s.enh || !validSavedRegion(s.roi, s.w, s.h)
     || !Number.isInteger(width) || width < 1 || width > 24 || !Number.isInteger(height) || height < 1 || height > 4096) return null;
   const lv = S.logView, roi = s.roi, palette = S.classes.map((c) => c.color), opacity = Number.isFinite(lv.overlayAlpha) ? lv.overlayAlpha : S.ovAlpha;
   const key = JSON.stringify([s.logVer, s.w, s.h, s.ds, s.rot, s.crop, roi, s.filters, lv.imgMode, lv.overlay, lv.hideExcl,
-    opacity, palette, S.settings.predThr, S.settings.includePred, S.settings.countCandidates, width, height]);
+    opacity, palette, S.settings.predThr, S.settings.includePred, S.settings.countCandidates, width, height, origin.x, origin.y]);
   const cached = navigationPreviews.get(s, key); if (cached) return cached;
   const layers = buildNavigationLayers({ width: s.w, height: s.h, rgba: lv.imgMode === 'orig' ? s.orig : s.enh,
     labels: lv.overlay ? s.labels : null, exclude: lv.overlay || lv.hideExcl ? s.exclude : null,
@@ -136,11 +141,11 @@ export function navigationPreviewCanvas(s, width, height) {
     overlay.getContext('2d').putImageData(new ImageData(layers.trace, layers.width, layers.height), 0, 0);
     context.drawImage(overlay, 0, 0); overlay.width = overlay.height = 0;
   }
-  const result = document.createElement('canvas'); result.width = width; result.height = height;
+  const result = document.createElement('canvas'); result.width = origin.x + width; result.height = origin.y + height;
   const scale = layers.width / s.w;
-  result.getContext('2d').drawImage(image, roi.x0 * scale, roi.y0 * scale, (roi.x1 - roi.x0) * scale, (roi.y1 - roi.y0) * scale, 0, 0, width, height);
+  result.getContext('2d').drawImage(image, roi.x0 * scale, roi.y0 * scale, (roi.x1 - roi.x0) * scale, (roi.y1 - roi.y0) * scale, origin.x, origin.y, width, height);
   image.width = image.height = 0;
-  navigationPreviews.set(s, key, result, width * height * 4); return result;
+  navigationPreviews.set(s, key, result, result.width * result.height * 4); return result;
 }
 
 /** Core image strip for the window, resampled row by row onto the depth or age axis. */

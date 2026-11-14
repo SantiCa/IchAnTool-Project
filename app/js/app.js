@@ -1452,10 +1452,10 @@ function drawNav(s, cw, ch) {
   const roi = s.roi, rh = roi.y1 - roi.y0, rw = roi.x1 - roi.x0, H = ch - 30, z = S.view.zoom, y = 14;
   if (H < 60) return;
   const W = Math.round(Math.max(8, Math.min(24, (H * rw) / rh))), x = 6;
-  const preview = navigationPreviewOn ? navigationPreviewCanvas(s, W, H) : null;
+  const preview = navigationPreviewOn ? navigationPreviewCanvas(s, W, H, { x, y }) : null;
   const cv = preview ? null : sectionCanvas(s), kk = s._lc?.k || 1;
   try {
-    if (preview) vctx.drawImage(preview, x, y);
+    if (preview) vctx.drawImage(preview, x, y, W, H, x, y, W, H);
     else { vctx.drawImage(cv, roi.x0 * kk, roi.y0 * kk, rw * kk, rh * kk, x, y, W, H); }
   } catch { /* pending */ }
   vctx.strokeStyle = '#3a4240'; vctx.lineWidth = 1; vctx.strokeRect(x - 0.5, y - 0.5, W + 1, H + 1);
