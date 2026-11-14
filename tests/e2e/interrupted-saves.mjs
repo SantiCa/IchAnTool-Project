@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 /** Exercise real IndexedDB transactions and staged filesystem writes with deterministic failures. */
 export async function verifyInterruptedSaves(browser, url, { navigate = true } = {}) {
   const page = await browser.newPage(), errors = [];
+  // The checks below read Spanish messages; the browser language is whatever the host has (English on the GitHub Linux runner).
+  await page.evaluateOnNewDocument(() => { try { localStorage.setItem('ichantool.lang', 'es'); } catch { /* storage blocked */ } });
   page.on('pageerror', (error) => errors.push(error.message));
   try {
     await page.exposeFunction('reopenInterruptedSave', async (source, expected) => {
