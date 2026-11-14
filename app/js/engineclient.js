@@ -84,10 +84,12 @@ export function createEngineClient(bridge, { readyTimeoutMs = 60000 } = {}) {
    * Rejects with an `EngineError` (code and field), or with an `AbortError` when the signal fires first.
    * @param {any} snapshot
    * @param {{signal?: AbortSignal}} [options]
-   * @returns {Promise<{dimensions: {bins: number, classes: number, schemes: number}, columns: Record<string, {data: number[], valid?: number[]}>, provenance: any}>}
+   * @returns {Promise<{dimensions: {bins: number, classes: number, schemes: number}, columns: Record<string, {data: number[], valid?: number[]}>, provenance: any,
+   *   timing: {upload_ms: number, engine_ms: number, download_ms: number}}>}
    */
   async function analyze(snapshot, { signal } = {}) {
     await ready();
+    const started = performance.now();
     /** @type {string[]} */
     const tokens = [], requestKey = crypto.randomUUID();
     const onAbort = () => { void bridge.cancel(requestKey); };
@@ -107,9 +109,11 @@ export function createEngineClient(bridge, { readyTimeoutMs = 60000 } = {}) {
         if (name === 'settings') settingsHash = await sha256(bytes);
       }
       if (signal?.aborted) throw abortError();
+      const uploaded = performance.now();
       const result = unwrap(await bridge.analyzeSection({ requestKey, method: 'section.intervals/1', project: crypto.randomUUID(), section: crypto.randomUUID(),
         revision: 0, settings_hash: settingsHash, inputs }));
       if (result.cancelled) throw abortError();
+      const analysed = performance.now();
       tokens.push(...Object.values(result.outputs).map((/** @type {any} */ output) => output.token));
       /** @type {Record<string, {data: number[], valid?: number[]}>} */
       const columns = {};
@@ -119,7 +123,9 @@ export function createEngineClient(bridge, { readyTimeoutMs = 60000 } = {}) {
         columns[name] = { data: await download(/** @type {any} */ (output)), ...(valid ? { valid: await download(valid) } : {}) };
         if (signal?.aborted) throw abortError();
       }
-      return { dimensions: result.dimensions, columns, provenance: result.provenance };
+      const finished = performance.now();
+      return { dimensions: result.dimensions, columns, provenance: result.provenance,
+        timing: { upload_ms: uploaded - started, engine_ms: analysed - uploaded, download_ms: finished - analysed } };
     } finally {
       signal?.removeEventListener('abort', onAbort);
       for (let i = 0; i < tokens.length; i += 64) await bridge.release(tokens.slice(i, i + 64)).catch(() => {});
