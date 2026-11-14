@@ -275,3 +275,32 @@ test('a request that was replaced while it waited in the queue never reaches the
   client.pending[1].finish(referenceColumns(b, p)); await queued;
   assert.equal(b.analysis.state, 'ready');
 });
+
+test('a section whose inputs change without a new request is analysed again instead of staying pending', async () => {
+  const s = section(13), p = project(), client = manualClient(p), changes = [];
+  const analysis = createEngineAnalysis({ client, project: () => p, onChange: (x) => changes.push(x) });
+  void analysis.request(s); await flush();          // one plain request: nobody calls again afterwards
+  s.roi.y1--;                                           // the inputs change behind the controller's back
+  client.pending[0].finish(referenceColumns(section(13), p));   // the old answer arrives and is discarded
+  for (let i = 0; i < 10 && client.pending.length < 2; i++) await flush();
+  assert.equal(client.pending.length, 2, 'a fresh request for the new revision was made by itself');
+  client.pending[1].finish(referenceColumns(s, p));
+  for (let i = 0; i < 10 && s.analysis.state !== 'ready'; i++) await flush();
+  assert.deepEqual(s.analysis, { state: 'ready' });
+  assert.deepEqual(s.bins, computeSectionBins(s, p).bins, 'the published bins are those of the new revision');
+});
+
+test('analyzeSections does not resolve while a section it awaits is still waiting for its newest revision', async () => {
+  const s = section(14), p = project(), client = manualClient(p);
+  const analysis = createEngineAnalysis({ client, project: () => p, onChange() {} });
+  let resolved = false;
+  const all = analysis.all([s]).then(() => { resolved = true; }); await flush();
+  s.roi.y1--;
+  client.pending[0].finish(referenceColumns(section(14), p));
+  for (let i = 0; i < 10 && client.pending.length < 2; i++) await flush();
+  await flush(); await flush();
+  assert.equal(resolved, false, 'the old revision was discarded and the new one is not done');
+  client.pending[1].finish(referenceColumns(s, p));
+  await all;
+  assert.deepEqual(s.analysis, { state: 'ready' });
+});

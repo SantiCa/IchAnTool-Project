@@ -85,7 +85,7 @@ async function analyseAt(page, binCm) {
   return page.evaluate(async (binCm) => {
     const I = window.ichantool, S = I.S;
     S.settings.binCm = binCm;
-    for (const s of S.sections) { s._rc = undefined; }      // the JavaScript calculation recounts rows, as the engine does
+    for (const s of S.sections) { s._rc = undefined; s._mv = (s._mv || 0) + 1; }      // a new mask version: both calculations start from nothing
     const t0 = performance.now(); await I.analyzeSections(S.sections); const cold = performance.now() - t0;
     const t1 = performance.now(); await I.analyzeSections(S.sections); const unchanged = performance.now() - t1;
     const mismatches = []; let bins = 0;
@@ -97,12 +97,12 @@ async function analyseAt(page, binCm) {
         const actual = s.bins[j];
         for (const key of new Set([...Object.keys(expected), ...Object.keys(actual)])) {
           const a = actual[key], e = expected[key], close = (x, y) => (typeof x === 'number' && typeof y === 'number' ? Math.abs(x - y) <= 1e-9 : x === y);
-          if (!(Array.isArray(e) ? Array.isArray(a) && a.length === e.length && e.every((v, k) => close(a[k], v)) : close(a, e))) mismatches.push(`s${i} b${j} ${key}`);
+          if (!(Array.isArray(e) ? Array.isArray(a) && a.length === e.length && e.every((v, k) => close(a[k], v)) : close(a, e))) mismatches.push(`s${i} b${j} ${key}: engine ${JSON.stringify(a)} vs javascript ${JSON.stringify(e)}`);
         }
       });
     });
     return { binCm, sections: S.sections.length, bins, cold_ms: cold, unchanged_ms: unchanged, mismatches: mismatches.slice(0, 20), mismatch_count: mismatches.length,
-      states: S.sections.map((s) => s.analysis?.state ?? null) };
+      states: S.sections.map((s) => (s.analysis?.state === 'error' ? `error ${s.analysis.code} ${s.analysis.field ?? ''}` : s.analysis?.state ?? null)) };
   }, binCm);
 }
 
@@ -286,14 +286,16 @@ if (want('cycles')) {
   const session = await start('on'), sampler = startSampler();
   try {
     const cycles = []; await sleep(3000);
-    for (let i = 0; i < CYCLES; i++) {
+    // Cycle -1 is the warm-up of the contract ("after warm-up"): it is run exactly like the others and not counted.
+    for (let i = -1; i < CYCLES; i++) {
       await reloadPage(session.page);
       await session.page.waitForFunction(() => !!window.ichantool, { timeout: 60000 });
-      await session.page.evaluate(() => window.ichantool.ready); await sleep(i === 0 ? 4000 : 1500);
+      await session.page.evaluate(() => window.ichantool.ready); await sleep(i <= 0 ? 4000 : 1500);
       const closed = summarise(sampler.samples.slice(-12));
       await loadFixture(session.page, 'public');
-      const run = await analyseAt(session.page, 1.5 + i * 0.1);
-      cycles.push({ cycle: i + 1, closed_state_mib: closed?.median_mib, analysis_cold_ms: round(run.cold_ms), mismatches: run.mismatch_count, scratch_files: scratchFiles() });
+      const run = await analyseAt(session.page, 1.5 + (i + 1) * 0.1);
+      if (i < 0) continue;
+      cycles.push({ cycle: i + 1, closed_state_mib: closed?.median_mib, analysis_cold_ms: round(run.cold_ms), mismatches: run.mismatch_count, mismatch_detail: run.mismatches, states: run.states, scratch_files: scratchFiles() });
     }
     await reloadPage(session.page); await session.page.waitForFunction(() => !!window.ichantool); await sleep(2500);
     const final = summarise(sampler.samples.slice(-12));

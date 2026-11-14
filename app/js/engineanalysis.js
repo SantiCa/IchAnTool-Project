@@ -33,6 +33,15 @@ export function createEngineAnalysis({ client, project, onChange }) {
   const isCurrent = (section, job) => jobs.get(section) === job && !job.controller.signal.aborted && analysisRevision(section, project()) === job.revision;
 
   /**
+   * A job found out of date: if it is still the section's job, its inputs changed without anyone asking again, so ask now.
+   * Otherwise a newer request already replaced it. Without this the section would stay pending until the next edit.
+   * @param {any} section @param {Job} job
+   */
+  function renew(section, job) {
+    if (jobs.get(section) === job && !job.controller.signal.aborted) void request(section);
+  }
+
+  /**
    * Makes sure `section` has a result for its current revision, or a job on the way. While one is on the way the
    * section shows no bins: an older revision is never presented as current.
    * @param {any} section
@@ -52,15 +61,16 @@ export function createEngineAnalysis({ client, project, onChange }) {
       queue.push(async () => {
         let published = false;
         try {
-          if (!isCurrent(section, job)) return;
+          if (!isCurrent(section, job)) { renew(section, job); return; }
           const result = await client.analyze(buildIntervalSnapshot(section, project()), { signal: controller.signal });
-          if (!isCurrent(section, job)) return;   // edited, replaced or cancelled while the engine worked: change nothing
+          if (!isCurrent(section, job)) { renew(section, job); return; }   // edited, replaced or cancelled while the engine worked: change nothing
           section.bins = resultToBins(result);
           section.analysis = { state: 'ready' };
           published = true;
         } catch (error) {
           const failure = /** @type {any} */ (error);
-          if (failure?.name === 'AbortError' || !isCurrent(section, job)) return;
+          if (failure?.name === 'AbortError') { renew(section, job); return; }
+          if (!isCurrent(section, job)) { renew(section, job); return; }
           section.bins = [];
           section.analysis = { state: 'error', code: typeof failure?.code === 'string' ? failure.code : 'INTERNAL', field: failure?.field ?? null };
           published = true;
@@ -78,8 +88,14 @@ export function createEngineAnalysis({ client, project, onChange }) {
 
   return {
     request,
-    /** Requests every section and resolves when all have a final state. */
-    all: (/** @type {any[]} */ sections) => Promise.all(sections.map(request)).then(() => undefined),
+    /** Requests every section and resolves when all have a final state for their current revision (a section edited meanwhile is awaited again). */
+    all: (/** @type {any[]} */ sections) => Promise.all(sections.map(async (section) => {
+      for (let round = 0; round < 50; round++) {
+        await request(section);
+        const job = jobs.get(section);
+        if (!job || (job.settled && job.revision === analysisRevision(section, project()))) return;
+      }
+    })).then(() => undefined),
     /** Forgets the state of a section so that the next request runs again (after a failure the user retries). */
     retry: (/** @type {any} */ section) => { jobs.get(section)?.controller.abort(); jobs.delete(section); },
     /** @returns {AnalysisState | undefined} */
