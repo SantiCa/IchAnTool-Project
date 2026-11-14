@@ -1,7 +1,19 @@
 // Narrow bridges for local training and opt-in technical diagnostics; no arbitrary filesystem access.
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('corantoolDesktop', {
-  engine: { status: () => ipcRenderer.invoke('engine:status') },
+  // Section analysis (M8.3.6). Arguments are validated again in the main process; the page only holds opaque tokens.
+  engine: {
+    // True only when the experiment is switched on for this run; read once, synchronously, so the page decides its calculation path at startup.
+    enabled: ipcRenderer.sendSync('engine:enabled') === true,
+    status: () => ipcRenderer.invoke('engine:status'),
+    beginBuffer: (descriptor) => ipcRenderer.invoke('engine:beginBuffer', descriptor),
+    appendBuffer: (token, offset, bytes) => ipcRenderer.invoke('engine:appendBuffer', token, offset, bytes),
+    commitBuffer: (token) => ipcRenderer.invoke('engine:commitBuffer', token),
+    analyzeSection: (request) => ipcRenderer.invoke('engine:analyzeSection', request),
+    cancel: (requestKey) => ipcRenderer.invoke('engine:cancel', requestKey),
+    readBuffer: (token, offset, length) => ipcRenderer.invoke('engine:readBuffer', token, offset, length),
+    release: (tokens) => ipcRenderer.invoke('engine:release', tokens),
+  },
   diagnostics: {
     status: () => ipcRenderer.invoke('diagnostics:status'),
     setEnabled: (enabled) => ipcRenderer.invoke('diagnostics:setEnabled', enabled),

@@ -17,7 +17,36 @@ export async function compareNavigationPreview(page) {
     await select(true);
     const actual = context.getImageData(0, 0, 66, view.height).data;
     if (reference.length !== actual.length) throw new Error('Navigation geometry changed');
-    for (let i = 0; i < actual.length; i++) if (actual[i] !== reference[i]) throw new Error(`Navigation pixel ${i}: expected ${reference[i]}, received ${actual[i]}`);
+    // Exact equality stays the contract. On a mismatch the message carries what is needed to tell a platform rasteriser detail from a
+    // real discrepancy of the preview path (how many pixels, how far apart, where, and which renderer the browser used).
+    let differing = 0, largest = 0; const first = [];
+    for (let i = 0; i < actual.length; i++) if (actual[i] !== reference[i]) {
+      differing++; largest = Math.max(largest, Math.abs(actual[i] - reference[i]));
+      if (first.length < 3) first.push({ x: Math.floor(i / 4) % 66, y: Math.floor(i / 4 / 66), channel: i % 4, expected: reference[i], received: actual[i] });
+    }
+    if (differing) {
+      // Probe: does the way a source canvas is built, or the 2-D backend (GPU or CPU), change a plain bilinear stretch of the same pixels?
+      // Both canvases below hold the same vertical gradient; each is stretched 80x100 -> 24x(view height - 30) like the strip.
+      const stretch = (build, options) => {
+        const source = document.createElement('canvas'); source.width = 80; source.height = 100; build(source.getContext('2d', options));
+        const target = document.createElement('canvas'); target.width = 24; target.height = view.height - 30;
+        const targetContext = target.getContext('2d', options); targetContext.drawImage(source, 0, 0, 80, 100, 0, 0, 24, target.height);
+        return targetContext.getImageData(0, 0, 24, target.height).data;
+      };
+      const strips = (y) => { const data = new Uint8ClampedArray(80 * 4); for (let x = 0; x < 80; x++) data.set([y + 60, y + 90, 200 - y, 255], x * 4); return data; };
+      const filled = (context) => { for (let y = 0; y < 100; y++) { context.fillStyle = `rgb(${y + 60},${y + 90},${200 - y})`; context.fillRect(0, y, 80, 1); } };
+      const put = (context) => { for (let y = 0; y < 100; y++) context.putImageData(new ImageData(strips(y), 80, 1), 0, y); };
+      const same = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
+      const probe = { creation: same(stretch(filled), stretch(put)), backend: same(stretch(filled), stretch(filled, { willReadFrequently: true })),
+        cpuCreation: same(stretch(filled, { willReadFrequently: true }), stretch(put, { willReadFrequently: true })) };
+      // Where the first mismatching row samples the source: a fraction of exactly .5 is a rounding tie between two source rows.
+      const section = window.ichantool.S.sections[0], k = section._lc?.k || 1, roi = section.roi, strip = view.height - 30;
+      const sourceRow = first.length ? ((first[0].y - 14 + 0.5) * (roi.y1 - roi.y0) * k) / strip - 0.5 : null;
+      probe.source = { k, rows: (roi.y1 - roi.y0) * k, strip, row: first[0]?.y, position: sourceRow, tie: sourceRow === null ? null : Math.abs(sourceRow - Math.floor(sourceRow) - 0.5) < 1e-9 };
+      const gl = document.createElement('canvas').getContext('webgl'), info = gl?.getExtension('WEBGL_debug_renderer_info');
+      throw new Error(`Navigation preview differs from the legacy renderer: ${JSON.stringify({ differing, of: actual.length, largest, first,
+        probe, canvas: [view.width, view.height], ratio: devicePixelRatio, renderer: info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : null, agent: navigator.userAgent })}`);
+    }
     await select(before);
     return { width: 66, height: view.height, exact_pixels: reference.length / 4 };
   });
@@ -85,12 +114,17 @@ export async function verifyNavigationPreview(browser, url, { screenshots = fals
     await frame(); const beforePointer = await science(), bounds = await page.$eval('#view', (canvas) => {
       const rect = canvas.getBoundingClientRect(); return { x: rect.left, y: rect.top, height: canvas.height };
     });
-    const checkPosition = async () => assert.ok(await page.evaluate(() => {
-      const { S } = window.ichantool, view = document.getElementById('view'), section = S.sections[0], top = view.getBoundingClientRect().top;
-      const fraction = Math.min(1, Math.max(0, (window.__navPoint - top - 14) / (view.height - 30)));
-      const expected = section.roi.y0 + fraction * (section.roi.y1 - section.roi.y0);
-      return Math.abs(S.view.y + view.height / (2 * S.view.zoom) - expected) <= 1e-9;
-    }), 'Navigation click/drag must preserve depth mapping');
+    const checkPosition = async () => {
+      const measured = await page.evaluate(() => {
+        const { S } = window.ichantool, view = document.getElementById('view'), section = S.sections[0], top = view.getBoundingClientRect().top;
+        const fraction = Math.min(1, Math.max(0, (window.__navPoint - top - 14) / (view.height - 30)));
+        const expected = section.roi.y0 + fraction * (section.roi.y1 - section.roi.y0), got = S.view.y + view.height / (2 * S.view.zoom);
+        // The values are part of the message so that a failure on another machine can be diagnosed from the log alone.
+        return { ok: Math.abs(got - expected) <= 1e-9, got, expected, point: window.__navPoint, top, canvas: [view.width, view.height], zoom: S.view.zoom,
+          view: [S.view.x, S.view.y], roi: section.roi, image: [section.w, section.h] };
+      });
+      assert.ok(measured.ok, `Navigation click/drag must preserve depth mapping: ${JSON.stringify(measured)}`);
+    };
     const x = Math.round(bounds.x + 16), start = Math.round(bounds.y + 14 + (bounds.height - 30) * 0.4), end = Math.round(bounds.y + 14 + (bounds.height - 30) * 0.7);
     await page.mouse.click(x, start); await checkPosition();
     await page.mouse.move(x, start); await page.mouse.down(); await page.mouse.move(x, end, { steps: 3 }); await page.mouse.up(); await checkPosition();

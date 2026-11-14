@@ -42,8 +42,15 @@ function frame(kind, bytes) {
 
 function controlFrame(value) { return frame(1, Buffer.from(JSON.stringify(value))); }
 
+/**
+ * Reads engine frames. A binary frame is accepted only straight after a control frame whose handler returned its exact
+ * length as `{ binaryBytes }` (a successful `buffer.read` response announces one); any other binary frame invalidates the session.
+ */
 class ControlReader {
-  constructor(onControl) { this.onControl = onControl; this.header = Buffer.alloc(12); this.used = 0; this.payload = null; }
+  constructor(onControl, onBinary = null) {
+    this.onControl = onControl; this.onBinary = onBinary; this.header = Buffer.alloc(12); this.used = 0; this.payload = null;
+    this.kind = 1; this.expected = null;
+  }
   push(chunk) {
     let offset = 0;
     while (offset < chunk.length) {
@@ -53,16 +60,25 @@ class ControlReader {
       if (this.used !== target.length) continue;
       this.used = 0;
       if (!this.payload) {
-        const size = this.header.readUInt32LE(8);
-        if (!this.header.subarray(0, 4).equals(Buffer.from('SCE1')) || this.header[4] !== 1 || this.header[5] || this.header.readUInt16LE(6) || !size || size > MAX_JSON) throw new Error('Invalid response header');
-        this.payload = Buffer.alloc(size);
-      } else {
+        const size = this.header.readUInt32LE(8), kind = this.header[4];
+        const sizeOk = this.expected === null ? kind === 1 && size > 0 && size <= MAX_JSON : kind === 2 && size === this.expected;
+        if (!this.header.subarray(0, 4).equals(Buffer.from('SCE1')) || this.header[5] || this.header.readUInt16LE(6) || !sizeOk) throw new Error('Invalid response header');
+        this.payload = Buffer.alloc(size); this.kind = kind;
+      } else if (this.kind === 1) {
         const value = parseControl(this.payload); this.payload = null;
-        this.onControl(value);
+        const announced = this.onControl(value);
+        if (announced && typeof announced === 'object' && 'binaryBytes' in announced) {
+          const size = announced.binaryBytes;
+          if (!this.onBinary || !Number.isSafeInteger(size) || size < 1 || size > MAX_CHUNK) throw new Error('Invalid binary announcement');
+          this.expected = size;
+        }
+      } else {
+        const bytes = this.payload; this.payload = null; this.expected = null;
+        this.onBinary(bytes);
       }
     }
   }
-  end() { if (this.used || this.payload) throw new Error('Truncated response'); }
+  end() { if (this.used || this.payload || this.expected !== null) throw new Error('Truncated response'); }
 }
 
 module.exports = { MAX_JSON, MAX_CHUNK, parseControl, frame, controlFrame, ControlReader };

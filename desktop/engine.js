@@ -6,7 +6,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const { controlFrame, frame, ControlReader } = require('./engine-protocol');
 
-const OPERATIONS = new Set(['hello', 'buffer.begin', 'buffer.chunk', 'buffer.commit', 'buffer.release', 'buffer.digest', 'job.cancel', 'shutdown']);
+// Methods the engine may advertise in its handshake; anything else makes the engine unavailable.
+const ADVERTISED_METHODS = new Set(['buffer.digest/1', 'section.intervals/1']);
+const OPERATIONS = new Set(['hello', 'buffer.begin', 'buffer.chunk', 'buffer.commit', 'buffer.release', 'buffer.read', 'buffer.digest', 'section.analyze', 'job.cancel', 'shutdown']);
+// The engine ends every analysis within its own 120 s deadline; up to four more wait in its queue. This is only the backstop
+// against a coordinator that stops answering, and it ends the whole session (see `request`).
+const ANALYSIS_TIMEOUT_MS = 10 * 60 * 1000;
 
 function unavailable() { return Object.assign(new Error('ENGINE_UNAVAILABLE'), { code: 'ENGINE_UNAVAILABLE' }); }
 
@@ -37,7 +42,7 @@ class EngineClient {
     if (!path.isAbsolute(executable || '') || !path.isAbsolute(script || '') || !/^[0-9a-f]{64}$/.test(runtimeId || '')) throw unavailable();
     this.options = { executable, script, version, runtimeId, timeoutMs, captureDiagnostics };
     this.child = null; this.state = 'stopped'; this.pending = new Map(); this.queue = []; this.writing = false;
-    this.stderr = Buffer.alloc(0); this.handshake = null; this.session = null;
+    this.stderr = Buffer.alloc(0); this.handshake = null; this.session = null; this.partial = null;
   }
   status() { return { state: this.state, protocol: this.handshake?.protocol || null, methods: this.handshake?.methods || [] }; }
   async start() {
@@ -63,7 +68,7 @@ class EngineClient {
       await cleanupScratch(scratch);
       resolve();
     }));
-    const reader = new ControlReader((value) => this.receive(value));
+    const reader = new ControlReader((value) => this.receive(value), (bytes) => this.receiveBinary(bytes));
     child.stdout.on('data', (bytes) => { if (child !== this.child) return; try { reader.push(bytes); } catch { this.fail(child); } });
     child.stdout.on('end', () => { try { reader.end(); } catch { this.fail(child); } });
     child.stderr.on('data', (bytes) => {
@@ -78,12 +83,12 @@ class EngineClient {
       this.child = null;
     });
     this.starting = this.request('hello', { protocol: 1 }).then((result) => {
-      if (result.protocol !== 1 || result.engine_version !== version || result.runtime_id !== runtimeId || !Array.isArray(result.methods) || result.methods.some((method) => method !== 'buffer.digest/1')) throw unavailable();
+      if (result.protocol !== 1 || result.engine_version !== version || result.runtime_id !== runtimeId || !Array.isArray(result.methods) || result.methods.some((method) => !ADVERTISED_METHODS.has(method))) throw unavailable();
       this.handshake = result; this.state = 'ready'; return result;
     }).catch((error) => { this.fail(child); throw error; });
     return this.starting;
   }
-  request(op, payload, binary = null, { timeoutMs = this.options.timeoutMs } = {}) {
+  request(op, payload, binary = null, { timeoutMs = op === 'section.analyze' ? ANALYSIS_TIMEOUT_MS : this.options.timeoutMs } = {}) {
     if (!OPERATIONS.has(op) || !this.child || !['starting', 'ready', 'stopping'].includes(this.state)) return Promise.reject(unavailable());
     if (this.pending.size >= 32) return Promise.reject(Object.assign(new Error('BUSY'), { code: 'BUSY' }));
     if (op === 'buffer.chunk' && [...this.pending.values()].filter((item) => item.op === op).length >= 2) return Promise.reject(Object.assign(new Error('BUSY'), { code: 'BUSY' }));
@@ -97,7 +102,7 @@ class EngineClient {
     const promise = new Promise((resolve, reject) => {
       const child = this.child;
       const timer = setTimeout(() => this.fail(child), timeoutMs);
-      this.pending.set(id, { resolve, reject, timer, op });
+      this.pending.set(id, { resolve, reject, timer, op, payload });
     });
     // Expose only to trusted callers so they can send cancellation for an in-flight diagnostic.
     promise.requestId = id;
@@ -128,10 +133,27 @@ class EngineClient {
     const fields = ['v', 'kind', 'session', 'id', 'op', 'status', ...(value.status === 'ok' ? ['result'] : value.status === 'error' ? ['error'] : [])];
     if (Object.keys(value).sort().join() !== fields.sort().join() || !['ok', 'error', 'cancelled'].includes(value.status)) throw unavailable();
     if (value.status === 'error' && (!value.error || !['INVALID_REQUEST', 'UNSUPPORTED_METHOD', 'UNSUPPORTED_INPUT', 'INVALID_BUFFER', 'LIMIT_EXCEEDED', 'BUSY', 'INTERNAL'].includes(value.error.code))) throw unavailable();
+    if (value.status === 'ok' && pending.op === 'buffer.read') {
+      // The result is followed by exactly one binary frame holding the bytes; the request completes when it arrives.
+      const read = value.result, asked = pending.payload;
+      if (!read || Object.keys(read).sort().join() !== 'byte_length,offset' || read.offset !== asked.offset || read.byte_length !== asked.byte_length) throw unavailable();
+      this.partial = { pending, id: value.id, result: read };
+      return { binaryBytes: read.byte_length };
+    }
     clearTimeout(pending.timer); this.pending.delete(value.id);
     if (value.status === 'ok') pending.resolve(value.result);
     else if (value.status === 'cancelled') pending.resolve({ cancelled: true });
-    else pending.reject(Object.assign(new Error(value.error.code), { code: value.error.code }));
+    else {
+      const field = value.error.details?.field;
+      pending.reject(Object.assign(new Error(value.error.code), { code: value.error.code, ...(typeof field === 'string' ? { field } : {}) }));
+    }
+    return undefined;
+  }
+  receiveBinary(bytes) {
+    const partial = this.partial; this.partial = null;
+    if (!partial) throw unavailable();
+    clearTimeout(partial.pending.timer); this.pending.delete(partial.id);
+    partial.pending.resolve({ ...partial.result, bytes });
   }
   fail(child) {
     if (!child || child !== this.child) return;
@@ -140,7 +162,7 @@ class EngineClient {
   }
   rejectPending() {
     for (const pending of this.pending.values()) { clearTimeout(pending.timer); pending.reject(unavailable()); }
-    this.pending.clear(); this.queue.length = 0;
+    this.pending.clear(); this.queue.length = 0; this.partial = null;
   }
   async stop() {
     if (!this.child) { this.state = 'stopped'; return; }
@@ -182,6 +204,9 @@ function createEngineService({ enabled, packaged, executable, sourceDirectory, r
       } catch { if (client) await client.stop(); client = null; state = stopped ? 'stopped' : 'unavailable'; }
     },
     stop: async () => { stopped = true; state = 'stopped'; if (client) await client.stop(); },
+    // For engine-ipc.js, which validates everything a page sends. `request` keeps its allowlist of operations.
+    request: (op, payload, binary = null) => (client && client.state === 'ready' ? client.request(op, payload, binary) : Promise.reject(unavailable())),
+    session: () => (client && client.state === 'ready' ? client.session : null),
   };
 }
 

@@ -13,20 +13,20 @@ file and leave one line here.
 
 ## Status and handoff
 
-Updated 13 November 2026.
+Updated 14 November 2026.
 
-- **Released version:** [V0.149](../CHANGELOG.md#v0149--2026-11-13), created on 13 November 2026 and pushed to
-  `origin/master` with the maintainer's authorisation. **No tag and no GitHub Release exist for it**: a tag publishes
-  a Release and is the owner's decision. The *Desktop builds* workflow is started by hand for the macOS and Linux
-  builds (see the release checklist).
-- **Active work branch:** `work/2026-11-13`, created from `master` after V0.149. Changes accumulate under
-  `## Unreleased` in the changelog; the maintainer asks for the next version number.
+- **Released version:** V0.150 (14 November 2026), integrated into `master` on the maintainer's instruction ("haz commit y push de todo a
+  master con una nueva version 0.150"). **No tag and no GitHub Release exist for V0.149 or V0.150**: a tag publishes a Release and is the
+  owner's decision. The *Desktop builds* workflow is started by hand for the macOS and Linux builds (see the release checklist).
+- **Active work branch:** `work/2026-11-13` (pushed), which `master` now contains. Changes after V0.150 accumulate under `## Unreleased`.
 - **Checks:** see the last line of this block; it is rewritten at the end of every session.
-- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). The engine process, its bundled
-  runtime and its packaging work and are measured; the engine still computes nothing scientific. The repository
-  documents were restructured for task-card work (this file, AGENTS.md, ARCHITECTURE.md, DEVELOPMENT.md).
-- **Next step:** card **M8.3.2** (reference fixtures for `section.intervals/1`). It is *Ready*. M8.3.1 was done
-  on 12 November 2026 with the maintainer's go-ahead; each further card also needs his go-ahead.
+- **Where we are:** M8.1 and M8.2 are done at the development gate (Windows). M8.3 is complete: with `SEDCORETOOL_ENGINE_EXPERIMENT=1` the
+  desktop program calculates the interval table of every section in the Python engine and shows it, with a pending state, stale-result
+  rejection, cancellation and an error state, never falling back to JavaScript. The measurements of card M8.3.8 are recorded in
+  [docs/validation/M8.3.8-engine-analysis-summary.md](validation/M8.3.8-engine-analysis-summary.md).
+- **Next step:** the maintainer's decision recorded under card M8.3.8: continue to M8.4, or correct first. Recommended: correct first
+  (a persistent worker process, cheaper transfer of the label image, a memory sampler at the contract's 25 ms cadence, then re-measure
+  the ten-cycle memory gate, which failed by +110 MiB). Also open: card H5 (the `e2e` job on Linux).
 - **Reminder for whoever talks to the maintainer:** the maintainer accepted the two acceptance levels on
   13 November 2026 and asked to be **reminded to run the release-gate tests** (the release checklist below:
   macOS and Linux, clean Windows machine, cold-cache first launch, saturated CPUs, package sizes, and the
@@ -34,7 +34,12 @@ Updated 13 November 2026.
   switched on by default or a version with the engine is announced.
 - **Decisions waiting for the maintainer:** only the flags in the table below that need a promote/remove decision.
   Decided on 13 November 2026: acceptance levels (accepted), scope of 1.0 (below), publication of V0.149.
-- **Last full checks: passed** on the V0.149 state (13 November 2026), run one after another: `pytest -q` 357 passed / 8 skipped; `npm test` 246 passed; `npm run typecheck` no new diagnostics; `sync_version.py --check`; `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on and off (runtime rebuilt for 0.149.0 first; its first preparation attempt failed for an undetermined reason and passed on retry); `tests/e2e/smoke.mjs` passed in 4 of 6 runs, the 2 failures being the load-sensitive timeout of card H5.
+- **Last full checks: passed** on 14 November 2026 at the V0.150 state, run one after another on the maintainer's Windows computer:
+  `pytest -q` 594 passed / 8 skipped; `npm test` 295 passed; `npm run typecheck` (no new diagnostics); `sync_version.py --check`;
+  `ruff check src tests tools`; standalone build; `tests/e2e/desktop.mjs` with the engine experiment on (six sections equal to the JavaScript
+  reference before and after an edit) and off, bundled runtime rebuilt first (`prepare.js`, then `prepare_engine_runtime.py`). The
+  measurements of card M8.3.8 are separate evidence. **GitHub workflow `tests`** on the commit before V0.150: all Python jobs, `checks` and
+  `web-app` pass; the `e2e` job still fails on the Linux navigation-preview check (card H5).
 
 ## How work is accepted
 
@@ -56,7 +61,7 @@ Every experimental switch, with the decision it is waiting for ([policy: ARCHITE
 | Flag | Owner | How it is switched | Default | Waiting for |
 |---|---|---|---|---|
 | Engine experiment | M8 | environment variable `SEDCORETOOL_ENGINE_EXPERIMENT=1` | off | Removed at M8.6 after the release gate |
-| NumPy multi-row counting in the Python API | M3.1.5 / M3.1.6 | environment variable `SEDCORETOOL_EXPERIMENTAL_COUNTS=1` | off | Decided inside card M8.3.3 (which counting kernel becomes the only one) |
+| NumPy multi-row counting in the Python API | M3.1.5 / M3.1.6 / M8.3.3 | environment variable `SEDCORETOOL_EXPERIMENTAL_COUNTS=1` | no effect: the multi-row kernel is the only implementation since M8.3.3 | Maintainer: remove the variable and its tests/benchmark in a cleanup |
 | Navigation preview rollback | M2.2.4 | session control in the Sections panel | preview on | Maintainer: remove the rollback control, or keep it until more memory evidence exists |
 | Visible-row table rendering | M2.1.3 | session-only checkbox in the Data table | off | Maintainer: promote to default or remove |
 | Desktop operating diagnostics | M1.2.3 | opt-in control in the desktop program | off | Removed after the hang diagnosis of M1.2.2 is accepted |
@@ -176,7 +181,7 @@ Cards are done in order. Each one claims the development gate only.
   comparison with a literal copy of the previous calculation on 40 seeded sections; three deliberately introduced
   faults were each caught. The module is in the strict type check. Later cards should use these names.
 
-#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Ready
+#### M8.3.2 - Reference fixtures for `section.intervals/1` — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** small committed fixtures, each holding the inputs of contract §4 and the results of contract §5,
   produced by the JavaScript calculation. They are the target every later card must reproduce.
@@ -200,8 +205,15 @@ Cards are done in order. Each one claims the development gate only.
   4. The Node test regenerates every fixture in memory and requires byte-identical content to the committed file.
 - **Tests:** `node --test tests/app/interval-fixtures.test.mjs`; `npm test`; `npm run typecheck`.
 - **Done when:** fixtures are committed and the regeneration test passes.
+- **Result (13 November 2026):** 40 fixtures (four more were added in M8.3.4: 44), 1.2 MB, in `tests/fixtures/section-intervals/` (format, groups and the choices made
+  where the contract is silent are in its README); generator `tools/make_interval_fixtures.mjs` (`--check` compares without
+  writing); `buildIntervalSnapshot` and `referenceColumns` in `sectionanalysis.js`; 6 tests in
+  `tests/app/interval-fixtures.test.mjs`. The large images are stored as run-length lists because 1.2 million labels as
+  plain lists would be about 5 MB. A deliberately changed bin-edge rounding in `core.js` was caught and reverted. No change to
+  the contract was needed. Card M8.3.4 reads the files with a few lines of Python: expand `runs`, reshape by `shape`,
+  compare as the README says.
 
-#### M8.3.3 - Python kernels — state: Ready after M8.3.2
+#### M8.3.3 - Python kernels — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** the primitives of interval analysis exist once, in `src/sedcoretool/kernels/`, and the public Python
   functions use them.
@@ -228,8 +240,25 @@ Cards are done in order. Each one claims the development gate only.
 - **Tests:** `pytest -q tests/test_kernels.py tests/test_architecture.py`; then the whole `pytest -q` with no
   existing test modified.
 - **Done when:** all Python tests pass unchanged, including the regression against `legacy/`.
+- **Result (13 November 2026):** `src/sedcoretool/kernels/` with `binning` (`unit_factor`, `pixels_per_cm`, `interval_rows`,
+  `bin_edge`, `bin_edges`, `sum_by_interval`, `enough_valid`, `percentage`), `counting` (`label_row_counts` for class masks,
+  `layer_row_counts` for boolean layers, `object_row_counts` for object labels with an object-to-class table and CSR overlap
+  stacks, returning `RowCounts(valid, bio, cls)`), `classification` (`TierTable`, `classify_tiers`, precedence `"first"` or
+  `"last"`) and `ages` (`interpolate_age`). `pipeline.py`, `indices.py` and `depth.py` delegate; no public signature or
+  private name used by tests changed, and the 357 earlier Python tests pass untouched. 86 new tests: kernels against slow
+  reference loops, against the 20 shared fractional cases and against all JavaScript reference fixtures (40 at the time, 44 now) (counts, intervals
+  and bounds exactly; percentages, depths and ages within 1e-9; indices and missing patterns exactly), and the
+  import-rule test. Eight deliberate faults were each caught. Things the method (M8.3.4) still has to add: no-data padding,
+  manual indices, the effective-class rule (`tests/section_fixtures.py::class_of_object` is a test-only copy), validation of
+  the snapshot, and the clamp of the interval to at least one row.
+- **Decision recorded here (flag `SEDCORETOOL_EXPERIMENTAL_COUNTS`):** the bounded multi-row histogram became the only
+  counting implementation. On the 6400 × 960 reference mask (3 classes, 5 % excluded; median of 7) an analysis took 32 ms
+  (was 40 ms by default and 33 ms with the flag) and allocated 12.2 MiB (was 17.7 MiB by default, 12.1 MiB with the flag),
+  with identical results. The variable is still accepted and ignored so that existing scripts and the four older tests
+  keep working; the maintainer may remove it, and tests/test_count_experiment.py and tools/benchmark_counts.py with it, in a
+  later cleanup.
 
-#### M8.3.4 - Method `section.intervals/1`, called directly — state: Ready after M8.3.3
+#### M8.3.4 - Method `section.intervals/1`, called directly — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** `src/sedcoretool/methods/section_intervals.py` reproduces every fixture of M8.3.2.
 - **Read first:** contract §4 and §5 (complete); ARCHITECTURE §3.1 and §5.1; the fixtures.
@@ -249,8 +278,17 @@ Cards are done in order. Each one claims the development gate only.
      column; absolute error ≤ 1e-9 for depths, percentages and ages. Add one failing-input test per validation rule.
 - **Tests:** `pytest -q tests/test_section_intervals.py tests/test_architecture.py`.
 - **Done when:** every fixture passes without changing a fixture or a tolerance.
+- **Result (13 November 2026):** `src/sedcoretool/methods/` with `errors.py` (`MethodError(code, field)`, `Cancelled`), `validation.py`
+  (closed-field checks), `registry.py` (`METHODS`, `get(name)`; unknown name → `UNSUPPORTED_METHOD`) and `section_intervals.py`
+  (`NAME`, `parse(inputs) -> Snapshot`, `run(snapshot, report, cancelled) -> Result(dimensions, columns)`; columns are NumPy arrays of
+  the contract's dtypes with `<name>_valid` arrays). All 44 fixtures reproduce (exact counts, bounds, indices, no-data and validity
+  patterns; floats within 1e-9); 59 rejection cases name the field at fault; cancellation is polled every 256 rows; inputs are never
+  modified. Mutation testing of twelve behaviours first left four uncovered; four fixtures were added to the generator (the fixture
+  set is now 44) and a direct test of exact-equality padding comparisons, after which all twelve are caught. Three narrowings of the
+  contract (non-negative tier values, strictly increasing age depths, ranges on all age records or none) are written into the contract.
+  The worker (M8.3.5) loads this module through `registry.get`, calls `parse` then `run`, and writes `Result.columns` to buffers.
 
-#### M8.3.5 - The engine process runs registered methods — state: Ready after M8.3.4
+#### M8.3.5 - The engine process runs registered methods — state: Done (13 Nov 2026, branch `work/2026-11-13`)
 
 - **Goal:** a client can send a snapshot to the real coordinator, run `section.intervals/1` in the worker and
   download the result columns.
@@ -271,8 +309,22 @@ Cards are done in order. Each one claims the development gate only.
   error response and the session stays usable; killing the worker returns `INTERNAL`.
   `pytest -q tests/test_engine_transport.py tests/test_architecture.py`.
 - **Done when:** those tests pass and `npm run prepare-runtime -- --offline` succeeds.
+- **Result (13 November 2026):** operation `section.analyze` and `buffer.read` in `engine/server.py`; `engine/specs.py` (input names,
+  dtypes and ranks, standard library only); `engine/worker.py` now holds the coordinator-side process wrappers (`WorkerJob`,
+  `DigestJob`, new `MethodJob`); the new script `engine/method_worker.py` is the only engine file that imports NumPy and the methods
+  (it registers the `sedcoretool` package without running its `__init__`, so pandas and Pillow are not loaded); `BufferStore.adopt`
+  and `read`, and a stored `shape` per buffer. The 28 earlier transport tests pass untouched. 30 new tests in
+  `tests/test_engine_methods.py`: seven reference fixtures through the real coordinator and a real worker with results downloaded in
+  100 kB ranges, request validation before admission (13 cases), cancellation of a queued and a running analysis, the queue limit,
+  12 misbehaving-worker cases that must adopt nothing, the session budget, `buffer.read` bounds and frame order, the digest still
+  working, and agreement between `specs.py` and the method module. Sixteen deliberate faults in coordinator and store were each caught
+  (three needed extra cases first). Contract amended: `buffer.read`, exact `section.analyze` response, job execution model;
+  progress events are specified but **not sent yet** because the Electron client does not read events (card M8.3.6 decides). Also
+  changed: the Electron client accepts the two advertised methods (`desktop/engine.js`, with a new Node test that an unknown method
+  makes the engine unavailable), `tests/e2e/desktop.mjs` expects both, and `tools/check_engine_runtime.py` now runs the method with the
+  bundled interpreter. The test file is new instead of extending `test_engine_transport.py`.
 
-#### M8.3.6 - Main-process client and renderer bridge — state: Ready after M8.3.5
+#### M8.3.6 - Main-process client and renderer bridge — state: Done (development gate, 14 November 2026)
 
 - **Goal:** the page can upload buffers, start and cancel a section analysis and read results through a narrow,
   validated bridge.
@@ -294,7 +346,17 @@ Cards are done in order. Each one claims the development gate only.
   bundled runtime that runs a fixture end to end through `engine-ipc.js` functions.
 - **Done when:** tests pass; `node desktop/scripts/check-package.js` still passes after `npm run dist`.
 
-#### M8.3.7 - The interface shows engine results under the flag — state: Ready after M8.3.6
+- **Result:** `desktop/engine-ipc.js` offers the eight calls of the card to one page at a time; tokens replace engine handles and
+  belong to the page that created them, buffers are released when it navigates, reloads, crashes or closes, a result that arrives after
+  that is released at once, and a failed call resolves to `{error: {code, field?}}` without any message. `engine.js` reads the binary
+  frame that follows a `buffer.read` response (`ControlReader` accepts it only when announced with its exact length) and ends the
+  session on any mismatch; analysis requests have a 10 minute backstop deadline. Tests: 19 in `tests/app/engine-ipc.test.mjs` (fake
+  engine for validation and ownership, the real engine and the bundled runtime running 8 reference fixtures through the bridge, a
+  rejected input naming its field), 3 new reader/client tests and a misbehaving-engine test (5 variants) in `engine.test.mjs`, a round
+  trip through the preload bridge in `tests/e2e/desktop.mjs` with the engine on and off. 33 deliberate faults were each caught (two
+  needed extra tests first). `check-package.js` and `build.js` list the new file; `npm run dist` was not rerun for this card.
+
+#### M8.3.7 - The interface shows engine results under the flag — state: Done (development gate, 14 November 2026)
 
 - **Goal:** with the experiment on, `s.bins` comes from the engine; with it off, from the JavaScript calculation.
 - **Read first:** [ARCHITECTURE §4](ARCHITECTURE.md#4-path-of-one-scientific-request-target-design-for-m83);
@@ -314,7 +376,18 @@ Cards are done in order. Each one claims the development gate only.
   the existing end-to-end passes unchanged.
 - **Done when:** both end-to-end runs pass and the full session checks pass.
 
-#### M8.3.8 - Acceptance measurements and decision — state: Ready after M8.3.7
+- **Result:** with the experiment on, `app.js::analyze` hands each section to `engineanalysis.js` and the JavaScript calculation does not
+  run; with it off nothing changed. Deviation from the card, decided to avoid turning every render path asynchronous: the seven
+  call sites still call the synchronous `analyze(s)`, which now only requests the analysis and leaves the section pending; the
+  controller re-renders when a result is published (`onChange`), and exports await `analyzeSections` (the CSV export does). Revision
+  rules, stale-result rejection, cancellation, queueing and the error state are tested in `tests/app/engine-analysis.test.mjs`
+  (17 tests; 23 deliberate faults caught, two needed extra tests first). The six sections of the public example match the JavaScript
+  reference (exact counts, indices and nulls, 1e-9 floats) in `tests/e2e/desktop.mjs` with the bundled runtime, before and after an edit;
+  with the experiment off the same file passes unchanged. Not done: undo/redo and save → reopen under the flag were not exercised
+  separately (the revision key covers them by construction); the figures, data and map tabs refresh through `setMode` after a publish,
+  which was not checked visually.
+
+#### M8.3.8 - Acceptance measurements and decision — state: Done (measured 14 November 2026; waiting for the maintainer's decision)
 
 - **Goal:** the gates of contract §7 are measured on the first slice and the maintainer decides what follows.
 - **Change:** a measuring tool under `tools/`, evidence under `docs/validation/`, the release checklist above.
@@ -324,6 +397,14 @@ Cards are done in order. Each one claims the development gate only.
   mid-job and interrupt a save.
 - **Done when:** every gate has a recorded pass or a recorded failure with its measurement, and the maintainer
   has chosen: continue to M8.4, or correct first.
+
+- **Result:** every gate has a recorded measurement in [docs/validation/M8.3.8-engine-analysis-summary.md](validation/M8.3.8-engine-analysis-summary.md)
+  (raw: `docs/validation/M8.3.8-engine-analysis-windows-v0.150.json`, tool `tools/measure_engine_analysis.mjs`). Pass: numerical parity, responsiveness,
+  cancellation, worker and coordinator kills. Fail: the ten-cycle memory gate (+109.7 MiB, gate +64). Not met: the 25 ms memory cadence
+  (0.9 s). Timing is reported: the engine is about 60 to 160 times slower than the JavaScript calculation on these inputs (4.2 s against
+  27 ms; 6.9 s against 110 ms), mostly per-job overhead. The measurement also exposed a real bug (a section left pending when its inputs
+  changed under a waiting job), fixed in the same delivery. **Decision for the maintainer:** continue to M8.4, or correct first
+  (recommended: a persistent worker, cheaper transfer, a faster memory sampler, then re-measure). The experiment stays off by default.
 
 ### M8.4 to M8.6 - summaries
 
@@ -375,14 +456,31 @@ Independent of M8; each can be done in under an hour when the maintainer asks.
     a stale folder, a fresh folder of another live session and a look-alike name that must survive.
   - Done when: the test passes and the desktop end-to-end test leaves no `sedcoretool-engine-*` folder behind.
     The end-to-end test's own `sedcoretool-desktop-test-*` profiles should be removed by the test as well.
-- [ ] **H5 - The browser smoke test is sensitive to machine load.** `tests/e2e/smoke.mjs` failed twice in six runs
-      on 13 November 2026 at the "Data table" step with `ProtocolError: Runtime.callFunctionOn timed out` (Puppeteer's
-      180 s limit), and passed four times with the same code; duration varied between 79 s and 178 s with the
-      computer otherwise idle. The cause is unknown (candidates: antivirus scanning, background applications, the
-      100,000-row generation inside the page). Do not relax any assertion. Find which step is slow
-      (time each `verify*` function in the test and print it), then decide with the maintainer whether to raise
-      `protocolTimeout` for that step or make the step cheaper. Done when ten consecutive runs pass and each step's
-      time is printed.
+- [ ] **H5 - The `e2e` job of the GitHub workflow is red and has been since 10 November 2026.** Findings of 13-14 November 2026
+      (the CI result and its failure message are readable without logs through the public API: the smoke test now emits `::error::`
+      annotations, `GET /repos/SantiCa/SedCoreTool/check-runs/<job id>/annotations`; the unauthenticated API allows 60 requests an hour):
+      (1) **Fixed:** the five Python jobs failed because `psutil` (imported by `tools/benchmark.py` through the benchmark tests) was not in
+      the `dev` extras. (2) **Fixed:** on Windows the method worker hung in a clean environment (`import numpy` blocked while the liveness
+      watcher was reading stdin); found only because the GitHub Windows job failed. With both fixes every Python job (Linux 3.10/3.12/3.13,
+      macOS, Windows), `checks` and `web-app` pass. (3) **Fixed:** "name column drag" measured the multiproxy panel before layout (1 run in 4
+      even on an untouched V0.148). (4) **Open, not caused by the engine work:** the `e2e` job passed on 10 November 2026 (commit `29d4ecf`)
+      and has failed on every run since, i.e. since the navigation-preview tests of V0.117-V0.119 were added. Its latest messages on
+      `ubuntu-latest`: `Navigation pixel 128593: expected 143, received 142` (the exact-equality check of the preview against the legacy
+      renderer, `compareNavigationPreview`, differs by one level in Chrome on Linux) and, in the previous run, "Navigation click/drag must preserve
+      depth mapping". Windows passes. Locally the smoke suite passes most of the time but also fails now and then (a wait for the 16-bit TIFF to be
+      decoded again after reopening a project, Puppeteer's 180 s protocol timeout).
+  - Evidence of 14 November 2026 (the failing check now reports its own diagnosis; reproducible, identical on four consecutive runs):
+    24 values of 257,928 differ (one pixel row, 24 columns, green channel only), by exactly 1 level, at screen row 487 of the 947-row strip
+    that stretches 45 source rows. The browser is headless Chrome 157 on Linux using SwiftShader (software Vulkan). In the same browser a
+    plain stretch of an identical gradient is bit-identical whether the source canvas is built with `fillRect` or `putImageData` and whether
+    the 2-D backend is the default or CPU (`willReadFrequently`), so the stretch itself is deterministic. The differing row samples the
+    source at the centre of a texel (no interpolation), not at a rounding tie. Open hypothesis: the legacy path draws straight into the
+    `view` canvas at a vertical offset of 14 pixels while the preview draws into a new canvas at the origin and copies, and SwiftShader's
+    float arithmetic differs by the offset for this one row. Not tested. Windows (GPU and CPU) is exact.
+  - Next: a design session decides first whether a one-level difference between the two renderers on Linux is a platform rasteriser detail
+    or a real discrepancy of the preview path (M2.2.3 promised exact equality); the exact-equality contract is not weakened without the
+    maintainer's decision. Then handle the remaining flaky waits one at a time, each with its measured values in the failure message
+    (the depth-mapping check already prints them). Done when the `e2e` job passes ten consecutive pushes.
 - [ ] **H3 - Move raw benchmark reports out of the repository.** `docs/benchmarks/*.json` weighs about 10 MB.
       Needs the maintainer's decision on where the raw files go; the `.md` summaries stay.
 

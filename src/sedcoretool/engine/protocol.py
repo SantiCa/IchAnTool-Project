@@ -145,3 +145,12 @@ def write_json(stream, value):
     stream.write(HEADER.pack(b'SCE1', JSON_FRAME, 0, 0, len(payload)))
     stream.write(payload)
     stream.flush()
+
+
+def write_binary(stream, data):
+    """One binary frame of 1 to MAX_CHUNK bytes; the caller writes the JSON response that announces it first."""
+    if not 0 < len(data) <= MAX_CHUNK:
+        raise ProtocolError('outgoing frame limit')
+    stream.write(HEADER.pack(b'SCE1', BINARY_FRAME, 0, 0, len(data)))
+    stream.write(data)
+    stream.flush()

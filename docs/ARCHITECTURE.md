@@ -21,17 +21,17 @@ describe a planned part as available. When you build a planned part, change its 
 ┌─────────────── Renderer: app/js (sandboxed web page, JavaScript ES modules) ──────────────┐
 │  views (DOM only)  ◄──►  controllers (app.js and tab modules)  ◄──►  pure modules (no DOM) │
 │                                        │                                                   │
-│        sectionanalysis.js (built) + engineclient.js (planned), both pure                   │
+│        sectionanalysis.js · engineclient.js · engineanalysis.js (built, all pure)          │
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
               window.corantoolDesktop  (desktop/preload.js: a short allowlist of calls)
 ┌─────────────── Electron main process: desktop/ (Node.js) ─────────────────────────────────┐
-│  main.js (window, app:// protocol, lifecycle)   engine-ipc.js (planned: renderer-facing)   │
+│  main.js (window, app:// protocol, lifecycle)   engine-ipc.js (renderer-facing)           │
 │  engine.js (process client)  engine-protocol.js (frames)  engine-runtime.js (integrity)    │
 │  trainer.js · model-store.js · diagnostics.js                                              │
 └────────────────────────────────────────┼──────────────────────────────────────────────────┘
                     private stdin/stdout pipes, `SCE1` frames, no network port
 ┌─────────────── Engine process: src/sedcoretool run by the bundled CPython 3.12 ───────────┐
-│  engine/    transport only: frames, buffers, coordinator, job runner                       │
+│  engine/    transport only: frames, buffers, coordinator, job runner, method worker script │
 │  methods/   one module per versioned scientific method (planned)                           │
 │  kernels/   pure NumPy primitives shared by every caller (planned)                         │
 └────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -53,10 +53,11 @@ process exists but only answers a diagnostic request.
 | Python package: intervals, indices, age, export, batch, CLI, U-Net | built | `src/sedcoretool/` |
 | Engine process: frames, bounded buffers, queue, cancellation, isolated worker | built, off by default | `src/sedcoretool/engine/`, `desktop/engine*.js` |
 | Bundled Python runtime, verified at launch | built (Windows measured; macOS/Linux not yet run) | `desktop/runtime-lock.json`, `tools/prepare_engine_runtime.py` |
-| The only engine method: `buffer.digest/1` (hashes a buffer; a transport diagnostic) | built | `engine/worker.py` |
-| `kernels/` and `methods/` packages, method registry, generic job runner | **planned** (M8.3) | §3.1 |
-| Downloading result buffers (`buffer.read`) | **planned** (M8.3.4; needs a contract amendment) | §4 |
-| Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`) | **planned** (M8.3.5–M8.3.6) | §3.2, §3.3 |
+| Engine methods: `buffer.digest/1` (a transport diagnostic) and `section.intervals/1` (the first scientific method, not yet used by the interface) | built | `engine/worker.py`, `engine/method_worker.py` |
+| `kernels/` package: binning, counting, classification, age interpolation; `tests/test_architecture.py` | built (M8.3.3) | §3.1 |
+| `methods/` package with the registry and `section.intervals/1`, called directly | built (M8.3.4) | §3.1 |
+| Job runner in the engine process: `section.analyze` runs a registered method in its own worker process, results are adopted as committed buffers and downloaded with `buffer.read` | built (M8.3.5) | §3.1, §4 |
+| Renderer-facing engine bridge (`engine-ipc.js`, `engineclient.js`, `engineanalysis.js`) | **built, experimental, off by default** (M8.3.6–M8.3.7) | §3.2, §3.3 |
 | Section intervals calculated by the engine (`section.intervals/1`) | **planned** (M8.3) | contract §4–§5 |
 | Engine-owned images and tiles, remaining methods | **planned** (M8.4, M8.5) | roadmap |
 
@@ -72,16 +73,16 @@ import, the code is in the wrong layer: move the code, do not break the rule.
 
 | Layer | Path | Contains | May import | Must not |
 |---|---|---|---|---|
-| Kernels (planned) | `kernels/` | Pure array functions: bin edges and sums, row/class counts from labels, layers and overlap stacks, tier classification, age interpolation | `numpy`, standard library | pandas, Pillow, file or network IO, environment variables, global state, anything from `engine/` or `methods/` |
-| Methods (planned) | `methods/` | One module per versioned method. Each has `NAME` (for example `"section.intervals/1"`), `parse(inputs) -> snapshot` that validates everything, and `run(snapshot, report, cancelled) -> dict` of named NumPy columns. `registry.py` maps names to modules | `kernels`, `numpy`, standard library | pandas, IO, transport details (frames, handles, sessions) |
-| Engine transport | `engine/` | `protocol.py` frames and strict JSON, `buffers.py` staged buffers, `server.py` coordinator, `worker.py` job process, `lifetime.py` | Coordinator: standard library only. Worker: `methods.registry` and `numpy` | The coordinator must never import NumPy or a method (start-up stays fast and control requests stay responsive). No scientific formulas in this layer |
+| Kernels (built, M8.3.3) | `kernels/` | Pure array functions: bin edges and sums, row/class counts from labels, layers and overlap stacks, tier classification, age interpolation | `numpy`, standard library | pandas, Pillow, file or network IO, environment variables, global state, anything from `engine/` or `methods/` |
+| Methods (built, M8.3.4) | `methods/` | One module per versioned method. Each has `NAME` (for example `"section.intervals/1"`), `parse(inputs) -> snapshot` that validates everything, and `run(snapshot, report, cancelled) -> dict` of named NumPy columns. `registry.py` maps names to modules | `kernels`, `numpy`, standard library | pandas, IO, transport details (frames, handles, sessions) |
+| Engine transport | `engine/` | `protocol.py` frames and strict JSON, `buffers.py` staged buffers, `server.py` coordinator, `worker.py` process wrappers (`DigestJob`, `MethodJob`) and the digest script, `specs.py` input tables, `method_worker.py` the script that runs a method, `lifetime.py` | Coordinator: standard library only. Only the script `method_worker.py` imports `numpy`, `kernels` and `methods` (it runs in its own process and registers the package without running its `__init__`, so pandas and Pillow are not loaded); nothing else may import it | The coordinator must never import NumPy or a method (start-up stays fast and control requests stay responsive). No scientific formulas in this layer |
 | Public API and CLI | `pipeline.py`, `indices.py`, `depth.py`, `io.py`, `segmentation.py`, `export.py`, `batch.py`, `cli.py`, `plotting.py` | The supported functions and commands. Adapters: validate user input, call kernels/methods, shape the output (DataFrame, CSV, LAS) | `kernels`, `methods`, pandas, Pillow | Starting the engine process; a second copy of a formula that exists in `kernels/` |
 | U-Net (optional) | `unet/` | Tiling, dataset, training, prediction, evaluation. Unchanged until M8.5 | its own optional dependencies | being imported by the base engine |
 
 How the layers are created without breaking anyone: when a formula moves into `kernels/`, the public module keeps
 its function name and signature and delegates to the kernel (`pipeline.bin_edges` keeps working). Existing tests
-must pass unchanged; that is the proof that the move preserved behaviour. `tests/test_architecture.py` (planned in
-M8.3.2) reads the imports of every module with `ast` and fails when a rule in this table is broken.
+must pass unchanged; that is the proof that the move preserved behaviour. `tests/test_architecture.py` (built in
+M8.3.3) reads the imports of every module with `ast` and fails when a rule in this table is broken.
 
 Public and desktop callers may need different conventions for the same primitive. They are parameters of the
 kernel, not two implementations. Known case: with overlapping custom index tiers the desktop uses the **first**
@@ -91,7 +92,7 @@ matching tier and the Python API the **last**; the kernel takes `precedence="fir
 
 | Kind | Rule | Examples |
 |---|---|---|
-| Pure modules | No `document`, `window` or DOM types; state arrives as arguments. Tested with Node in `tests/app/` | `core.js`, `sectiondepth.js`, `sectionanalysis.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `geo.js`, `interp.js`, `locmap.js`, `plot.js`, `sheet.js`, `exportio.js`, `zip.js`, `unet.js`, `unetmodel.js`, `navpreview.js`, `figview.js`, `tableview.js` |
+| Pure modules | No `document`, `window` or DOM types; state arrives as arguments. Tested with Node in `tests/app/` | `core.js`, `sectiondepth.js`, `sectionanalysis.js`, `engineclient.js`, `engineanalysis.js`, `edit.js`, `imageproc.js`, `learn.js`, `log.js`, `geo.js`, `interp.js`, `locmap.js`, `plot.js`, `sheet.js`, `exportio.js`, `zip.js`, `unet.js`, `unetmodel.js`, `navpreview.js`, `figview.js`, `tableview.js` |
 | State | The shared project state `S` and small helpers | `state.js` |
 | Controllers and views | Read and change `S`, call pure modules, build DOM/SVG, wire events | `app.js`, `columns.js`, `datatab.js`, `figures.js`, `multiproxy.js`, `panels.js`, `diagnostics.js` |
 | Storage | IndexedDB project library | `storage.js` |
@@ -119,6 +120,10 @@ Pure modules for M8.3:
 - `engineclient.js` — uploads typed arrays in chunks of at most 1 MiB, starts and cancels jobs and downloads
   results through an injected bridge object. In the desktop program the bridge is `window.corantoolDesktop.engine`;
   in Node tests it is a fake.
+- `engineanalysis.js` — per-section state with the engine on: pending, ready or error. It keys each request on
+  `analysisRevision`, empties `s.bins` while a result is awaited, queues one analysis at a time, cancels a request that
+  an edit made obsolete and publishes a result only if the revision is still current. It never computes bins and never
+  falls back to the JavaScript calculation. `app.js::analyze` delegates to it when `window.corantoolDesktop.engine.enabled`.
 
 ### 3.3 Electron main process (`desktop/`)
 
@@ -126,10 +131,10 @@ Pure modules for M8.3:
 |---|---|
 | `main.js` | Window, `app://corantool` protocol, lifecycle; creates the services and registers their IPC handlers |
 | `preload.js` | Names the calls the page may make and passes their arguments. No logic, no validation |
-| `engine.js` | `EngineClient`: spawn, handshake, request queue, timeouts, forced termination. `createEngineService`: start/stop/status |
+| `engine.js` | `EngineClient`: spawn, handshake, request queue, timeouts, forced termination, binary reply of `buffer.read`. `createEngineService`: start/stop/status and `request` for `engine-ipc.js` |
 | `engine-protocol.js` | Frame encoding and the strict control-frame reader |
 | `engine-runtime.js` | Verifies the bundled runtime and sources before Python is executed |
-| `engine-ipc.js` (planned, M8.3.5) | The only renderer-facing entry to the engine: checks the sender's origin, argument shapes and sizes; streams buffers in bounded chunks; keeps the table of handles for the session. The page never chooses paths, executables or arbitrary operations |
+| `engine-ipc.js` (M8.3.6) | The only renderer-facing entry to the engine: checks the sender's origin, argument shapes and sizes; streams buffers in bounded chunks; keeps the table of handles for the session. The page never chooses paths, executables or arbitrary operations |
 | `trainer.js`, `model-store.js` | Optional U-Net training environment and published model generations |
 | `diagnostics.js` | Opt-in technical diagnostics |
 
@@ -152,11 +157,11 @@ Example: the user edits a trace and the interval table must update.
 5. **Coordinator** (`engine/server.py`) validates the envelope, pins the input buffers and queues the job. The
    **job runner** starts the worker process with a job description (method name, input buffer files with dtype and
    shape, output folder, cancel flag file).
-6. **Worker** (`engine/worker.py`) loads the method from `methods/registry.py`, calls `parse` (rejects anything
+6. **Worker** (`engine/method_worker.py`) loads the method from `methods/registry.py`, calls `parse` (rejects anything
    invalid before computing) and `run`, and writes each result column as a buffer file. It polls the cancel flag
    between bounded work units and never publishes a partial result.
 7. The coordinator adopts the output files as committed buffers and answers with their handles, dimensions and
-   provenance. The main process downloads them (`buffer.read`, a planned addition to the protocol; today a client
+   provenance. The main process downloads them (`buffer.read`, built in M8.3.5; before it a client
    can upload but not download) and releases every handle of the job.
 8. **`sectionanalysis.js`** validates the result (dimensions, revision, settings hash) and converts it to the
    `s.bins` shape. The controller publishes it **only if the section's revision is still the one requested**, then

@@ -55,7 +55,7 @@ The document describes the current version; the history of changes is in [`CHANG
 **Part VII — The Python package**
 
 25. [The `sedcoretool` Python package](#25-the-sedcoretool-python-package)
-    - [Experimental Python row counts (library API, §25.2)](#experimental-python-row-counts)
+    - [Python row counts and kernels (library API, §25.2)](#python-row-counts-and-kernels)
 
 **Part VIII — Desktop program, distribution and engineering**
 
@@ -159,7 +159,7 @@ Program (`app/js/`). The modules marked "pure" do not use the browser (no DOM) a
 |------|---------|:----:|
 | `core.js` | Intervals, indices, age model, CSV, RLE encoding, overlapping-trace stacks | ✓ |
 | `sectiondepth.js` | Pure ROI depth/row conversion and pixels per centimetre; independent of interface/state | Yes |
-| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2). `app.js::analyze` passes the project state in | Yes |
+| `sectionanalysis.js` | Analysis of one section without the DOM: effective class of each object, class-index table, row counts (cached per section), interval bins with no-data padding, ages and manual indices (§3.2), plus the builders of the engine method's input snapshot and reference result columns (`buildIntervalSnapshot`, `referenceColumns`), the revision key of a section's calculation (`analysisRevision`) and the conversion of engine result columns to `s.bins` (`resultToBins`). `app.js::analyze` passes the project state in | Yes |
 | `imageproc.js` | Enhancement, detection, connected components, magic wand, lasso, descriptors, rotation, downsampling | ✓ |
 | `edit.js` | Editing algorithms: scissors, merging, undo records, project migration | ✓ |
 | `learn.js` | Ichnotaxa classifier (k-NN with novelty rejection; Random Forest and Bayes wrappers), evaluation, final-test metrics | ✓ |
@@ -204,14 +204,16 @@ float32 NCHW tensors adapt to the existing tiling engine. The module has strict 
 import of app.js or access to browser globals; it is included after unet.js in the standalone build.
 
 Python package (`src/sedcoretool/`): `io.py` (images and masks), `segmentation.py` (masks from a threshold, a
-colour palette or a U-Net), `pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
+colour palette or a U-Net), `kernels/` (pure array primitives: intervals, counting, index tiers, age interpolation; §25.2),
+`methods/` (versioned scientific methods for the engine, for now `section.intervals/1`; §25.2),
+`pipeline.py` (intervals, percentages, indices), `indices.py` (BI and ii schemes),
 `depth.py` (depth and age), `export.py` (CSV and Excel), `plotting.py` (matplotlib figure), `cli.py` (command line),
 `unet/` (U-Net dataset, training, evaluation, prediction, tiling and metrics), `engine/` (experimental desktop
 engine process: framing, staged buffers, coordinator and isolated worker; §26.2).
 
 Desktop program (`desktop/`): `main.js` (window, `app://` protocol and IPC), `preload.js` (narrow
-`window.corantoolDesktop` bridge), `engine.js`, `engine-protocol.js` and `engine-runtime.js` (engine process
-client, framing and bundled-runtime verification; §26.2–§26.3), `runtime-lock.json` (pinned runtime artifacts;
+`window.corantoolDesktop` bridge), `engine.js`, `engine-ipc.js`, `engine-protocol.js` and `engine-runtime.js` (engine process
+client, page bridge, framing and bundled-runtime verification; §26.2–§26.3), `runtime-lock.json` (pinned runtime artifacts;
 §26.3), `trainer.js` and `model-store.js` (U-Net training and model generations; §9.3), `diagnostics.js` (§26.1)
 and `scripts/` (preparation, build and package checks).
 
@@ -398,7 +400,7 @@ for masks.
 
 These are the same tiers as in version 2.1. In Python, other schemes can be defined as data with `IndexScheme`
 (`indices.py`) without changing the code. `IndexScheme.classify` compiles each scheme once into disjoint intervals,
-with the last declared tier taking precedence when tiers overlap. It preserves the shape of an input array of any
+with the last declared tier taking precedence when tiers overlap (`kernels.classification.TierTable`, which also offers the first-match rule that the desktop program uses). It preserves the shape of an input array of any
 dimension. For nonnegative integer boundaries up to 256 it looks up the class of each percentage's integer part.
 Other schemes use right-sided `numpy.searchsorted` on the sorted boundaries. Values outside all tiers return `-1`.
 
@@ -2539,19 +2541,30 @@ equivalent full/bare/mixed-case/whitespace/RGB inputs, exact masks and scientifi
 10, duplicate-colour precedence, class order, malformed forms and byte-identical command-line CSV results
 through both `analyze` and `batch`. An invalid palette leaves an existing result file unchanged.
 
-#### Experimental Python row counts
+#### Python row counts and kernels
 
-`SEDCORETOOL_EXPERIMENTAL_COUNTS=1` selects bounded multi-row label histograms in `analyze_mask`.
-The default remains the established per-class reductions. Blocks contain at most 64 rows and 65,536
-pixels; very wide images use single-row column chunks. Each pixel's integer key is
-`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into
-row/class counts and accumulates across column chunks. Total bioturbation sums positive-label counts;
-class counts use the corresponding column. Interval sums, division order, boundaries, exclusions and
-configurable index schemes follow the same analysis path. Overlapping boolean layers retain the
-established calculation. Integer scratch scales with the bounded block, not the full image; the retained
-histogram requires `8 * rows * (classes + 1)` bytes. Reverse-strided inputs are copied only per block.
-Unset the variable to roll back; promotion and flag removal require a subsequent decision. No Rust or
-additional runtime dependency is needed. See [validation and measured scope](#311-automated-tests).
+The arithmetic of interval analysis lives in `src/sedcoretool/kernels/` (pure NumPy functions shared by the library, the
+command line and the desktop engine; rules in [ARCHITECTURE.md](ARCHITECTURE.md#31-python-srcsedcoretool), enforced
+by `tests/test_architecture.py`): `binning` (pixels per centimetre, interval edges and sums, the minimum-valid rule,
+percentages), `counting` (per-row valid, bioturbated and per-class counts), `classification` (index tiers with
+first-match or last-match precedence) and `ages` (linear interpolation of an age model). `pipeline.py`, `indices.py`
+and `depth.py` validate input, call the kernels and shape results; their public functions and the private names that
+tests use (`_edge`, `_bin_sums`, `_label_row_counts`) are unchanged.
+
+`analyze_mask` counts with bounded multi-row label histograms (since card M8.3.3, after V0.149; before that it was
+opt-in through `SEDCORETOOL_EXPERIMENTAL_COUNTS=1`, which is still accepted and has no effect). Blocks contain at most
+64 rows and 65,536 pixels; very wide images use column chunks. Each pixel's integer key is
+`local_row * (classes + 1) + label`; valid keys enter `numpy.bincount`, whose output reshapes into row/class counts and
+accumulates across column chunks. Total bioturbation sums the class columns; class counts use the corresponding
+column. Overlapping boolean layers use `layer_row_counts` (a pixel is bioturbated once if any layer is set and counts
+for every class whose layer is set). Interval sums, division order, boundaries, exclusions and configurable index
+schemes follow the same path. Integer scratch scales with the bounded block, not the full image; the retained
+histogram requires `8 * rows * (classes + 1)` bytes. Inputs are only read, and reverse-strided inputs are copied only per
+block. `object_row_counts` serves the engine's object-label representation (positive = object, negative = overlap
+stack, an object-to-class table, CSR stacks) with the same counting rule. No Rust or additional runtime dependency is
+needed. See [validation and measured scope](#311-automated-tests).
+
+`methods/section_intervals.py` implements engine method `section.intervals/1` (inputs and results: [engine contract](roadmap-engine-contract.md) §4–§5) on the kernels: `parse` validates every input, naming the field, before any calculation; `run` counts in blocks of 256 rows (checking for cancellation between blocks), forms the intervals, applies the minimum-valid rule and the no-data padding (strict comparisons with a 1e-9 depth tolerance, as in the program), classifies the indices, interpolates ages and attaches manual indices. It reproduces all 44 reference fixtures of the JavaScript calculation: row bounds, counts, indices, no-data flags and every missing-value pattern exactly, floating-point columns within 1e-9. It is not yet reachable from the desktop program; the engine process does not advertise it.
 
 #### Image loading budget
 
@@ -2802,13 +2815,22 @@ windows can finish loading without a redundant navigation through the desktop cl
 
 ### 26.2 Experimental engine process
 
-Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-protocol.js` (framing),
-`src/sedcoretool/engine/{protocol,buffers,server,worker}.py` (standard-library coordinator, staged data and
-isolated diagnostic worker). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
+Implementation: `desktop/engine.js` (main-process lifecycle/client), `desktop/engine-ipc.js` (the page bridge: `status`, `beginBuffer`, `appendBuffer` (at most 1 MiB, contiguous offsets), `commitBuffer`, `analyzeSection`, `cancel`, `readBuffer`, `release`; only the top frame of an `app://` page may call; at most 256 buffers and 5 running analyses per page; tokens are released when the page navigates, reloads, crashes or closes; a failed call resolves to `{error: {code, field?}}`), `desktop/engine-protocol.js` (framing),
+`src/sedcoretool/engine/{protocol,buffers,specs,server,worker}.py` (standard-library coordinator, staged data, input tables and
+worker-process wrappers) and `method_worker.py` (the script that runs a scientific method in its own process). This experiment is disabled unless `SEDCORETOOL_ENGINE_EXPERIMENT=1`.
 It uses the verified bundled runtime (§26.3), or an explicitly selected absolute `SEDCORETOOL_ENGINE_PYTHON`
 path in source development only. A missing or invalid bundle reports unavailable; packaged applications never
-use that override or search for a user's interpreter. The browser and standalone file do not launch a process. No scientific calculation has
-moved to Python through this bridge; current analysis and save ownership are unchanged.
+use that override or search for a user's interpreter. The browser and standalone file do not launch a process. With the experiment on, the interval table of every section is calculated by the engine's `section.intervals/1` (below) and the
+JavaScript calculation does not run; with it off only the JavaScript calculation runs, and a failed engine is shown as an error, never
+replaced by the other calculation. Everything else (editing, saving, exports) is unchanged and stays in the interface. The page reads
+`window.corantoolDesktop.engine.enabled` once at startup. For each section `app/js/engineanalysis.js` derives a revision
+(`analysisRevision`: mask version, geometry, depth range, manual indices, counted classes, the settings the method reads, the age model
+and the effective class of every object), empties `s.bins` and shows a pending note while the result is awaited, uploads the inputs
+(`engineclient.js`, chunks of at most 1 MiB, SHA-256 per buffer), downloads the result columns and converts them with `resultToBins`.
+Sections are analysed one at a time; a request made obsolete by an edit is cancelled; a result is published only if the section's
+revision is still the requested one. A failure sets the section's `analysis` state to an error with the engine's code, shown through
+the texts `engine.error.<CODE>`; the same revision is not retried on every redraw, an edit retries. A section whose labels exceed the
+256 MiB buffer limit fails with `LIMIT_EXCEEDED`.
 
 Main launches the fixed prepared server script with `-I -B -u`, an argument array and private pipes, with no shell
 or listening service. `window.corantoolDesktop.engine.status()` exposes only enablement, state, protocol,
@@ -2820,10 +2842,17 @@ Frames use the M8.1 `SCE1` 12-byte header, strict UTF-8 JSON controls <=64 KiB, 
 duplicate-key/depth/finite-number checks. At most 32 requests and two binary chunks are outstanding in main;
 descriptor/binary pairs cannot interleave. Partial/malformed frames, unknown sessions, process exit or request
 timeout invalidate the session. Each fresh start assigns a new UUID; previous handles cannot be reused.
-The only advertised method is `buffer.digest/1`: `buffer.digest {handle}` recomputes a committed buffer's
-SHA-256 in an isolated subprocess and returns `{sha256,byte_length}`. This tests transport/worker ownership;
-it is not a scientific method. Scientific operations remain unsupported. Progress/result-buffer downloads
-and revision-based scientific publication are not exposed in this slice.
+Two methods are advertised. `buffer.digest/1` (`buffer.digest {handle}`) recomputes a committed buffer's SHA-256 in an
+isolated subprocess and returns `{sha256,byte_length}`; it tests transport and worker ownership. `section.intervals/1`
+(`section.analyze`, inputs and results in the [engine contract](roadmap-engine-contract.md) §3–§5) calculates the interval
+table of a section from nine input buffers: the coordinator checks the request's identity fields, that the `settings` buffer's
+SHA-256 equals `settings_hash`, and every handle's dtype and rank, pins the inputs, and queues the job. The job runs in
+`method_worker.py` (NumPy only; the public package and pandas are not loaded), which validates every input and writes the
+result columns to files; the coordinator re-checks each file (size, shape, SHA-256, finite floats) and adopts it as a committed
+buffer charged to the session budget, then answers with the handles. `buffer.read {handle, offset, byte_length}` downloads any
+committed buffer in ranges of at most 1 MiB: the JSON response is followed by exactly one binary frame. A rejected input is an
+error response naming the field; a worker that crashes, exits with an error, lies about its files or exceeds 120 s is
+`INTERNAL` and nothing is adopted. Progress events are not sent yet.
 
 `buffer.begin`, `chunk`, `commit` and `release` stage data in private temporary files. Validate shape/dtype/
 declared size before allocation; enforce exact offsets, length, SHA-256, finite f64 data and strict metadata
@@ -2836,8 +2865,8 @@ attempts bounded cleanup after child close, including coordinator failure, check
 recursive removal. External locks can prevent cleanup; abrupt main-process termination can leave an empty
 temporary root after server cleanup.
 
-One diagnostic job runs and at most four wait; excess receives BUSY. A worker polls a private cancellation
-marker between reads; the coordinator starts forced termination after 1.5 s if needed. A 30 s worker deadline
+One job (a digest or an analysis) runs and at most four wait; excess receives BUSY. A worker polls a private cancellation
+marker between reads or blocks of rows; the coordinator starts forced termination after 1.5 s if needed. A worker deadline (30 s for the digest, 120 s for a method)
 prevents unbounded execution. Cancellation has its own acknowledgement and the target's terminal response;
 queued cancellation releases its pin. EOF on a private worker liveness pipe aborts orphaned work. Windows
 workers use CREATE_NO_WINDOW. The coordinator stays responsive to control requests; workers do not access
@@ -2850,7 +2879,8 @@ workers with it; workers also stop when their private liveness pipe closes, and 
 backstop. On other systems main signals the coordinator's process group. Errors exposed by the client are fixed codes;
 input data, paths and tracebacks are not forwarded. Stderr capture is off in the desktop service; test-only
 clients may retain a bounded 64 KiB tail. Native math thread environment limits are set before worker startup
-to max(1,min(4,logical CPUs−1)); this diagnostic imports no numerical/training libraries. Runtime identity
+to max(1,min(4,logical CPUs−1)); the digest imports no numerical library and a method worker imports NumPy only, never
+training libraries. Runtime identity
 distinguishes `bundled-verified` from `unverified-development`; only the former uses the resource manifest.
 
 The [M8.1 contract](roadmap-engine-contract.md) specifies later scientific inputs/results and predeclared
@@ -3105,6 +3135,14 @@ entries that no longer occur. TypeScript is a pinned development dependency and 
 
 ### 31.1 Automated tests
 
+**Section-interval reference fixtures.** `tests/fixtures/section-intervals/` holds 44 synthetic cases with the inputs of the
+planned engine method `section.intervals/1` and the result of the current JavaScript calculation (format and
+comparison rule in its README). `tests/app/interval-fixtures.test.mjs` requires each committed file to be
+byte-identical to a regeneration by `tools/make_interval_fixtures.mjs`, checks every file against the input and
+result contracts (shapes, contiguous intervals, counts consistent with percentages, no-data rules), and compares
+the 20 fractional-boundary cases with `tests/fixtures/fractional-boundaries.json`. They are the target of the Python
+implementation; they say nothing about the engine, which does not calculate sections yet.
+
 **Temporary diagnostics.** Node tests cover default-off activation, persisted expiry, redaction, two-file
 rotation, queue overflow, independent write failure, bounded reads and atomic export failure. The real
 Electron test enables recording through the interface, uses synthetic private-text canaries, rejects foreign
@@ -3139,9 +3177,8 @@ partial bins, disagreement reporting and weighted CPU-sample attribution.
 
 **Experimental Python counting.** The [counterbalanced comparison](benchmarks/M3.1.5.md) records exact
 numerical equivalence and measured performance acceptance on the reference workloads for the
-[opt-in row-counting algorithm](#experimental-python-row-counts). The
-[counting regression tests](../tests/test_count_experiment.py) compare complete default/experimental
-results exactly, including exclusions, absent classes, custom index schemes, fractional/partial bins,
+[row-counting algorithm](#python-row-counts-and-kernels), now the only one. The
+[counting regression tests](../tests/test_count_experiment.py) compare complete results with and without the former variable exactly, including exclusions, absent classes, custom index schemes, fractional/partial bins,
 and overlapping-layer fallback. Separate histogram checks cover noncontiguous inputs and bounded scratch.
 Performance acceptance is limited to the measured reference workloads; the established per-class
 reductions remain the default.

@@ -19,6 +19,9 @@ import { verifyFigureComposition } from './figure-composition.mjs';
 const { default: puppeteer } = await import(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 
 const URL = process.env.APP_URL || 'http://localhost:8765/app/index.html';
+// Elapsed time on every log line: the suite takes 80-180 s and a slow step is otherwise invisible (roadmap card H5).
+const started = Date.now(), print = console.log.bind(console);
+console.log = (...parts) => print(`[${String(Math.round((Date.now() - started) / 1000)).padStart(3)} s]`, ...parts);
 const b = await puppeteer.launch({ executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: 'new', args: ['--no-sandbox'], defaultViewport: { width: 1440, height: 900 } });
 const p = await b.newPage(), errs = [], consoleChecks = [];
 p.on('pageerror', (e) => errs.push(e.message));
@@ -30,7 +33,10 @@ p.on('console', (m) => {
 p.on('dialog', (d) => d.accept());
 const W = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (fn, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await p.evaluate(fn)) return; await W(500); } throw new Error('timeout: ' + fn); };
-const fail = (m) => { console.error('E2E FAIL:', m); process.exitCode = 1; };
+// A line starting with ::error:: becomes a GitHub annotation, readable from the workflow run without the full log. It bypasses
+// console.log on purpose: that adds a time prefix, and the runner only parses lines that start with the command.
+const annotate = (m) => process.stdout.write(`::error title=E2E smoke test::${String(m).replace(/[\r\n]+/g, ' ').slice(0, 2400)}\n`);
+const fail = (m) => { console.error('E2E FAIL:', m); annotate(m); process.exitCode = 1; };
 try {
   await verifyUnetModel(b, URL);
   await verifyFirstRun(b, URL);
@@ -255,6 +261,8 @@ try {
   const nameHandle = '#geoLabels .geo-name-handle';
   await p.evaluate(() => window.ichantool.setMode('geo'));
   await until(() => document.getElementById('busy').hidden);
+  // Measure only after the multiproxy panel has been laid out: the handle's neighbour has a width once it is.
+  await p.waitForFunction((selector) => document.querySelector(selector)?.previousElementSibling?.offsetWidth > 0, { timeout: 30000, polling: 100 }, nameHandle);
   const beforeDrag = await p.$eval(nameHandle, (handle) => {
     handle.scrollIntoView({ block: 'center', inline: 'nearest' });
     const r = handle.getBoundingClientRect();

@@ -308,8 +308,7 @@ If you use SedCoreTool, please cite the version you used; GitHub shows the citat
 GPL-3.0-or-later — see [LICENSE](LICENSE). Bundled libraries and fonts keep their own licences; see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Python developers can opt into the bounded counting experiment with
-`SEDCORETOOL_EXPERIMENTAL_COUNTS=1`; unset it to restore the default calculation.
-The multi-row experiment meets the measured performance targets on the public and synthetic reference cores
-while retaining exact scientific results. It remains opt-in pending default promotion.
+The Python package counts pixels with bounded multi-row histograms (`sedcoretool.kernels`), which met the measured
+performance targets on the public and synthetic reference cores with exact scientific results. The former opt-in
+variable `SEDCORETOOL_EXPERIMENTAL_COUNTS` is still accepted and has no effect.
 See the [measurements and limitations](docs/benchmarks/M3.1.5.md).

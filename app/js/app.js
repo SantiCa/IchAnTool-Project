@@ -2,6 +2,8 @@
 import { rleValid, baconToAgeText, BI, II, UNIT_TO_CM, idsAt, topAt, hasId, stackIndex, codeFor, withoutId, renameId, compactStacks, parseAgeModel, parseAgeModelDetailed, interpAge, toCSV, rleEncode, rleDecode } from './core.js';
 import { pxPerCm, depthAtRow, rowAtDepth } from './sectiondepth.js';
 import { effectiveClassId, effectiveClassIndex, computeSectionBins, binRowsOfSection } from './sectionanalysis.js';
+import { createEngineClient } from './engineclient.js';
+import { createEngineAnalysis } from './engineanalysis.js';
 export { pxPerCm, depthAtRow, rowAtDepth };
 import { withProvenance, ageModelText, bioturbationTable, objectsTable } from './exportio.js';
 
@@ -28,7 +30,7 @@ import { frameRatio, panelPrefs, savePanels } from './panels.js';
 import { addRecordFromTable, defaultLogView, lastLog, mode, renderLog, renderLogPanel, renderRecList, scheduleLog, sectionCanvas, navigationPreviewCanvas, clearNavigationPreviews, setMode } from './columns.js';
 import { GROUP_COLORS, addImported, addNamedIntervals, attachMapZoom, coreListUI, defaultGeo, exportMapPNG, geoComputeSamples, geoLand, geoLayer, geoMarkDirty, geoRT, geoReset, geoTrain, interpUI, loadGeoDemo, loadLand, mapBackground, mapStyleUI, mapTip, normalizeGeo, renderGeo, renderGeoMap, scheduleGeo, valueLayer, initMultiproxy } from './multiproxy.js';
 /** Delivery number (V27…): shown in the header, the start screen, the help, the window title, project files and the name of the offline file. */
-export const DELIVERY = 'V0.149';
+export const DELIVERY = 'V0.150';
 /* V0.17: input of the ichnotaxon classifier — 12 shape/colour descriptors ('shape') or the vector of a pre-trained
    vision model ('vision', DINOv2). Vectors of the two sets are never mixed. */
 const visionOn = () => (S.settings.ml?.features || 'shape') === 'vision';
@@ -1083,8 +1085,25 @@ function scheduleAnalysis() { clearTimeout(anaTimer); anaTimer = setTimeout(() =
 // The calculation lives in sectionanalysis.js (pure); these wrappers pass the project state in.
 export function effClassArray(s) { return effectiveClassIndex(s, S.classes, S.settings); }
 
+// M8.3.7: with the engine experiment on (desktop only, SEDCORETOOL_ENGINE_EXPERIMENT=1) the bins of every section come from
+// the engine; with it off only the JavaScript calculation below runs. There is no per-call choice and no fallback.
+const analysisProject = () => ({ classes: S.classes, settings: S.settings, ageModel: S.age.model, ageUnits: S.age.units });
+let engineRefresh = 0;
+const engineBridge = /** @type {any} */ (window).corantoolDesktop?.engine;
+const engineAnalysis = engineBridge?.enabled === true ? createEngineAnalysis({ client: createEngineClient(engineBridge), project: analysisProject, onChange: () => {
+  clearTimeout(engineRefresh);
+  engineRefresh = setTimeout(() => { renderResults(); requestRender(); if (mode === 'log') scheduleLog(0); else if (mode !== 'section') setMode(mode); }, 50);
+} }) : null;
+/** Brings the bins of the sections up to date. Resolves when every section has a final state (always, without the engine). */
+export function analyzeSections(sections) {
+  if (engineAnalysis) return engineAnalysis.all(sections);
+  for (const s of sections) analyze(s);
+  return Promise.resolve();
+}
+
 export function analyze(s) {
   if (!s) return;
+  if (engineAnalysis) { void engineAnalysis.request(s); return; }   // asynchronous: the table shows a pending state until the engine answers
   const { bins, rowCache } = computeSectionBins(s, { classes: S.classes, settings: S.settings, ageModel: S.age.model });
   s.bins = bins;
   if (rowCache !== s._rc) s._rc = rowCache;
@@ -2105,6 +2124,8 @@ function renderLearn() {
 
 function renderResults() {
   const s = sec(), sum = $('resSummary'), tab = $('resTable');
+  if (s?.analysis?.state === 'pending') { sum.innerHTML = `<p class="note">${t('engine.pending')}</p>`; tab.innerHTML = ''; return; }
+  if (s?.analysis?.state === 'error') { sum.innerHTML = `<p class="note" role="alert">${esc(t(`engine.error.${s.analysis.code}`) === `engine.error.${s.analysis.code}` ? t('engine.error.INTERNAL') : t(`engine.error.${s.analysis.code}`))}${s.analysis.field ? ` (${esc(s.analysis.field)})` : ''}</p>`; tab.innerHTML = ''; return; }
   if (!s || !s.bins?.length) { sum.innerHTML = `<p class="note">${t('r.empty')}</p>`; tab.innerHTML = ''; return; }
   let v = 0, b = 0; const cls = new Array(S.classes.length).fill(0);
   for (const x of s.bins) { if (!x.valid) continue; v += x.valid; b += (x.pct / 100) * x.valid; x.classPct.forEach((p, k) => (cls[k] += ((p || 0) / 100) * x.valid)); }
@@ -2524,9 +2545,9 @@ export async function saveFile(name, data, type = 'application/octet-stream') {
 }
 export const safe = (s) => String(s).replace(/[^\w.-]+/g, '_').slice(0, 80) || 'section';
 
-$('expCSV').addEventListener('click', () => {
+$('expCSV').addEventListener('click', async () => {
   const counted = S.classes.map((c, k) => [c.name, k]).filter(([, k]) => S.classes[k].counts);
-  for (const s of S.sections) analyze(s);
+  await analyzeSections(S.sections);
   const rows = bioturbationTable(S.sections, { counted, range: !!S.age.model?.min, ageUnits: S.age.model ? S.age.units : null });   // V0.44: exportio.js
   analyze(sec());
   saveFile(`${safe(S.name)}_bioturbation.csv`, withProv(toCSV(rows)), 'text/csv');
@@ -4341,4 +4362,4 @@ initializeDiagnostics({
 const startupReady = startup();
 
 // Exposed for automated tests.
-window.ichantool = { S, ready: startupReady, saveToDB, renderProjects, showHome, runDetection, analyze, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II, geoRT, geoTrain, renderGeo, loadGeoDemo };
+window.ichantool = { S, ready: startupReady, saveToDB, renderProjects, showHome, runDetection, analyze, analyzeSections, referenceBins: (s) => computeSectionBins(s, analysisProject()).bins, assignClass, learnNow, setTool, nextReview, setMode, renderLog, openTestProject, loadProject, serialize, BI, II, geoRT, geoTrain, renderGeo, loadGeoDemo };

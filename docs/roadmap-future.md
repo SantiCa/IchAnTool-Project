@@ -120,7 +120,8 @@ models), M3.3.1 and M3.3.3 (palette inputs, manifest escaping). Records:
 
 - [ ] **M3.1 - Analysis performance.** Profile Python and JavaScript before optimising shared algorithms.
       Preserve configurable interval boundaries and regression results.
-  - [ ] **M3.1.6 - Review promotion of the measured NumPy counting path.** Review M3.1.5's accepted workload
+  - [ ] **M3.1.6 - Review promotion of the measured NumPy counting path.** *(Largely overtaken: card M8.3.3 made the
+        multi-row kernel the only implementation on 13 November 2026; what remains is the wider coverage below.)* Review M3.1.5's accepted workload
         results and extend coverage to representative overlaps, class counts, strided masks and radiograph-sized
         tiles before proposing a default change. Preserve the current rollback path and scientific contract.
     - Acceptance: matched end-to-end latency/RSS measurements, exact counts/indices and documented numerical

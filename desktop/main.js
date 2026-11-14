@@ -6,6 +6,7 @@
 const { Trainer } = require('./trainer');
 const { DiagnosticsLog, diagnosticError, safeDiagnosticEvent } = require('./diagnostics');
 const { createEngineService } = require('./engine');
+const { createEngineIpc } = require('./engine-ipc');
 const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
@@ -92,6 +93,8 @@ if (process.versions.electron) {
     setupSessionPermissions(session.defaultSession);
     setupTrainer();
     ipcMain.handle('engine:status', (event) => { if (!fromApp(event)) throw new Error('forbidden'); return engine.status(); });
+    ipcMain.on('engine:enabled', (event) => { event.returnValue = fromApp(event) && engine.status().enabled === true; });
+    setupEngineBridge();
     void engine.start();
     await setupDiagnostics();
     createWindow();
@@ -168,6 +171,25 @@ if (process.versions.electron) {
     sampler.unref();
     process.on('uncaughtExceptionMonitor', (error) => {
       try { log.record({ type: 'process.error', ...diagnosticError(error) }); } catch { /* Preserve the original fatal-error behaviour. */ }
+    });
+  }
+
+  /* M8.3.6: buffers, section analysis and results for the page. Only the top frame of an app:// page may call; every
+     argument is validated and each page owns its tokens (engine-ipc.js). Buffers are released when the page navigates,
+     reloads, crashes or closes. */
+  function setupEngineBridge() {
+    const bridge = createEngineIpc({ engine });
+    for (const name of bridge.OPERATIONS) {
+      ipcMain.handle(`engine:${name}`, (event, ...args) => {
+        if (!fromApp(event) || event.senderFrame !== event.sender.mainFrame) throw new Error('forbidden');
+        return bridge.call(event.sender.id, name, ...args);
+      });
+    }
+    app.on('web-contents-created', (_event, contents) => {
+      const owner = contents.id, leave = () => bridge.releasePage(owner);
+      contents.on('did-start-navigation', (details) => { if (details.isMainFrame && !details.isSameDocument) leave(); });
+      contents.on('render-process-gone', leave);
+      contents.on('destroyed', leave);
     });
   }
 
